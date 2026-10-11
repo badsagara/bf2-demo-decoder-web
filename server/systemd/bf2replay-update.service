@@ -1,0 +1,13 @@
+[Unit]
+Description=BF2 Round Replay: update the site from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bf2replay
+Group=bf2replay
+Nice=10
+EnvironmentFile=/etc/bf2replay.conf
+ExecStart=/usr/local/lib/bf2replay/update.sh
+TimeoutStartSec=2h

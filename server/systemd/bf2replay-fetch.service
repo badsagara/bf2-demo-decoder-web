@@ -1,0 +1,13 @@
+[Unit]
+Description=BF2 Round Replay: download new demos from the game servers' demo pages (BF2R_FETCH_URLS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=bf2replay
+Group=bf2replay
+Nice=10
+EnvironmentFile=/etc/bf2replay.conf
+ExecStart=/usr/bin/flock -n /srv/bf2replay/data/.fetch.lock /usr/bin/node /srv/bf2replay/repo/server/fetch.mjs
+TimeoutStartSec=2h

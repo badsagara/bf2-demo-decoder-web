@@ -1,0 +1,9 @@
+[Unit]
+Description=BF2 Round Replay: start decoding as soon as a demo arrives
+
+[Path]
+PathChanged=/srv/bf2replay/upload/incoming
+Unit=bf2replay-ingest.service
+
+[Install]
+WantedBy=multi-user.target

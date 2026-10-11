@@ -1,0 +1,30 @@
+# BF2 Round Replay (made by server/install.sh from server/Caddyfile.in; __SITE__ = the domain, or :80 without one)
+__SITE__ {
+	encode zstd gzip
+
+	# the page and the list of rounds are checked on every visit; decoded rounds and demos never change under their name
+	header / Cache-Control "no-cache"
+	header /index.html Cache-Control "no-cache"
+	header /data/rounds.json Cache-Control "no-cache"
+	header /data/rounds/* Cache-Control "public, max-age=31536000, immutable"
+	header /data/demos/* Cache-Control "public, max-age=31536000, immutable"
+	header /assets/* Cache-Control "public, max-age=86400"
+	header X-Content-Type-Options nosniff
+	header Referrer-Policy strict-origin-when-cross-origin
+
+	# rounds.json, decoded rounds (rounds/*.bfr) and the demos themselves (demos/*.bf2demo)
+	handle_path /data/* {
+		root * /srv/bf2replay/data
+		@private path /logs/* /empty/* /bad/* /.*
+		respond @private 404
+		file_server
+	}
+	# the site (from the repository's site/ folder)
+	handle {
+		root * /srv/bf2replay/site
+		file_server
+	}
+	log {
+		output file /var/log/caddy/bf2replay.log
+	}
+}

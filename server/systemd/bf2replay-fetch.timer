@@ -1,0 +1,9 @@
+[Unit]
+Description=BF2 Round Replay: look for new demos every 10 minutes
+
+[Timer]
+OnBootSec=4min
+OnUnitInactiveSec=10min
+
+[Install]
+WantedBy=timers.target
