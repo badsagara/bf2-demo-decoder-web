@@ -21,7 +21,7 @@
 - **RAM:** розбір найбільшого демо (45 хв, 64 гравці) бере ~600 MB. Якщо в VPS менше 2 GB — додай swap (п. 3).
 - **Диск:** раунд з гравцями = демо 10–25 MB + розібраний раунд 2–4 MB. Порожні раунди (~400 KB, ніхто не грав)
   відкидаються. 4 живі раунди на день ≈ 2–3 GB на місяць. Щоб тримати менше — `BF2R_RAW_KEEP_DAYS` (п. 6).
-- **Node.js 20, Caddy, git, rsync** — `install.sh` поставить сам.
+- **Node.js 22, Caddy, git, rsync** — `install.sh` поставить сам.
 - **Порти 22, 80, 443** відкриті (і в `ufw`, і у файрволі хостера, якщо він є в панелі).
 - **Домен** для HTTPS. Безкоштовно: https://www.duckdns.org → свій піддомен `щось.duckdns.org` → вписати IP VPS.
   Без домену теж працює, але тільки `http://IP`.
@@ -64,15 +64,25 @@ sudo BF2R_REPO=git@github.com:ТВІЙ_ЛОГІН/bf2-round-replay.git \
      bash install.sh
 ```
 
-Скрипт зупиниться на кроці «Repository» і покаже **deploy key** (рядок `ssh-ed25519 AAAA… bf2replay@…`).
-Встав його в GitHub: репозиторій → Settings → Deploy keys → Add deploy key, назва `bf2replay VPS`,
-«Allow write access» **не** ставити → Add key. Потім Enter у вікні скрипта — він продовжить.
+GitHub читається від root з ключем **`/root/.ssh/GitHub_bf2_repo`** (інший шлях — `BF2R_GIT_KEY=…`). Якщо такого файла
+немає, скрипт сам створить ключ, зупиниться на кроці «Repository» і покаже публічну частину
+(`/root/.ssh/GitHub_bf2_repo.pub`, рядок `ssh-ed25519 AAAA… bf2replay@…`). Якщо ключ уже є — візьме його
+(він має бути без пароля, права 600). Встав публічний ключ у GitHub: репозиторій → Settings → Deploy keys →
+Add deploy key, назва `bf2replay VPS`, «Allow write access» **не** ставити → Add key. Потім Enter у вікні скрипта —
+він продовжить. Перевірити ключ окремо:
+
+```bash
+sudo ssh -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git@github.com   # Hi ЛОГІН/bf2-round-replay! ...
+```
+
+Сам `git pull` (кожні 5 хв) теж іде від root з цим ключем (він записаний у `/srv/bf2replay/repo/.git/config`,
+`core.sshCommand`); розбір демо й завантаження — від користувача `bf2replay`.
 
 Наприкінці він напише адресу сайту. Перший раунд з'явиться, щойно `fetch.mjs` скачає перше демо
 (старт одразу після встановлення, далі кожні 10 хв).
 
-`install.sh` можна запускати повторно: дані й ключі лишаються; `BF2R_FETCH_URLS` / `BF2R_FETCH_SINCE`, якщо їх задати
-знову, замінять старі в `/etc/bf2replay.conf`.
+`install.sh` можна запускати повторно: дані й ключі лишаються. Змінні тоді можна не задавати — вони беруться з
+`/etc/bf2replay.conf`; ті, що задані, замінюють старі (напр. `sudo BF2R_DOMAIN=новий.домен bash install.sh`).
 
 ## 5. Звідки брати демо (BF2R_FETCH_URLS)
 
@@ -134,7 +144,23 @@ echo 'ssh-ed25519 AAAA… bf2-server-1' | sudo tee -a /etc/ssh/bf2replay_keys/bf
 Користувач `bf2upload` може тільки класти файли в `incoming/` по SFTP: без shell, без доступу до решти диска,
 без тунелів.
 
-## 9. Якщо на VPS уже є nginx (або інший веб-сервер на 80/443)
+## 9. apt-get update падає (на VPS уже є чужі джерела пакетів)
+
+`install.sh` зупиняється, якщо `apt-get update` пише `E: …`. Найчастіше це старе джерело Webmin
+(`download.webmin.com/download/repository sarge`, ключ DSA-1024, який Ubuntu 24.04 більше не приймає):
+
+```bash
+grep -rn webmin /etc/apt/sources.list /etc/apt/sources.list.d/        # де записане старе джерело
+sudo sed -i 's|^deb .*download.webmin.com/download/repository.*|# &|' /etc/apt/sources.list /etc/apt/sources.list.d/*.list
+curl -o /tmp/webmin-setup-repo.sh https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh
+sudo sh /tmp/webmin-setup-repo.sh                                    # нове джерело Webmin з новим ключем
+sudo apt-get update                                                   # має пройти без E:
+```
+
+Webmin слухає порт 10000; якщо ним користуєшся, після `ufw enable` відкрий його лише для своєї IP:
+`sudo ufw allow from ТВОЯ_IP to any port 10000 proto tcp`.
+
+## 10. Якщо на VPS уже є nginx (або інший веб-сервер на 80/443)
 
 `install.sh` це помітить і зупиниться. Тоді запусти його з `BF2R_WEB=none` (Caddy не ставиться) і підключи сайт
 до nginx за прикладом `nginx-example.conf` (там же команда для HTTPS через certbot).

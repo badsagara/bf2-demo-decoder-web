@@ -47,8 +47,9 @@ VPS сам кожні 5 хвилин дивиться в GitHub. Коли там
 
    (Якщо `git push` просить пароль або пише «Permission denied (publickey)» — додай свій SSH-ключ у GitHub:
    Settings → SSH and GPG keys, або використай GitHub Desktop: File → Add local repository → Publish.)
-3. VPS читає репозиторій через **deploy key** лише на читання — `install.sh` сам його створить і покаже,
-   що вставити в репозиторії: Settings → Deploy keys → Add deploy key (галочку «Allow write access» не ставити).
+3. VPS читає репозиторій через **deploy key** лише на читання (`/root/.ssh/GitHub_bf2_repo` на VPS) — `install.sh`
+   сам його створить (або візьме вже наявний) і покаже, що вставити в репозиторії: Settings → Deploy keys →
+   Add deploy key (галочку «Allow write access» не ставити).
 
 ### Кожна нова версія
 

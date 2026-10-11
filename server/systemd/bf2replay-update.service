@@ -5,8 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=bf2replay
-Group=bf2replay
+# (as root: GitHub is read with root's deploy key; update.sh runs the decoding as bf2replay)
 Nice=10
 EnvironmentFile=/etc/bf2replay.conf
 ExecStart=/usr/local/lib/bf2replay/update.sh

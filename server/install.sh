@@ -6,6 +6,7 @@
 #
 # BF2R_REPO    the GitHub repository with site/ and server/ (git@... for a private one: a read-only deploy key is made
 #              and shown; https://... for a public one)
+# BF2R_GIT_KEY the deploy key's file (default /root/.ssh/GitHub_bf2_repo; made if missing, an existing one is used)
 # BF2R_DOMAIN  the site's name (HTTPS certificate from Let's Encrypt, automatic); empty = plain http on the IP
 # BF2R_BRANCH  default main
 # BF2R_FETCH_URLS   pages that list a game server's demos (space separated): new demos are downloaded every 10 minutes
@@ -13,17 +14,21 @@
 # BF2R_WEB     caddy (default: installs Caddy, automatic HTTPS) or none (another web server already runs here: set it up
 #              yourself from nginx-example.conf)
 #
-# It installs Node.js 20 (if needed), Caddy, git and rsync; makes the users bf2replay (runs everything) and bf2upload
+# It installs Node.js 22 (if needed), Caddy, git and rsync; makes the users bf2replay (runs everything) and bf2upload
 # (SFTP only, into /srv/bf2replay/upload/incoming, for game servers that send their demos themselves); clones the repository; sets up Caddy and
 # the systemd timers that download and decode new demos and pull site updates. Running it again is safe (it keeps data
-# and keys; BF2R_FETCH_URLS / BF2R_FETCH_SINCE given again replace the ones in /etc/bf2replay.conf).
+# and keys; on a second run, values not given are taken from /etc/bf2replay.conf, and the ones given replace them).
 set -euo pipefail
-REPO=${BF2R_REPO:?set BF2R_REPO to the git URL of the repository}
-DOMAIN=${BF2R_DOMAIN:-}
-BRANCH=${BF2R_BRANCH:-main}
+# a second run: what isn't given comes from the first run's settings
+confval() { [ -f /etc/bf2replay.conf ] && sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}\$/\1/p" /etc/bf2replay.conf | tail -1; true; }
+REPO=${BF2R_REPO:-$(confval BF2R_REPO)}
+[ -n "$REPO" ] || { echo "Set BF2R_REPO to the git URL of the repository (see INSTALL.md)."; exit 1; }
+DOMAIN=${BF2R_DOMAIN-$(confval BF2R_DOMAIN)}
+BRANCH=${BF2R_BRANCH:-$(confval BF2R_BRANCH)}; BRANCH=${BRANCH:-main}
 FETCH_URLS=${BF2R_FETCH_URLS:-}
 FETCH_SINCE=${BF2R_FETCH_SINCE:-}
 WEB=${BF2R_WEB:-caddy}
+GIT_KEY=${BF2R_GIT_KEY:-$(confval BF2R_GIT_KEY)}; GIT_KEY=${GIT_KEY:-/root/.ssh/GitHub_bf2_repo}
 ROOT=/srv/bf2replay
 HOMEDIR=/var/lib/bf2replay
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -39,10 +44,15 @@ if [ "$WEB" = caddy ] && ss -ltnp 2>/dev/null | grep -E ':(80|443)\s' | grep -vq
 fi
 
 say "Packages"
-apt-get update -q
+if ! apt-get update -q; then
+  echo
+  echo "apt-get update failed: one of the package sources above is broken (see the E: lines). Fix it or switch it off"
+  echo "(INSTALL.md, 'apt-get update fails'), then run this again."
+  exit 1
+fi
 apt-get install -y -q git rsync curl ca-certificates gnupg debian-keyring debian-archive-keyring apt-transport-https
-if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 18 ]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash -   # Node.js 20 from NodeSource (Ubuntu 22.04 ships 12)
+if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
+  curl -fsSL https://deb.nodesource.com/setup_22.x | bash -   # Node.js 22 LTS from NodeSource (Ubuntu ships 12 / 18)
   apt-get install -y -q nodejs
 fi
 if [ "$WEB" = caddy ] && ! command -v caddy >/dev/null; then
@@ -61,8 +71,9 @@ usermod -p '*' bf2upload   # (no password, but not "locked": sshd refuses even k
 # the upload chroot and the folders above it must belong to root and not be writable by others (sshd checks)
 install -d -o root -g root -m 755 "$ROOT" "$ROOT/upload"
 install -d -o bf2upload -g bf2replay -m 2775 "$ROOT/upload/incoming"
-install -d -o bf2replay -g bf2replay -m 755 "$ROOT/repo" "$ROOT/site" "$ROOT/data"
-install -d -o bf2replay -g bf2replay -m 700 "$HOMEDIR/.ssh"
+# repo/ and site/ are root's (git runs as root with root's deploy key); data/ is bf2replay's (it decodes the demos)
+install -d -o root -g root -m 755 "$ROOT/repo" "$ROOT/site"
+install -d -o bf2replay -g bf2replay -m 755 "$ROOT/data"
 
 say "Settings: /etc/bf2replay.conf"
 if [ ! -f /etc/bf2replay.conf ]; then
@@ -72,6 +83,8 @@ BF2R_ROOT=$ROOT
 BF2R_REPO=$REPO
 BF2R_BRANCH=$BRANCH
 BF2R_DOMAIN=$DOMAIN
+# the deploy key install.sh / update.sh read GitHub with (as root)
+BF2R_GIT_KEY=$GIT_KEY
 # keep demos of rounds nobody played (in data/empty): 0 / 1
 BF2R_KEEP_EMPTY=0
 # delete a demo itself after so many days, keeping its decoded round (0 = keep all)
@@ -86,29 +99,43 @@ BF2R_FETCH_MIN_BYTES=0
 EOF
 else
   setconf() { { grep -v "^$1=" /etc/bf2replay.conf; echo "$1=$2"; } > /etc/bf2replay.conf.new && mv /etc/bf2replay.conf.new /etc/bf2replay.conf; }
+  setconf BF2R_REPO "$REPO"; setconf BF2R_BRANCH "$BRANCH"; setconf BF2R_DOMAIN "$DOMAIN"; setconf BF2R_GIT_KEY "$GIT_KEY"
   if [ -n "$FETCH_URLS" ]; then setconf BF2R_FETCH_URLS "\"$FETCH_URLS\""; fi
   if [ -n "$FETCH_SINCE" ]; then setconf BF2R_FETCH_SINCE "$FETCH_SINCE"; fi
 fi
 chmod 644 /etc/bf2replay.conf
 
 say "Repository"
+# GitHub is read as root with the deploy key $GIT_KEY (made here if missing; an existing key is used as it is, and must
+# have no passphrase); the repository remembers the key (core.sshCommand), so update.sh needs nothing else
+SSHCMD="ssh -i $GIT_KEY -o IdentitiesOnly=yes -o BatchMode=yes"
 if [[ $REPO == git@* || $REPO == ssh://* ]]; then
-  [ -f "$HOMEDIR/.ssh/id_ed25519" ] || sudo -u bf2replay ssh-keygen -q -t ed25519 -N '' -C "bf2replay@$(hostname)" -f "$HOMEDIR/.ssh/id_ed25519"
-  sudo -u bf2replay sh -c "ssh-keyscan -t ed25519 github.com >> '$HOMEDIR/.ssh/known_hosts' 2>/dev/null; sort -u -o '$HOMEDIR/.ssh/known_hosts' '$HOMEDIR/.ssh/known_hosts'"
+  install -d -o root -g root -m 700 /root/.ssh
+  [ -f "$GIT_KEY" ] || ssh-keygen -q -t ed25519 -N '' -C "bf2replay@$(hostname)" -f "$GIT_KEY"
+  chown root:root "$GIT_KEY" "$GIT_KEY.pub" 2>/dev/null || true
+  chmod 600 "$GIT_KEY"; chmod 644 "$GIT_KEY.pub" 2>/dev/null || true
+  touch /root/.ssh/known_hosts && chmod 644 /root/.ssh/known_hosts
+  if ! ssh-keygen -F github.com -f /root/.ssh/known_hosts >/dev/null; then
+    ssh-keyscan -t ed25519 github.com >> /root/.ssh/known_hosts 2>/dev/null || echo "(could not reach github.com on port 22 to read its host key)"
+  fi
 fi
+chown -R root:root "$ROOT/repo" "$ROOT/site"   # (from an older install, when bf2replay read GitHub)
 if [ ! -d "$ROOT/repo/.git" ]; then
-  until sudo -u bf2replay git clone --quiet --branch "$BRANCH" "$REPO" "$ROOT/repo"; do
+  until git -c core.sshCommand="$SSHCMD" clone --quiet --branch "$BRANCH" "$REPO" "$ROOT/repo"; do
     echo
     echo "Could not read the repository. For a private one add this key in GitHub: the repository -> Settings ->"
-    echo "Deploy keys -> Add deploy key (title: bf2replay VPS, leave 'Allow write access' off):"
+    echo "Deploy keys -> Add deploy key (title: bf2replay VPS, leave 'Allow write access' off). The key ($GIT_KEY.pub):"
     echo
-    cat "$HOMEDIR/.ssh/id_ed25519.pub" 2>/dev/null || true
+    cat "$GIT_KEY.pub" 2>/dev/null || echo "($GIT_KEY.pub is missing)"
     echo
+    echo "Check: ssh -i $GIT_KEY -o IdentitiesOnly=yes -T git@github.com   (should say: Hi <you>/<repository>!)"
     read -r -p "Press Enter to try again (Ctrl+C to stop) " _
     rm -rf "${ROOT:?}/repo/"* "$ROOT/repo/".[!.]* 2>/dev/null || true
   done
 fi
-sudo -u bf2replay rsync -a --delete --delay-updates "$ROOT/repo/site/" "$ROOT/site/"
+git -C "$ROOT/repo" remote set-url origin "$REPO"
+if [[ $REPO == git@* || $REPO == ssh://* ]]; then git -C "$ROOT/repo" config core.sshCommand "$SSHCMD"; else git -C "$ROOT/repo" config --unset core.sshCommand || true; fi
+rsync -a --delete --delay-updates "$ROOT/repo/site/" "$ROOT/site/"
 
 say "Game servers' upload (SFTP only)"
 install -d -o root -g root -m 755 /etc/ssh/bf2replay_keys
