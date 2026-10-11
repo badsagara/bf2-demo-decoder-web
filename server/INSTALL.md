@@ -67,12 +67,13 @@ sudo BF2R_REPO=git@github.com:ТВІЙ_ЛОГІН/bf2-round-replay.git \
 GitHub читається від root з ключем **`/root/.ssh/GitHub_bf2_repo`** (інший шлях — `BF2R_GIT_KEY=…`). Якщо такого файла
 немає, скрипт сам створить ключ, зупиниться на кроці «Repository» і покаже публічну частину
 (`/root/.ssh/GitHub_bf2_repo.pub`, рядок `ssh-ed25519 AAAA… bf2replay@…`). Якщо ключ уже є — візьме його
-(він має бути без пароля, права 600). Встав публічний ключ у GitHub: репозиторій → Settings → Deploy keys →
+(він має бути без пароля; права 600 скрипт поставить сам, а якщо нема `.pub` — зробить його з ключа).
+Свій `/root/.ssh/config` скрипт для GitHub не читає (там можуть бути опції з Mac, як-от `UseKeychain`). Встав публічний ключ у GitHub: репозиторій → Settings → Deploy keys →
 Add deploy key, назва `bf2replay VPS`, «Allow write access» **не** ставити → Add key. Потім Enter у вікні скрипта —
 він продовжить. Перевірити ключ окремо:
 
 ```bash
-sudo ssh -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git@github.com   # Hi ЛОГІН/bf2-round-replay! ...
+sudo ssh -F /dev/null -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git@github.com   # Hi ЛОГІН/bf2-round-replay! ...
 ```
 
 Сам `git pull` (кожні 5 хв) теж іде від root з цим ключем (він записаний у `/srv/bf2replay/repo/.git/config`,

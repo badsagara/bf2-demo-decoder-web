@@ -108,12 +108,21 @@ chmod 644 /etc/bf2replay.conf
 say "Repository"
 # GitHub is read as root with the deploy key $GIT_KEY (made here if missing; an existing key is used as it is, and must
 # have no passphrase); the repository remembers the key (core.sshCommand), so update.sh needs nothing else
-SSHCMD="ssh -i $GIT_KEY -o IdentitiesOnly=yes -o BatchMode=yes"
+# (-F /dev/null: root's own ~/.ssh/config is not read - e.g. a config copied from a Mac with UseKeychain stops ssh)
+SSHCMD="ssh -F /dev/null -i $GIT_KEY -o IdentitiesOnly=yes -o BatchMode=yes"
 if [[ $REPO == git@* || $REPO == ssh://* ]]; then
   install -d -o root -g root -m 700 /root/.ssh
   [ -f "$GIT_KEY" ] || ssh-keygen -q -t ed25519 -N '' -C "bf2replay@$(hostname)" -f "$GIT_KEY"
-  chown root:root "$GIT_KEY" "$GIT_KEY.pub" 2>/dev/null || true
-  chmod 600 "$GIT_KEY"; chmod 644 "$GIT_KEY.pub" 2>/dev/null || true
+  chmod 600 "$GIT_KEY"   # (an existing key keeps its owner: root can read a key in another user's ~/.ssh too)
+  # the automatic pull can't type a passphrase; the public half (for GitHub) is made from the key if it's missing
+  if ! ssh-keygen -y -P '' -f "$GIT_KEY" > "$GIT_KEY.pub.new" 2>/dev/null; then
+    rm -f "$GIT_KEY.pub.new"
+    echo "$GIT_KEY has a passphrase (or is not a private key). The git pull every 5 minutes can't type it."
+    echo "Remove the passphrase (old one, then Enter twice):  ssh-keygen -p -f $GIT_KEY   - then run this again."
+    exit 1
+  fi
+  if [ -s "$GIT_KEY.pub" ]; then rm -f "$GIT_KEY.pub.new"; else mv "$GIT_KEY.pub.new" "$GIT_KEY.pub"; fi
+  chown --reference="$GIT_KEY" "$GIT_KEY.pub"; chmod 644 "$GIT_KEY.pub"
   touch /root/.ssh/known_hosts && chmod 644 /root/.ssh/known_hosts
   if ! ssh-keygen -F github.com -f /root/.ssh/known_hosts >/dev/null; then
     ssh-keyscan -t ed25519 github.com >> /root/.ssh/known_hosts 2>/dev/null || echo "(could not reach github.com on port 22 to read its host key)"
@@ -128,7 +137,7 @@ if [ ! -d "$ROOT/repo/.git" ]; then
     echo
     cat "$GIT_KEY.pub" 2>/dev/null || echo "($GIT_KEY.pub is missing)"
     echo
-    echo "Check: ssh -i $GIT_KEY -o IdentitiesOnly=yes -T git@github.com   (should say: Hi <you>/<repository>!)"
+    echo "Check: ssh -F /dev/null -i $GIT_KEY -o IdentitiesOnly=yes -T git@github.com   (should say: Hi <you>/<repository>!)"
     read -r -p "Press Enter to try again (Ctrl+C to stop) " _
     rm -rf "${ROOT:?}/repo/"* "$ROOT/repo/".[!.]* 2>/dev/null || true
   done
@@ -155,9 +164,13 @@ else
   echo 'import bf2replay.caddy' > /etc/caddy/Caddyfile     # (the package's placeholder page goes)
 fi
 install -d -o caddy -g caddy -m 755 /var/log/caddy
+# (the log file must be Caddy's: one left owned by root, e.g. by caddy run as root, stops Caddy from loading the site)
+[ -f /var/log/caddy/bf2replay.log ] || install -o caddy -g caddy -m 644 /dev/null /var/log/caddy/bf2replay.log
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
-systemctl enable --now caddy >/dev/null 2>&1 || true
-systemctl reload caddy
+chown -R caddy:caddy /var/log/caddy
+systemctl enable caddy >/dev/null 2>&1 || true
+if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi || {
+  echo; echo "Caddy did not start. Its log:"; journalctl -u caddy -n 40 --no-pager -o cat; exit 1; }
 else
   say "Web server: not touched (BF2R_WEB=$WEB); serve $ROOT/site and $ROOT/data as in nginx-example.conf"
 fi

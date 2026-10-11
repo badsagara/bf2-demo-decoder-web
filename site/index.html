@@ -105,12 +105,12 @@ input[type=file] { display: none; }
 .mapplay .spd b { font: 600 18px var(--font-data); min-width: 3.2ch; text-align: right; font-variant-numeric: tabular-nums; }
 .mapplay #seek { flex: 1; min-width: 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
 /* sliders 1.5x the browser's: 8 px track filled up to the knob (--p), 22 px knob */
-.mapplay input[type=range] { -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; background-color: transparent; --p: 0%; }
-.mapplay input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--fg) 26%, transparent) var(--p)); }
-.mapplay input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
-.mapplay input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--fg) 26%, transparent); }
-.mapplay input[type=range]::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--accent); }
-.mapplay input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.mapplay input[type=range], .mbar input[type=range] { -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; background-color: transparent; --p: 0%; }
+.mapplay input[type=range]::-webkit-slider-runnable-track, .mbar input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--fg) 26%, transparent) var(--p)); }
+.mapplay input[type=range]::-webkit-slider-thumb, .mbar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.mapplay input[type=range]::-moz-range-track, .mbar input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--fg) 26%, transparent); }
+.mapplay input[type=range]::-moz-range-progress, .mbar input[type=range]::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--accent); }
+.mapplay input[type=range]::-moz-range-thumb, .mbar input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 /* full screen: the map fills the screen (also without the Fullscreen API, e.g. inside a frame), with a small feed */
 .mapbox.fs { position: fixed; inset: 0; width: auto; max-width: none; border: 0; border-radius: 0; z-index: 50; }
 .mapbox.fs canvas { width: 100%; height: 100%; aspect-ratio: auto; }
@@ -364,6 +364,126 @@ details.schema p { max-width: 70ch; }
   .mapbox:not(.fs) .mapplay { position: static; padding: 8px 10px 10px; }
   .mapbox:not(.fs) .mapctl { bottom: 168px; }   /* (above the bar's three rows: play and speed, zoom, round time) */
 }
+/* views under the map: one at a time */
+.ptabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; margin-bottom: -4px; }
+.ptabs::-webkit-scrollbar { display: none; }
+.ptab { font: 700 14px/1 var(--font-display); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 11px 14px 9px; cursor: pointer; white-space: nowrap; }
+.ptab:hover { color: var(--fg); }
+.ptab.on { color: var(--accent); border-bottom-color: var(--accent); }
+.ptab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ptab[hidden], .pane[hidden] { display: none; }
+.pane { display: grid; gap: 12px; min-width: 0; }
+/* the site (the page on a server with its rounds): the visitor's view; Tools shows the rest */
+body.site:not(.devshow) .actions > label, body.site:not(.devshow) #notice:not(.err), body.site:not(.devshow) #demoCard,
+body.site:not(.devshow) .mapsizel, body.site:not(.devshow) details.schema, body.site:not(.devshow) #mapHint, body.site #srcLabel { display: none; }
+#notice:empty { display: none; }
+/* the site's round bar: the round on the map in one line, the server's rounds by day under it */
+.session.roundbar { position: relative; padding: 6px 8px; }
+.rbar { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; }
+.rcur { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; flex: 1 1 320px; min-width: 0; padding: 6px 8px; border-radius: 4px; }
+.rcur:hover { background: var(--panel-2); }
+.rcur:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.rcur b { font: 700 19px/1.1 var(--font-display); letter-spacing: .05em; text-transform: uppercase; }
+.rcur > span { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.rcur .caret { color: var(--accent); font-size: 12px; }
+.rnav { display: flex; gap: 4px; align-items: center; }
+.rnav .w { font: 400 12px var(--font-data); color: var(--muted); margin-right: 4px; white-space: nowrap; }
+.rlist { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px 12px; max-height: min(72vh, 680px); overflow: auto; box-shadow: 0 14px 36px rgba(0, 0, 0, .45); }
+.rlist[hidden] { display: none; }
+.rlhead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
+.rlhead label { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
+.rlhead select { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 6px; }
+.sttab.sess tr.day th { padding: 14px 6px 4px; color: var(--fg); font: 700 13px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.sttab.sess tr.day:first-child th { padding-top: 6px; }
+.rmore { margin-top: 8px; }
+@media (max-width: 600px) { .rcur b { font-size: 17px; } .rcur { flex-basis: 100%; } .rnav { margin-left: auto; } }
+/* Round stats: the round in a few numbers */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.kpi { display: block; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-width: 0; text-align: left; font: inherit; color: inherit; }
+button.kpi { cursor: pointer; }
+button.kpi:hover { border-color: var(--accent); }
+button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kpi .kl { display: block; font: 500 11px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.kpi .kv { display: block; font: 700 25px/1.15 var(--font-display); letter-spacing: .02em; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi .ks { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card h2 .w { font: 400 11px var(--font-data); letter-spacing: .06em; text-transform: none; margin-left: 6px; }
+/* one table of the soldiers: Main columns always, the other groups when picked */
+.pgroups { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pgroups > .w { font: 500 11px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.plbhead { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.plbhead h3 { margin: 0; }
+.sttab.plb td, .sttab.plb th { white-space: nowrap; }
+.sttab.plb tbody tr[data-i] { cursor: pointer; }
+.sttab.plb tbody tr[data-i]:hover td { background: var(--panel-2); }
+.sttab.plb tbody tr.sel td { box-shadow: inset 0 -1px 0 var(--accent); }
+.sttab.plb tr.tot td { font-weight: 700; border-top: 1px solid var(--line); }
+/* the selected soldier over the whole round */
+.pcard h2 .nm { font: inherit; letter-spacing: .06em; }
+.pkpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+.pkpi { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; min-width: 0; }
+.pkpi > span { display: block; font: 500 10px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pkpi b { display: block; font: 700 18px/1.25 var(--font-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pkpi b .w { font: 400 12px var(--font-body); color: var(--muted); }
+.pcard h3 { font: 700 12px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px; }
+.plife { position: relative; height: 24px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; cursor: pointer; overflow: hidden; }
+.plife .seg { position: absolute; top: 8px; height: 8px; opacity: .55; border-radius: 1px; pointer-events: none; }
+.plife .pk, .plife .pd { position: absolute; top: 50%; transform: translate(-50%, -50%); }
+.plife .pk { width: 7px; height: 7px; border-radius: 50%; background: var(--fg); border: 1px solid var(--panel-2); }
+.plife .pd { font: 700 11px/1 var(--font-data); color: var(--fg); }
+.plife .pd.rv { opacity: .4; }
+.plife .cur { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.plifeax { display: flex; justify-content: space-between; gap: 8px; font: 400 10px var(--font-data); color: var(--muted); margin-top: 3px; }
+.pcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
+@media (max-width: 1100px) { .pcols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .pcols { grid-template-columns: minmax(0, 1fr); } }
+.plist { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.plist li { display: flex; gap: 6px; align-items: center; padding: 3px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.plist .nmc { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plist .wi { flex: none; width: 46px; display: inline-flex; justify-content: center; }
+.plist .n { font: 500 12px var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.plist .wi svg, .plist .wi img { vertical-align: middle; }
+.pkdline { font-size: 13px; color: var(--muted); margin-top: 10px; }
+.pkdline b { color: var(--fg); font-weight: 600; }
+.pcard .chips { margin-top: 10px; }
+/* map layers in one menu; keys under "?" */
+.lwrap { position: relative; display: inline-flex; }
+#layBtn b { font: 600 12px var(--font-data); color: var(--accent); }
+.lmenu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: grid; gap: 2px; min-width: 220px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }
+.lmenu[hidden] { display: none; }
+.lmenu .btn, .lmenu .btn.on { justify-content: flex-start; width: 100%; border-color: transparent; background: none; color: var(--fg); font-weight: 500; padding: 8px 10px; }
+.lmenu .btn::before { content: ''; flex: none; width: 14px; height: 14px; margin-right: 9px; border: 1.5px solid var(--muted); border-radius: 3px; box-sizing: border-box; }
+.lmenu .btn.on::before { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--panel); }
+.lmenu .btn:hover { background: var(--panel-2); }
+#kbBtn { min-width: 36px; justify-content: center; font-weight: 700; }
+.kbhelp { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); padding: 8px 2px 2px; }
+.kbhelp[hidden] { display: none; }
+.kbhelp kbd { font: 600 11px var(--font-data); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 1px 5px; }
+/* the moment on the map, in the charts */
+.stplot .nowl { stroke: var(--accent); stroke-width: 1.5; }
+.stplot .hit { cursor: pointer; }
+/* phone: a play bar at the bottom of the screen while the map's own is out of sight */
+.mbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; align-items: center; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)); background: color-mix(in srgb, var(--panel) 94%, transparent); border-top: 1px solid var(--line); box-shadow: 0 -6px 20px rgba(0, 0, 0, .35); }
+.mbar[hidden] { display: none; }
+.mbar .btn { height: 38px; padding: 0 10px; }
+.mbar #play3 span { display: none; }
+.mbar #play3 svg { width: 14px; height: 14px; }
+.mbar .mclock { font: 600 14px var(--font-data); font-variant-numeric: tabular-nums; min-width: 5ch; }
+.mbar input[type=range] { flex: 1; min-width: 0; height: 30px; }
+body.mbar-on { padding-bottom: 72px; }
+/* phone: the soldiers tables as cards (name, then the numbers with their labels); the column names sort */
+@media (max-width: 560px) {
+  .sttab.plb, .sttab.sessp, .sttab.plb thead, .sttab.sessp thead, .sttab.plb tbody, .sttab.sessp tbody { display: block; }
+  .sttab.plb thead tr, .sttab.sessp thead tr { display: flex; flex-wrap: wrap; gap: 4px; padding-bottom: 8px; }
+  .sttab.plb thead th, .sttab.sessp thead th { border: 0; padding: 4px 8px; background: var(--panel-2); border-radius: 3px; }
+  .sttab.plb tbody tr, .sttab.sessp tbody tr { display: flex; flex-wrap: wrap; gap: 3px 14px; padding: 8px 2px; border-bottom: 1px solid var(--line); }
+  .sttab.plb td, .sttab.sessp td { border: 0; padding: 0; white-space: nowrap; }
+  .sttab.plb td:first-child, .sttab.sessp td:first-child { flex: 1 1 100%; font-weight: 600; }
+  .sttab.plb td[data-l]::before, .sttab.sessp td[data-l]::before { content: attr(data-l) ' '; font: 500 10px var(--font-data); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .sttab.plb td:empty, .sttab.sessp td:empty { display: none; }
+  .sttab.plb tbody tr.sel { box-shadow: inset 0 -2px 0 var(--accent); }
+  .sttab.plb tr.tot td { border-top: 0; }
+  .sttab.plb tbody tr.sel td { box-shadow: none; }
+}
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -382,6 +502,7 @@ details.schema p { max-width: 70ch; }
       <input type="file" id="fJson" accept=".json,application/json">
       <label class="btn" for="fImg" title="PNG or JPG, the game's ingameMap.dds, or the level's client.zip">Map picture</label>
       <input type="file" id="fImg" accept="image/*,.dds,.zip">
+      <button class="btn" id="moreBtn" aria-expanded="false" hidden title="Open your own demo, what the decoder reads, the demo file's details">Tools ▾</button>
     </div>
   </header>
 
@@ -407,6 +528,8 @@ details.schema p { max-width: 70ch; }
         <div class="tlctl">
           <button class="btn primary" id="play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
           <button class="btn" id="tClip" aria-pressed="false" title="Make a video of part of the round to share (I / O: clip starts / ends at the playhead)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg><span>Clip</span></button>
+          <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Layers <b id="layN"></b> ▾</button>
+          <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
           <button class="btn on" id="tNames">Names</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
           <button class="btn on" id="tSpots">Spots</button>
@@ -415,10 +538,17 @@ details.schema p { max-width: 70ch; }
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn" id="tHeat" title="Where soldiers died or the killers stood, as a heatmap: by side, weapon, soldier, this round or all rounds on the map">Heatmap</button>
+          </span></span>
           <span class="spacer"></span>
-          <label>Map size (m)
+          <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
+          <label class="mapsizel">Map size (m)
             <input type="number" id="mapSize" min="256" max="8192" step="256" value="2048">
           </label>
+        </div>
+        <div class="kbhelp" id="kbHelp" hidden>
+          <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
+          <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
+          <span><kbd>F</kbd> full screen</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -472,9 +602,17 @@ details.schema p { max-width: 70ch; }
           <span><i style="background:var(--team1)"></i><b id="lg1" style="font-weight:inherit">Kill by team 2</b></span>
           <span>▼ flag captured (team colour) · ▽ neutralised</span>
           <span>Rows: each soldier's lives · ● kill · ✕ death</span>
-      <span>Space play/pause · + / − speed · ← → seek 10 s · I / O clip start / end · N / P next / previous moment of the soldier you follow (or highlight) · F full screen · click a row or a soldier to follow · scroll to zoom, drag to pan</span>
         </div>
       </section>
+  </div>
+
+  <div class="ptabs" id="ptabs" role="tablist" aria-label="What to show under the map">
+    <button class="ptab on" role="tab" id="ptBattle" data-pane="battle" aria-selected="true" aria-controls="pnBattle">Battle</button>
+    <button class="ptab" role="tab" id="ptStats" data-pane="stats" aria-selected="false" aria-controls="pnStats" tabindex="-1">Round stats</button>
+    <button class="ptab" role="tab" id="ptWeapons" data-pane="weapons" aria-selected="false" aria-controls="pnWeapons" tabindex="-1">Weapons</button>
+    <button class="ptab" role="tab" id="ptPlayers" data-pane="players" aria-selected="false" aria-controls="pnPlayers" tabindex="-1" hidden>Players · all rounds</button>
+  </div>
+  <div class="pane" id="pnBattle" data-pane="battle" role="tabpanel" aria-labelledby="ptBattle">
     <div class="panels">
       <section class="card">
         <h2>Tickets &amp; flags</h2>
@@ -494,20 +632,37 @@ details.schema p { max-width: 70ch; }
         <div class="lbwrap"><table class="lb" id="lb"></table></div>
       </section>
     </div>
-  </div>
 
   <div class="main">
-    <section class="card">
+    <section class="card selcard" id="selCard">
+      <h2>Selected soldier <span class="w">now</span></h2>
+      <div id="selInfo" class="empty">Click a soldier on the map or in the scoreboard.</div>
+    </section>
+    <section class="card pcard" id="pCard" aria-label="The selected soldier over the whole round" hidden></section>
+    <section class="card" id="demoCard">
       <h2>Demo file</h2>
       <div id="demoInfo" class="empty">No demo opened. Open a .bf2demo to read its header and scan the recorded stream.</div>
     </section>
-    <section class="card selcard" id="selCard">
-      <h2>Selected soldier</h2>
-      <div id="selInfo" class="empty">Click a soldier on the map or in the scoreboard.</div>
-    </section>
+  </div>
   </div>
 
-  <section class="card statscard" id="stats" aria-label="Round statistics"></section>
+  <div class="pane" id="pnStats" data-pane="stats" role="tabpanel" aria-labelledby="ptStats" hidden>
+    <section class="card statscard" id="stats" aria-label="Round statistics"></section>
+  </div>
+  <div class="pane" id="pnWeapons" data-pane="weapons" role="tabpanel" aria-labelledby="ptWeapons" hidden>
+    <section class="card statscard" id="statsW" aria-label="Kills by weapon"></section>
+  </div>
+  <div class="pane" id="pnPlayers" data-pane="players" role="tabpanel" aria-labelledby="ptPlayers" hidden>
+    <section class="card session" id="sessPlayers" aria-label="Players over all the rounds"></section>
+  </div>
+
+  <div class="mbar" id="mbar" aria-label="Replay" hidden>
+    <button class="btn" id="play3" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
+    <button class="btn" id="mBack" aria-label="10 seconds back">−10 s</button>
+    <b class="mclock" id="mclock">00:00</b>
+    <input type="range" id="mseek" min="0" max="100" step="0.1" value="0" aria-label="Round time">
+    <button class="btn" id="mMap" aria-label="Back to the map" title="Back to the map">Map ↑</button>
+  </div>
 
   <details class="schema card">
     <summary>Timeline JSON format</summary>
@@ -1844,6 +1999,7 @@ ${hitRows(p)}${sightRows(p)}
       <div class="chips"><button class="btn" id="clearSel">Stop following</button></div>`;
     $('#clearSel').onclick = () => { sel = null; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
   }
+  pcardSync(); statsCursor();
 }
 $('#lb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; sel = +tr.dataset.i; refresh(true); });
 [$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.svb'); if (b && round) openSide(round.events[+b.dataset.k]); }));
@@ -1910,6 +2066,7 @@ async function setFull(on) {
     else if (document.fullscreenElement || document.webkitFullscreenElement) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
   } catch (e) { /* not allowed here (e.g. inside a frame): the map still covers the page */ }
   $('#vFull').textContent = on ? 'Exit full screen' : 'Full screen'; $('#vFull').setAttribute('aria-pressed', String(on));
+  mbarSync();
   resize(); refresh(true);
 }
 $('#vFull').onclick = () => setFull(!mapbox.classList.contains('fs'));
@@ -2029,9 +2186,10 @@ function roundStats() {
   return (R._stats = { ts, alive: alive60, flags, nCapt: capt.length, lost, hasTk, byWeapon: [...byWeapon.values()].sort((a, b) => b.n[0] + b.n[1] - a.n[0] - a.n[1]), P: [...P.values()], streaks, summary });
 }
 // a line chart over the round (one value axis), two series in the team colours, a crosshair with both values on hover
-function statLine(id, title, series, ts, yMax, fmtV, stepped, W) {
-  // (drawn at the width it is shown at, in px, so the text keeps its size)
-  const H = 170, l = 30, r = 96, top = 12, b = 24, iw = W - l - r, ih = H - top - b, T = ts[ts.length - 1] || 1;
+function statLine(id, title, series, ts, yMax, fmtV, stepped, W, o = {}) {
+  // (drawn at the width it is shown at, in px, so the text keeps its size; o.h: height, o.axis false: no time labels
+  // (the chart under it has them))
+  const H = o.h || 170, l = 30, r = 96, top = 12, b = o.axis === false ? 6 : 24, iw = W - l - r, ih = H - top - b, T = ts[ts.length - 1] || 1;
   const X = t => l + t / T * iw, Y = v => top + ih - v / yMax * ih;
   const ticks = []; const yStep = yMax <= 6 ? 1 : yMax <= 12 ? 2 : yMax <= 30 ? 5 : 10; for (let v = 0; v <= yMax + 1e-9; v += yStep) ticks.push(v);
   let xStep = T > 2400 ? 600 : T > 1200 ? 300 : T > 300 ? 120 : 60; while (iw / (T / xStep) < 56) xStep *= 2;
@@ -2040,12 +2198,13 @@ function statLine(id, title, series, ts, yMax, fmtV, stepped, W) {
   // direct labels at the line ends, kept apart
   const ends = series.map((s, k) => ({ k, y: Y(s.v[s.v.length - 1]) })).sort((a, b) => a.y - b.y); for (let k = 1; k < ends.length; k++) if (ends[k].y - ends[k - 1].y < 14) ends[k].y = ends[k - 1].y + 14;
   const endY = new Map(ends.map(e => [e.k, e.y]));
-  return `<figure class="stchart" id="${id}"><figcaption><b>${esc(title)}</b><span class="stleg">${series.map(s => `<span><i style="background:${s.col}"></i>${esc(s.name)}</span>`).join('')}</span></figcaption>
-    <div class="stplot"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-l="${l}" data-iw="${iw}" role="img" aria-label="${esc(title)}">
+  return `<figure class="stchart" id="${id}"><figcaption><b>${esc(title)}</b>${o.legend === false ? '' : `<span class="stleg">${series.map(s => `<span><i style="background:${s.col}"></i>${esc(s.name)}</span>`).join('')}</span>`}</figcaption>
+    <div class="stplot"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" data-l="${l}" data-iw="${iw}" data-tt="${T}" role="img" aria-label="${esc(title)}">
     ${ticks.map(v => `<line x1="${l}" x2="${l + iw}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${l - 6}" y="${Y(v) + 4}" class="ax" text-anchor="end">${v}</text>`).join('')}
-    ${xt.map(s => `<text x="${X(s)}" y="${H - 6}" class="ax" text-anchor="middle">${fmt(s)}</text>`).join('')}
+    ${o.axis === false ? xt.map(s => `<line x1="${X(s)}" x2="${X(s)}" y1="${top}" y2="${top + ih}" class="grid"/>`).join('') : xt.map(s => `<text x="${X(s)}" y="${H - 6}" class="ax" text-anchor="middle">${fmt(s)}</text>`).join('')}
     ${series.map(s => `<path d="${path(s.v)}" fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round"/>`).join('')}
     ${series.map((s, k) => `<text x="${l + iw + 8}" y="${endY.get(k) + 4}" class="lab"><tspan fill="${s.col}">■</tspan> ${esc(s.name)} ${fmtV(s.v[s.v.length - 1])}</text>`).join('')}
+    <line class="nowl" x1="${X(Math.min(t, T))}" x2="${X(Math.min(t, T))}" y1="${top}" y2="${top + ih}"/>
     <line class="xh" x1="0" x2="0" y1="${top}" y2="${top + ih}" visibility="hidden"/>
     <rect class="hit" x="${l}" y="${top}" width="${iw}" height="${ih}" fill="transparent"/></svg><div class="sttip" hidden></div></div></figure>`;
 }
@@ -2062,14 +2221,181 @@ function wireLine(id, series, ts, fmtV) {
   };
   hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show);
   hit.addEventListener('pointerleave', () => { tip.hidden = true; xh.setAttribute('visibility', 'hidden'); });
+  // a click goes to that moment
+  hit.addEventListener('click', ev => { const rc = svg.getBoundingClientRect(), sx = (ev.clientX - rc.left) / rc.width * W; t = Math.max(0, Math.min(round.duration, (sx - l) / iw * T)); refresh(true); });
+}
+// the charts' line for the moment on the map
+function statsCursor() {
+  for (const svg of document.querySelectorAll('#stats .stplot svg')) {
+    const ln = svg.querySelector('.nowl'); if (!ln) continue;
+    const T = +svg.dataset.tt || 1, x = (+svg.dataset.l + Math.max(0, Math.min(1, t / T)) * +svg.dataset.iw).toFixed(1);
+    ln.setAttribute('x1', x); ln.setAttribute('x2', x);
+  }
+}
+// ---------- every soldier over the whole round: the players table (Round stats) and the player card (Battle) ----------
+function roundPlayerRows() {
+  if (round._prows) return round._prows;
+  const S = roundStats(), R = round, T = R.duration, ev = R.events;
+  const hasScore = !!R.meta.scoreEstimate || ev.some(e => e.type === 'score');
+  const rows = S.P.filter(p => p.foot + p.veh > 0 || p.k[0] + p.k[1] + p.d[0] + p.d[1] > 0).map(p => {
+    const pl = R.players[p.i], id = pl.id;
+    const enemy = ev.filter(e => e.type === 'kill' && e.killer === id && e.victim !== id && R.pidx.has(e.victim) && teamOf(R.pidx.get(e.victim), e.t) !== teamOf(p.i, e.t));
+    const st = S.streaks.find(x => x.i === p.i), lg = enemy.filter(e => e.dist !== undefined).reduce((b, e) => !b || e.dist > b.dist ? e : b, null);
+    const k = p.k[0] + p.k[1], d = p.d[0] + p.d[1];
+    return { i: p.i, team: teamOf(p.i, T), score: hasScore ? scoreNow(pl, T) : 0, k, d, kd: k / Math.max(1, d), hs: enemy.filter(e => e.hit === 'head').length, tk: p.tk,
+      kF: p.k[0], dF: p.d[0], kV: p.k[1], dV: p.d[1], veh: p.veh, foot: p.foot, alive: p.foot + p.veh,
+      rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
+      rep: ev.filter(e => e.type === 'repair' && e.by === id).length, streak: st ? st.n : 0, st, long: lg ? lg.dist : 0, lg, enemy };
+  });
+  return (round._prows = { rows, hasScore });
+}
+const PCOLS = [
+  ['score', '≈ Score', 'main', 'Score by the game rules from what the demo shows'], ['k', 'K', 'main', 'Enemy kills'], ['d', 'D', 'main', 'Deaths that cost a ticket'], ['kd', 'K/D', 'main', ''],
+  ['hs', 'HS', 'main', 'Kills with the killing shot to the head'], ['tk', 'TK', 'main', 'Team kills'],
+  ['kF', 'On foot K–D', 'veh', 'Enemy kills – deaths on foot'], ['kV', 'In vehicles K–D', 'veh', 'Enemy kills – deaths in a vehicle (or on an emplacement)'], ['veh', 'In vehicles', 'veh', 'Time alive in vehicles'],
+  ['rev', 'Revives', 'med', 'Soldiers he revived'], ['heal', 'Heals', 'med', 'Heals he gave others'], ['rep', 'Repairs', 'med', 'Vehicles he repaired'],
+  ['streak', 'Best streak', 'more', 'Enemy kills in a row without dying (a revive keeps it going)'], ['long', 'Longest kill', 'more', ''], ['alive', 'Time alive', 'more', '']];
+const PGROUPS = [['veh', 'Vehicles'], ['med', 'Medic & engineer'], ['more', 'Streaks & range']];
+const pview = { groups: new Set(['main']), sort: 'score', dir: -1 };
+try { const g = JSON.parse(localStorage.getItem('bf2r.pgroups') || 'null'); if (Array.isArray(g)) g.forEach(x => pview.groups.add(String(x))); } catch (e) { /* no storage: Main only */ }
+const pgroupChips = () => `<div class="pgroups" role="group" aria-label="Columns"><span class="w">Columns</span>${PGROUPS.map(([g, label]) => `<button class="btn sm${pview.groups.has(g) ? ' on' : ''}" data-pg="${g}" aria-pressed="${pview.groups.has(g)}">${label}</button>`).join('')}</div>`;
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-pg]'); if (!b) return;
+  const g = b.dataset.pg; if (pview.groups.has(g)) pview.groups.delete(g); else pview.groups.add(g);
+  try { localStorage.setItem('bf2r.pgroups', JSON.stringify([...pview.groups].filter(x => x !== 'main'))); } catch (err) { /* only for this visit */ }
+  if (round) renderStats(); if (session) renderSession();
+});
+function playersTable(PR, nm, tn) {
+  const cols = PCOLS.filter(([k, , g]) => pview.groups.has(g) && !(k === 'score' && !PR.hasScore) && !(k === 'hs' && !round.meta.hits));
+  const sk = cols.some(c => c[0] === pview.sort) ? pview.sort : PR.hasScore ? 'score' : 'k', sd = sk === pview.sort ? pview.dir : -1;   // (a round without the column: by K)
+  const kd = (k, d) => d ? (k / d).toFixed(2) : k ? '∞' : '–', pc = (a, b) => Math.round(a / Math.max(1, b) * 100);
+  const val = (r, k) => k === 'kF' ? r.kF * 1000 - r.dF : k === 'kV' ? r.kV * 1000 - r.dV : r[k];
+  const cell = (r, k) => {
+    switch (k) {
+      case 'kd': return kd(r.k, r.d);
+      case 'hs': return r.hs ? `${r.hs} <span class="w">${pc(r.hs, r.k)}%</span>` : '–';
+      case 'kF': return r.kF + r.dF ? `${r.kF}–${r.dF} <span class="w">${kd(r.kF, r.dF)}</span>` : '–';
+      case 'kV': return r.kV + r.dV ? `${r.kV}–${r.dV} <span class="w">${kd(r.kV, r.dV)}</span>` : '–';
+      case 'veh': return r.veh >= 30 ? `${fmt(r.veh)} <span class="w">${pc(r.veh, r.veh + r.foot)}%</span>` : '–';
+      case 'streak': return r.streak ? (r.st ? `<span title="${fmt(r.st.t0)}–${fmt(r.st.t1)} · ${esc(r.st.weapons.join(', '))}">${r.streak}</span>` : r.streak) : '–';
+      case 'long': return r.long ? (r.lg ? `<span title="${esc(killWpn(r.lg))} · ${fmt(r.lg.t)}">${r.long} m</span>` : r.long + ' m') : '–';
+      case 'alive': return r.alive ? fmt(r.alive) : '';
+      default: return r[k] || (k === 'score' || k === 'k' || k === 'd' ? r[k] || 0 : '–');
+    }
+  };
+  const sum = rs => { const o = { k: 0, d: 0, hs: 0, tk: 0, kF: 0, dF: 0, kV: 0, dV: 0, veh: 0, foot: 0, rev: 0, heal: 0, rep: 0, score: 0, streak: 0, long: 0, alive: 0 };
+    for (const r of rs) { for (const k of ['k', 'd', 'hs', 'tk', 'kF', 'dF', 'kV', 'dV', 'veh', 'foot', 'rev', 'heal', 'rep', 'score']) o[k] += r[k]; o.streak = Math.max(o.streak, r.streak); o.long = Math.max(o.long, r.long); } o.alive = 0; return o; };
+  const body = [0, 1].map(tm => {
+    const rs = PR.rows.filter(r => r.team === tm).sort((a, b) => ((val(a, sk) - val(b, sk)) * sd) || b.k - a.k);
+    if (!rs.length) return '';
+    return `<tr class="tot"><td><span class="t${tm}">${tn(tm)}</span> <span class="w">${rs.length}</span></td>${cols.map(([k, label]) => `<td class="n"${cell(sum(rs), k) === '' ? '' : ` data-l="${esc(label)}"`}>${cell(sum(rs), k)}</td>`).join('')}</tr>`
+      + rs.map(r => `<tr data-i="${r.i}" class="${sel === r.i ? 'sel' : ''}"><td>${nm(r.i)}</td>${cols.map(([k, label]) => `<td class="n" data-l="${esc(label)}">${cell(r, k)}</td>`).join('')}</tr>`).join('');
+  }).join('');
+  return `<div class="plbhead"><h3>Soldiers <span class="w">whole round · click one for his card</span></h3>${pgroupChips()}</div>
+    <div class="stscroll"><table class="sttab plb"><thead><tr><th>Soldier</th>${cols.map(([k, label, , title]) => `<th class="n${sk === k ? ' on' : ''}" data-k="${k}"${title ? ` title="${esc(title)}"` : ''} aria-sort="${sk === k ? (sd < 0 ? 'descending' : 'ascending') : 'none'}"><button class="sortb">${esc(label)}${sk === k ? (sd < 0 ? ' ▾' : ' ▴') : ''}</button></th>`).join('')}</tr></thead>
+    <tbody>${body}</tbody></table></div>
+    <p class="stnote">K: enemy kills; D: deaths that cost a ticket. Team: the side each soldier ended the round on. Click a column to sort.</p>`;
+}
+// a soldier's card (Battle view), or a moment on the map
+function openCard(i) { sel = i; paneSet('battle', true); refresh(true); const c = $('#pCard'); if (c && !c.hidden) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+function goMoment(i, tt) {
+  sel = i; t = Math.max(0, Math.min(round.duration, tt));
+  const q = playerAt(i, t); if (Number.isFinite(q.x)) viewAt(q.x, q.y, Math.min(view.span, 300));
+  refresh(true); $('#mapbox').scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+let pcardFor = { round: null, sel: null };
+function pcardSync() {
+  const box = $('#pCard'); if (!box) return;
+  const want = round && sel !== null && round.players[sel] && !round.players[sel].vehicle ? sel : null;
+  if (pcardFor.round !== round || pcardFor.sel !== want) {
+    pcardFor = { round, sel: want }; try { renderPCard(want); } catch (e) { console.error(e); box.hidden = true; }
+    document.querySelectorAll('#stPlayers tbody tr[data-i]').forEach(tr => tr.classList.toggle('sel', +tr.dataset.i === sel));
+  }
+  const c = $('#pCur'); if (c && round) c.style.left = (Math.max(0, Math.min(1, t / round.duration)) * 100).toFixed(2) + '%';
+}
+function renderPCard(i) {
+  const box = $('#pCard');
+  if (i === null || !round) { box.hidden = true; box.innerHTML = ''; return; }
+  const R = round, T = R.duration, p = R.players[i], id = p.id, PR = roundPlayerRows(), me = PR.rows.find(r => r.i === i);
+  const pn = (pid, tt) => { const j = R.pidx.get(pid); return j === undefined ? 'World' : `<span class="t${teamOf(j, tt)}">${esc(R.players[j].name)}</span>`; };
+  const enemy = me ? me.enemy : [], kd = (k, d) => d ? (k / d).toFixed(2) : k ? '∞' : '–';
+  const killedBy = R.events.filter(e => e.type === 'kill' && e.victim === id && e.killer !== id && R.pidx.has(e.killer));
+  const group = (list, key) => { const M = new Map(); for (const e of list) { const k = key(e), o = M.get(k) || { e, n: 0, hs: 0 }; o.n++; if (e.hit === 'head') o.hs++; M.set(k, o); } return [...M.values()].sort((a, b) => b.n - a.n); };
+  const wpn = group(enemy, e => killWpn(e) || e.weapon || 'no weapon'), vic = group(enemy, e => e.victim), kil = group(killedBy, e => e.killer);
+  const tiles = [];
+  if (me) {
+    if (PR.hasScore) tiles.push(['≈ Score', me.score]);
+    tiles.push(['K–D', `${me.k}–${me.d} <span class="w">${kd(me.k, me.d)}</span>`]);
+    if (R.meta.hits && me.k) tiles.push(['Headshots', `${me.hs} <span class="w">${Math.round(me.hs / me.k * 100)}%</span>`]);
+    if (me.streak) tiles.push(['Best streak', me.streak]);
+    if (me.long) tiles.push(['Longest kill', me.long + ' m']);
+    tiles.push(['Time alive', fmt(me.alive)]);
+    if (me.veh >= 30) tiles.push(['In vehicles', `${fmt(me.veh)} <span class="w">${Math.round(me.veh / Math.max(1, me.alive) * 100)}%</span>`]);
+    if (me.rev || me.heal) tiles.push(['Revives · heals', `${me.rev} <span class="w">· ${me.heal}</span>`]);
+    if (me.rep) tiles.push(['Repairs', me.rep]);
+    if (me.tk) tiles.push(['Team kills', me.tk]);
+  }
+  // his lives: alive (side colour), kills (dots), deaths (✕; faint when a medic got him up)
+  const lane = (R.lanes || []).find(l => l.i === i), X = tt => (Math.max(0, Math.min(1, tt / T)) * 100).toFixed(2);
+  const life = lane ? `<div class="plife" id="pLife" role="slider" aria-label="His lives over the round: click to go to that moment" aria-valuemin="0" aria-valuemax="${Math.round(T)}" aria-valuenow="${Math.round(t)}" tabindex="0">
+      ${lane.segs.map(([a, b, tm]) => `<i class="seg" style="left:${X(a)}%;width:${Math.max(0.15, (b - a) / T * 100).toFixed(2)}%;background:var(--team${tm ?? lane.team})"></i>`).join('')}
+      ${enemy.map(e => `<b class="pk" data-t="${e.t}" style="left:${X(e.t)}%" title="${fmt(e.t)} killed ${esc(R.players[R.pidx.get(e.victim)]?.name || '')} · ${esc(killWpn(e))}${e.hit === 'head' ? ' · headshot' : ''}"></b>`).join('')}
+      ${killedBy.map(e => `<b class="pd${e.revived ? ' rv' : ''}" data-t="${e.t}" style="left:${X(e.t)}%" title="${fmt(e.t)} killed by ${esc(R.players[R.pidx.get(e.killer)]?.name || '')} · ${esc(killWpn(e))}${e.revived ? ' · revived' : ''}">✕</b>`).join('')}
+      <span class="cur" id="pCur" style="left:${X(t)}%"></span></div>
+    <div class="plifeax"><span>00:00</span><span>● kill · ✕ death (faint: revived) · click to go there</span><span>${fmt(T)}</span></div>` : '';
+  const list = (rows, f, more) => rows.length ? `<ul class="plist">${rows.slice(0, 6).map(f).join('')}</ul>${rows.length > 6 ? `<p class="stnote">${rows.length - 6} more ${more}</p>` : ''}` : '<p class="empty">None.</p>';
+  const tmNow = teamOf(i, t);
+  box.innerHTML = `<h2><span class="nm t${tmNow}">${esc(p.name)}</span> <span class="w">whole round</span></h2>
+    ${tiles.length ? `<div class="pkpis">${tiles.map(([l, v]) => `<div class="pkpi"><span>${l}</span><b>${v}</b></div>`).join('')}</div>` : ''}
+    ${life ? `<h3>Lives</h3>${life}` : ''}
+    <div class="pcols">
+      <div><h3>Killed with</h3>${list(wpn, o => `<li><span class="wi">${weaponIcon(o.e.wid, o.e.weapon) || ''}</span><span class="nmc">${esc(killWpn(o.e) || o.e.weapon || 'no weapon')}</span><span class="n">${o.n}${o.hs ? ` <span class="w">${o.hs} HS</span>` : ''}</span></li>`, 'weapons')}</div>
+      <div><h3>Killed most</h3>${list(vic, o => `<li><span class="nmc">${pn(o.e.victim, o.e.t)}</span><span class="n">×${o.n}</span></li>`, 'soldiers')}</div>
+      <div><h3>Killed by</h3>${list(kil, o => `<li><span class="nmc">${pn(o.e.killer, o.e.t)}${teamOf(R.pidx.get(o.e.killer), o.e.t) === teamOf(i, o.e.t) ? ' <span class="w">team</span>' : ''}</span><span class="n">×${o.n}</span></li>`, 'soldiers')}</div>
+    </div>
+    ${me && (me.kF + me.dF + me.kV + me.dV) ? `<p class="pkdline">On foot <b>${me.kF}–${me.dF}</b> (${kd(me.kF, me.dF)}) · in vehicles <b>${me.kV}–${me.dV}</b> (${kd(me.kV, me.dV)})</p>` : ''}
+    <div class="chips"><button class="btn sm" data-ph="kills" title="Heatmap of where he stood when he killed">Heatmap: where he killed</button><button class="btn sm" data-ph="deaths" title="Heatmap of where he died">Heatmap: where he died</button></div>`;
+  box.hidden = false;
+  const lf = $('#pLife');
+  if (lf) {
+    lf.onclick = ev => { const d = ev.target.closest('[data-t]'); const tt = d ? +d.dataset.t - 2 : (ev.clientX - lf.getBoundingClientRect().left) / lf.getBoundingClientRect().width * T; t = Math.max(0, Math.min(T, tt)); refresh(true); };
+    lf.onkeydown = ev => { if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') { ev.preventDefault(); ev.stopPropagation(); t = Math.max(0, Math.min(T, t + (ev.key === 'ArrowRight' ? 10 : -10))); refresh(true); } };
+  }
+  box.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => {
+    heat.mode = b.dataset.ph; heat.who = p.name.trim(); heat.time = 'all'; heat.side = 'all'; heat.wpn = 'all';
+    if (!opts.heat) { opts.heat = true; $('#tHeat').classList.add('on'); $('#heatBar').hidden = false; }
+    fillHeat(); refresh(true); $('#mapbox').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
 }
 function renderStats() {
   const box = $('#stats'); if (!box || !round) return;
   const S = roundStats(), tn = k => esc(round.teams[k]?.name || 'Team ' + (k + 1)), col = k => `var(--team${k})`;
   const nm = i => `<span class="t${teamOf(i, round.duration)}">${esc(round.players[i]?.name || '')}</span>`;
   const one = v => (Math.round(v * 10) / 10).toFixed(1);
-  // summary
-  let h = `<div class="stblock wide"><table class="sttab sum"><thead><tr><th></th>${[0, 1].map(k => `<th class="n t${k}">${tn(k)}</th>`).join('')}</tr></thead><tbody>
+  // the round in a few numbers (a tile with a soldier or a moment goes there)
+  const PR = roundPlayerRows(), PRow = PR.rows, T = round.duration;
+  const tkS = S.summary[0].tickets ? [S.summary[0].tickets, S.summary[1].tickets] : null;
+  const winner = tkS ? (tkS[0][1] > tkS[1][1] ? 0 : tkS[1][1] > tkS[0][1] ? 1 : null) : null;
+  const tkTxt = tkS ? [0, 1].map(k => `<span class="t${k}">${tkS[k][0]}→${tkS[k][1]}</span>`).join(' · ') : '';
+  const killsN = round.events.filter(e => e.type === 'kill').length, kN = PRow.reduce((a, r) => a + r.k, 0), hsN = PRow.reduce((a, r) => a + r.hs, 0);
+  const best = PRow.slice().sort((a, b) => (PR.hasScore ? b.score - a.score : 0) || b.k - a.k)[0];
+  const lgst = PRow.filter(r => r.lg).sort((a, b) => b.long - a.long)[0], stk = S.streaks[0];
+  const revN = S.summary[0].revives + S.summary[1].revives, capN = S.summary[0].caps + S.summary[1].caps;
+  const bySide = f => [0, 1].map(k => `<span class="t${k}">${tn(k)}</span> ${f(k)}`).join(' · ');
+  const tile = (label, value, sub, attrs) => attrs ? `<button class="kpi"${attrs}><span class="kl">${label}</span><span class="kv">${value}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</button>`
+    : `<div class="kpi"><span class="kl">${label}</span><span class="kv">${value}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
+  let h = `<div class="stblock wide"><div class="kpis">
+    ${tkS ? tile('Result', winner != null ? `<span class="t${winner}">${tn(winner)}</span> won` : 'Draw', tkTxt) : ''}
+    ${tile('Length', fmt(T), round.meta.date ? esc(round.meta.date) : '')}
+    ${tile('Kills', killsN, round.meta.hits && kN ? `${hsN} headshots · ${Math.round(hsN / kN * 100)}%` : '')}
+    ${S.nCapt ? tile('Flags captured', capN, bySide(k => S.summary[k].caps)) : ''}
+    ${best ? tile(PR.hasScore ? 'Best score' : 'Most kills', PR.hasScore ? best.score : best.k, `${nm(best.i)} · ${best.k}–${best.d}`, ` data-i="${best.i}" title="His card"`) : ''}
+    ${lgst ? tile('Longest kill', `${lgst.long} m`, `${nm(lgst.i)} · ${esc(killWpn(lgst.lg))}`, ` data-i="${lgst.i}" data-t="${lgst.lg.t}" title="Go to this kill"`) : ''}
+    ${stk ? tile('Best streak', `${stk.n} kills`, `${nm(stk.i)} · ${fmt(stk.t0)}–${fmt(stk.t1)}`, ` data-i="${stk.i}" data-t="${stk.t0}" title="Go to the start of the streak"`) : ''}
+    ${revN ? tile('Revives', revN, bySide(k => S.summary[k].revives)) : ''}
+  </div></div>`;
+  // the two sides
+  h += `<div class="stblock"><h3>Both sides</h3><table class="sttab sum"><thead><tr><th></th>${[0, 1].map(k => `<th class="n t${k}">${tn(k)}</th>`).join('')}</tr></thead><tbody>
     ${S.summary[0].tickets ? `<tr><td>Tickets</td>${[0, 1].map(k => `<td class="n">${S.summary[k].tickets[0]} → ${S.summary[k].tickets[1]}</td>`).join('')}</tr>` : ''}
     <tr><td>Players</td>${[0, 1].map(k => `<td class="n">${S.summary[k].players}</td>`).join('')}</tr>
     <tr><td>Enemy kills</td>${[0, 1].map(k => `<td class="n">${S.summary[k].kills}</td>`).join('')}</tr>
@@ -2079,11 +2405,6 @@ function renderStats() {
     <tr><td>Soldiers on the field (average)</td>${[0, 1].map(k => `<td class="n">${one(S.summary[k].alive)}</td>`).join('')}</tr>
     ${S.nCapt ? `<tr><td>Flags held (average of ${S.nCapt})</td>${[0, 1].map(k => `<td class="n">${one(S.summary[k].flags)}</td>`).join('')}</tr>` : ''}
     </tbody></table></div>`;
-  // balance over time
-  const aMax = Math.max(4, Math.ceil(Math.max(...S.alive[0], ...S.alive[1]))), ser = v => [0, 1].map(k => ({ name: round.teams[k]?.name || 'Team ' + (k + 1), col: col(k), v: v[k] }));
-  const CW = Math.max(280, Math.floor((box.clientWidth || 760) - 26));
-  h += `<div class="stblock wide">${statLine('stAlive', 'Soldiers on the field (alive, 1-minute average)', ser(S.alive), S.ts, aMax, one, false, CW)}
-    ${S.nCapt ? statLine('stFlags', `Flags held (of ${S.nCapt} that can be taken)`, ser(S.flags), S.ts, S.nCapt, v => String(Math.round(v)), true, CW) : ''}</div>`;
   // tickets lost by cause: two bars per cause, one per team
   const lmax = Math.max(1, ...CAUSES.flatMap(([c]) => [S.lost[0][c] || 0, S.lost[1][c] || 0]));
   const bar = (v, k) => `<span class="stbar"><i style="width:${(v / lmax * 100).toFixed(1)}%;background:${col(k)}"></i><b>${v || ''}</b></span>`;
@@ -2091,36 +2412,40 @@ function renderStats() {
     ${CAUSES.filter(([c]) => S.lost[0][c] || S.lost[1][c]).map(([c, label]) => `<tr><td>${label}</td>${[0, 1].map(k => `<td title="${tn(k)}: ${S.lost[k][c] || 0}">${bar(S.lost[k][c] || 0, k)}</td>`).join('')}</tr>`).join('')}
     <tr class="tot"><td>Total</td>${[0, 1].map(k => `<td class="n">${S.summary[k].lost}</td>`).join('')}</tr></tbody></table>
     <p class="stnote">A ticket goes when a soldier dies for good (a revived one costs nothing). Bleed: tickets that went with no death of that side.</p></div>`;
+  // balance over time
+  const aMax = Math.max(4, Math.ceil(Math.max(...S.alive[0], ...S.alive[1]))), ser = v => [0, 1].map(k => ({ name: round.teams[k]?.name || 'Team ' + (k + 1), col: col(k), v: v[k] }));
+  const CW = Math.max(280, Math.floor((box.clientWidth || 760) - 26));
+  h += `<div class="stblock wide">${statLine('stAlive', 'Soldiers on the field (alive, 1-minute average)', ser(S.alive), S.ts, aMax, one, false, CW, S.nCapt ? { h: 112, axis: false } : { h: 128 })}
+    ${S.nCapt ? statLine('stFlags', `Flags held (of ${S.nCapt} that can be taken)`, ser(S.flags), S.ts, S.nCapt, v => String(Math.round(v)), true, CW, { h: 124, legend: false }) : ''}
+    <p class="stnote">The yellow line is the moment on the map; click a chart to go to that moment.</p></div>`;
   // kills by weapon
-  const top = S.byWeapon.slice(0, 14), rest = S.byWeapon.slice(14), wmax = Math.max(1, ...top.map(b => b.n[0] + b.n[1]));
-  h += `<div class="stblock"><h3>Kills by weapon</h3><table class="sttab wtab"><thead><tr><th></th><th></th>${[0, 1].map(k => `<th class="n t${k}">${tn(k)}</th>`).join('')}</tr></thead><tbody>
+  const nW = stMore.wpn ? S.byWeapon.length : 8, top = S.byWeapon.slice(0, nW), rest = S.byWeapon.slice(nW), wmax = Math.max(1, ...top.map(b => b.n[0] + b.n[1]));
+  let hW = '';   // (the Weapons view)
+  if (S.byWeapon.length) hW += `<div class="stblock"><h3>Kills by weapon</h3><table class="sttab wtab"><thead><tr><th></th><th></th>${[0, 1].map(k => `<th class="n t${k}">${tn(k)}</th>`).join('')}</tr></thead><tbody>
     ${top.map(b => `<tr><td class="wi">${weaponIcon(b.wid, b.w)}</td><td>${esc(b.w)}<span class="stbar thin"><i style="width:${(b.n[0] / wmax * 100).toFixed(1)}%;background:${col(0)}"></i><i style="width:${(b.n[1] / wmax * 100).toFixed(1)}%;background:${col(1)}"></i></span></td>${[0, 1].map(k => `<td class="n">${b.n[k] || ''}</td>`).join('')}</tr>`).join('')}
-    ${rest.length ? `<tr class="tot"><td></td><td>${rest.length} other weapons</td>${[0, 1].map(k => `<td class="n">${rest.reduce((a, b) => a + b.n[k], 0) || ''}</td>`).join('')}</tr>` : ''}</tbody></table></div>`;
+    ${rest.length ? `<tr class="tot"><td></td><td>${rest.length} other weapons <button class="btn sm" data-more="wpn">Show all</button></td>${[0, 1].map(k => `<td class="n">${rest.reduce((a, b) => a + b.n[k], 0) || ''}</td>`).join('')}</tr>` : stMore.wpn && S.byWeapon.length > 8 ? '<tr class="tot"><td></td><td><button class="btn sm" data-more="wpn">Show the top 8</button></td><td></td><td></td></tr>' : ''}</tbody></table></div>`;
   // where the killing shot hit, by weapon
   if (round.meta.hits) {
     const hw = new Map(), all = { head: 0, body: 0, limb: 0 };
     for (const e of round.events) if (e.type === 'kill' && e.hit && e.killer !== e.victim) { const w = e.weapon || '(no weapon)', b = hw.get(w) || { w, wid: e.wid, head: 0, body: 0, limb: 0 }; b[e.hit]++; all[e.hit]++; hw.set(w, b); }
-    const n = b => b.head + b.body + b.limb, L = [...hw.values()].filter(b => n(b) >= 3).sort((a, b) => n(b) - n(a)).slice(0, 12);
-    if (n(all)) h += `<div class="stblock"><h3>Where the killing shot hit</h3><div class="hitkey">${HIT_KEYS.map(([, label, v]) => `<span style="--c:var(${v})">${label}</span>`).join('')}</div>
+    const n = b => b.head + b.body + b.limb, LA = [...hw.values()].filter(b => n(b) >= 3).sort((a, b) => n(b) - n(a)), L = LA.slice(0, stMore.hit ? LA.length : 8);
+    if (n(all)) hW += `<div class="stblock"><h3>Where the killing shot hit</h3><div class="hitkey">${HIT_KEYS.map(([, label, v]) => `<span style="--c:var(${v})">${label}</span>`).join('')}</div>
       <table class="sttab wtab"><thead><tr><th></th><th></th><th class="n" title="Kills with the hit known">Kills</th><th class="n">Head</th><th class="n">Body</th><th class="n" title="Arms and lower legs">Limbs</th></tr></thead><tbody>
       ${L.map(b => `<tr><td class="wi">${weaponIcon(b.wid, b.w)}</td><td>${esc(b.w)}${hitBar(b)}</td><td class="n">${n(b)}</td><td class="n">${b.head} <span class="w">${Math.round(b.head / n(b) * 100)}%</span></td><td class="n">${b.body || ''}</td><td class="n">${b.limb || ''}</td></tr>`).join('')}
+      ${LA.length > 8 ? `<tr><td></td><td colspan="5"><button class="btn sm" data-more="hit">${stMore.hit ? 'Show the top 8' : `Show all ${LA.length}`}</button></td></tr>` : ''}
       <tr class="tot"><td></td><td>All weapons${hitBar(all)}</td><td class="n">${n(all)}</td><td class="n">${all.head} <span class="w">${Math.round(all.head / n(all) * 100)}%</span></td><td class="n">${all.body}</td><td class="n">${all.limb}</td></tr></tbody></table>
       <p class="stnote">From the kill message: the material the killing shot hit. Weapons with 3 or more such kills; grenades, explosions and run-overs have no hit.</p></div>`;
   }
-  // on foot vs in vehicles
-  const kd = (k, d) => d ? (k / d).toFixed(2) : k ? '∞' : '–', mm = s => fmt(s);
-  const rows = S.P.filter(p => p.k[0] + p.k[1] + p.d[0] + p.d[1] > 0).sort((a, b) => teamOf(a.i, round.duration) - teamOf(b.i, round.duration) || (b.k[0] + b.k[1]) - (a.k[0] + a.k[1]));
-  const tot = [0, 1].map(tm => rows.filter(p => teamOf(p.i, round.duration) === tm).reduce((s, p) => ({ k: [s.k[0] + p.k[0], s.k[1] + p.k[1]], d: [s.d[0] + p.d[0], s.d[1] + p.d[1]], veh: s.veh + p.veh, foot: s.foot + p.foot }), { k: [0, 0], d: [0, 0], veh: 0, foot: 0 }));
-  const row = (label, p, cls = '') => `<tr class="${cls}"><td>${label}</td><td class="n">${p.k[0]}–${p.d[0]}</td><td class="n">${kd(p.k[0], p.d[0])}</td><td class="n">${p.k[1]}–${p.d[1]}</td><td class="n">${kd(p.k[1], p.d[1])}</td><td class="n">${p.veh >= 30 ? mm(p.veh) + ` <span class="w">${Math.round(p.veh / Math.max(1, p.veh + p.foot) * 100)}%</span>` : '–'}</td></tr>`;
-  h += `<div class="stblock wide"><h3>On foot and in vehicles</h3><div class="stscroll"><table class="sttab kd"><thead><tr><th>Soldier</th><th class="n" title="Enemy kills – deaths on foot">On foot K–D</th><th class="n">K/D</th><th class="n" title="Enemy kills – deaths in a vehicle (or on an emplacement)">In vehicles K–D</th><th class="n">K/D</th><th class="n" title="Time alive in vehicles">Time in vehicles</th></tr></thead><tbody>
-    ${[0, 1].map(tm => row(`<b class="t${tm}">${tn(tm)}</b>`, tot[tm], 'tot') + rows.filter(p => teamOf(p.i, round.duration) === tm).map(p => row(nm(p.i), p)).join('')).join('')}
-    </tbody></table></div><p class="stnote">Kills of enemies; deaths that cost a ticket. Team: the side each soldier ended the round on.</p></div>`;
-  // streaks
-  h += `<div class="stblock"><h3>Longest kill streaks</h3>${S.streaks.length ? `<ul class="ststreak">${S.streaks.slice(0, 8).map(s => `<li><b class="n">${s.n}</b><span>${nm(s.i)} <span class="w">${fmt(s.t0)}–${fmt(s.t1)} · ${s.weapons.slice(0, 3).map(esc).join(', ')}${s.weapons.length > 3 ? '…' : ''}</span></span></li>`).join('')}</ul>` : '<p class="empty">No streaks of 2 or more.</p>'}
-    <p class="stnote">Enemy kills in a row without dying; a revive keeps the streak going.</p></div>`;
+  // every soldier: one table (Main columns always; Vehicles, Medic & engineer, Streaks & range when picked)
+  h += `<div class="stblock wide" id="stPlayers">${playersTable(PR, nm, tn)}</div>`;
+  const bw = $('#statsW');
+  if (bw) bw.innerHTML = `<div class="sthead"><h2>Weapons <span class="w">whole round</span></h2></div>${hW ? `<div class="stgrid">${hW}</div>` : '<p class="empty">No kills in this round.</p>'}`;
   box.innerHTML = `<div class="sthead"><h2>Round stats <span class="w">whole round</span></h2><div class="chips"><button class="btn sm" id="csvP" title="Every soldier's numbers for the whole round, as a CSV table">Players CSV</button><button class="btn sm" id="csvK" title="Every kill: time, who, weapon, distance, hit, positions, who saw whom first, as a CSV table">Kills CSV</button></div></div><div class="stgrid">${h}</div>`;
   $('#csvP').onclick = csvPlayers; $('#csvK').onclick = csvKills;
   wireLine('stAlive', ser(S.alive), S.ts, one);
+  box.querySelectorAll('button.kpi[data-i]').forEach(b => b.onclick = () => b.dataset.t != null ? goMoment(+b.dataset.i, +b.dataset.t - 2) : openCard(+b.dataset.i));
+  box.querySelectorAll('#stPlayers tbody tr[data-i]').forEach(tr => tr.onclick = () => openCard(+tr.dataset.i));
+  box.querySelectorAll('#stPlayers th[data-k] .sortb').forEach(b => b.onclick = () => { const k = b.parentElement.dataset.k, on = b.parentElement.classList.contains('on'); pview.dir = on ? (pview.sort === k ? -pview.dir : 1) : -1; pview.sort = k; renderStats(); });
   if (S.nCapt) wireLine('stFlags', ser(S.flags), S.ts, v => String(Math.round(v)));
 }
 // ---------- highlights ----------
@@ -2638,6 +2963,8 @@ function refresh(force) {
   $('#clock').textContent = fmt(t);
   const sk = $('#seek'); if (+sk.max !== round.duration) sk.max = round.duration; if (document.activeElement !== sk || force) sk.value = t;
   sk.style.setProperty('--p', (round.duration ? Math.min(100, t / round.duration * 100) : 0).toFixed(2) + '%');
+  if (!mbar.hidden) { const ms = $('#mseek'); if (+ms.max !== round.duration) ms.max = round.duration; if (document.activeElement !== ms || force) ms.value = t; ms.style.setProperty('--p', sk.style.getPropertyValue('--p')); $('#mclock').textContent = fmt(t); }
+  if (force) layCount();
   draw(); drawTimeline(); panels(force); markHighlights();
   if (clip.open && clip.sel !== sel) renderClipBar();
 }
@@ -3144,7 +3471,7 @@ function loop(ts) {
 const PLAY_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg>', PAUSE_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 1.5h4v13h-4zM9.5 1.5h4v13h-4z"/></svg>';
 function setPlaying(v) {
   playing = v; if (v && t >= round.duration) t = 0;
-  for (const id of ['#play', '#play2']) { $(id).innerHTML = (v ? PAUSE_SVG : PLAY_SVG) + '<span>' + (v ? 'Pause' : 'Play') + '</span>'; $(id).setAttribute('aria-label', v ? 'Pause' : 'Play'); }
+  for (const id of ['#play', '#play2', '#play3']) { $(id).innerHTML = (v ? PAUSE_SVG : PLAY_SVG) + '<span>' + (v ? 'Pause' : 'Play') + '</span>'; $(id).setAttribute('aria-label', v ? 'Pause' : 'Play'); }
   $('#play2').classList.toggle('playing', v);
 }
 $('#play').onclick = () => setPlaying(!playing);
@@ -3161,6 +3488,33 @@ try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } ca
 setSpeed(speed);
 const toggles = { tNames:'names', tKills:'kills', tHeat:'heat', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view' };
 Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'heat') { $('#heatBar').hidden = !opts.heat; if (opts.heat) fillHeat(); } refresh(true); });
+// the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
+function layCount() {
+  let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
+  $('#layN').textContent = n + '/' + Object.keys(toggles).length;
+}
+const popToggle = (btn, box, on) => { box.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
+$('#layBtn').onclick = e => { e.stopPropagation(); popToggle($('#layBtn'), $('#layMenu'), $('#layMenu').hidden); };
+$('#kbBtn').onclick = () => popToggle($('#kbBtn'), $('#kbHelp'), $('#kbHelp').hidden);
+document.addEventListener('click', e => { if (!$('#layMenu').hidden && !e.target.closest('.lwrap')) popToggle($('#layBtn'), $('#layMenu'), false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layMenu').hidden) { popToggle($('#layBtn'), $('#layMenu'), false); $('#layBtn').focus(); } });
+layCount();
+// Round stats / Weapons: the long lists show their top 8 until "Show all"
+const stMore = { wpn: false, hit: false };
+document.addEventListener('click', e => { const b = e.target.closest('[data-more]'); if (!b || !(b.dataset.more in stMore)) return; stMore[b.dataset.more] = !stMore[b.dataset.more]; renderStats(); });
+// phone: while the map's own play bar is out of sight, a bar at the bottom of the screen plays and seeks
+const mbar = $('#mbar'), mqPhone = matchMedia('(max-width: 700px)'); let mapBarSeen = true;
+function mbarSync() {
+  const on = mqPhone.matches && !mapBarSeen && !!round && !mapbox.classList.contains('fs');
+  if (mbar.hidden !== on) return;
+  mbar.hidden = !on; document.body.classList.toggle('mbar-on', on); if (on) refresh(true);
+}
+try { new IntersectionObserver(es => { mapBarSeen = es[0].isIntersecting; mbarSync(); }).observe(document.querySelector('.mapplay')); } catch (e) { /* old browser: no bar */ }
+try { mqPhone.addEventListener('change', mbarSync); } catch (e) { mqPhone.addListener && mqPhone.addListener(mbarSync); }
+$('#play3').onclick = () => setPlaying(!playing);
+$('#mBack').onclick = () => { t = Math.max(0, t - 10); refresh(true); };
+$('#mseek').addEventListener('input', e => { t = Math.max(0, Math.min(round.duration, +e.target.value)); refresh(true); });
+$('#mMap').onclick = () => $('#mapbox').scrollIntoView({ block: 'start', behavior: 'smooth' });
 document.addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
   if (e.code==='Space') { e.preventDefault(); setPlaying(!playing); }
@@ -4592,41 +4946,118 @@ function renderSessionRow(r) {
 }
 const sessStatus = r => r.status === 'decoding' ? `<span class="w">decoding ${Math.round(r.f * 100)}%</span>` : r.status === 'queued' ? '<span class="w">waiting</span>' : r.status === 'reading' ? '<span class="w">reading</span>'
   : r.status === 'done' ? '<button class="btn sm">Open</button>' : `<span class="w">${esc(r.status)}</span>`;
+// ---------- views under the map: Battle, Round stats, Weapons, Players over all rounds ----------
+let pane = 'battle';
+function paneSet(name, fromUser) {
+  const tab = document.querySelector(`.ptab[data-pane="${name}"]`);
+  if (!tab || tab.hidden) name = 'battle';
+  pane = name;
+  document.querySelectorAll('.ptab').forEach(b => { const on = b.dataset.pane === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+  document.querySelectorAll('.pane').forEach(p => { p.hidden = p.dataset.pane !== name; });
+  if (fromUser && session && session.server) hashSet({ tab: name === 'battle' ? null : name });
+}
+document.querySelectorAll('.ptab').forEach(b => b.addEventListener('click', () => paneSet(b.dataset.pane, true)));
+$('#ptabs').addEventListener('keydown', e => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+  const T = [...document.querySelectorAll('.ptab:not([hidden])')], i = T.findIndex(b => b.dataset.pane === pane);
+  const j = e.key === 'Home' ? 0 : e.key === 'End' ? T.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + T.length) % T.length;
+  e.preventDefault(); e.stopPropagation(); paneSet(T[j].dataset.pane, true); T[j].focus();
+});
+// the link in the address bar (site): change some of its parts, keep the rest
+function hashSet(o) {
+  const h = new URLSearchParams(location.hash.slice(1));
+  for (const [k, v] of Object.entries(o)) { if (v == null) h.delete(k); else h.set(k, v); }
+  const str = h.toString();
+  try { history.replaceState(null, '', str ? '#' + str : location.pathname + location.search); } catch (e) {}
+}
+// site: Tools shows what a visitor doesn't need (opening own files, the decoder's notes, the demo file's details)
+$('#moreBtn').onclick = () => { const on = document.body.classList.toggle('devshow'); $('#moreBtn').setAttribute('aria-expanded', String(on)); $('#moreBtn').textContent = on ? 'Tools ▴' : 'Tools ▾'; };
+
 function renderSession() {
   const box = $('#session'); if (!box) return;
-  if (!session) { box.hidden = true; return; }
+  if (!session) { box.hidden = true; box.classList.remove('roundbar'); renderSessPlayers(0, 0); return; }
   box.hidden = false;
   const R = session.rounds, done = R.filter(r => r.status === 'done'), empty = R.filter(r => r.status === 'empty'), busy = R.filter(r => !['done', 'empty', 'failed', 'not a demo'].includes(r.status)).length;
   const cur = $('#srcLabel').textContent;
-  const shown = R.filter(r => session.showEmpty || r.status !== 'empty');
   const tkCell = s => s.tickets ? s.tickets.map((x, k) => `<span class="t${k}">${x[0]}→${x[1]}</span>`).join(' · ') : '—';
-  let h = `<div class="sesshead"><h2>${session.server ? 'Rounds on the server' : 'Rounds'} <span class="w">${R.length} demos · ${done.length} with players${empty.length ? ` · ${empty.length} empty` : ''}${busy ? ` · ${busy} to go` : ''}</span></h2>
-    <div class="chips">${empty.length ? `<button class="btn sm" id="sessEmpty">${session.showEmpty ? 'Hide' : 'Show'} empty rounds</button>` : ''}<button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button>${session.server ? '' : '<button class="btn sm" id="sessClose">Close</button>'}</div></div>
+  if (session.server) renderRoundBar(box, R, cur, tkCell);
+  else {
+    box.classList.remove('roundbar');
+    const shown = R.filter(r => session.showEmpty || r.status !== 'empty');
+    box.innerHTML = `<div class="sesshead"><h2>Rounds <span class="w">${R.length} demos · ${done.length} with players${empty.length ? ` · ${empty.length} empty` : ''}${busy ? ` · ${busy} to go` : ''}</span></h2>
+    <div class="chips">${empty.length ? `<button class="btn sm" id="sessEmpty">${session.showEmpty ? 'Hide' : 'Show'} empty rounds</button>` : ''}<button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button><button class="btn sm" id="sessClose">Close</button></div></div>
     <div class="stscroll"><table class="sttab sess"><thead><tr><th>Recorded</th><th>Map</th><th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th>Best score</th><th></th></tr></thead><tbody>
     ${shown.map(r => { const s = r.sum, i = R.indexOf(r), on = r.name === cur; return `<tr data-r="${i}" class="${on ? 'sel' : ''}${r.status === 'done' ? ' open' : ''}">
       <td title="${esc(r.name)}">${esc(s?.date || r.name.replace(/^.*?auto_/, '').replace(/\.bf2demo.*$/, ''))}</td><td>${s ? esc(mapName(s.map)) : ''}</td><td class="n">${s?.duration ? fmt(s.duration) : ''}</td>
       <td class="n">${s && !s.empty ? s.players : s ? '0' : ''}</td><td class="n">${s && !s.empty ? tkCell(s) : ''}</td><td>${s && s.winner != null ? `<span class="t${s.winner}">${esc(s.teams[s.winner])}</span>` : ''}</td>
       <td class="n">${s && !s.empty ? s.kills : ''}</td><td>${s?.top ? `<span class="t${s.top.team}">${esc(s.top.name)}</span> <span class="w">${s.top.score}</span>` : ''}</td><td class="st">${sessStatus(r)}</td></tr>`; }).join('')}
-    </tbody></table></div>`;
-  // players over all rounds
-  const P = sessionPlayers();
-  if (P.length) {
-    const val = (p, k) => k === 'kd' ? p.k / Math.max(1, p.d) : k === 'name' ? p.name.toLowerCase() : p[k];
-    P.sort((a, b) => { const x = val(a, session.sort), y = val(b, session.sort); return (x < y ? -1 : x > y ? 1 : 0) * session.dir || b.score - a.score; });
-    const cell = (p, k) => k === 'name' ? `<span class="t${p.teams[0] >= p.teams[1] ? 0 : 1}">${esc(p.name)}</span>${p.teams[0] && p.teams[1] ? ' <span class="w" title="Played on both sides">⇄</span>' : ''}`
-      : k === 'kd' ? (p.k / Math.max(1, p.d)).toFixed(2) : k === 'alive' ? fmt(p.alive) : k === 'long' ? (p.long ? p.long + ' m' : '–') : k === 'hs' ? (p.hs ? `${p.hs} <span class="w">${Math.round(p.hs / Math.max(1, p.k) * 100)}%</span>` : '–') : k === 'streak' ? (p.streak || '–') : (p[k] || (k === 'score' || k === 'wins' ? 0 : '–'));
-    h += `<details class="sessd"${session.playersOpen === false ? '' : ' open'}><summary><h3>Players over ${done.length} round${done.length === 1 ? '' : 's'} <span class="w">${P.length} players${busy ? ' · still adding up' : ''}</span></h3></summary>
-      <div class="stscroll"><table class="sttab sessp"><thead><tr>${SESS_COLS.map(([k, label, n]) => `<th class="${n ? 'n' : ''}${session.sort === k ? ' on' : ''}" data-k="${k}" aria-sort="${session.sort === k ? (session.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button class="sortb">${esc(label)}${session.sort === k ? (session.dir < 0 ? ' ▾' : ' ▴') : ''}</button></th>`).join('')}</tr></thead><tbody>
-      ${P.map(p => `<tr>${SESS_COLS.map(([k, , n]) => `<td class="${n ? 'n' : ''}">${cell(p, k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-      <p class="stnote">Name colour: the side played most (⇄ played on both). ≈ Score by the game's rules from what the demos show. Won: rounds that ended with more tickets on his side. Click a column to sort.</p></details>`;
+    </tbody></table></div>${done.length > 1 ? `<p class="stnote">The players' numbers over all these rounds: <button class="btn sm" id="sessToP">Players · all rounds</button></p>` : ''}`;
+    box.querySelectorAll('tbody tr.open').forEach(tr => tr.onclick = () => openDemo(R[+tr.dataset.r].file));
+    const se = $('#sessEmpty'); if (se) se.onclick = () => { session.showEmpty = !session.showEmpty; renderSession(); };
+    const tp = $('#sessToP'); if (tp) tp.onclick = () => { paneSet('players', true); $('#ptabs').scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+    $('#sessCsvR').onclick = csvSessionRounds;
+    $('#sessClose').onclick = () => { if (session.job) { session.job.cancelled = true; session.job.stops.forEach(s => s()); } session = null; decodedCache.clear(); renderSession(); };
   }
-  box.innerHTML = h;
-  box.querySelectorAll('tbody tr.open').forEach(tr => tr.onclick = () => { const r = R[+tr.dataset.r]; if (r.srv) openServerRound(r); else openDemo(r.file); });
-  box.querySelectorAll('th[data-k] .sortb').forEach(b => b.onclick = () => { const k = b.parentElement.dataset.k; if (session.sort === k) session.dir = -session.dir; else { session.sort = k; session.dir = k === 'name' ? 1 : -1; } renderSession(); });
-  const dd = box.querySelector('details.sessd'); if (dd) dd.ontoggle = () => { session.playersOpen = dd.open; };
-  const se = $('#sessEmpty'); if (se) se.onclick = () => { session.showEmpty = !session.showEmpty; renderSession(); };
-  $('#sessCsvR').onclick = csvSessionRounds; $('#sessCsvP').onclick = csvSessionPlayers;
-  if ($('#sessClose')) $('#sessClose').onclick = () => { if (session.job) { session.job.cancelled = true; session.job.stops.forEach(s => s()); } session = null; decodedCache.clear(); renderSession(); };
+  renderSessPlayers(done.length, busy);
+}
+// the site's rounds: the one on the map as a single line; under it (on click) all of them by day, newest first
+const dayKey = d => (/^\d{4}-\d\d-\d\d/.exec(d || '') || [''])[0];
+const dayName = (k, long) => { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(k || ''); if (!m) return long ? 'Date unknown' : ''; return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('en-GB', long ? { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } : { weekday: 'short', day: 'numeric', month: 'short' }); };
+const clockHM = d => (/(\d\d:\d\d)(:\d\d)?$/.exec(d || '') || ['', ''])[1];
+function roundListOpen(on) {
+  session.listOpen = on; const l = $('#rList'), c = $('#rCur'); if (!l || !c) return;
+  l.hidden = !on; c.setAttribute('aria-expanded', String(on)); c.querySelector('.caret').textContent = (on ? '▴' : '▾') + ' all rounds';
+}
+function renderRoundBar(box, R, cur, tkCell) {
+  box.classList.add('roundbar');
+  const L = R.filter(r => r.status === 'done'), maps = [...new Set(L.map(r => r.sum?.map).filter(Boolean))];
+  if (session.mapF && !maps.includes(session.mapF)) session.mapF = '';
+  const F = L.filter(r => !session.mapF || r.sum?.map === session.mapF), n = session.listN || 40, shown = F.slice(0, n);
+  const ci = L.findIndex(r => r.name === cur), s = ci >= 0 ? L[ci].sum : null;
+  const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
+    : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
+  let rows = '', last = null;
+  for (const x of shown) {
+    const sx = x.sum, d = dayKey(sx?.date);
+    if (d !== last) { rows += `<tr class="day"><th colspan="8">${esc(dayName(d, true))}</th></tr>`; last = d; }
+    rows += `<tr data-r="${R.indexOf(x)}" class="open${x.name === cur ? ' sel' : ''}"><td>${esc(clockHM(sx?.date) || x.name)}</td><td>${sx ? esc(mapName(sx.map)) : ''}</td><td class="n">${sx?.duration ? fmt(sx.duration) : ''}</td><td class="n">${sx ? sx.players : ''}</td>
+      <td class="n">${sx ? tkCell(sx) : ''}</td><td>${sx && sx.winner != null ? `<span class="t${sx.winner}">${esc(sx.teams[sx.winner])}</span>` : ''}</td><td class="n">${sx ? sx.kills : ''}</td><td>${sx?.top ? `<span class="t${sx.top.team}">${esc(sx.top.name)}</span> <span class="w">${sx.top.score}</span>` : ''}</td></tr>`;
+  }
+  box.innerHTML = `<div class="rbar"><button class="rcur" id="rCur" aria-expanded="false" aria-controls="rList">${what}<span class="caret">▾ all rounds</span></button>
+    <span class="rnav"><span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button></span></div>
+    <div class="rlist" id="rList" hidden>
+      <div class="rlhead">${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<span class="w">${F.length} round${F.length === 1 ? '' : 's'} with players</span><span class="spacer" style="flex:1"></span><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
+      <div class="stscroll"><table class="sttab sess"><thead><tr><th>Started</th><th>Map</th><th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th>Best score</th></tr></thead><tbody>${rows}</tbody></table></div>
+      ${F.length > n ? `<button class="btn sm rmore" id="rMore">Show ${Math.min(40, F.length - n)} more</button>` : ''}
+    </div>`;
+  roundListOpen(!!session.listOpen);
+  $('#rCur').onclick = () => roundListOpen(!session.listOpen);
+  box.querySelectorAll('tbody tr.open').forEach(tr => tr.onclick = () => { roundListOpen(false); openServerRound(R[+tr.dataset.r]); });
+  const go = d => { const x = L[ci + d]; if (x) openServerRound(x); };
+  $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1);
+  const ms = $('#rMap'); if (ms) ms.onchange = () => { session.mapF = ms.value; session.listN = 40; renderSession(); };
+  const mo = $('#rMore'); if (mo) mo.onclick = () => { session.listN = n + 40; renderSession(); };
+  $('#sessCsvR').onclick = csvSessionRounds;
+}
+document.addEventListener('click', e => { if (session && session.listOpen && !e.target.closest('#session')) roundListOpen(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && session && session.listOpen) { roundListOpen(false); $('#rCur').focus(); } });
+// the players' numbers over all the rounds (a folder of demos, or the site's rounds): the last view under the map
+function renderSessPlayers(nDone, busy) {
+  const pbox = $('#sessPlayers'), ptab = $('#ptPlayers'); if (!pbox || !ptab) return;
+  const P = session ? sessionPlayers() : [];
+  ptab.hidden = !P.length;
+  if (!P.length) { pbox.innerHTML = ''; if (pane === 'players') paneSet('battle'); return; }
+  const val = (p, k) => k === 'kd' ? p.k / Math.max(1, p.d) : k === 'name' ? p.name.toLowerCase() : p[k];
+  P.sort((a, b) => { const x = val(a, session.sort), y = val(b, session.sort); return (x < y ? -1 : x > y ? 1 : 0) * session.dir || b.score - a.score; });
+  const cell = (p, k) => k === 'name' ? `<span class="t${p.teams[0] >= p.teams[1] ? 0 : 1}">${esc(p.name)}</span>${p.teams[0] && p.teams[1] ? ' <span class="w" title="Played on both sides">⇄</span>' : ''}`
+    : k === 'kd' ? (p.k / Math.max(1, p.d)).toFixed(2) : k === 'alive' ? fmt(p.alive) : k === 'long' ? (p.long ? p.long + ' m' : '–') : k === 'hs' ? (p.hs ? `${p.hs} <span class="w">${Math.round(p.hs / Math.max(1, p.k) * 100)}%</span>` : '–') : k === 'streak' ? (p.streak || '–') : (p[k] || (k === 'score' || k === 'wins' ? 0 : '–'));
+  const SG = { kVeh: 'veh', rev: 'med', heal: 'med', rep: 'med', streak: 'more', long: 'more', alive: 'more' }, SC = SESS_COLS.filter(([k]) => pview.groups.has(SG[k] || 'main'));
+  pbox.innerHTML = `<div class="sesshead"><h2>Players over ${nDone} round${nDone === 1 ? '' : 's'} <span class="w">${P.length} players${busy ? ' · still adding up' : ''}</span></h2>${pgroupChips()}<div class="chips"><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button></div></div>
+    <div class="stscroll"><table class="sttab sessp"><thead><tr>${SC.map(([k, label, n]) => `<th class="${n ? 'n' : ''}${session.sort === k ? ' on' : ''}" data-k="${k}" aria-sort="${session.sort === k ? (session.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button class="sortb">${esc(label)}${session.sort === k ? (session.dir < 0 ? ' ▾' : ' ▴') : ''}</button></th>`).join('')}</tr></thead><tbody>
+    ${P.map(p => `<tr>${SC.map(([k, label, n]) => `<td class="${n ? 'n' : ''}"${n ? ` data-l="${esc(label)}"` : ''}>${cell(p, k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    <p class="stnote">Name colour: the side played most (⇄ played on both). ≈ Score by the game's rules from what the demos show. Won: rounds that ended with more tickets on his side. Click a column to sort.</p>`;
+  pbox.querySelectorAll('th[data-k] .sortb').forEach(b => b.onclick = () => { const k = b.parentElement.dataset.k; if (session.sort === k) session.dir = -session.dir; else { session.sort = k; session.dir = k === 'name' ? 1 : -1; } renderSessPlayers(nDone, busy); });
+  $('#sessCsvP').onclick = csvSessionPlayers;
 }
 
 $('#fJson').addEventListener('change', async e => {
@@ -4724,9 +5155,10 @@ async function openServerRound(r) {
     }
   } catch (e) {
     if (decodeJob === job) decodeJob = null; showDecoding(name, null);
-    $('#notice').innerHTML = `<strong>Couldn't open ${esc(name)}.</strong> ${esc(e.message || String(e))}`; return;
+    $('#notice').innerHTML = `<strong>Couldn't open ${esc(name)}.</strong> ${esc(e.message || String(e))}`; $('#notice').classList.add('err'); return;
   }
-  try { history.replaceState(null, '', '#round=' + encodeURIComponent(linkId(name))); } catch (e) {}
+  $('#notice').classList.remove('err');
+  hashSet({ round: linkId(name), t: null, p: null });
   if (pendingLink && pendingLink.r === r) {
     const L = pendingLink; pendingLink = null;
     if (L.t != null && round) t = Math.max(0, Math.min(round.duration, L.t));
@@ -4737,7 +5169,7 @@ async function openServerRound(r) {
 function linkHere() {
   const r = session && session.server && session.rounds.find(x => x.name === $('#srcLabel').textContent); if (!r || !round) return null;
   const p = sel !== null ? round.players[sel] : null;
-  return location.origin + location.pathname + '#round=' + encodeURIComponent(linkId(r.name)) + '&t=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '');
+  return location.origin + location.pathname + '#round=' + encodeURIComponent(linkId(r.name)) + '&t=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '');
 }
 $('#vLink').onclick = async () => { const u = linkHere(); if (!u) return; try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to this moment:', u); } };
 async function serverBoot() {
@@ -4745,15 +5177,17 @@ async function serverBoot() {
   let d = null; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) d = await res.json(); } catch (e) { return; }
   if (!d || !Array.isArray(d.rounds)) return;
   serverData = d;
+  document.body.classList.add('site'); $('#moreBtn').hidden = false;
   session = { server: true, done: true, showEmpty: false, sort: 'score', dir: -1, job: null, rounds: d.rounds.map(x => ({ name: x.name, status: x.empty ? 'empty' : 'done', sum: x.sum, srv: x, file: null })) };
   $('#vLink').hidden = false;
   renderSession();
   const h = new URLSearchParams(location.hash.slice(1)), want = h.get('round');
+  if (h.get('tab')) paneSet(h.get('tab'));
   const hit = findSrv(want), pick = hit || session.rounds.find(r => r.status === 'done');
   if (hit) pendingLink = { r: hit, t: h.has('t') ? +h.get('t') : null, p: h.get('p') };
   if (pick) openServerRound(pick);
 }
-window.addEventListener('hashchange', () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)), r = findSrv(h.get('round')); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
+window.addEventListener('hashchange', () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)), r = findSrv(h.get('round')); if ((h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
 
 new ResizeObserver(resize).observe(cv);
 new ResizeObserver(resize).observe(tl);
