@@ -99,11 +99,28 @@ input[type=file] { display: none; }
 .mapplay .spd { flex: none; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); cursor: pointer; }
 .mapplay .spd input[type=range] { flex: none; width: 110px; }
 .mapbox.fs .mapplay .spd input[type=range] { width: 165px; }
+/* a map narrower than 1000 px (not full screen): the round time and seek bar get a row of their own, above the buttons,
+   so the bar is long enough to aim with */
+.mapbox { container-type: inline-size; }
+@container (max-width: 1000px) {
+  .mapbox:not(.fs) .mapplay { flex-wrap: wrap; row-gap: 8px; }
+  .mapbox:not(.fs) .mapplay .seekw { order: -1; flex-basis: 100%; }
+  .mapbox:not(.fs) .mapctl { bottom: 112px; }
+  .mapbox:not(.fs) .maptoast { bottom: 162px; }
+}
 .mapplay .zm { gap: 7px; }
 .mapplay .zm .mg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; color: var(--muted); }
 .mapplay .zm b { min-width: 6ch; }
 .mapplay .spd b { font: 600 18px var(--font-data); min-width: 3.2ch; text-align: right; font-variant-numeric: tabular-nums; }
-.mapplay #seek { flex: 1; min-width: 0; padding: 0 14px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+/* the round time next to the seek bar: time in the round / its length, and the game server's clock below */
+.mapplay .seekw { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 0 14px 0 12px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+.mapplay #seek { flex: 1; min-width: 40px; height: 100%; }
+.ptime { display: grid; gap: 2px; white-space: nowrap; font-variant-numeric: tabular-nums; cursor: default; }
+.ptime .pt1 { font: 600 15px/1 var(--font-data); }
+.ptime .pt1 .clock { font: inherit; letter-spacing: 0; }
+.ptime .pt1 i { font-style: normal; font-weight: 400; color: var(--muted); }
+.ptime .pt2 { font: 400 11px/1 var(--font-data); color: var(--muted); }
+.ptime .pt2:empty { display: none; }
 /* sliders 1.5x the browser's: 8 px track filled up to the knob (--p), 22 px knob */
 .mapplay input[type=range], .mbar input[type=range] { -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; background-color: transparent; --p: 0%; }
 .mapplay input[type=range]::-webkit-slider-runnable-track, .mbar input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--fg) 26%, transparent) var(--p)); }
@@ -115,12 +132,20 @@ input[type=file] { display: none; }
 .mapbox.fs { position: fixed; inset: 0; width: auto; max-width: none; border: 0; border-radius: 0; z-index: 50; }
 .mapbox.fs canvas { width: 100%; height: 100%; aspect-ratio: auto; }
 .mapbox.fs #vBig { display: none; }
-.fsfeed { display: none; position: absolute; top: 58px; right: 10px; width: min(360px, 42vw); max-height: 46vh; overflow: hidden; pointer-events: none;
-  background: color-mix(in srgb, var(--bg) 80%, transparent); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; font-size: 12px; }
-.mapbox.fs .fsfeed { display: block; }
+/* kill feed over the map, top right (also outside full screen): see-through, the map shows beneath; "Kill feed" in Layers */
+.fsfeed { position: absolute; top: 10px; right: 10px; width: min(310px, 46%); max-height: 50%; overflow: hidden; pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 4px; padding: 7px 9px; font-size: 12px;
+  text-shadow: 0 0 3px var(--bg), 0 0 1px var(--bg); }
+.fsfeed[hidden], .fsfeed:empty { display: none; }
+.mapbox.fs .fsfeed { width: min(360px, 42vw); max-height: 46vh; }
+.fsfeed li.old { opacity: .55; }
+/* outside full screen one line per event, a kill as killer - weapon icon - victim (details in the Kill feed list below) */
+.mapbox:not(.fs) .fsfeed li > span:last-child { white-space: nowrap; }
+.mapbox:not(.fs) .fsfeed li.kl .w { display: none; }
 .fsfeed .fstk { display: flex; gap: 12px; align-items: center; font: 700 15px/1 var(--font-display); letter-spacing: .04em; margin-bottom: 6px; }
 .fsfeed ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
 .fsfeed li { display: grid; grid-template-columns: 38px 1fr; gap: 6px; }
+.fsfeed li > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .fsfeed .ts { font: 400 11px var(--font-data); color: var(--muted); }
 .fsfeed .w { color: var(--muted); }
 .fsfeed .cap { color: var(--accent); }
@@ -128,7 +153,7 @@ input[type=file] { display: none; }
 @media (max-width: 1100px) { .panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .panels { grid-template-columns: minmax(0, 1fr); } }
 .mapbox canvas { display: block; width: 100%; aspect-ratio: 1 / 1; max-width: 100%; cursor: crosshair; }
-.maphud { position: absolute; inset: 10px 10px auto 10px; display: flex; justify-content: space-between; gap: 8px; pointer-events: none; }
+.maphud { position: absolute; inset: 10px 10px auto 10px; display: flex; justify-content: flex-start; gap: 8px; pointer-events: none; }
 .mapctl { position: absolute; right: 10px; bottom: 62px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .mapctl .btn { padding: 6px 9px; font-size: 12px; white-space: nowrap; background: color-mix(in srgb, var(--bg) 82%, transparent); }
 .mapbox canvas { touch-action: none; }
@@ -360,7 +385,13 @@ details.schema p { max-width: 70ch; }
   .mapplay .spd input[type=range] { width: 120px; }
   .mapplay .zm { flex: 1 1 100%; }
   .mapplay .zm input[type=range] { flex: 1; width: auto; min-width: 0; }
-  .mapplay #seek { flex-basis: 100%; }
+  .mapplay .seekw { flex-basis: 100%; }
+  /* (a phone: three short lines under the map's name, without the tickets) */
+  .mapbox:not(.fs) .fsfeed { top: 40px; width: 64%; font-size: 10.5px; padding: 4px 6px; }
+  .mapbox:not(.fs) .fsfeed .fstk { display: none; }
+  .mapbox:not(.fs) .fsfeed li { grid-template-columns: 30px 1fr; gap: 4px; }
+  .mapbox:not(.fs) .fsfeed .ts { font-size: 9.5px; }
+  .mapbox:not(.fs) .fsfeed li:nth-child(n+4) { display: none; }
   .mapbox:not(.fs) .mapplay { position: static; padding: 8px 10px 10px; }
   .mapbox:not(.fs) .mapctl { bottom: 168px; }   /* (above the bar's three rows: play and speed, zoom, round time) */
 }
@@ -467,7 +498,9 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .mbar .btn { height: 38px; padding: 0 10px; }
 .mbar #play3 span { display: none; }
 .mbar #play3 svg { width: 14px; height: 14px; }
-.mbar .mclock { font: 600 14px var(--font-data); font-variant-numeric: tabular-nums; min-width: 5ch; }
+.mbar .mclock { display: grid; gap: 1px; font: 600 14px/1.05 var(--font-data); font-variant-numeric: tabular-nums; min-width: 5ch; }
+.mbar .mclock span { font: 400 10px/1 var(--font-data); color: var(--muted); }
+.mbar .mclock span:empty { display: none; }
 .mbar input[type=range] { flex: 1; min-width: 0; height: 30px; }
 body.mbar-on { padding-bottom: 72px; }
 /* phone: the soldiers tables as cards (name, then the numbers with their labels); the column names sort */
@@ -515,10 +548,9 @@ body.mbar-on { padding-bottom: 72px; }
       <canvas id="map" tabindex="0" aria-label="Tactical map"></canvas>
       <div class="maphud">
         <span class="tag" id="mapTag">Map</span>
-        <span class="tag clock" id="clock">00:00</span>
         <span class="tag sim" id="simTag">Simulated</span>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="1" max="60" step="1" value="10" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="1" max="60" step="1" value="10" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
@@ -531,6 +563,7 @@ body.mbar-on { padding-bottom: 72px; }
           <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Layers <b id="layN"></b> ▾</button>
           <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
           <button class="btn on" id="tNames">Names</button>
+          <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
           <button class="btn on" id="tSpots">Spots</button>
           <button class="btn on" id="tBlast" title="Grenades and rockets in flight, blast radius where they go off, placed C4 / claymores / AT mines">Explosions</button>
@@ -659,7 +692,7 @@ body.mbar-on { padding-bottom: 72px; }
   <div class="mbar" id="mbar" aria-label="Replay" hidden>
     <button class="btn" id="play3" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
     <button class="btn" id="mBack" aria-label="10 seconds back">−10 s</button>
-    <b class="mclock" id="mclock">00:00</b>
+    <span class="mclock"><b id="mclock">00:00</b><span id="mclockReal"></span></span>
     <input type="range" id="mseek" min="0" max="100" step="0.1" value="0" aria-label="Round time">
     <button class="btn" id="mMap" aria-label="Back to the map" title="Back to the map">Map ↑</button>
   </div>
@@ -987,7 +1020,7 @@ let t = 0, playing = false, speed = 10, sel = null, tab = 0;
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', job: null, out: null, drag: null, sel: undefined };
-const opts = { names:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true };
+const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true };
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
 // ---------- map pictures ----------
 // The game's minimap (Levels/<map>/client.zip -> Hud/Minimap/ingameMap.dds) covers the whole terrain, north up,
@@ -2012,7 +2045,7 @@ function panels(force) {
   $('#tickets').innerHTML = [0,1].map(tm => { const v = tm?tk1:tk0; const pct = start[tm] ? Math.max(0,Math.min(100,v/start[tm]*100)) : 0; return `<div class="trow"><span class="nm t${tm}">${source === 'demo' || GAME.maps[mapKey()] ? flagChip(tm, false, 13) + ' ' : ''}${esc(round.teams[tm]?.name||'Team '+(tm+1))}</span><span class="bar"><i style="width:${pct}%;background:var(--team${tm})"></i></span><span class="v">${start[tm] ? Math.round(v) : '—'}</span></div>`; }).join('');
   $('#flagrow').innerHTML = round.flags.map((f,i) => { const o = round.FO[fa*round.nf+i]; return `<span class="flagchip">${flagChip(o, f.main)}${esc(f.name)}</span>`; }).join('');
   // feed & stats
-  const K = new Map(), Dd = new Map(), RV = new Map(), HL = new Map(), RP = new Map(), HS = new Map(), feed = [];
+  const K = new Map(), Dd = new Map(), RV = new Map(), HL = new Map(), RP = new Map(), HS = new Map(), feed = [], feedT = [];
   let evT = t;   // names take the colour of the side the player was on at that event
   const pn = id => { const i = round.pidx.get(id); const p = round.players[i]; return p ? `<span class="t${teamOf(i, evT)}">${esc(p.name)}</span>` : (id==null || id<0 ? 'World' : esc(id)); };
   let ei = -1;
@@ -2030,9 +2063,19 @@ function panels(force) {
     else if (e.type==='vehdestroyed' && !/_soldier$/i.test(e.vehicle||'')) feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${pn(e.attacker)} destroyed <span class="w">${esc(e.vehicle||'vehicle')}</span></span></li>`);
     else if (e.type==='chat') feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${pn(e.player)}: <span class="w">${esc(e.text||'')}</span></span></li>`);
     else if (e.type==='end') feed.push(`<li><span class="ts">${fmt(e.t)}</span><span class="cap">Round over${e.winner==null ? '' : ` · <span class="t${e.winner}">${esc(round.teams[e.winner]?.name||'')}</span> wins`}${e.tickets ? ` <span class="w">(tickets ${e.tickets[0]} : ${e.tickets[1]})</span>` : ''}</span></li>`);
+    while (feedT.length < feed.length) feedT.push(e.t);
   }
   $('#feed').innerHTML = feed.length ? feed.slice(-40).reverse().join('') : '<li class="empty">No events yet.</li>';
-  if (mapbox.classList.contains('fs')) $('#fsfeed').innerHTML = `<div class="fstk">${[0,1].map(tm => `<span class="t${tm}">${flagChip(tm, false, 12)} ${esc(round.teams[tm]?.name || '')} ${start[tm] ? Math.round(tm ? tk1 : tk0) : ''}</span>`).join('')}</div><ul>${feed.slice(-7).reverse().map(x => x.replace(/<button class="svb"[\s\S]*?<\/button>/, '')).join('')}</ul>`;
+  // over the map, top right: tickets now and the last events, newest on top; ones older than 30 s of the round paler
+  const fo = $('#fsfeed'); fo.hidden = !opts.feed;
+  if (opts.feed) {
+    const nf = mapbox.classList.contains('fs') ? 7 : 6, rows = [];
+    for (let k = feed.length - 1; k >= Math.max(0, feed.length - nf); k--) {
+      const old = t - feedT[k] > 30;
+      rows.push(feed[k].replace(/<button class="svb"[\s\S]*?<\/button>/, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
+    }
+    fo.innerHTML = `<div class="fstk">${[0,1].map(tm => `<span class="t${tm}">${flagChip(tm, false, 12)} ${esc(round.teams[tm]?.name || '')} ${start[tm] ? Math.round(tm ? tk1 : tk0) : ''}</span>`).join('')}</div>${rows.length ? `<ul>${rows.join('')}</ul>` : ''}`;
+  }
   // estimated score (decoded demos) or the round logger's score events
   const hasScore = !!round.meta.scoreEstimate || round.events.some(e => e.type === 'score');
   const hasHs = !!round.meta.hits;
@@ -3026,8 +3069,15 @@ function viewRows(i, p) {
   }
   return h;
 }
+// the game server's clock at a moment of the round: the demo's start (its header, "YYYY-MM-DD HH:MM:SS") + t
+function serverClock(tt) {
+  const m = /(\d\d):(\d\d):(\d\d)\s*$/.exec(String(round?.meta?.date || '')); if (!m) return '';
+  const s = ((+m[1] * 3600 + +m[2] * 60 + +m[3] + Math.floor(tt)) % 86400 + 86400) % 86400;
+  return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(v => String(v).padStart(2, '0')).join(':');
+}
 function refresh(force) {
-  $('#clock').textContent = fmt(t);
+  $('#clock').textContent = fmt(t); $('#clockDur').textContent = round.duration ? ' / ' + fmt(round.duration) : '';
+  { const sc = serverClock(t); $('#clockReal').textContent = sc ? sc + ' server time' : ''; if (!mbar.hidden) $('#mclockReal').textContent = sc; }
   const sk = $('#seek'); if (+sk.max !== round.duration) sk.max = round.duration; if (document.activeElement !== sk || force) sk.value = t;
   sk.style.setProperty('--p', (round.duration ? Math.min(100, t / round.duration * 100) : 0).toFixed(2) + '%');
   if (!mbar.hidden) { const ms = $('#mseek'); if (+ms.max !== round.duration) ms.max = round.duration; if (document.activeElement !== ms || force) ms.value = t; ms.style.setProperty('--p', sk.style.getPropertyValue('--p')); $('#mclock').textContent = fmt(t); }
@@ -3553,7 +3603,7 @@ function setSpeed(v) {
 $('#speedR').addEventListener('input', e => setSpeed(e.target.value));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tNames:'names', tKills:'kills', tHeat:'heat', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view' };
+const toggles = { tNames:'names', tFeed:'feed', tKills:'kills', tHeat:'heat', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view' };
 Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'heat') { $('#heatBar').hidden = !opts.heat; if (opts.heat) fillHeat(); } refresh(true); });
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 function layCount() {
