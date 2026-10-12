@@ -147,9 +147,9 @@ function writeIndex(d, dec) {
 }
 async function processDemo(dec, idx, src, name, { move }) {
   const t0 = Date.now(), { tl, hdr, info } = await decodeFile(dec, src);
-  const old = idx.rounds.findIndex(r => r.name === name);
-  if (!tl) {
-    // nobody played: no round to list
+  const old = idx.rounds.findIndex(r => r.name === name), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
+  if (!tl || sum.empty) {
+    // nobody played (no spawn, or nobody was ever alive on the field): no round to list
     if (move) { if (KEEP_EMPTY) fs.renameSync(src, path.join(DIRS.empty, name)); else fs.unlinkSync(src); }
     if (old >= 0) idx.rounds.splice(old, 1);
     log('empty round', name);
@@ -160,7 +160,7 @@ async function processDemo(dec, idx, src, name, { move }) {
   const bfr = bfrBuild({ name, info, tl }), tmp = path.join(DIRS.rounds, bfrName + '.tmp');
   fs.writeFileSync(tmp, bfr); fs.renameSync(tmp, path.join(DIRS.rounds, bfrName));
   if (move) fs.renameSync(src, path.join(DIRS.demos, name));
-  const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum: summarize(tl, hdr, dec.killCause) };
+  const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum };
   if (old >= 0) idx.rounds[old] = entry; else idx.rounds.push(entry);
   log('round', name, `${(info.bytes / 1e6).toFixed(1)} MB -> ${(bfr.length / 1e6).toFixed(1)} MB`, `${entry.sum.players} players, ${entry.sum.kills} kills`, `${((Date.now() - t0) / 1000).toFixed(1)} s`);
 }

@@ -2,16 +2,20 @@
 // BF2 Round Replay - server side: download new demos from the game servers' public demo pages.
 // For game servers you can't install anything on (e.g. a clan's server that publishes its demos on a web page):
 // every page in BF2R_FETCH_URLS is read, each link to a .bf2demo that wasn't fetched before is downloaded into
-// upload/incoming, and ingest.mjs takes it from there (the same as an uploaded demo).
+// upload/incoming, and ingest.mjs takes it from there (the same as an uploaded demo): rounds with players are decoded
+// and listed on the site, rounds nobody played are dropped. Run once a day by bf2replay-fetch.timer (BF2R_FETCH_AT).
 //
 //   node fetch.mjs          download what's new
-//   node fetch.mjs --list   only show what it would download
+//   node fetch.mjs --list   only show what it would download (and how much)
 //
 // Settings (/etc/bf2replay.conf or the environment):
 //   BF2R_FETCH_URLS       pages that list the demos (space separated); a plain folder listing works
-//   BF2R_FETCH_SINCE      YYYY-MM-DD: skip demos recorded before this day (the first run would otherwise take them all)
-//   BF2R_FETCH_MAX        at most this many downloads per run (default 20; the rest come on the next runs)
-//   BF2R_FETCH_MIN_BYTES  skip smaller demos (empty 45-minute rounds are ~400 KB; default 0 = take all)
+//   BF2R_FETCH_SINCE      YYYY-MM-DD: skip demos recorded before this day (empty = all the page lists)
+//   BF2R_FETCH_MAX        at most this many downloads per run (0 = no limit, the default; the rest come on the next run)
+//   BF2R_FETCH_MIN_BYTES  skip smaller demos (empty 45-minute rounds are ~400 KB; default 0 = take all and let ingest
+//                         decide by the players in it)
+//   BF2R_FETCH_PAUSE      seconds between two downloads (default 1, to go easy on the game server's web page)
+//   BF2R_MIN_FREE_GB      stop downloading when the disk with data/ has less free space than this (default 3)
 // What was fetched is kept in data/.fetched.json, so a demo comes once even if ingest drops it as an empty round.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,8 +28,10 @@ const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
 const ROOT = opt('BF2R_ROOT', '/srv/bf2replay');
 const URLS = opt('BF2R_FETCH_URLS', '').split(/[\s,]+/).filter(Boolean);
 const SINCE = opt('BF2R_FETCH_SINCE', '');
-const MAX = +opt('BF2R_FETCH_MAX', '20') || 20;
+const MAX = Math.max(0, +opt('BF2R_FETCH_MAX', '0') || 0);   // (0: no limit)
 const MIN_BYTES = +opt('BF2R_FETCH_MIN_BYTES', '0') || 0;
+const PAUSE = Math.max(0, +opt('BF2R_FETCH_PAUSE', '1') || 0);
+const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30;
 const INC = path.join(ROOT, 'upload', 'incoming'), STATE = path.join(ROOT, 'data', '.fetched.json');
 const LIST = process.argv.includes('--list');
 const UA = 'bf2replay-fetch/1.0 (BF2 Round Replay; downloads each demo once)';
@@ -37,6 +43,9 @@ const save = () => { const tmp = STATE + '.tmp'; fs.writeFileSync(tmp, JSON.stri
 
 // the day a demo was recorded: from its name (auto_2026_09_29_19_52_11.bf2demo), else from Last-Modified
 const nameDay = n => { const m = /(20\d\d)[_-](\d\d)[_-](\d\d)/.exec(n); return m ? `${m[1]}-${m[2]}-${m[3]}` : ''; };
+const mb = b => (b / 1048576).toFixed(1) + ' MB';
+// free space on the disk that holds data/ (the demo is moved there, and its decoded round written next to it)
+const freeBytes = () => { try { const s = fs.statfsSync(path.join(ROOT, 'data')); return s.bavail * s.bsize; } catch (e) { return Infinity; } };
 
 async function links(page) {
   const res = await fetch(page, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30e3) });
@@ -51,18 +60,32 @@ async function links(page) {
   return out;
 }
 
+// what the file's headers say about it: still being recorded (a folder the running server writes into: wait until it
+// hasn't changed for 3 minutes), recorded before BF2R_FETCH_SINCE, smaller than BF2R_FETCH_MIN_BYTES; null = take it
+function verdict(name, h) {
+  const lm = Date.parse(h.get('last-modified') || ''), size = +(h.get('content-length') || NaN);
+  if (Number.isFinite(lm) && Date.now() - lm < 180e3) return { why: 'busy' };
+  if (SINCE && !nameDay(name) && Number.isFinite(lm) && new Date(lm).toISOString().slice(0, 10) < SINCE) return { why: 'old' };
+  if (MIN_BYTES && Number.isFinite(size) && size < MIN_BYTES) return { why: Number.isFinite(lm) ? 'small' : 'busy' };
+  return { why: null, size };
+}
+
 async function download(name, url) {
-  // still being recorded? (a folder that the running server writes into): wait until it hasn't changed for 3 minutes
+  // the headers first (HEAD); a web server that doesn't answer HEAD gets a GET, and the checks run on its headers
   const head = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30e3) });
-  if (!head.ok) throw new Error(`HTTP ${head.status}`);
-  const lm = Date.parse(head.headers.get('last-modified') || ''), size = +(head.headers.get('content-length') || NaN);
-  if (Number.isFinite(lm) && Date.now() - lm < 180e3) return 'busy';
-  if (SINCE && !nameDay(name) && Number.isFinite(lm) && new Date(lm).toISOString().slice(0, 10) < SINCE) return 'old';
-  if (MIN_BYTES && Number.isFinite(size) && size < MIN_BYTES) return Number.isFinite(lm) ? 'small' : 'busy';
-  if (LIST) return 'would';
-  const part = path.join(INC, name + '.part');
+  if (!head.ok && ![403, 405, 501].includes(head.status)) throw new Error(`HTTP ${head.status}`);
+  let v = head.ok ? verdict(name, head.headers) : null;
+  if (v?.why) return v.why;
+  if (LIST && v) return { would: v.size };
+  if (v && freeBytes() - (Number.isFinite(v.size) ? v.size : 0) < MIN_FREE) return 'full';
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30 * 60e3) });
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+  if (!v) {
+    v = verdict(name, res.headers);
+    const stop = v.why || (LIST ? { would: v.size } : freeBytes() - (Number.isFinite(v.size) ? v.size : 0) < MIN_FREE ? 'full' : null);
+    if (stop) { await res.body.cancel().catch(() => {}); return stop; }
+  }
+  const part = path.join(INC, name + '.part');
   try {
     await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(part, { mode: 0o664 }));
     const got = fs.statSync(part).size, want = +(res.headers.get('content-length') || NaN);
@@ -75,25 +98,31 @@ async function download(name, url) {
 
 async function main() {
   if (!URLS.length) { log('no BF2R_FETCH_URLS set: nothing to fetch'); return; }
-  fs.mkdirSync(INC, { recursive: true });
-  let done = 0;
-  for (const page of URLS) {
+  fs.mkdirSync(INC, { recursive: true }); fs.mkdirSync(path.dirname(STATE), { recursive: true });
+  const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, failed: 0 };
+  const report = () => LIST
+    ? log(`would download ${n.would} demos${n.wouldBytes ? ', ~' + mb(n.wouldBytes) : ''}; still being written ${n.busy}; skipped (BF2R_FETCH_SINCE / MIN_BYTES) ${n.skipped}; free on disk ${mb(freeBytes())}`)
+    : log(`fetched ${n.got} demos (${mb(n.bytes)}); still being written ${n.busy} (next run); skipped ${n.skipped}` + (n.failed ? `; failed ${n.failed} (tried again next run)` : ''));
+  pages: for (const page of URLS) {
     let found;
     try { found = await links(page); } catch (e) { log('could not read', page, '-', e.message); continue; }
     // newest first (the names start with the date), so a fresh round shows up before an old backlog
     const todo = [...found].filter(([n]) => !seen[n] && !(SINCE && nameDay(n) && nameDay(n) < SINCE)).sort((a, b) => b[0].localeCompare(a[0]));
     log(page, '-', found.size, 'demos listed,', todo.length, 'new');
     for (const [name, url] of todo) {
-      if (done >= MAX) { log('limit of', MAX, 'per run reached; the rest next time'); return; }
+      if (MAX && n.got + n.would >= MAX) { log('limit of', MAX, 'per run reached (BF2R_FETCH_MAX); the rest next run'); break pages; }
       try {
         const r = await download(name, url);
-        if (r === 'busy') { log('still being written:', name); continue; }
-        if (r === 'would') { log('would download', name); done++; continue; }
-        if (r === 'old' || r === 'small') { seen[name] = { skipped: r, at: new Date().toISOString() }; save(); continue; }
-        seen[name] = { bytes: r, from: url, at: new Date().toISOString() }; save(); done++;
-        log('fetched', name, (r / 1048576).toFixed(1), 'MB');
-      } catch (e) { log('could not download', name, '-', e.message, '(tried again next time)'); }
+        if (r === 'busy') { log('still being written:', name); n.busy++; continue; }
+        if (r?.would !== undefined) { log('would download', name, Number.isFinite(r.would) ? mb(r.would) : ''); n.would++; if (Number.isFinite(r.would)) n.wouldBytes += r.would; continue; }
+        if (r === 'full') { log(`stopped: less than ${(MIN_FREE / 2 ** 30).toFixed(1)} GB free on the disk (BF2R_MIN_FREE_GB); ${name} and older ones next run`); break pages; }
+        if (r === 'old' || r === 'small') { if (!LIST) { seen[name] = { skipped: r, at: new Date().toISOString() }; save(); } n.skipped++; continue; }
+        seen[name] = { bytes: r, from: url, at: new Date().toISOString() }; save(); n.got++; n.bytes += r;
+        log('fetched', name, mb(r));
+        if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
+      } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
     }
   }
+  report();
 }
 main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });

@@ -13,5 +13,8 @@ if [ "$new" != "$(git rev-parse HEAD)" ] || [ ! -f "$BF2R_ROOT/site/index.html" 
   rsync -a --delete --delay-updates "$BF2R_ROOT/repo/site/" "$BF2R_ROOT/site/"
   echo "site updated to $(git log -1 --format='%h %s')"
 fi
+# the systemd units and this script from the repository, and the daily download time (BF2R_FETCH_AT) from
+# /etc/bf2replay.conf: only what changed is put in place
+bash "$BF2R_ROOT/repo/server/units.sh" || echo "units.sh failed: the units stay as they were"
 # (git runs as root, with the deploy key the repository names in core.sshCommand; the decoding runs as bf2replay)
 exec /usr/sbin/runuser -u bf2replay -- /usr/bin/flock -w 7200 "$BF2R_ROOT/data/.ingest.lock" /usr/bin/node "$BF2R_ROOT/repo/server/ingest.mjs" --reprocess

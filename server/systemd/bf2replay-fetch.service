@@ -10,4 +10,5 @@ Group=bf2replay
 Nice=10
 EnvironmentFile=/etc/bf2replay.conf
 ExecStart=/usr/bin/flock -n /srv/bf2replay/data/.fetch.lock /usr/bin/node /srv/bf2replay/repo/server/fetch.mjs
-TimeoutStartSec=2h
+# (the first run may take every demo the page lists)
+TimeoutStartSec=12h

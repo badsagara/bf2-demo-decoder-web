@@ -2,15 +2,18 @@
 # BF2 Round Replay - one-time setup of the web server (Ubuntu 22.04 / 24.04). Run as root, from this folder:
 #
 #   sudo BF2R_REPO=git@github.com:YOU/bf2-round-replay.git BF2R_DOMAIN=replay.example.com \
-#        BF2R_FETCH_URLS=http://demos.example.org/bf2/ BF2R_FETCH_SINCE=2026-10-01 bash install.sh
+#        BF2R_FETCH_URLS=http://demos.example.org/bf2/ bash install.sh
 #
 # BF2R_REPO    the GitHub repository with site/ and server/ (git@... for a private one: a read-only deploy key is made
 #              and shown; https://... for a public one)
 # BF2R_GIT_KEY the deploy key's file (default /root/.ssh/GitHub_bf2_repo; made if missing, an existing one is used)
 # BF2R_DOMAIN  the site's name (HTTPS certificate from Let's Encrypt, automatic); empty = plain http on the IP
 # BF2R_BRANCH  default main
-# BF2R_FETCH_URLS   pages that list a game server's demos (space separated): new demos are downloaded every 10 minutes
-# BF2R_FETCH_SINCE  YYYY-MM-DD: don't download demos recorded before this day
+# BF2R_FETCH_URLS   pages that list a game server's demos (space separated): new demos are downloaded once a day,
+#                   rounds with players decoded, empty ones dropped
+# BF2R_FETCH_AT     HH:MM, when (server clock; default 05:30)
+# BF2R_FETCH_SINCE  YYYY-MM-DD: don't download demos recorded before this day (empty = all the page lists)
+# BF2R_FETCH_MAX    at most so many downloads a day (default 0 = no limit)
 # BF2R_WEB     caddy (default: installs Caddy, automatic HTTPS) or none (another web server already runs here: set it up
 #              yourself from nginx-example.conf)
 #
@@ -26,7 +29,8 @@ REPO=${BF2R_REPO:-$(confval BF2R_REPO)}
 DOMAIN=${BF2R_DOMAIN-$(confval BF2R_DOMAIN)}
 BRANCH=${BF2R_BRANCH:-$(confval BF2R_BRANCH)}; BRANCH=${BRANCH:-main}
 FETCH_URLS=${BF2R_FETCH_URLS:-}
-FETCH_SINCE=${BF2R_FETCH_SINCE:-}
+# (these replace the settings only when given; BF2R_FETCH_SINCE= given empty clears the date)
+FETCH_KEYS=(BF2R_FETCH_SINCE BF2R_FETCH_MAX BF2R_FETCH_AT BF2R_FETCH_MIN_BYTES)
 WEB=${BF2R_WEB:-caddy}
 GIT_KEY=${BF2R_GIT_KEY:-$(confval BF2R_GIT_KEY)}; GIT_KEY=${GIT_KEY:-/root/.ssh/GitHub_bf2_repo}
 ROOT=/srv/bf2replay
@@ -76,6 +80,9 @@ install -d -o root -g root -m 755 "$ROOT/repo" "$ROOT/site"
 install -d -o bf2replay -g bf2replay -m 755 "$ROOT/data"
 
 say "Settings: /etc/bf2replay.conf"
+# (a setting is changed where it stands; a new one goes at the end)
+setconf() { awk -v k="$1" -v v="$2" 'index($0, k "=") == 1 { if (!d) print k "=" v; d = 1; next } { print } END { if (!d) print k "=" v }' \
+  /etc/bf2replay.conf > /etc/bf2replay.conf.new && mv /etc/bf2replay.conf.new /etc/bf2replay.conf; }
 if [ ! -f /etc/bf2replay.conf ]; then
   cat > /etc/bf2replay.conf <<EOF
 # BF2 Round Replay settings (read by the systemd units and server/ingest.mjs)
@@ -91,18 +98,29 @@ BF2R_KEEP_EMPTY=0
 BF2R_RAW_KEEP_DAYS=0
 # pages that list a game server's demos, space separated (a plain folder listing works); empty = only uploads
 BF2R_FETCH_URLS="$FETCH_URLS"
+# when to download them, once a day (HH:MM by the server's clock)
+BF2R_FETCH_AT=05:30
 # YYYY-MM-DD: don't download demos recorded before this day (empty = all the page lists)
-BF2R_FETCH_SINCE=$FETCH_SINCE
-# at most so many downloads per run (every 10 minutes); skip demos smaller than so many bytes (empty rounds ~400 KB)
-BF2R_FETCH_MAX=20
+BF2R_FETCH_SINCE=
+# at most so many downloads a day (0 = no limit); skip demos smaller than so many bytes (0 = all: empty rounds,
+# ~400 KB, are downloaded and dropped after decoding); seconds between two downloads
+BF2R_FETCH_MAX=0
 BF2R_FETCH_MIN_BYTES=0
+BF2R_FETCH_PAUSE=1
+# stop downloading when the disk has less free space than this (GB)
+BF2R_MIN_FREE_GB=3
 EOF
 else
-  setconf() { { grep -v "^$1=" /etc/bf2replay.conf; echo "$1=$2"; } > /etc/bf2replay.conf.new && mv /etc/bf2replay.conf.new /etc/bf2replay.conf; }
   setconf BF2R_REPO "$REPO"; setconf BF2R_BRANCH "$BRANCH"; setconf BF2R_DOMAIN "$DOMAIN"; setconf BF2R_GIT_KEY "$GIT_KEY"
   if [ -n "$FETCH_URLS" ]; then setconf BF2R_FETCH_URLS "\"$FETCH_URLS\""; fi
-  if [ -n "$FETCH_SINCE" ]; then setconf BF2R_FETCH_SINCE "$FETCH_SINCE"; fi
+  # (settings added by later versions get their defaults; the downloads are daily now)
+  sed -i 's/^# at most so many downloads per run (every 10 minutes);.*/# at most so many downloads a day (0 = no limit); skip demos smaller than so many bytes (0 = all)/' /etc/bf2replay.conf
+  grep -q '^BF2R_FETCH_AT=' /etc/bf2replay.conf || setconf BF2R_FETCH_AT 05:30
+  grep -q '^BF2R_MIN_FREE_GB=' /etc/bf2replay.conf || setconf BF2R_MIN_FREE_GB 3
 fi
+for k in "${FETCH_KEYS[@]}"; do
+  if [ -n "${!k+x}" ]; then setconf "$k" "${!k}"; fi
+done
 chmod 644 /etc/bf2replay.conf
 
 say "Repository"
@@ -176,9 +194,8 @@ else
 fi
 
 say "Timers"
-install -d -m 755 /usr/local/lib/bf2replay
-install -m 755 "$HERE/update.sh" /usr/local/lib/bf2replay/update.sh
-install -m 644 "$HERE"/systemd/bf2replay-* /etc/systemd/system/
+# (units.sh puts the units, update.sh and the download time in place; update.sh runs it again every 5 minutes)
+bash "$HERE/units.sh"
 systemctl daemon-reload
 systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer
 systemctl start bf2replay-ingest.service || true
@@ -188,6 +205,7 @@ say "Done"
 echo "Site:      ${DOMAIN:+https://$DOMAIN/}${DOMAIN:-http://$(hostname -I | awk '{print $1}')/}"
 # shellcheck source=/dev/null
 echo "Demos:     downloaded from: $(. /etc/bf2replay.conf; echo "${BF2R_FETCH_URLS:-(none: set BF2R_FETCH_URLS in /etc/bf2replay.conf)}")"
+echo "           daily at $(. /etc/bf2replay.conf; echo "${BF2R_FETCH_AT:-05:30}") (next: $(systemctl show -P NextElapseUSecRealtime bf2replay-fetch.timer 2>/dev/null)); the first run starts now"
 echo "Uploads:   sftp bf2upload@${DOMAIN:-$(hostname -I | awk '{print $1}')} into incoming/  (add each sender's public key"
 echo "           as a line in /etc/ssh/bf2replay_keys/bf2upload)"
 echo "Logs:      journalctl -u 'bf2replay-*' -f"

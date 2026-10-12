@@ -6,15 +6,17 @@
 ```
 site/         сам сайт: index.html + assets/ (мапи, іконки, дані про стіни й рельєф для «хто кого бачив»)
 server/       для VPS: install.sh (ставить усе одним запуском), fetch.mjs (забирає демо з сторінки сервера),
-              ingest.mjs (розбирає демо), update.sh (оновлення з GitHub), systemd/, Caddyfile.in, INSTALL.md
+              ingest.mjs (розбирає демо), update.sh (оновлення з GitHub), units.sh (таймери systemd),
+              systemd/, Caddyfile.in, INSTALL.md
 gameserver/   необов'язково: скрипт для ігрового сервера, який сам відсилає демо (якщо є доступ до сервера)
 ```
 
 Як усе працює:
 
 ```
-сторінка демо сервера =FL=  ──(кожні 10 хв, fetch.mjs)──►  VPS: upload/incoming
-                                                             │ ingest.mjs: демо → розібраний раунд (.bfr, у ~6 разів менший)
+сторінка демо сервера =FL=  ──(раз на день, fetch.mjs)──►  VPS: upload/incoming
+(85.17.145.41/karkand/demos)                                 │ ingest.mjs: демо → розібраний раунд (.bfr, у ~6 разів менший);
+                                                             │ раунди без гравців відкидаються
                                                              ▼
                                                   data/rounds.json + data/rounds/*.bfr
                                                              │ Caddy (HTTPS)
