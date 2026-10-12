@@ -4,8 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Battlefield 2 rounds from the Battle Recorder on the map: who went where, who killed whom, flags, vehicles, tickets.">
+<meta property="og:site_name" content="BF2 Round Replay">
 <meta property="og:title" content="BF2 Round Replay">
 <meta property="og:description" content="Battlefield 2 rounds from the Battle Recorder on the map: who went where, who killed whom, flags, vehicles, tickets.">
+<meta property="og:image" content="assets/og/site.jpg">
+<meta name="twitter:card" content="summary_large_image">
 <title>BF2 Round Replay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -476,6 +479,27 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .pkdline { font-size: 13px; color: var(--muted); margin-top: 10px; }
 .pkdline b { color: var(--fg); font-weight: 600; }
 .pcard .chips { margin-top: 10px; }
+/* a player over all rounds (#player=<nick> on the site): in place of the map and the views under it */
+body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .mbar { display: none !important; }
+.ppage { display: grid; gap: 12px; margin-bottom: 12px; }
+.ppage[hidden] { display: none; }
+.pphead { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.pphead .ppname { margin: 0; font: 700 30px/1.1 var(--font-display); letter-spacing: .04em; color: var(--fg); text-transform: none; }
+.pphead .aka { display: block; margin-top: 6px; font-size: 13px; color: var(--muted); }
+.pphead .chips { margin: 0; }
+.ppage h3 { font: 700 12px/1.2 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+.ppage h3 .w { font: 400 11px var(--font-data); letter-spacing: .02em; text-transform: none; }
+.ppage .pcols > div { min-width: 0; margin-bottom: 8px; }
+.ppage .sttab.pprounds tbody tr { cursor: pointer; }
+.ppage .sttab.pprounds tbody tr:hover td { background: var(--panel-2); }
+.ppage .sttab.pprounds td { white-space: nowrap; }
+.plink { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+.plink:hover { text-decoration-color: currentColor; }
+.plink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pbar { display: block; height: 4px; margin-top: 3px; border-radius: 2px; background: var(--accent); opacity: .7; }
+.rfind { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 190px; }
+.rhits { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 2px; font-size: 13px; }
+.rhits:empty { display: none; }
 /* map layers in one menu; keys under "?" */
 .lwrap { position: relative; display: inline-flex; }
 #layBtn b { font: 600 12px var(--font-data); color: var(--accent); }
@@ -542,6 +566,7 @@ body.mbar-on { padding-bottom: 72px; }
   <div class="notice" id="notice"></div>
 
   <section class="card session" id="session" aria-label="Rounds of the demos opened together" hidden></section>
+  <section class="ppage" id="pPage" aria-label="A player over all rounds" hidden></section>
 
   <div class="stage">
     <div class="mapbox" id="mapbox">
@@ -2467,13 +2492,14 @@ function renderPCard(i) {
       <div><h3>Killed by</h3>${list(kil, o => `<li><span class="nmc">${pn(o.e.killer, o.e.t)}${teamOf(R.pidx.get(o.e.killer), o.e.t) === teamOf(i, o.e.t) ? ' <span class="w">team</span>' : ''}</span><span class="n">×${o.n}</span></li>`, 'soldiers')}</div>
     </div>
     ${me && (me.kF + me.dF + me.kV + me.dV) ? `<p class="pkdline">On foot <b>${me.kF}–${me.dF}</b> (${kd(me.kF, me.dF)}) · in vehicles <b>${me.kV}–${me.dV}</b> (${kd(me.kV, me.dV)})</p>` : ''}
-    <div class="chips"><button class="btn sm" data-ph="kills" title="Heatmap of where he stood when he killed">Heatmap: where he killed</button><button class="btn sm" data-ph="deaths" title="Heatmap of where he died">Heatmap: where he died</button></div>`;
+    <div class="chips"><button class="btn sm" data-ph="kills" title="Heatmap of where he stood when he killed">Heatmap: where he killed</button><button class="btn sm" data-ph="deaths" title="Heatmap of where he died">Heatmap: where he died</button>${session && playerRounds(nickOf(p.name)).length ? `<button class="btn sm" data-pp="${esc(nickOf(p.name))}" title="His page: all his rounds, weapons, who he played with and against">All his rounds ›</button>` : ''}</div>`;
   box.hidden = false;
   const lf = $('#pLife');
   if (lf) {
     lf.onclick = ev => { const d = ev.target.closest('[data-t]'); const tt = d ? +d.dataset.t - 2 : (ev.clientX - lf.getBoundingClientRect().left) / lf.getBoundingClientRect().width * T; t = Math.max(0, Math.min(T, tt)); refresh(true); };
     lf.onkeydown = ev => { if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') { ev.preventDefault(); ev.stopPropagation(); t = Math.max(0, Math.min(T, t + (ev.key === 'ArrowRight' ? 10 : -10))); refresh(true); } };
   }
+  box.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.pp));
   box.querySelectorAll('[data-ph]').forEach(b => b.onclick = () => {
     heat.mode = b.dataset.ph; heat.who = p.name.trim(); heat.time = 'all'; heat.side = 'all'; heat.wpn = 'all';
     if (!opts.heat) { opts.heat = true; $('#tHeat').classList.add('on'); $('#heatBar').hidden = false; }
@@ -2741,8 +2767,25 @@ function vehRows(p) {
 const heat = { mode: 'deaths', side: 'all', wpn: 'all', who: '', time: 'now', scope: 'round', key: '', layer: null };
 const HEAT_RAMP = [[205, 199, 247], [169, 159, 240], [133, 119, 230], [98, 82, 214], [74, 58, 167], [51, 38, 127]];
 const HEAT_CAUSE = [['small', 'Small arms'], ['veh', 'Vehicle guns'], ['at', 'Anti-tank launchers'], ['expl', 'Grenades & explosives'], ['emp', 'Emplacements'], ['none', 'No weapon']];
-// the rounds of the rounds list on this map, other than the open one (their kills kept in the summary)
-const heatRounds = () => session ? session.rounds.filter(r => r.status === 'done' && r.sum && !r.sum.empty && r.sum.pts && String(r.sum.map).toLowerCase() === mapKey()) : [];
+// Every kill's spot of the other rounds: in a round's summary (demos opened here), or on the site in one file per map,
+// data/heat/<map>.json (rounds.json names it with a version), loaded only when needed: the heatmap of all rounds on the
+// map, a player's page
+const heatStore = new Map();   // map -> Map(round name -> kills), or the Promise of loading it
+const heatSrc = m => serverData?.heat?.[String(m || '').toLowerCase()] || null;
+const ptsOf = r => r.sum?.pts || heatStore.get(String(r.sum?.map || '').toLowerCase())?.get?.(r.name) || null;
+function loadHeat(maps) {
+  const ps = [];
+  for (const m of new Set(maps.map(x => String(x || '').toLowerCase()))) {
+    const h = heatSrc(m), cur = heatStore.get(m); if (!h || cur instanceof Map) continue;
+    if (cur) { ps.push(cur); continue; }
+    const pr = fetch('data/' + h.file + '?v=' + encodeURIComponent(h.v)).then(res => res.ok ? res.json() : null).catch(() => null)
+      .then(d => { heatStore.set(m, new Map(Object.entries(d?.rounds || {}))); });
+    heatStore.set(m, pr); ps.push(pr);
+  }
+  return Promise.all(ps);
+}
+// the rounds of the rounds list on this map, other than the open one
+const heatRounds = () => session ? session.rounds.filter(r => r.status === 'done' && r.sum && !r.sum.empty && (r.sum.pts || heatSrc(r.sum.map)) && String(r.sum.map).toLowerCase() === mapKey()) : [];
 // one kill as the heatmap reads it: [victim x, y, killer x, y (null: not known), victim's side, killer's side (team names),
 // kind of weapon, weapon, killer, victim]
 function heatKill(e) {
@@ -2757,7 +2800,7 @@ function heatPoints() {
   if (heat.scope === 'all' && heatRounds().length) {
     // (the open round counts once: from its events, the others from their summaries)
     const cur = $('#srcLabel').textContent;
-    for (const r of heatRounds()) if (r.name !== cur) for (const k of r.sum.pts) ks.push(k);
+    for (const r of heatRounds()) if (r.name !== cur) for (const k of ptsOf(r) || []) ks.push(k);
     for (const e of round.events) if (e.type === 'kill') { const k = heatKill(e); if (k) ks.push(k); }
   } else for (const e of round.events) { if (heat.time === 'now' && e.t > t) break; if (e.type === 'kill') { const k = heatKill(e); if (k) ks.push(k); } }
   const D = heat.mode === 'deaths', out = [];
@@ -2799,7 +2842,10 @@ function fillHeat() {
   $('#hScopeL').hidden = !many; if (!many) heat.scope = 'round';
   $('#hScope').value = heat.scope; $('#hTime').disabled = heat.scope === 'all';
   const ks = []; for (const e of round.events) if (e.type === 'kill') { const k = heatKill(e); if (k) ks.push(k); }
-  if (heat.scope === 'all') for (const r of heatRounds()) for (const k of r.sum.pts) ks.push(k);
+  if (heat.scope === 'all') {
+    for (const r of heatRounds()) for (const k of ptsOf(r) || []) ks.push(k);
+    if (heatSrc(mapKey()) && !(heatStore.get(mapKey()) instanceof Map)) loadHeat([mapKey()]).then(() => { if (round && heat.scope === 'all') { fillHeat(); refresh(true); } });
+  }
   const opt = (v, txt, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(txt)}</option>`;
   const sides = [...new Set(round.teams.map(x => x.name).concat(ks.flatMap(k => [k[4], k[5]])).filter(Boolean))];
   if (heat.side !== 'all' && !sides.includes(heat.side)) heat.side = 'all';
@@ -5123,15 +5169,15 @@ function summarizeRound(tl, info, name) {
     return { ...base, pts, empty: !P.length, players: P.length, kills: ev.filter(e => e.type === 'kill').length, teams: R.teams.map(x => x.name), tickets: tk, winner, top: top ? { name: top.name, score: top.score, team: top.team } : null, P };
   } finally { round = prev; }
 }
-// all rounds' players, added up by name
+// all rounds' players, added up by nick (the name without its clan tag; shown with the latest name)
 function sessionPlayers() {
   const M = new Map();
-  for (const r of session.rounds) for (const p of r.sum?.P || []) {
-    const a = M.get(p.name) || { name: p.name, rounds: 0, wins: 0, teams: [0, 0], k: 0, kVeh: 0, d: 0, tk: 0, sui: 0, hs: 0, rev: 0, heal: 0, rep: 0, score: 0, streak: 0, long: 0, alive: 0 };
+  for (const r of sessRoundsByDate()) for (const p of r.sum?.P || []) {
+    const key = nickOf(p.name), a = M.get(key) || { name: p.name, nick: key, rounds: 0, wins: 0, teams: [0, 0], k: 0, kVeh: 0, d: 0, tk: 0, sui: 0, hs: 0, rev: 0, heal: 0, rep: 0, score: 0, streak: 0, long: 0, alive: 0 };
     a.rounds++; if (p.win) a.wins++; if (p.team === 0 || p.team === 1) a.teams[p.team]++;
     for (const k of ['k', 'kVeh', 'd', 'tk', 'sui', 'hs', 'rev', 'heal', 'rep', 'score', 'alive']) a[k] += p[k];
     a.streak = Math.max(a.streak, p.streak); a.long = Math.max(a.long, p.long);
-    M.set(p.name, a);
+    M.set(key, a);
   }
   return [...M.values()];
 }
@@ -5208,31 +5254,48 @@ function renderRoundBar(box, R, cur, tkCell) {
   box.classList.add('roundbar');
   const L = R.filter(r => r.status === 'done'), maps = [...new Set(L.map(r => r.sum?.map).filter(Boolean))];
   if (session.mapF && !maps.includes(session.mapF)) session.mapF = '';
-  const F = L.filter(r => !session.mapF || r.sum?.map === session.mapF), n = session.listN || 40, shown = F.slice(0, n);
   const ci = L.findIndex(r => r.name === cur), s = ci >= 0 ? L[ci].sum : null;
   const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
     : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
-  let rows = '', last = null;
-  for (const x of shown) {
-    const sx = x.sum, d = dayKey(sx?.date);
-    if (d !== last) { rows += `<tr class="day"><th colspan="8">${esc(dayName(d, true))}</th></tr>`; last = d; }
-    rows += `<tr data-r="${R.indexOf(x)}" class="open${x.name === cur ? ' sel' : ''}"><td>${esc(clockHM(sx?.date) || x.name)}</td><td>${sx ? esc(mapName(sx.map)) : ''}</td><td class="n">${sx?.duration ? fmt(sx.duration) : ''}</td><td class="n">${sx ? sx.players : ''}</td>
-      <td class="n">${sx ? tkCell(sx) : ''}</td><td>${sx && sx.winner != null ? `<span class="t${sx.winner}">${esc(sx.teams[sx.winner])}</span>` : ''}</td><td class="n">${sx ? sx.kills : ''}</td><td>${sx?.top ? `<span class="t${sx.top.team}">${esc(sx.top.name)}</span> <span class="w">${sx.top.score}</span>` : ''}</td></tr>`;
-  }
   box.innerHTML = `<div class="rbar"><button class="rcur" id="rCur" aria-expanded="false" aria-controls="rList">${what}<span class="caret">▾ all rounds</span></button>
     <span class="rnav"><span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button></span></div>
     <div class="rlist" id="rList" hidden>
-      <div class="rlhead">${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<span class="w">${F.length} round${F.length === 1 ? '' : 's'} with players</span><span class="spacer" style="flex:1"></span><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
-      <div class="stscroll"><table class="sttab sess"><thead><tr><th>Started</th><th>Map</th><th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th>Best score</th></tr></thead><tbody>${rows}</tbody></table></div>
-      ${F.length > n ? `<button class="btn sm rmore" id="rMore">Show ${Math.min(40, F.length - n)} more</button>` : ''}
+      <div class="rlhead">${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<input type="search" class="rfind" id="rFind" placeholder="Find a player" aria-label="Find a player: his rounds and his page" autocomplete="off" spellcheck="false" value="${esc(session.find || '')}"><span class="w" id="rCount"></span><span class="spacer" style="flex:1"></span><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
+      <div class="rhits" id="rHits"></div>
+      <div class="stscroll"><table class="sttab sess"><thead><tr><th>Started</th><th>Map</th><th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th id="rLastH">Best score</th></tr></thead><tbody id="rBody"></tbody></table></div>
+      <div id="rMoreW"></div>
     </div>`;
+  // the list itself (also on its own while typing in "Find a player", so the box keeps the focus)
+  const body = () => {
+    const q = (session.find || '').trim().toLowerCase(), has = r => !q || (r.sum?.P || []).some(p => p.name.toLowerCase().includes(q));
+    const F = L.filter(r => (!session.mapF || r.sum?.map === session.mapF) && has(r)), n = session.listN || 40;
+    let rows = '', last = null;
+    for (const x of F.slice(0, n)) {
+      const sx = x.sum, d = dayKey(sx?.date);
+      if (d !== last) { rows += `<tr class="day"><th colspan="8">${esc(dayName(d, true))}</th></tr>`; last = d; }
+      const me = q ? (sx?.P || []).filter(p => p.name.toLowerCase().includes(q)) : [];
+      rows += `<tr data-r="${R.indexOf(x)}" class="open${x.name === cur ? ' sel' : ''}"${me.length === 1 ? ` data-p="${esc(me[0].name)}"` : ''}><td>${esc(clockHM(sx?.date) || x.name)}</td><td>${sx ? esc(mapName(sx.map)) : ''}</td><td class="n">${sx?.duration ? fmt(sx.duration) : ''}</td><td class="n">${sx ? sx.players : ''}</td>
+        <td class="n">${sx ? tkCell(sx) : ''}</td><td>${sx && sx.winner != null ? `<span class="t${sx.winner}">${esc(sx.teams[sx.winner])}</span>` : ''}</td><td class="n">${sx ? sx.kills : ''}</td><td>${me.length === 1 ? `<span class="t${me[0].team}">${esc(me[0].name)}</span> <span class="w">${me[0].k}–${me[0].d}</span>` : sx?.top ? `<span class="t${sx.top.team}">${esc(sx.top.name)}</span> <span class="w">${sx.top.score}</span>` : ''}</td></tr>`;
+    }
+    $('#rBody').innerHTML = rows || `<tr><td colspan="8" class="empty">No round${q ? ' with a player like that' : ''}.</td></tr>`;
+    $('#rCount').textContent = `${F.length} round${F.length === 1 ? '' : 's'}${q ? ' with him' : ' with players'}`;
+    $('#rLastH').textContent = q ? 'Him · K–D' : 'Best score';
+    // the players whose name has it, with their number of rounds: their pages
+    const hits = new Map(); if (q) for (const r of L) for (const p of r.sum?.P || []) if (p.name.toLowerCase().includes(q)) { const k = nickOf(p.name), h = hits.get(k) || { name: p.name, n: 0 }; h.n++; hits.set(k, h); }
+    const H = [...hits].sort((a, b) => b[1].n - a[1].n);
+    $('#rHits').innerHTML = H.length ? `<span class="w">Player page:</span>${H.slice(0, 8).map(([k, h]) => `<button class="btn sm" data-nick="${esc(k)}">${esc(h.name)} <span class="w">${h.n}</span></button>`).join('')}${H.length > 8 ? `<span class="w">${H.length - 8} more</span>` : ''}` : '';
+    $('#rMoreW').innerHTML = F.length > n ? `<button class="btn sm rmore" id="rMore">Show ${Math.min(40, F.length - n)} more</button>` : '';
+    box.querySelectorAll('#rBody tr.open').forEach(tr => tr.onclick = () => { roundListOpen(false); const r = R[+tr.dataset.r]; if (tr.dataset.p) pendingLink = { r, t: null, p: tr.dataset.p.trim() }; closePlayerPage(); openServerRound(r); });
+    box.querySelectorAll('#rHits [data-nick]').forEach(b => b.onclick = () => { roundListOpen(false); openPlayerPage(b.dataset.nick); });
+    const mo = $('#rMore'); if (mo) mo.onclick = () => { session.listN = n + 40; body(); };
+  };
+  body();
   roundListOpen(!!session.listOpen);
   $('#rCur').onclick = () => roundListOpen(!session.listOpen);
-  box.querySelectorAll('tbody tr.open').forEach(tr => tr.onclick = () => { roundListOpen(false); openServerRound(R[+tr.dataset.r]); });
-  const go = d => { const x = L[ci + d]; if (x) openServerRound(x); };
+  const go = d => { const x = L[ci + d]; if (x) { closePlayerPage(); openServerRound(x); } };
   $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1);
-  const ms = $('#rMap'); if (ms) ms.onchange = () => { session.mapF = ms.value; session.listN = 40; renderSession(); };
-  const mo = $('#rMore'); if (mo) mo.onclick = () => { session.listN = n + 40; renderSession(); };
+  const ms = $('#rMap'); if (ms) ms.onchange = () => { session.mapF = ms.value; session.listN = 40; body(); };
+  $('#rFind').oninput = e => { session.find = e.target.value; session.listN = 40; body(); };
   $('#sessCsvR').onclick = csvSessionRounds;
 }
 document.addEventListener('click', e => { if (session && session.listOpen && !e.target.closest('#session')) roundListOpen(false); });
@@ -5245,16 +5308,114 @@ function renderSessPlayers(nDone, busy) {
   if (!P.length) { pbox.innerHTML = ''; if (pane === 'players') paneSet('battle'); return; }
   const val = (p, k) => k === 'kd' ? p.k / Math.max(1, p.d) : k === 'name' ? p.name.toLowerCase() : p[k];
   P.sort((a, b) => { const x = val(a, session.sort), y = val(b, session.sort); return (x < y ? -1 : x > y ? 1 : 0) * session.dir || b.score - a.score; });
-  const cell = (p, k) => k === 'name' ? `<span class="t${p.teams[0] >= p.teams[1] ? 0 : 1}">${esc(p.name)}</span>${p.teams[0] && p.teams[1] ? ' <span class="w" title="Played on both sides">⇄</span>' : ''}`
+  const cell = (p, k) => k === 'name' ? `<button class="plink t${p.teams[0] >= p.teams[1] ? 0 : 1}" data-nick="${esc(p.nick)}" title="His page: all his rounds">${esc(p.name)}</button>${p.teams[0] && p.teams[1] ? ' <span class="w" title="Played on both sides">⇄</span>' : ''}`
     : k === 'kd' ? (p.k / Math.max(1, p.d)).toFixed(2) : k === 'alive' ? fmt(p.alive) : k === 'long' ? (p.long ? p.long + ' m' : '–') : k === 'hs' ? (p.hs ? `${p.hs} <span class="w">${Math.round(p.hs / Math.max(1, p.k) * 100)}%</span>` : '–') : k === 'streak' ? (p.streak || '–') : (p[k] || (k === 'score' || k === 'wins' ? 0 : '–'));
   const SG = { kVeh: 'veh', rev: 'med', heal: 'med', rep: 'med', streak: 'more', long: 'more', alive: 'more' }, SC = SESS_COLS.filter(([k]) => pview.groups.has(SG[k] || 'main'));
   pbox.innerHTML = `<div class="sesshead"><h2>Players over ${nDone} round${nDone === 1 ? '' : 's'} <span class="w">${P.length} players${busy ? ' · still adding up' : ''}</span></h2>${pgroupChips()}<div class="chips"><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button></div></div>
     <div class="stscroll"><table class="sttab sessp"><thead><tr>${SC.map(([k, label, n]) => `<th class="${n ? 'n' : ''}${session.sort === k ? ' on' : ''}" data-k="${k}" aria-sort="${session.sort === k ? (session.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button class="sortb">${esc(label)}${session.sort === k ? (session.dir < 0 ? ' ▾' : ' ▴') : ''}</button></th>`).join('')}</tr></thead><tbody>
     ${P.map(p => `<tr>${SC.map(([k, label, n]) => `<td class="${n ? 'n' : ''}"${n ? ` data-l="${esc(label)}"` : ''}>${cell(p, k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
-    <p class="stnote">Name colour: the side played most (⇄ played on both). ≈ Score by the game's rules from what the demos show. Won: rounds that ended with more tickets on his side. Click a column to sort.</p>`;
+    <p class="stnote">Name colour: the side played most (⇄ played on both); a name opens his page. One player under several clan tags is one row. ≈ Score by the game's rules from what the demos show. Won: rounds that ended with more tickets on his side. Click a column to sort.</p>`;
+  pbox.querySelectorAll('[data-nick]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.nick));
   pbox.querySelectorAll('th[data-k] .sortb').forEach(b => b.onclick = () => { const k = b.parentElement.dataset.k; if (session.sort === k) session.dir = -session.dir; else { session.sort = k; session.dir = k === 'name' ? 1 : -1; } renderSessPlayers(nDone, busy); });
   $('#sessCsvP').onclick = csvSessionPlayers;
 }
+
+// ---------- a player over all rounds ----------
+// A player is known by his nick: the last word of his name ("=FL= puika_mk3" and "puika_mk3" are one player: clan tags
+// come and go); an unnamed slot ("Player 27") stays as it is. nickOf / nickSlug are server/ingest.mjs's as well (its
+// link previews: /p/<nickSlug>).
+function nickOf(name) { const s = String(name || '').trim(); return /^Player \d+$/.test(s) ? s : s.split(/\s+/).pop(); }
+function nickSlug(nick) { const s = nick.replace(/[^A-Za-z0-9_.-]+/g, '_'); if (s === nick) return s; let h = 0x811c9dc5; for (const ch of nick) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return s + '-' + h.toString(16).padStart(8, '0').slice(0, 6); }
+function sessRoundsByDate() { return session ? session.rounds.filter(r => r.status === 'done' && r.sum && !r.sum.empty).sort((a, b) => String(b.sum.date || b.name).localeCompare(String(a.sum.date || a.name))) : []; }
+// his rounds, newest first: { r, p (his line in the round's summary) }
+function playerRounds(nick) { const out = []; for (const r of sessRoundsByDate()) { const p = (r.sum.P || []).find(q => nickOf(q.name) === nick); if (p) out.push({ r, p }); } return out; }
+const ppage = { nick: null, all: false };
+let WID_BY_NAME = null;
+const widOf = w => { if (!WID_BY_NAME) { WID_BY_NAME = new Map(); for (const [id, n] of Object.entries(WEAPONS)) if (!WID_BY_NAME.has(n)) WID_BY_NAME.set(n, +id); } return WID_BY_NAME.get(w) || 0; };
+function openPlayerPage(nick, fromLink) {
+  if (!session || !nick || !playerRounds(nick).length) return false;
+  ppage.nick = nick; ppage.all = false;
+  document.body.classList.add('pview'); $('#pPage').hidden = false;
+  if (session.server && !fromLink) hashSet({ player: nick });
+  renderPlayerPage(); window.scrollTo({ top: 0 });
+  return true;
+}
+function closePlayerPage(keepHash) {
+  if (!ppage.nick) return;
+  ppage.nick = null; document.body.classList.remove('pview'); $('#pPage').hidden = true; $('#pPage').innerHTML = '';
+  if (session && session.server && !keepHash) hashSet({ player: null });
+  if (round) refresh(true);
+}
+// a round from his page: opened following him
+async function openRoundWith(r, name) {
+  closePlayerPage();
+  if (session.server) { pendingLink = { r, t: null, p: name }; openServerRound(r); return; }
+  await openDemo(r.file);
+  const i = round ? round.players.findIndex(q => q.name.trim() === name) : -1;
+  if (i >= 0) { sel = i; refresh(true); }
+}
+function renderPlayerPage() {
+  const nick = ppage.nick, box = $('#pPage'); if (!nick || !session) return;
+  const R = playerRounds(nick); if (!R.length) { closePlayerPage(); return; }
+  const name = R[0].p.name, aka = [...new Set(R.map(x => x.p.name))].filter(x => x !== name), n = R.length;
+  const names = new Map(); for (const r of sessRoundsByDate()) for (const p of r.sum.P || []) { const k = nickOf(p.name); if (!names.has(k)) names.set(k, p.name); }
+  const sum = k => R.reduce((a, x) => a + (x.p[k] || 0), 0), max = k => R.reduce((a, x) => Math.max(a, x.p[k] || 0), 0);
+  const wins = R.filter(x => x.p.win).length, decided = R.filter(x => x.r.sum.winner != null).length, k = sum('k'), d = sum('d'), hs = sum('hs'), score = sum('score'), alive = sum('alive');
+  const hm = v => { v = Math.round(v); const h = Math.floor(v / 3600), m = Math.floor(v / 60) % 60; return h ? `${h} h ${m} min` : `${m} min`; };
+  const days = R.map(x => dayKey(x.r.sum.date)).filter(Boolean), maps = new Map(); for (const x of R) maps.set(x.r.sum.map, (maps.get(x.r.sum.map) || 0) + 1);
+  const span = days.length ? (days[0] === days[days.length - 1] ? dayName(days[0]) : `${dayName(days[days.length - 1])} – ${dayName(days[0])}`) : '';
+  const tile = (l, v, sub) => `<div class="kpi"><span class="kl">${l}</span><span class="kv">${v}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
+  const tiles = [tile('Rounds', n, decided ? `won ${wins} · ${Math.round(wins / decided * 100)}%` : ''), tile('≈ Score', score, `${Math.round(score / n)} a round`),
+    tile('Kills', k, `${sum('kVeh')} from vehicles`), tile('Deaths', d, `K/D ${(k / Math.max(1, d)).toFixed(2)}`)];
+  if (hs) tiles.push(tile('Headshots', hs, `${Math.round(hs / Math.max(1, k) * 100)}% of kills`));
+  tiles.push(tile('Best streak', max('streak') || '–', max('long') ? `longest kill ${max('long')} m` : ''));
+  tiles.push(tile('On the field', hm(alive), `${hm(alive / n)} a round`));
+  if (sum('rev') + sum('heal') + sum('rep')) tiles.push(tile('Revives', sum('rev'), `${sum('heal')} heals · ${sum('rep')} repairs`));
+  if (sum('tk') + sum('sui')) tiles.push(tile('Team kills', sum('tk'), `${sum('sui')} suicide${sum('sui') === 1 ? '' : 's'}`));
+  // his kills and deaths (enemies only) from the kill spots of his rounds; on the site loaded per map first
+  const need = R.filter(x => !ptsOf(x.r) && heatSrc(x.r.sum.map));
+  if (need.length) loadHeat(need.map(x => x.r.sum.map)).then(() => { if (ppage.nick === nick) renderPlayerPage(); });
+  const mine = [], onMe = [];
+  for (const x of R) for (const q of ptsOf(x.r) || []) {
+    if (q[8] === q[9] || (q[4] && q[4] === q[5])) continue;   // (suicides, team kills)
+    if (nickOf(q[8]) === nick) mine.push(q); else if (nickOf(q[9]) === nick) onMe.push(q);
+  }
+  const group = (list, key) => { const M = new Map(); for (const q of list) { const kk = key(q); M.set(kk, (M.get(kk) || 0) + 1); } return [...M].sort((a, b) => b[1] - a[1]); };
+  const wpn = group(mine, q => q[7] || 'no weapon'), vic = group(mine, q => nickOf(q[9])), kil = group(onMe, q => nickOf(q[8]));
+  const vicN = new Map(vic), kilN = new Map(kil);
+  const pl = kk => `<button class="plink" data-nick="${esc(kk)}" title="His page">${esc(names.get(kk) || kk)}</button>`;
+  const list = (rows, f, cap) => rows.length ? `<ul class="plist">${rows.slice(0, cap || 8).map(f).join('')}</ul>${rows.length > (cap || 8) ? `<p class="stnote">${rows.length - (cap || 8)} more</p>` : ''}` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`;
+  const share = (v, all) => `<span class="pbar" style="width:${Math.max(4, Math.round(v / Math.max(1, all) * 100))}%"></span>`;
+  // with whom: rounds on his side and on the other side (at the end of the round), and the kills between them
+  const W = new Map(), A = new Map();
+  for (const x of R) for (const q of x.r.sum.P || []) { const kk = nickOf(q.name); if (kk === nick || /^Player \d+$/.test(kk)) continue; const M = q.team === x.p.team ? W : A; M.set(kk, (M.get(kk) || 0) + 1); }
+  const withL = [...W].sort((a, b) => b[1] - a[1]), vsL = [...A].sort((a, b) => b[1] - a[1] || ((vicN.get(b[0]) || 0) + (kilN.get(b[0]) || 0)) - ((vicN.get(a[0]) || 0) + (kilN.get(a[0]) || 0)));
+  const kinds = group(mine, q => q[6]), KN = Object.fromEntries(HEAT_CAUSE);
+  const shown = ppage.all ? R : R.slice(0, 15);
+  box.innerHTML = `<section class="card"><div class="pphead"><div><h2 class="ppname">${esc(name)}</h2><span class="aka">${aka.length ? `also as ${aka.map(esc).join(', ')} · ` : ''}${n} round${n === 1 ? '' : 's'}${span ? ', ' + esc(span) : ''} · ${[...maps].map(([m, c]) => esc(mapName(m)) + (maps.size > 1 ? ' ' + c : '')).join(' · ')}</span></div>
+      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
+      <div class="kpis">${tiles.join('')}</div></section>
+    <section class="card"><h2>Rounds <span class="w">newest first · a row opens the round following him</span></h2>
+      <div class="stscroll"><table class="sttab pprounds"><thead><tr><th>Started</th><th>Map</th><th>Side</th><th>Result</th><th class="n">≈ Score</th><th class="n">K</th><th class="n">D</th><th class="n">HS</th><th class="n">Streak</th><th class="n">On the field</th></tr></thead><tbody>
+      ${shown.map((x, i) => { const s = x.r.sum, p = x.p; return `<tr data-i="${i}"><td>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</td><td>${esc(mapName(s.map))}</td><td><span class="t${p.team}">${esc(s.teams?.[p.team] || '')}</span></td><td>${s.winner == null ? '–' : p.win ? 'Won' : 'Lost'}</td><td class="n">${p.score}</td><td class="n">${p.k}</td><td class="n">${p.d}</td><td class="n">${p.hs || '–'}</td><td class="n">${p.streak || '–'}</td><td class="n">${fmt(p.alive)}</td></tr>`; }).join('')}
+      </tbody></table></div>${n > 15 ? `<button class="btn sm rmore" id="ppAll">${ppage.all ? 'Show the latest 15' : `Show all ${n} rounds`}</button>` : ''}</section>
+    <section class="card"><div class="pcols">
+      <div><h3>Killed with</h3>${list(wpn, ([w, c]) => `<li><span class="wi">${weaponIcon(widOf(w), w) || ''}</span><span class="nmc">${esc(w)}${share(c, mine.length)}</span><span class="n">${c}</span></li>`, 10)}</div>
+      <div><h3>Killed most</h3>${list(vic, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">×${c}</span></li>`)}</div>
+      <div><h3>Killed by</h3>${list(kil, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">×${c}</span></li>`)}</div>
+    </div>${kinds.length ? `<p class="pkdline">${kinds.map(([c, v]) => `${esc(KN[c] || c)} <b>${Math.round(v / mine.length * 100)}%</b>`).join(' · ')}</p>` : ''}</section>
+    <section class="card"><div class="pcols">
+      <div><h3>Played with <span class="w">rounds on his side</span></h3>${list(withL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c}</span></li>`, 10)}</div>
+      <div><h3>Played against <span class="w">rounds · kills between them, his – theirs</span></h3>${list(vsL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c} <span class="w">· ${vicN.get(kk) || 0}–${kilN.get(kk) || 0}</span></span></li>`, 10)}</div>
+      <div><h3>Maps</h3>${list([...maps].sort((a, b) => b[1] - a[1]), ([m, c]) => `<li><span class="nmc">${esc(mapName(m))}</span><span class="n">${c}</span></li>`)}</div>
+    </div></section>`;
+  box.querySelectorAll('.pprounds tbody tr').forEach(tr => tr.onclick = () => { const x = shown[+tr.dataset.i]; openRoundWith(x.r, x.p.name.trim()); });
+  box.querySelectorAll('[data-nick]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.nick));
+  const bk = $('#ppBack'); if (bk) bk.onclick = () => closePlayerPage();
+  const al = $('#ppAll'); if (al) al.onclick = () => { ppage.all = !ppage.all; renderPlayerPage(); };
+  const lk = $('#ppLink'); if (lk) lk.onclick = async () => { const u = playerLink(nick); try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to his page:', u); } };
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && ppage.nick && !(session && session.listOpen) && !e.target.closest('input, select, textarea')) closePlayerPage(); });
 
 $('#fJson').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return; e.target.value='';
@@ -5362,17 +5523,25 @@ async function openServerRound(r) {
     refresh(true);
   }
 }
+// Links: with the server's link previews (rounds.json: share) /r/<round>?t=&p=&tab= and /p/<player> - chat apps show the
+// round's or player's title and the map under them - else the page's own #round=… / #player=…
+const siteBase = () => location.origin + location.pathname.replace(/[^/]*$/, '');
 function linkHere() {
   const r = session && session.server && session.rounds.find(x => x.name === $('#srcLabel').textContent); if (!r || !round) return null;
   const p = sel !== null ? round.players[sel] : null;
-  return location.origin + location.pathname + '#round=' + encodeURIComponent(linkId(r.name)) + '&t=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '');
+  const rest = 't=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '');
+  return serverData?.shareOk ? siteBase() + 'r/' + encodeURIComponent(linkId(r.name)) + '?' + rest : siteBase() + '#round=' + encodeURIComponent(linkId(r.name)) + '&' + rest;
 }
+const playerLink = nick => serverData?.shareOk ? siteBase() + 'p/' + nickSlug(nick) : siteBase() + '#player=' + encodeURIComponent(nick);
 $('#vLink').onclick = async () => { const u = linkHere(); if (!u) return; try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to this moment:', u); } };
 async function serverBoot() {
   if (!/^https?:$/.test(location.protocol)) return;
   let d = null; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) d = await res.json(); } catch (e) { return; }
   if (!d || !Array.isArray(d.rounds)) return;
   serverData = d;
+  // links with previews only when the web server serves them (its config may not have /r/ and /p/ yet)
+  const r0 = d.share && d.rounds.find(x => !x.empty);
+  if (r0) fetch(siteBase() + 'r/' + encodeURIComponent(linkId(r0.name)), { method: 'HEAD', cache: 'no-cache' }).then(res => { serverData.shareOk = res.ok && /html/.test(res.headers.get('content-type') || ''); }).catch(() => {});
   document.body.classList.add('site'); $('#moreBtn').hidden = false;
   session = { server: true, done: true, showEmpty: false, sort: 'score', dir: -1, job: null, rounds: d.rounds.map(x => ({ name: x.name, status: x.empty ? 'empty' : 'done', sum: x.sum, srv: x, file: null })) };
   $('#vLink').hidden = false;
@@ -5382,8 +5551,10 @@ async function serverBoot() {
   const hit = findSrv(want), pick = hit || session.rounds.find(r => r.status === 'done');
   if (hit) pendingLink = { r: hit, t: h.has('t') ? +h.get('t') : null, p: h.get('p') };
   if (pick) openServerRound(pick);
+  if (h.get('player')) openPlayerPage(h.get('player'), true);
 }
-window.addEventListener('hashchange', () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)), r = findSrv(h.get('round')); if ((h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
+window.addEventListener('hashchange', () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)), r = findSrv(h.get('round'));
+  if (h.get('player')) { if (ppage.nick !== h.get('player')) openPlayerPage(h.get('player'), true); return; } else if (ppage.nick) closePlayerPage(true); if ((h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
 
 new ResizeObserver(resize).observe(cv);
 new ResizeObserver(resize).observe(tl);

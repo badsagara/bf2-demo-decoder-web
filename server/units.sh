@@ -1,5 +1,5 @@
 #!/bin/bash
-# BF2 Round Replay: put this repository's systemd units and update.sh in place (only what changed), and the daily
+# BF2 Round Replay: put this repository's systemd units, update.sh and the Caddy config in place (only what changed), and the daily
 # download time from /etc/bf2replay.conf (BF2R_FETCH_AT=HH:MM) as a drop-in for bf2replay-fetch.timer.
 # Run as root by install.sh and, every 5 minutes, by update.sh: a unit changed in GitHub, or a new BF2R_FETCH_AT,
 # takes effect without running install.sh again.
@@ -33,6 +33,21 @@ fi
 install -d -m 755 "$LIB"
 if ! cmp -s "$HERE/update.sh" "$LIB/update.sh"; then
   install -m 755 "$HERE/update.sh" "$LIB/update.sh.new" && mv -f "$LIB/update.sh.new" "$LIB/update.sh"; echo "update.sh updated"
+fi
+
+# the site's Caddy config (only where install.sh set Caddy up): Caddyfile.in with the domain from /etc/bf2replay.conf;
+# a new one that doesn't validate is not used
+CF=/etc/caddy/bf2replay.caddy
+if [ -f "$CF" ] && command -v caddy >/dev/null 2>&1; then
+  dom=$({ sed -n 's/^BF2R_DOMAIN="\{0,1\}\([^"#]*\)"\{0,1\}\s*$/\1/p' /etc/bf2replay.conf 2>/dev/null || true; } | tail -1 | tr -d ' ')
+  tmp=$(mktemp)
+  sed "s|__SITE__|${dom:-:80}|" "$HERE/Caddyfile.in" > "$tmp"
+  if ! cmp -s "$tmp" "$CF"; then
+    cp "$CF" "$CF.bak"; install -m 644 "$tmp" "$CF"
+    if caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy; then echo "web server config updated"
+    else cp "$CF.bak" "$CF"; echo "the new web server config was not taken (caddy validate failed): the old one stays"; fi
+  fi
+  rm -f "$tmp"
 fi
 
 if [ "$reload" = 1 ]; then
