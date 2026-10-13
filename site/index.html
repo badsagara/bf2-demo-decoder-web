@@ -1548,13 +1548,6 @@ const cvCtx = cx;
 const EXPLOSIVE_DMG = { 'Grenade': 140, 'C4': 1000, 'AT mine': 2500, 'Claymore': 200, 'M203': 150, 'GP-30': 150, 'GP-25': 150, 'F2000 GL': 150, 'SA80 GL': 150 };
 const lethalR = e => { const dmg = EXPLOSIVE_DMG[e.kind]; return dmg > 100 && e.r ? e.r * (1 - 100 / dmg) : 0; };
 const MISSILES = new Set(['SRAW', 'Eryx', 'TOW']);
-// how far a guided missile turned: its heading over its first 0.3 s against its last 0.3 s, in degrees
-const steerOf = e => {
-  if (e._steer != null) return e._steer;
-  const P = e.path, n = P.length; if (n < 4) return (e._steer = 0);
-  const h = (a, b) => Math.atan2(b[2] - a[2], b[1] - a[1]), d = Math.abs(h(P[0], P[Math.min(3, n - 1)]) - h(P[Math.max(0, n - 4)], P[n - 1])) * 180 / Math.PI;
-  return (e._steer = d > 180 ? 360 - d : d);
-};
 // Tank and APC cannon shells are not sent in the demo (only grenades and missiles are objects); a kill with a vehicle's
 // cannon gives the shot: from the vehicle to the victim, flying at the shell's speed (game files: T-90 / M1A2 150 m/s,
 // BTR-90 / LAV-25 cannon 375 m/s), hitting at the moment of the kill, and the shell's blast there (5 / 3.5 m)
@@ -1795,7 +1788,7 @@ function draw() {
       if (e.t > t) break;
       if (e.type === 'throw' && e.path?.length && (t < e.t1 || (MISSILES.has(e.kind) && t < e.t1 + 3))) {
         // a guided missile (SRAW, Eryx, TOW) flies where its gunner steers it: its recorded path (every 0.1 s) is drawn
-        // solid and stays 3 s after the hit, with how far it turned when that is 5 degrees or more
+        // solid and stays 3 s after the hit
         const col = colOf(e.by), msl = MISSILES.has(e.kind), after = t >= e.t1; let head = null;
         if (after) cx.globalAlpha = Math.max(0, 1 - (t - e.t1) / 3);
         cx.strokeStyle = col; cx.lineWidth = msl ? 2 : 1.5; cx.setLineDash(msl ? [] : [2, 3]); cx.beginPath();
@@ -1806,8 +1799,6 @@ function draw() {
         }
         cx.stroke(); cx.setLineDash([]);
         if (after) {
-          const st = steerOf(e);
-          if (st >= 5) { const m = e.path[e.path.length >> 1], [qx, qy] = toC(m[1], m[2]); tag(`${e.kind} · steered ${Math.round(st)}°`, qx + 8, qy - 8, col); }   // (halfway along its flight)
           cx.globalAlpha = 1; head = null;
         }
         if (head) {
@@ -1838,7 +1829,6 @@ function draw() {
         // where it kills a soldier with full health (inside) and where it only wounds (out to the dashed ring)
         const lr = lethalR(e), Rk = lr ? Math.max(3, pm(lr)) * (Rg / R) : 0;
         if (Rk) { cx.fillStyle = `rgba(255,70,30,${0.38 * a})`; cx.beginPath(); cx.arc(qx, qy, Rk, 0, Math.PI * 2); cx.fill(); cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.stroke(); }
-        if (age < 1.5 && (sel !== null || view.span <= 500)) tag(e.kind + ' · ' + (lr ? `kills ~${(Math.round(lr * 2) / 2).toString()} m, hurts to ` : '') + e.r + ' m', qx + R + 4, qy + 3, css('--blast'));
         cx.globalAlpha = 1;
       }
     }
