@@ -94,6 +94,8 @@ BF2R_DOMAIN=$DOMAIN
 BF2R_GIT_KEY=$GIT_KEY
 # keep demos of rounds nobody played (in data/empty): 0 / 1
 BF2R_KEEP_EMPTY=0
+# a round with fewer players than this on the field is not listed (2: a soldier alone on an empty server is left out)
+BF2R_MIN_PLAYERS=2
 # delete a demo itself after so many days, keeping its decoded round (0 = keep all)
 BF2R_RAW_KEEP_DAYS=0
 # pages that list a game server's demos, space separated (a plain folder listing works); empty = only uploads
@@ -117,6 +119,7 @@ else
   sed -i 's/^# at most so many downloads per run (every 10 minutes);.*/# at most so many downloads a day (0 = no limit); skip demos smaller than so many bytes (0 = all)/' /etc/bf2replay.conf
   grep -q '^BF2R_FETCH_AT=' /etc/bf2replay.conf || setconf BF2R_FETCH_AT 05:30
   grep -q '^BF2R_MIN_FREE_GB=' /etc/bf2replay.conf || setconf BF2R_MIN_FREE_GB 3
+  grep -q '^BF2R_MIN_PLAYERS=' /etc/bf2replay.conf || setconf BF2R_MIN_PLAYERS 2
 fi
 for k in "${FETCH_KEYS[@]}"; do
   if [ -n "${!k+x}" ]; then setconf "$k" "${!k}"; fi

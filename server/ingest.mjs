@@ -8,7 +8,7 @@
 //   node ingest.mjs --rebuild    decode every kept demo again and write rounds.json from scratch
 //
 // The decoder is the page's own (the part of site/index.html between "// @worker-begin" and "// @worker-end"), so the
-// server and the browsers always decode the same way. Settings: /etc/bf2replay.conf (BF2R_ROOT, BF2R_KEEP_EMPTY,
+// server and the browsers always decode the same way. Settings: /etc/bf2replay.conf (BF2R_ROOT, BF2R_KEEP_EMPTY, BF2R_MIN_PLAYERS,
 // BF2R_RAW_KEEP_DAYS), or the same names in the environment.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,6 +21,7 @@ try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\
 const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
 const ROOT = opt('BF2R_ROOT', '/srv/bf2replay');
 const KEEP_EMPTY = opt('BF2R_KEEP_EMPTY', '0') === '1';      // keep demos of rounds nobody played (in data/empty)
+const MIN_PLAYERS = Math.max(1, Math.floor(+opt('BF2R_MIN_PLAYERS', '2') || 2));   // fewer players on the field: not listed
 const RAW_KEEP_DAYS = +opt('BF2R_RAW_KEEP_DAYS', '0');       // delete the demo itself after so many days (0: never); the decoded round stays
 const SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
 const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), logs: path.join(DATA, 'logs'), empty: path.join(DATA, 'empty'), bad: path.join(DATA, 'bad') };
@@ -251,15 +252,22 @@ function writeShares(d, dec) {
     for (const f of fs.readdirSync(dir)) if (f.endsWith('.html') && !want[kind].has(f.slice(0, -5))) fs.unlinkSync(path.join(dir, f));
   }
 }
+// a round off the list: its demo goes (to data/empty with BF2R_KEEP_EMPTY), its decoded round and kill spots too
+function dropRound(idx, name, src) {
+  try { if (src && fs.existsSync(src)) { if (KEEP_EMPTY) fs.renameSync(src, path.join(DIRS.empty, name)); else fs.unlinkSync(src); } } catch (e) { log('could not remove', name, '-', e.message); }
+  const base = baseOf(name);
+  for (const f of fs.readdirSync(DIRS.rounds)) if (f.startsWith(base + '.')) fs.unlinkSync(path.join(DIRS.rounds, f));
+  const old = idx.rounds.findIndex(r => r.name === name); if (old >= 0) idx.rounds.splice(old, 1);
+  heatPut(name, null);
+}
 async function processDemo(dec, idx, src, name, { move }) {
   const t0 = Date.now(), { tl, hdr, info } = await decodeFile(dec, src);
   const old = idx.rounds.findIndex(r => r.name === name), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
-  if (!tl || sum.empty) {
-    // nobody played (no spawn, or nobody was ever alive on the field): no round to list
-    if (move) { if (KEEP_EMPTY) fs.renameSync(src, path.join(DIRS.empty, name)); else fs.unlinkSync(src); }
-    if (old >= 0) idx.rounds.splice(old, 1);
-    heatPut(name, null);
-    log('empty round', name);
+  if (!tl || sum.empty || sum.players < MIN_PLAYERS) {
+    // nobody played (no spawn, or nobody was ever alive on the field), or fewer than BF2R_MIN_PLAYERS did (one soldier
+    // alone on an empty server): no round to list
+    dropRound(idx, name, src);
+    log(sum && !sum.empty ? `round with ${sum.players} player${sum.players === 1 ? '' : 's'} (not listed: BF2R_MIN_PLAYERS ${MIN_PLAYERS})` : 'empty round', name);
     return;
   }
   const base = baseOf(name), bfrName = `${base}.${dec.hash}.bfr`;
@@ -277,6 +285,11 @@ async function main() {
   for (const d of Object.values(DIRS)) fs.mkdirSync(d, { recursive: true });
   const dec = loadDecoder(), idx = readIndex();
   let changed = false;
+  // rounds listed before with fewer players than BF2R_MIN_PLAYERS (set or raised since) leave the list
+  for (const r of idx.rounds.filter(r => r.sum && !r.sum.empty && r.sum.players < MIN_PLAYERS)) {
+    dropRound(idx, r.name, path.join(DIRS.demos, r.name)); changed = true;
+    log(`round with ${r.sum.players} player${r.sum.players === 1 ? '' : 's'} taken off the list (BF2R_MIN_PLAYERS ${MIN_PLAYERS})`, r.name);
+  }
   // 1. new demos (and round logger files) from the game server(s); a name ending .part is still being uploaded
   let incoming = []; try { incoming = fs.readdirSync(INC); } catch (e) { log('no upload folder', INC); }
   for (const f of incoming.sort()) {
