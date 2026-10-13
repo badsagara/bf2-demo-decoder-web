@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700&family=Archivo:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 </head>
 <body>
+<script>try { if (localStorage.getItem('bf2rr.theme') === 'light') document.documentElement.dataset.theme = 'light'; } catch (e) {}</script>
 <style>
 /* Layout: HUD shell — tactical map left, intel column right, scrub timeline full width below. Dark-first. */
 :root {
@@ -45,16 +46,7 @@
   --hit-head: #c98500; --hit-body: #199e70; --hit-limb: #9085e9;
   color-scheme: dark;
 }
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --bg: #e9ede4; --panel: #f6f8f2; --panel-2: #eef2e8; --line: #cfd8c9;
-    --fg: #1a231d; --muted: #5d6b5c; --accent: #a87a0c;
-    --mec: #d8401f; --us: #1f6fd6; --neutral: #6c7468; --veh-empty: #858a83; --wreck: #3d2f27; --stance-ink: #ffffff; --blast: #c9581a; --warn-bg: rgba(168,122,12,.12);
-    --medic: #1f8a46; --hp-low: #c62828;
-    --hit-head: #eda100; --hit-body: #1baf7a; --hit-limb: #4a3aa7;
-    color-scheme: light;
-  }
-}
+/* dark for everyone; light colours only when picked with the sun button in the header (remembered in the browser) */
 :root[data-theme="light"] {
   --bg: #e9ede4; --panel: #f6f8f2; --panel-2: #eef2e8; --line: #cfd8c9;
   --fg: #1a231d; --muted: #5d6b5c; --accent: #a87a0c;
@@ -75,6 +67,8 @@ header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px
 .brand h1 b { color: var(--accent); font-weight: 700; }
 .brand span { color: var(--muted); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.themeb { padding-inline: 9px; }
+.themeb svg { width: 16px; height: 16px; fill: currentColor; }
 .btn { font: 600 13px/1 var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 9px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .btn svg { width: 11px; height: 11px; flex: none; fill: currentColor; }
 .kg { fill: currentColor; vertical-align: -3px; flex: none; }
@@ -559,6 +553,7 @@ body.mbar-on { padding-bottom: 72px; }
       <input type="file" id="fJson" accept=".json,application/json">
       <label class="btn" for="fImg" title="PNG or JPG, the game's ingameMap.dds, or the level's client.zip">Map picture</label>
       <input type="file" id="fImg" accept="image/*,.dds,.zip">
+      <button class="btn themeb" id="themeBtn" type="button" aria-pressed="false" aria-label="Light colours" title="Light colours"><svg viewBox="0 0 16 16" aria-hidden="true"></svg></button>
       <button class="btn" id="moreBtn" aria-expanded="false" hidden title="Open your own demo, what the decoder reads, the demo file's details">Tools ▾</button>
     </div>
   </header>
@@ -1188,7 +1183,7 @@ function makeTerrain(seed) {
     const at=(i,j)=>gr[(Math.min(N-1,j))*N+Math.min(N-1,i)];
     const a=at(xi,yi), b=at(xi+1,yi), c2=at(xi,yi+1), d=at(xi+1,yi+1);
     return a+(b-a)*xf+(c2-a)*yf+(a-b-c2+d)*xf*yf; };
-  const light = document.documentElement.matches('[data-theme="light"]') || (!document.documentElement.matches('[data-theme="dark"]') && matchMedia('(prefers-color-scheme: light)').matches);
+  const light = document.documentElement.matches('[data-theme="light"]');
   for (let y=0;y<S;y++) for (let x=0;x<S;x++){
     const h = vn(grid,G,x/S*(G-1),y/S*(G-1))*0.75 + vn(grid2,G2,x/S*(G2-1),y/S*(G2-1))*0.25;
     const contour = Math.abs((h*14)%1 - 0.5) > 0.47;
@@ -5548,7 +5543,19 @@ window.addEventListener('hashchange', () => { if (!session || !session.server) r
 
 new ResizeObserver(resize).observe(cv);
 new ResizeObserver(resize).observe(tl);
-matchMedia('(prefers-color-scheme: light)').addEventListener?.('change', () => { if (round) { terrain = makeTerrain(hashStr(String(round.meta.map))); refresh(true); } });
+// colours: dark (everyone's), or light when picked here - remembered in this browser
+const SUN = '<circle cx="8" cy="8" r="3.2"/><path d="M7.3 0.6h1.4v2.6H7.3zM7.3 12.8h1.4v2.6H7.3zM0.6 7.3h2.6v1.4H0.6zM12.8 7.3h2.6v1.4h-2.6zM2.3 3.3l1-1 1.8 1.8-1 1zM10.9 11.9l1-1 1.8 1.8-1 1zM2.3 12.7l1.8-1.8 1 1-1.8 1.8zM10.9 4.1l1.8-1.8 1 1-1.8 1.8z"/>';
+const MOON = '<path d="M10.8 1.2A6.9 6.9 0 1 0 14.8 11 5.6 5.6 0 0 1 10.8 1.2z"/>';
+function setTheme(light, save) {
+  if (light) document.documentElement.dataset.theme = 'light'; else delete document.documentElement.dataset.theme;
+  const b = $('#themeBtn'), tip = light ? 'Dark colours' : 'Light colours';
+  b.querySelector('svg').innerHTML = light ? MOON : SUN; b.title = tip; b.setAttribute('aria-label', tip); b.setAttribute('aria-pressed', String(light));
+  if (save) try { localStorage.setItem('bf2rr.theme', light ? 'light' : 'dark'); } catch (e) {}
+  if (round) { terrain = makeTerrain(hashStr(String(round.meta.map))); refresh(true); }
+  if (ppage.nick) renderPlayerPage();
+}
+$('#themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme !== 'light', true);
+setTheme(document.documentElement.dataset.theme === 'light', false);
 loadSim(simSeed, 2048, 'sample_valley');
 resize();
 requestAnimationFrame(loop);
