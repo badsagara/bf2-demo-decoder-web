@@ -3849,6 +3849,17 @@ class Bits {
   f(s) { if (s < 0 || s + 32 > this.n) return NaN; F32.setInt32(0, this.w[s], true); return F32.getFloat32(0, true); }
 }
 const mkBits = p => new Bits(p);
+// Where a reliable packet's messages end. A type 2 / 6 packet: 3-bit type, 7 bits, 5-bit sequence number, 1 bit, the
+// reliable messages from bit 16, then the record's tick (u32) and the object records - the state part that a type 4
+// packet has from bit 3. Every message sits before that tick (=FL= 2026-10-13 21:14: all 462 deaths, 481 spawns, 301
+// first-message enters, 381 exits, 18 joins, 207 spots, 1696 thrown / fired items). The kill pattern also turns up inside
+// object records (1380 times in that round; 12 of them got past the filters, e.g. HANIBAL "killing" IceyPheonix 300 m
+// away at 07:06: the bits of object 298's update records). A packet without the tick (the opening snapshot): all of it.
+function msgEnd(B, tick) {
+  const w = B.w, last = B.n - 32;
+  for (let s = 16; s <= last; s++) if ((w[s] >>> 0) === tick) return s;
+  return B.n;
+}
 function demoRecords(data) {
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const hdr = readHeader(data); if (!hdr) return null;
@@ -3910,9 +3921,9 @@ function vehicleRot(B, p) {
 // Usually the first message of its packet, but not always: =FL= 2026-10-11 21:03 "shawiniguner" joined in the middle of
 // a packet (bit 944, after other messages) and was shown as "Player 27" - so the whole packet is searched.
 const JOIN_HEAD = 5 | (130 << 7);   // the first 15 bits: type 5, then 130
-function scanJoin(B, out, t) {
+function scanJoin(B, out, t, me = B.n) {
   const w = B.w;
-  for (let s = 16; s + 72 <= B.n; s++) {
+  for (let s = 16; s + 72 <= B.n && s < me; s++) {
     if ((w[s] & 0x7fff) !== JOIN_HEAD) continue;
     const idx = B.u(s + 15, 8); if (B.u(s + 23, 8) !== ((idx + 1) & 255) || B.u(s + 31, 25) !== 0) continue;
     let name = '', end = false;
@@ -4054,8 +4065,9 @@ function rotRecord(B, s, t, st) {
     const a = seatGunAim(B, d); if (a) st.cup.push([t, id, a[0], a[1], a[2]]);
   }
 }
-function scanEvents(B, players, out, t, onlySpawns) {
-  for (let s = 16; s < B.n - 60; s++) {
+function scanEvents(B, players, out, t, onlySpawns, me = B.n) {
+  // (messages start before the tick: msgEnd)
+  for (let s = 16, end = Math.min(B.n - 60, me); s < end; s++) {
     const t7 = B.u(s, 7);
     if (onlySpawns && t7 !== 6) continue;
     if (t7 === 6) {            // create object; soldier spawn carries owner player index
@@ -4089,7 +4101,7 @@ function scanEvents(B, players, out, t, onlySpawns) {
       if (hit) out.push({ t, kind: 'spawn', id: B.u(s + 38, 12), player: B.u(s + hit.k + hit.dd, 8), tpl, kit: hit.kit, x, y, z, ...(hit.dd > 282 ? { seat: B.u(s + hit.k + hit.dd - 101, 12) } : {}) });
     } else if (t7 === 21) {    // kill: killer8, victim8, 17-bit field (all ones for explosives/vehicles), weapon template id (13 bits) at +40
       const k = B.u(s + 7, 8), v = B.u(s + 15, 8), w = B.u(s + 23, 17);
-      if (players.has(k) && players.has(v) && (w === 131071 || (w >= 1 && w <= 1023)) && !(k === v && w !== 131071)) out.push({ t, kind: 'kill', killer: k, victim: v, w, wid: B.u(s + 40, 13) });
+      if (s + 53 <= me && players.has(k) && players.has(v) && (w === 131071 || (w >= 1 && w <= 1023)) && !(k === v && w !== 131071)) out.push({ t, kind: 'kill', killer: k, victim: v, w, wid: B.u(s + 40, 13) });
     } else if (t7 === 11) {    // death (also suicides and other deaths without a killer): subtype 166, 63 zero bits, '10000', player index
       if (B.u(s + 7, 8) === 166 && B.u(s + 15, 31) === 0 && B.u(s + 46, 32) === 0 && B.u(s + 78, 5) === 1) { const pl = B.u(s + 83, 8); if (players.has(pl)) out.push({ t, kind: 'death', player: pl }); }
       // "Spotted!" from the commo rose: subtype 178, 63 bits = 2, then 99 (or 67), spotter team at +90, spotted object id at +98
@@ -4267,16 +4279,16 @@ async function decodeDemo(data, progress) {
     const [tick, p] = R.recs[i];
     if (tick >= 0xfffffff0 || !p.length) continue;
     if (t0 === null) t0 = tick; lastTick = tick;
-    const t = (tick - t0) / 30, typ = p[0] & 7, B = mkBits(p);
+    const t = (tick - t0) / 30, typ = p[0] & 7, B = mkBits(p), me = typ === 2 || typ === 6 ? msgEnd(B, tick) : 0;
     if (live.size) for (const [id, pr] of live) if (t - pr.t > 2 || t - pr.t0 > EXPLOSIVES[pr.tpl][3]) live.delete(id);   // landed, went off or gone
     if (typ === 4 || typ === 2 || typ === 6) { st.rot = sids.size > 0 || vehTpl.size > 0 || live.size > 0; st.cp = typ === 4 && cps.size > 0; scanRecords(B, t, st); }
     if (typ === 2 || typ === 6) scanCreates(B, created, vehTpl, stat, t);
     if (typ === 4 && !cps.size && t <= 5) scanCPFull(B, cps);
-    if (typ === 2 || typ === 6) { const nj = joins.length; scanJoin(B, joins, t); for (let k = nj; k < joins.length; k++) pset.add(joins[k].index); }
+    if (typ === 2 || typ === 6) { const nj = joins.length; scanJoin(B, joins, t, me); for (let k = nj; k < joins.length; k++) pset.add(joins[k].index); }
     // The opening snapshot (first second) creates every soldier already alive when recording started, like a spawn
     // (=FL= 20:37: Vo1k, TapakaH, BCButcher); other messages are only read after it, where they are events
     if (typ === 2 || typ === 6) {
-      const before = evs.length; scanEvents(B, pset, evs, t, t <= 1);
+      const before = evs.length; scanEvents(B, pset, evs, t, t <= 1, me);
       for (let k = before; k < evs.length; k++) {
         const e = evs[k];
         if (e.kind === 'spawn') { pset.add(e.player); sids.add(e.id); }
