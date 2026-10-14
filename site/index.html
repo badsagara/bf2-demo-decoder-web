@@ -1511,16 +1511,56 @@ const teamOf = (i, tt) => i === undefined || !round.players[i] ? -1 : teamIn(rou
 // faction of a team for the game's flag icons: Mec, Us, Ch (PLA), Eu; by the team's name, else MEC first and USMC second
 const factionKey = tm => { const nm = String(round?.teams?.[tm]?.name || ''); return /^us|usmc/i.test(nm) ? 'Us' : /mec/i.test(nm) ? 'Mec' : /pla|^ch/i.test(nm) ? 'Ch' : /^eu/i.test(nm) ? 'Eu' : tm === 1 ? 'Us' : 'Mec'; };
 const flagChip = (owner, main, h = 11) => owner === 0 || owner === 1 ? iconHtml('s' + factionKey(owner), round.teams[owner]?.name || '', h) : `<i class="nflag" title="Neutral"></i>`;
-// a vehicle's guns where they point (decoded demos): the main gun of a tank, APC or AA vehicle from the middle of its
-// symbol out past the outline, the roof machine gun (thinner, shorter) while somebody works it
-function drawGuns(px, py, vs, q, col) {
-  const gun = (a, len, w) => {
-    const ex = px + Math.sin(a) * len, ey = py - Math.cos(a) * len;
-    cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(px + Math.sin(a) * vs * 0.12, py - Math.cos(a) * vs * 0.12); cx.lineTo(ex, ey);
-    cx.strokeStyle = css('--bg'); cx.lineWidth = w + 2.4; cx.stroke(); cx.strokeStyle = col; cx.lineWidth = w; cx.stroke(); cx.lineCap = 'butt';
-  };
-  if (q.mg != null) gun(q.mg, vs * 0.62, 1.6);
-  if (q.aim != null) { gun(q.aim, vs * 0.86, 2.6); cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1.2; cx.beginPath(); cx.arc(px, py, Math.max(2.5, vs * 0.15), 0, Math.PI * 2); cx.fill(); cx.stroke(); }
+// Tanks, APCs and AA vehicles are drawn from shapes, seen from above with the nose up: the hull turns with the vehicle,
+// the turret with its gun on it (decoded demos; straight ahead where not known) - a tank's: a wide hull on two tracks, a
+// round turret and a heavy gun; an APC's: a hull with a wedge nose on wheels, a small turret and a thin gun; an AA
+// vehicle's: on tracks, a square turret with two guns. Every part has a black outline so it stands out on any map.
+// The roof machine gun, while somebody works it: a small cupola (a tank's sits on the turret) and its barrel.
+// L: the symbol's length in px
+const ARMOR_KIND = { mtank: 'tank', mapc: 'apc', maavehicle: 'aa' };
+const shadeOf = (col, k) => { const h = String(col).trim().replace('#', ''); if (!/^[0-9a-f]{6}$/i.test(h)) return col; const v = parseInt(h, 16), f = c => Math.round(c * k); return `rgb(${f(v >> 16 & 255)},${f(v >> 8 & 255)},${f(v & 255)})`; };
+function drawArmor(kind, px, py, L, hull, gunRel, col, mg) {
+  const ink = '#000', dark = shadeOf(col, 0.5), body = shadeOf(col, 0.8), lw = Math.max(1.2, L * 0.065);
+  const rr = (x, y, w, h, r) => { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); };
+  const paint = fill => { cx.fillStyle = fill; cx.fill(); cx.stroke(); };
+  cx.save(); cx.translate(px, py); cx.rotate(hull); cx.lineJoin = 'round'; cx.strokeStyle = ink; cx.lineWidth = lw;
+  let tx = 0, ty = 0;   // turret centre on the hull
+  if (kind === 'apc') {
+    const w = L * 0.5, h = L;
+    cx.fillStyle = ink; for (const y of [-0.27, -0.09, 0.09, 0.27]) for (const sx of [-1, 1]) { cx.fillRect(sx * w / 2 - (sx < 0 ? L * 0.07 : 0), y * h - L * 0.065, L * 0.07, L * 0.13); }
+    cx.beginPath(); cx.moveTo(-w / 2, -h * 0.26); cx.lineTo(-w * 0.28, -h / 2); cx.lineTo(w * 0.28, -h / 2); cx.lineTo(w / 2, -h * 0.26); cx.lineTo(w / 2, h / 2); cx.lineTo(-w / 2, h / 2); cx.closePath(); paint(body);
+    ty = -h * 0.04;
+  } else {
+    const w = L * (kind === 'aa' ? 0.62 : 0.66), h = L, tw = w * 0.24;
+    rr(-w / 2, -h / 2, tw, h, L * 0.06); paint(dark); rr(w / 2 - tw, -h / 2, tw, h, L * 0.06); paint(dark);
+    cx.beginPath(); cx.moveTo(-w / 2 + tw, -h * 0.4); cx.lineTo(-w * 0.16, -h * 0.47); cx.lineTo(w * 0.16, -h * 0.47); cx.lineTo(w / 2 - tw, -h * 0.4); cx.lineTo(w / 2 - tw, h * 0.47); cx.lineTo(-w / 2 + tw, h * 0.47); cx.closePath(); paint(body);
+    ty = kind === 'aa' ? h * 0.06 : h * 0.04;
+  }
+  cx.translate(tx, ty); cx.rotate(gunRel);
+  if (kind === 'tank') {
+    const bw = Math.max(2.4, L * 0.1); rr(-bw / 2, -L * 0.66, bw, L * 0.5, bw * 0.3); paint(col);
+    cx.beginPath(); cx.ellipse(0, L * 0.02, L * 0.21, L * 0.24, 0, 0, Math.PI * 2); paint(col);
+  } else if (kind === 'apc') {
+    const bw = Math.max(1.8, L * 0.07); rr(-bw / 2, -L * 0.56, bw, L * 0.44, bw * 0.3); paint(col);
+    cx.beginPath(); cx.moveTo(-L * 0.15, -L * 0.13); cx.lineTo(L * 0.15, -L * 0.13); cx.lineTo(L * 0.17, L * 0.12); cx.lineTo(-L * 0.17, L * 0.12); cx.closePath(); paint(col);
+  } else {
+    const bw = Math.max(1.6, L * 0.06); for (const sx of [-1, 1]) { rr(sx * L * 0.1 - bw / 2, -L * 0.6, bw, L * 0.48, bw * 0.3); paint(col); }
+    rr(-L * 0.17, -L * 0.15, L * 0.34, L * 0.3, L * 0.05); paint(col);
+  }
+  // the roof gun's cupola: on a tank's turret (right of its middle, a little back), its barrel the way the gun points
+  if (mg != null && kind !== 'apc') {
+    const kx = L * 0.1, ky = L * 0.07; cx.translate(kx, ky); cx.rotate(mg - (hull + gunRel));
+    const bw = Math.max(1.2, L * 0.045); rr(-bw / 2, -L * 0.36, bw, L * 0.32, bw * 0.3); paint(col);
+    cx.beginPath(); cx.arc(0, 0, Math.max(1.8, L * 0.075), 0, Math.PI * 2); paint(dark);
+  }
+  cx.restore(); cx.lineJoin = 'miter';
+}
+// a jeep's roof machine gun (on the game's jeep symbol) while somebody works it: its barrel from the middle, black outline
+function drawRoofGun(px, py, vs, a, col) {
+  const len = vs * 0.5, bw = 1.8, ex = px + Math.sin(a) * len, ey = py - Math.cos(a) * len;
+  cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(px, py); cx.lineTo(ex, ey);
+  cx.strokeStyle = '#000'; cx.lineWidth = bw + 2.4; cx.stroke(); cx.strokeStyle = col; cx.lineWidth = bw; cx.stroke(); cx.lineCap = 'butt';
+  cx.fillStyle = shadeOf(col, 0.55); cx.strokeStyle = '#000'; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(px, py, 2.4, 0, Math.PI * 2); cx.fill(); cx.stroke();
 }
 // draw an atlas icon centred on (x, y), its longer side `size` px, optionally tinted and rotated
 function drawIcon(key, x, y, size, color, rot, mode) {
@@ -1742,16 +1782,24 @@ function draw() {
     const wk = p.vehicle ? (round.wreckOf.get(p.id) || []).find(w => w[0] <= t && t < w[1]) : null;
     if (wk && t >= wk[2]) return;
     const wreck = p.vehicle && (!!wk || (!round.wreckOf.size && round.meta.source !== 'demo' && q.hp !== null && q.hp <= 0));
-    // a vehicle is the game's minimap symbol (tank, APC, jeep, AA), pointing where it drives, in the colour of the team in
-    // it, with its guns where they point (drawGuns); a wreck is charred and burning
+    // a vehicle is drawn in the colour of the team in it, pointing where it drives: a tank, APC or AA vehicle from shapes
+    // with its turret where the gun points (drawArmor), a jeep as the game's minimap symbol with its roof gun while
+    // manned; a wreck is the game's symbol, charred and burning
     const vkey = p.vehicle ? vehIconKey(p) : null;
     // a soldier riding in such a vehicle is shown by it (his name goes next to it, one line per seat taken)
     const inIcon = !p.vehicle && q.veh && iconVeh.has(q.veh);
-    if (vkey && tinted(vkey, col, 'body')) {
+    if (vkey && ARMOR_KIND[vkey] && !wreck) {
+      const vs = Math.max(16, Math.max(GAME.icons[vkey][2], GAME.icons[vkey][3]) * 1.8);
+      cx.shadowColor = 'rgba(0,0,0,.55)'; cx.shadowBlur = 3;
+      drawArmor(ARMOR_KIND[vkey], px, py, vs * 1.1, q.yaw, q.aim != null ? q.aim - q.yaw : 0, col, q.mg);
+      cx.shadowBlur = 0; cx.shadowColor = 'transparent';
+      iconVeh.add(p.name);
+    }
+    else if (vkey && tinted(vkey, col, 'body')) {
       const vs = Math.max(16, Math.max(GAME.icons[vkey][2], GAME.icons[vkey][3]) * 1.8);
       // (a wreck glows like embers round its charred outline)
       cx.shadowColor = wreck ? 'rgba(255,110,30,.9)' : 'rgba(0,0,0,.7)'; cx.shadowBlur = wreck ? 7 : 3; drawIcon(vkey, px, py, vs, wreck ? css('--wreck') : col, q.yaw, 'body'); cx.shadowBlur = 0; cx.shadowColor = 'transparent';
-      if (wreck) drawFire(px, py, vs, wk ? t - wk[0] : 0); else drawGuns(px, py, vs, q, col);
+      if (wreck) drawFire(px, py, vs, wk ? t - wk[0] : 0); else if (q.mg != null) drawRoofGun(px, py, vs, q.mg, col);
       iconVeh.add(p.name);
     }
     else if (!inIcon) {
@@ -1763,7 +1811,7 @@ function draw() {
       cx.fill(); cx.stroke();
       if (p.vehicle) { cx.strokeStyle = wreck ? css('--wreck') : col; cx.lineWidth = 2.5; cx.beginPath(); cx.moveTo(0,-7); cx.lineTo(0,-13); cx.stroke(); }
       cx.restore();
-      if (p.vehicle && !wreck) drawGuns(px, py, 20, q, col);
+      if (p.vehicle && !wreck && q.mg != null) drawRoofGun(px, py, 20, q.mg, col);
       // standing, crouching or prone: an upright figure inside the disc
       if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) drawStance(sn, px, py, 1.08, css('--stance-ink')); }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
