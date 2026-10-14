@@ -589,7 +589,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tBlast" title="Grenades and rockets in flight, blast radius where they go off, placed C4 / claymores / AT mines">Explosions</button>
           <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
-          <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
+          <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn" id="tHeat" title="Where soldiers died or the killers stood, as a heatmap: by side, weapon, soldier, this round or all rounds on the map">Heatmap</button>
           </span></span>
           <span class="spacer"></span>
@@ -979,7 +979,7 @@ function normalize(d) {
   const downOf = new Map(); for (const e of events) if (e.type === 'kill' && e.down) { if (!downOf.has(e.victim)) downOf.set(e.victim, []); downOf.get(e.victim).push([e.t, e.down, e]); }
   const wreckOf = new Map(); for (const e of events) if (e.type === 'wreck') { if (!wreckOf.has(e.vehicle)) wreckOf.set(e.vehicle, []); wreckOf.get(e.vehicle).push([e.t, e.until ?? duration, e.gone ?? (e.until ?? duration)]); }
   return { raw:d, meta:d.meta||{}, teams:d.teams||[{id:0,name:'Team 1'},{id:1,name:'Team 2'}], players:d.players, flags:d.flags||[], emplacements: (d.emplacements||[]).slice().sort((a,b)=>a.t-b.t),
-           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf };
+           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf };
 }
 // frames rows of a timeline file -> columns: per value one typed array, frame after frame, an entry per player (as in
 // d.players); a player without a row in a frame keeps his values from the frame before. VT = index into VTN (vehicle names).
@@ -1023,9 +1023,11 @@ function playerAt(i, t) {
   const pitch = pa === -32768 ? null : (pb === -32768 ? pa : pa + (pb - pa) * u) / 1000;
   // his speed over the ground and up (m/s), from the demo's velocity: null when not known
   const speed = round.SP && round.SP[ia] >= 0 ? round.SP[ia] / 100 : null, vup = round.VV && round.VV[ia] !== -32768 ? round.VV[ia] / 100 : null;
-  if (!alive || !round.L[ib]) return { x:round.X[ia], y:round.Y[ia], h:round.HH[ia], yaw:round.A[ia], alive: !!alive, veh: round.VTN[round.VT[ia]], hp, down, pitch: alive ? pitch : null, speed: alive ? speed : null, vup: alive ? vup : null };
+  // where his gun points (a vehicle: its main gun, mg its manned roof gun; a soldier: the gun he works in a seat), rad
+  const gun = (C, w) => { if (!C) return null; const a = C[ia]; if (a === -32768) return null; const b = C[ib]; if (b === -32768 || !w) return a / 1000; let d = (b - a) / 1000; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a / 1000 + d * w; };
+  if (!alive || !round.L[ib]) return { x:round.X[ia], y:round.Y[ia], h:round.HH[ia], yaw:round.A[ia], alive: !!alive, veh: round.VTN[round.VT[ia]], hp, down, pitch: alive ? pitch : null, speed: alive ? speed : null, vup: alive ? vup : null, aim: alive ? gun(round.GA, 0) : null, mg: alive ? gun(round.GB, 0) : null };
   let da = round.A[ib]-round.A[ia]; while (da>Math.PI) da-=2*Math.PI; while (da<-Math.PI) da+=2*Math.PI;
-  return { x: round.X[ia]+(round.X[ib]-round.X[ia])*u, y: round.Y[ia]+(round.Y[ib]-round.Y[ia])*u, h: round.HH[ia]+(round.HH[ib]-round.HH[ia])*u, yaw: round.A[ia]+da*u, alive:true, veh: round.VTN[round.VT[ia]], hp, down, pitch, speed, vup };
+  return { x: round.X[ia]+(round.X[ib]-round.X[ia])*u, y: round.Y[ia]+(round.Y[ib]-round.Y[ia])*u, h: round.HH[ia]+(round.HH[ib]-round.HH[ia])*u, yaw: round.A[ia]+da*u, alive:true, veh: round.VTN[round.VT[ia]], hp, down, pitch, speed, vup, aim: gun(round.GA, u), mg: gun(round.GB, u) };
 }
 
 // share of the man-down time still left for a wounded soldier (1 when he falls, 0 when he can no longer be revived);
@@ -1279,7 +1281,10 @@ const pitchText = pt => { const g = Math.round(pt * 180 / Math.PI); return Math.
 const viewRange = () => VIEW_R;
 const fogRange = () => GAME.maps[mapKey()]?.view || 150;
 const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
-const looking = (i, tt) => { const q = playerAt(i, tt); return q.alive && !q.veh && !round.players[i].vehicle ? q : null; };   // (in a vehicle where he looks is not known)
+// where soldier i looks: on foot his view; in a seat with a gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a
+// passenger at a firing port) where the gun points, up or down (gun: true); a jeep's driver, a passenger without a port:
+// not known (null)
+const looking = (i, tt) => { const q = playerAt(i, tt); if (!q.alive || round.players[i].vehicle) return null; return !q.veh ? q : q.aim != null ? { ...q, yaw: q.aim, gun: true } : null; };
 // soldiers (alive) in the field of view of soldier i: [{ i, d, seen }] nearest first (seen: true / false where the map's
 // walls and hills are known, else null); null when his view is not known
 function inViewOf(i, tt) {
@@ -1292,7 +1297,7 @@ function inViewOf(i, tt) {
   });
   return out.sort((a, b) => a.d - b.d);
 }
-// enemies on foot who have soldier i in their field of view (seen: false = a wall or hill between them)
+// enemies on foot or at a vehicle's gun who have soldier i in their field of view (seen: false = a wall or hill between them)
 function seenBy(i, tt) {
   const q = playerAt(i, tt); if (!q.alive) return [];
   const R = viewRange(), tm = teamOf(i, tt), out = [];
@@ -1381,7 +1386,8 @@ function losBlocked(D, ax, ay, ah, bx, by, bh) {
 // eye height by stance, over the soldier's position (which is 1.0 m over his feet, standing, crouching or prone alike:
 // =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest)
 const EYE_H = [0.65, 0.05, -0.55], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75]];
-const eyeOf = (i, q, tt) => q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
+// (at a vehicle's gun: 1.5 m over the vehicle's position, about a tank's sights or a roof gunner's head)
+const eyeOf = (i, q, tt) => q.veh ? q.h + 1.5 : q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
 // can soldier i see soldier j? true / false; null where the map's walls and hills are not known
 function canSee(i, j, tt) {
   const D = losData(); if (!D) return null;
@@ -1432,8 +1438,8 @@ function aimPoint(i, q, tt) {
 }
 // ---------- who saw whom first ----------
 // i sees j at tt: j (alive) inside i's view (79° across, 63° high where his pitch is known, out to the map's fog limit)
-// with a clear sight line where the map's walls and hills are known. null when i is in a vehicle (where he looks is not
-// in the demo) or dead
+// with a clear sight line where the map's walls and hills are known. null when i is dead or rides without a gun (where he
+// looks is not in the demo)
 function sees(i, j, tt) {
   const q = looking(i, tt); if (!q) return null;
   const o = playerAt(j, tt); if (!o.alive) return false;
@@ -1505,6 +1511,17 @@ const teamOf = (i, tt) => i === undefined || !round.players[i] ? -1 : teamIn(rou
 // faction of a team for the game's flag icons: Mec, Us, Ch (PLA), Eu; by the team's name, else MEC first and USMC second
 const factionKey = tm => { const nm = String(round?.teams?.[tm]?.name || ''); return /^us|usmc/i.test(nm) ? 'Us' : /mec/i.test(nm) ? 'Mec' : /pla|^ch/i.test(nm) ? 'Ch' : /^eu/i.test(nm) ? 'Eu' : tm === 1 ? 'Us' : 'Mec'; };
 const flagChip = (owner, main, h = 11) => owner === 0 || owner === 1 ? iconHtml('s' + factionKey(owner), round.teams[owner]?.name || '', h) : `<i class="nflag" title="Neutral"></i>`;
+// a vehicle's guns where they point (decoded demos): the main gun of a tank, APC or AA vehicle from the middle of its
+// symbol out past the outline, the roof machine gun (thinner, shorter) while somebody works it
+function drawGuns(px, py, vs, q, col) {
+  const gun = (a, len, w) => {
+    const ex = px + Math.sin(a) * len, ey = py - Math.cos(a) * len;
+    cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(px + Math.sin(a) * vs * 0.12, py - Math.cos(a) * vs * 0.12); cx.lineTo(ex, ey);
+    cx.strokeStyle = css('--bg'); cx.lineWidth = w + 2.4; cx.stroke(); cx.strokeStyle = col; cx.lineWidth = w; cx.stroke(); cx.lineCap = 'butt';
+  };
+  if (q.mg != null) gun(q.mg, vs * 0.62, 1.6);
+  if (q.aim != null) { gun(q.aim, vs * 0.86, 2.6); cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1.2; cx.beginPath(); cx.arc(px, py, Math.max(2.5, vs * 0.15), 0, Math.PI * 2); cx.fill(); cx.stroke(); }
+}
 // draw an atlas icon centred on (x, y), its longer side `size` px, optionally tinted and rotated
 function drawIcon(key, x, y, size, color, rot, mode) {
   const c = tinted(key, color, mode); if (!c) return false;
@@ -1657,9 +1674,9 @@ function draw() {
     }
   }
 
-  // field of view of the followed soldier: a sector out to 50 m, fading with distance; where the map's walls and hills
-  // are known only the part he can see is filled (the rest of the sector stays a dashed outline). Who he sees gets a
-  // dashed ring, who is in the sector behind a wall a dotted grey one
+  // field of view of the followed soldier (at a vehicle's gun: along the gun): a sector out to 50 m, fading with distance;
+  // where the map's walls and hills are known only the part he can see is filled (the rest of the sector stays a dashed
+  // outline). Who he sees gets a dashed ring, who is in the sector behind a wall a dotted grey one
   let inView = null;
   if (opts.view && sel !== null) {
     const q = looking(sel, t);
@@ -1726,7 +1743,7 @@ function draw() {
     if (wk && t >= wk[2]) return;
     const wreck = p.vehicle && (!!wk || (!round.wreckOf.size && round.meta.source !== 'demo' && q.hp !== null && q.hp <= 0));
     // a vehicle is the game's minimap symbol (tank, APC, jeep, AA), pointing where it drives, in the colour of the team in
-    // it; a wreck is charred and burning
+    // it, with its guns where they point (drawGuns); a wreck is charred and burning
     const vkey = p.vehicle ? vehIconKey(p) : null;
     // a soldier riding in such a vehicle is shown by it (his name goes next to it, one line per seat taken)
     const inIcon = !p.vehicle && q.veh && iconVeh.has(q.veh);
@@ -1734,7 +1751,7 @@ function draw() {
       const vs = Math.max(16, Math.max(GAME.icons[vkey][2], GAME.icons[vkey][3]) * 1.8);
       // (a wreck glows like embers round its charred outline)
       cx.shadowColor = wreck ? 'rgba(255,110,30,.9)' : 'rgba(0,0,0,.7)'; cx.shadowBlur = wreck ? 7 : 3; drawIcon(vkey, px, py, vs, wreck ? css('--wreck') : col, q.yaw, 'body'); cx.shadowBlur = 0; cx.shadowColor = 'transparent';
-      if (wreck) drawFire(px, py, vs, wk ? t - wk[0] : 0);
+      if (wreck) drawFire(px, py, vs, wk ? t - wk[0] : 0); else drawGuns(px, py, vs, q, col);
       iconVeh.add(p.name);
     }
     else if (!inIcon) {
@@ -1746,6 +1763,7 @@ function draw() {
       cx.fill(); cx.stroke();
       if (p.vehicle) { cx.strokeStyle = wreck ? css('--wreck') : col; cx.lineWidth = 2.5; cx.beginPath(); cx.moveTo(0,-7); cx.lineTo(0,-13); cx.stroke(); }
       cx.restore();
+      if (p.vehicle && !wreck) drawGuns(px, py, 20, q, col);
       // standing, crouching or prone: an upright figure inside the disc
       if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) drawStance(sn, px, py, 1.08, css('--stance-ink')); }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
@@ -3082,15 +3100,18 @@ function viewRows(i, p) {
   const list = (L, max) => L.slice(0, max).map(nm).join(', ') + (L.length > max ? ` <span class="w">+${L.length - max}</span>` : '');
   const iv = inViewOf(i, t), walls = !!losData();
   const how = walls ? 'with nothing in between (walls and hills from the game\'s files; trees, bushes, smoke and vehicles not counted)' : 'walls and hills are not known for this map';
-  const q0 = playerAt(i, t);
+  const q0 = playerAt(i, t), lk = looking(i, t);
   let h = '';
-  if (q0.alive && !q0.veh && q0.pitch != null) {
-    const ap = aimPoint(i, q0, t), gd = ap ? groundAt(losData(), ap.x, ap.y) : null;
+  if (lk && lk.pitch != null) {
+    const ap = aimPoint(i, lk, t), gd = ap ? groundAt(losData(), ap.x, ap.y) : null;
     const ad = ap ? Math.hypot(ap.x - q0.x, ap.y - q0.y) : 0, dz = ap ? ap.h - eyeOf(i, q0, t) : 0;
-    h += `<dt title="Up or down from level, from the demo; the cross on the map is where his line of sight meets the ground or a wall">Looking</dt><dd>${pitchText(q0.pitch)}${ap ? ` <span class="w">· at ${ap.h - gd < 0.3 ? 'the ground' : 'a wall or roof'} ${ad < 1.5 ? 'at his feet' : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + ' his eyes' : ''}</span>` : ''}</dd>`;
+    h += (lk.gun ? `<dt title="Where his gun points up or down from level (the gun's elevation and the vehicle's tilt), from the demo; the cross on the map is where its line meets the ground or a wall">Gun</dt>`
+      : `<dt title="Up or down from level, from the demo; the cross on the map is where his line of sight meets the ground or a wall">Looking</dt>`)
+      + `<dd>${pitchText(lk.pitch)}${ap ? ` <span class="w">· at ${ap.h - gd < 0.3 ? 'the ground' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the vehicle' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}</span>` : ''}</dd>`;
   }
-  h += `<dt title="Inside his field of view: about 79° across and 63° high (where he looks up or down is in the demo), out to ${viewRange()} m, ${how}">In view</dt><dd>`;
-  if (!iv) h += alive ? '<span class="w">in a vehicle: where he looks is not in the demo</span>' : '—';
+  const atGun = !!lk?.gun;
+  h += `<dt title="${atGun ? 'Inside the field of view along his gun (where it points is in the demo): about 79° across' : 'Inside his field of view: about 79° across and 63° high (where he looks up or down is in the demo)'}, out to ${viewRange()} m, ${how}">In view</dt><dd>`;
+  if (!iv) h += alive ? '<span class="w">riding without a gun: where he looks is not in the demo</span>' : '—';
   else {
     const vis = iv.filter(o => o.seen !== false), en = vis.filter(o => teamOf(o.i, t) !== tm), fr = vis.length - en.length, hid = iv.filter(o => o.seen === false && teamOf(o.i, t) !== tm);
     h += en.length ? list(en, 6) : 'no enemies'; if (fr) h += ` <span class="w">· ${fr} team mate${fr > 1 ? 's' : ''}</span>`;
@@ -3099,7 +3120,7 @@ function viewRows(i, p) {
   h += '</dd>';
   if (alive) {
     const sb = seenBy(i, t), vis = sb.filter(o => o.seen !== false), hid = sb.length - vis.length;
-    h += `<dt title="Enemies on foot who have him inside their field of view${walls ? ' with nothing in between' : ''}">Seen by</dt><dd>${vis.length ? list(vis, 6) : 'no one'}${hid ? ` <span class="w">· ${hid} more facing him behind cover</span>` : ''}</dd>`;
+    h += `<dt title="Enemies on foot or at a vehicle's gun who have him inside their field of view${walls ? ' with nothing in between' : ''}">Seen by</dt><dd>${vis.length ? list(vis, 6) : 'no one'}${hid ? ` <span class="w">· ${hid} more facing him behind cover</span>` : ''}</dd>`;
   }
   return h;
 }
@@ -3825,13 +3846,16 @@ function xyzAt(B, s) {
 // nose (0 = north, clockwise) = atan2(2(xz - wy), 1 - 2(x² + y²)). At over 8 m/s it points along the movement in 99.9%
 // of the records of jeeps and APCs; tanks also back up fast (T-90 18% of its fast records).
 const QUAT_AT = { 6: 27, 5: 33, 7: 3 };
-function vehicleYaw(B, p) {
+function vehicleYaw(B, p) { const r = vehicleRot(B, p); return r ? r[0] : null; }
+// [heading, up component of the nose (sine of how far it points up), up component of the right side] - the tilt is what a
+// gun's elevation gets added (gunElev); the axes as the heading formula takes them (=FL= cannon kills: right)
+function vehicleRot(B, p) {
   const o = QUAT_AT[B.u(p, 3)]; if (o === undefined || p + o + 56 > B.n) return null;
   const c = k => B.u(p + o + 14 * k, 14) / 16383 * 2 - 1;
   const w = c(0), x = c(1), y = c(2), z = c(3);
   if (Math.abs(w * w + x * x + y * y + z * z - 1) > 0.01) return null;
   const fx = 2 * (x * z - w * y), fz = 1 - 2 * (x * x + y * y);
-  return fx * fx + fz * fz < 0.01 ? null : Math.atan2(fx, fz);
+  return fx * fx + fz * fz < 0.01 ? null : [Math.atan2(fx, fz), 2 * (y * z + w * x), 2 * (x * y - w * z)];
 }
 // Player joins (in a reliable packet): type 5, '01000001', slot index 8 bits, index + 1, 25 zero bits, then the name
 // (8-bit characters, zero-terminated) 56 bits after the type. A slot is reused when someone leaves and another joins.
@@ -3862,6 +3886,66 @@ const DOWN_LO = 13824, DOWN_HI = 8208;   // header bits 0-20 and 21-41 of that p
 // step of the logger. +58 never matches: kept only for finding burn-downs (a wreck), not for the hit points shown.
 const VF23 = 1 << 10, VF_ONLY = VF23 | (1 << 25) | (1 << 26);
 const VH_AT = new Map([[1 | 64 | 128 | 512 | VF23, 221], [2 | 64 | 128 | 512 | VF23, 222], [1 | 128 | 512 | VF23, 58]]);
+// Where a tank's or APC's main gun, a roof machine gun and a firing port point (test 13: the turret turned full circles while
+// the tank stood still; checked against the round logger's shell and bullet tracks, and on =FL= rounds: 165 cannon kills,
+// the gun a median 2 deg off the line to the victim (93% within 10 deg; the hull alone 20-39 deg) and 1.2-1.6 deg in
+// height, 60 roof machine-gun kills 1-3 deg and 0.6-1.3 deg).
+// An object record carries its own length: '1' + id12 + 6 zero bits + L (9 bits) + 4 bits + L bits. (The "header bits"
+// above are counted from the 6 zero bits: L is bits 6-14, the payload starts at bit 19.) A vehicle's payload: 19 flags
+// of its own, then their data - flag 1 position (x, y, z), flag 0 rotation (as in vehicleYaw), flag 3 a 2-bit mode (+25
+// bits when no position comes with it), flag 4 health (11 bits); others are not known - then one block per rotating part:
+// 7 flags (0 yaw, 1 pitch, 2 roll, 3-5 their speeds) and 12 bits for each flag set. The first part is the turret: yaw
+// relative to the hull, 2048 = straight ahead, 4096 a full turn clockwise; the second carries the gun's pitch (2048 level,
+// more = down). A roof machine gun is an object of its own (the gunner's seat: vehicle id + 2): 4 flags of its own (clear),
+// the cupola (yaw relative to the hull, on a tank too) and the gun mount (pitch); an APC's firing port likewise (the
+// passenger's seat, + 2 to + 8) with one block. Jeeps have no turret block; APCs and AA vehicles have no roof gun.
+const TURRET_VEH = new Set([4768, 4800, 4833, 4880, 5035, 5068, 5101, 5134, 5217]);
+const CUPOLA_VEH = new Set([4768, 4926, 4947, 4967, 4987, 5007, 5035, 5068, 5184, 5217]);
+// end of the record whose 6 zero bits start at d, when the bits after it start another record (or the packet ends)
+function recEnd(B, d) {
+  const e = d + 19 + B.u(d + 6, 9);
+  if (B.u(d + 15, 4) !== 0 || e > B.n || (e < B.n - 20 && !(B.bit(e) && B.u(e + 14, 5) === 0))) return -1;
+  return e;
+}
+// a rotating part's block at p: { fl, v (the 12-bit values by flag), next }
+function rotBlock(B, p) { const fl = B.u(p, 7), v = []; p += 7; for (let j = 0; j < 7; j++) if (fl & (1 << j)) { v[j] = B.u(p, 12); p += 12; } return { fl, v, next: p }; }
+// the turret's yaw (first block) and the gun's pitch (second block, its pitch flag; 2048 level, more = down: =FL= cannon
+// kills with the hull's tilt, 1.2-1.5 deg median off the line to the victim): [yaw, pitch], either null
+function turretAim(B, d) {
+  const e = recEnd(B, d); if (e < 0) return null;
+  const P = d + 19, f = B.u(P, 19); if (f & ~27) return null;   // (flags 0, 1, 3 and 4 only)
+  let p = P + 19;
+  if (f & 8) { const m = B.u(p, 2); p += 2; if (!(f & 2)) { if (m !== 1) return null; p += 25; } else if (m) return null; }
+  if (f & 2) p += 96;
+  if (f & 1) { const o = QUAT_AT[B.u(p, 3)]; if (o === undefined) return null; p += o + 56; }
+  if (f & 16) p += 11;
+  if (p + 14 > e) return null;
+  const b1 = rotBlock(B, p), b2 = b1.next + 7 <= e ? rotBlock(B, b1.next) : null;
+  if (b1.next > e || (b2 && b2.next > e)) return null;
+  const y = b1.v[0] ?? null, pt = b2 ? b2.v[1] ?? null : null;
+  return y === null && pt === null ? null : [y, pt];
+}
+// a gun seat of its own (roof machine gun, firing port): 4 flags (clear), then 1-3 blocks to the record's end. Roof gun:
+// cupola (yaw) + gun mount (pitch); firing port: one block (yaw and pitch). [yaw, pitch, blocks]
+function seatGunAim(B, d) {
+  const e = recEnd(B, d); if (e < 0 || B.u(d + 19, 4) !== 0) return null;
+  let p = d + 23; const bl = [];
+  for (let k = 0; k < 3 && p + 7 <= e; k++) { const b = rotBlock(B, p); bl.push(b); p = b.next; if (p === e) break; }
+  if (p !== e || !bl.length) return null;
+  const y = bl[0].v[0] ?? null, pt = bl[bl.length - 1].v[1] ?? null;
+  return y === null && pt === null ? null : [y, pt, bl.length];
+}
+// APC firing ports (passenger seats vehicle + 2, 4, 6, 8, one block, test 13 and =FL=: yaw within the seat's +-35 / +-30
+// deg): where each one points at rest, deg clockwise from the hull's nose (object files: the seat's and its gun base's
+// setRotation)
+const PORT_MOUNT = { 5134: { 2: -90, 4: 90, 6: 180, 8: 180 }, 4833: { 2: 90, 4: -90, 6: 90, 8: -90 }, 4880: { 2: -60, 4: 180, 6: 60, 8: 60 } };
+// the ids that can be gun seats (roof guns: vehicle + 1-3; firing ports: + 2-8), made again when vehicles are added
+function gunSeats(st) {
+  const g = new Set();
+  for (const [v, tp] of st.vehTpl) { if (CUPOLA_VEH.has(tp)) for (const k of [1, 2, 3]) g.add(v + k); if (PORT_MOUNT[tp]) for (const k of [2, 4, 6, 8]) g.add(v + k); }
+  for (const v of st.vehTpl.keys()) g.delete(v);
+  st.gs = g; st.gsN = st.vehTpl.size; return g;
+}
 // Explosives in flight (test 9, checked against the round logger's projectile positions): a thrown grenade, a fired AT
 // rocket and a C4 / claymore / AT mine until it lands send '1' + id12 + 26-bit header (bits 1-5 zero) + x, y, z, like other
 // objects; the last record of a grenade (2.8 s fuse) or a rocket is where it went off. Radii from the object files.
@@ -3912,9 +3996,14 @@ function rotRecord(B, s, t, st) {
       if (B.u(d + 14, 5) === 0 && !B.bit(d + 24) && B.u(d + 27, 13) === 0 && B.bit(d + 13) === B.bit(d + 19)) hp.push([t, id, B.u(d + 42, 6) * 100 / 63]);
       else if (B.u(d, 21) === DOWN_LO && B.u(d + 21, 21) === DOWN_HI) hp.push([t, id, -1]);
     }
-  } else if (full && vids.has(id) && B.bit(d + 23)) {
-    const f = B.u(d + 13, 27), o = (f & ~VF_ONLY) === 0 ? 40 : VH_AT.get(f);
-    if (o && d + o + 10 <= B.n) vhp.push([t, id, o === 222 ? B.u(d + o, 8) * 8 - 1000 : B.u(d + o, 10) * 4 - 1000, o === 58 ? 0 : 1]);
+  } else if (vids.has(id)) {
+    if (full && B.bit(d + 23)) {
+      const f = B.u(d + 13, 27), o = (f & ~VF_ONLY) === 0 ? 40 : VH_AT.get(f);
+      if (o && d + o + 10 <= B.n) vhp.push([t, id, o === 222 ? B.u(d + o, 8) * 8 - 1000 : B.u(d + o, 10) * 4 - 1000, o === 58 ? 0 : 1]);
+    }
+    if (st.tur && TURRET_VEH.has(vids.get(id))) { const a = turretAim(B, d); if (a) st.tur.push([t, id, a[0], a[1]]); }
+  } else if (st.tur && (st.gsN === vids.size ? st.gs : gunSeats(st)).has(id)) {
+    const a = seatGunAim(B, d); if (a) st.cup.push([t, id, a[0], a[1], a[2]]);
   }
 }
 function scanEvents(B, players, out, t, onlySpawns) {
@@ -4105,7 +4194,7 @@ function scanRecords(B, t, st) {
       const vc = o => (B.bit(s + o) ? -1 : 1) * B.u(s + o + 1, 11) / 100, vel = b26 && s + 134 <= n ? [vc(98), vc(110), vc(122)] : null;
       st.obs.push([t, 'S', B.u(s - 54, 12), x, y, z, b26 && B.bit(s - 22) && s + 145 <= n ? B.u(s + 129, 16) / 65536 * 2 * Math.PI : null, pt, vel]);
     }
-    else st.obs.push([t, 'V', B.u(s - 52, 12), x, y, z, B.bit(s - 21) ? vehicleYaw(B, s + 96) : null]);
+    else { const ro = B.bit(s - 21) ? vehicleRot(B, s + 96) : null; st.obs.push([t, 'V', B.u(s - 52, 12), x, y, z, ro ? ro[0] : null, ro ? ro[1] : null, ro ? ro[2] : null]); }
   }
 }
 function preambleInfo(p, mapName) {
@@ -4123,7 +4212,8 @@ async function decodeDemo(data, progress) {
   const info = pre ? preambleInfo(pre[1], mapName) : {};
   const pset = new Set(players.map(p => p.index));
   const obs = [], evs = [], rot = [], hp = [], vhp = [], stance = [], joins = [], sids = new Set(), created = new Map(), vehTpl = new Map(), cps = new Map(), cpEv = [], tkEv = [], stat = [], live = new Map(), flights = []; let t0 = null, lastTick = 0;
-  const st = { obs, rotOut: rot, hp, vhp, stance, sids, vehTpl, live, cps, cpEv, tkEv, rot: false, cp: false };
+  const tur = [], cup = [];
+  const st = { obs, rotOut: rot, hp, vhp, stance, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, rot: false, cp: false };
   let lastYield = performance.now();
   for (let i = 0; i < R.recs.length; i++) {
     const [tick, p] = R.recs[i];
@@ -4154,7 +4244,7 @@ async function decodeDemo(data, progress) {
   const duration = t0 === null ? 0 : (lastTick - t0) / 30;
   const cpList = [...cps.keys()].filter(id => created.has(id)).map(id => ({ id, pos: created.get(id), tpl: created.get(id)[3], ...cps.get(id) }));
   progress && progress(0.6, 'build');
-  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, duration, cps: cpList, cpEv, tkEv, stat, flights, tplOf: id => vehTpl.get(id),
+  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, tplOf: id => vehTpl.get(id),
     progress: progress ? f => progress(0.6 + 0.4 * f, 'build') : null });
 }
 async function buildTimeline(r) {
@@ -4224,7 +4314,7 @@ async function buildTimeline(r) {
   for (let k = 0; k < r.obs.length; k++) {
     const [t, cls, id, x, y, z, yw, pt, vel] = r.obs[k];
     if (cls === 'S') { const pl = who(id, t); if (pl !== null) push(track, pl, [t, x, y, z, yw ?? null, pt ?? null, vel ?? null]); }
-    else if (cls === 'V' && id >= 1024) push(vtrack, id, [t, x, y, z, yw ?? null]);
+    else if (cls === 'V' && id >= 1024) push(vtrack, id, [t, x, y, z, yw ?? null, pt ?? null, vel ?? null]);   // (vehicle: pt, vel = its tilt, vehicleRot)
     if (k % 200000 === 199999) await step(0.1 * k / r.obs.length);
   }
   for (const e of spawns) push(track, e.player, [e.t, e.x, e.y, e.z]);
@@ -4407,7 +4497,9 @@ async function buildTimeline(r) {
   }
   const di = new Map();
   const downAt = (pl, tt) => { const L = downWin.get(pl); if (!L) return false; let k = di.get(pl) || 0; while (k < L.length && L[k][1] <= tt) k++; di.set(pl, k); return k < L.length && L[k][0] <= tt; };
-  for (const v of life.values()) v.sort((a, b) => a[1] - b[1]);
+  // (a death and a spawn in the same tick: the death first - =FL= 2026-10-11 20:17, 1207.6 s: a death message without a
+  // killer as Jordan spawned into a Humvee's seat made him dead for the next 3 minutes, in which he made 4 kills)
+  for (const v of life.values()) v.sort((a, b) => a[1] - b[1] || (a[0] === 'die' ? 0 : 1) - (b[0] === 'die' ? 0 : 1));
   const alive = (pl, t) => { let st = false; for (const [k, ts] of life.get(pl) || []) { if (ts > t) break; st = k === 'spawn'; } return st; };
   const lastStart = (pl, t) => { let st = -1; for (const [k, ts] of life.get(pl) || []) { if (ts > t) break; if (k === 'spawn') st = ts; } return st; };
   // heal: health rising over at least 8 points (after a spawn or revive it is full anyway); the healer is the nearest
@@ -4739,9 +4831,39 @@ async function buildTimeline(r) {
     return [v, dec.length ? dec : vehicleHeadings(tr, vre.get(v) || [])];
   }));
   const r2 = x => Math.round(x * 100) / 100, r3 = x => Math.round(x * 1000) / 1000;
+  // ---- where the guns point (turretAim, seatGunAim): per vehicle with a turret the turret's yaw relative to the hull and
+  // the gun's pitch; per gun seat of its own - a roof machine gun (the cupola's yaw, relative to the hull) or a firing port
+  // (yaw from where it points at rest, PORT_MOUNT) - yaw and pitch. A part turns at most ~90 deg/s, so a lone value far
+  // from both neighbours is a misread and goes. A new vehicle (a respawn, the opening snapshot) has its guns straight
+  // ahead and level.
+  const angD = (a, b) => { const d = Math.abs(a - b) % 4096; return Math.min(d, 4096 - d); };
+  const cleanRot = L => { L.sort((a, b) => a[0] - b[0]); return L.filter((o, k) => !(k > 0 && k < L.length - 1 && angD(o[1], L[k - 1][1]) > 400 && angD(o[1], L[k + 1][1]) > 400 && L[k + 1][0] - L[k - 1][0] < 1)); };
+  const rotTr = (rows, k) => { const M = new Map(); for (const o of rows) if (o[k] != null) push(M, o[1], [o[0], o[k]]); for (const [id, L] of M) M.set(id, cleanRot(L)); return M; };
+  const turY = rotTr(r.tur || [], 2), turP = rotTr(r.tur || [], 3), segY = rotTr(r.cup || [], 2), segP = rotTr(r.cup || [], 3);
+  const segBlocks = new Map(); for (const o of r.cup || []) segBlocks.set(o[1], Math.max(segBlocks.get(o[1]) || 0, o[4] || 0));
+  const tplV = v => r.tplOf ? r.tplOf(v) : -1, vidSet = new Set(vids);
+  // gun seat object -> { v: its vehicle, mount: where it points at rest (deg from the nose), roof: a roof gun }
+  const seatGun = new Map();
+  for (const c of new Set([...segY.keys(), ...segP.keys()])) {
+    if ((segBlocks.get(c) || 0) >= 2) { for (const dd of [2, 1, 3]) if (vidSet.has(c - dd) && CUPOLA_VEH.has(tplV(c - dd))) { seatGun.set(c, { v: c - dd, mount: 0, roof: true }); break; } }
+    else for (const dd of [2, 4, 6, 8]) { const pm = PORT_MOUNT[tplV(c - dd)]; if (vidSet.has(c - dd) && pm) { seatGun.set(c, { v: c - dd, mount: pm[dd] * Math.PI / 180, roof: false }); break; } }
+  }
+  // the gun seat of a soldier in seat s (offset from the vehicle id): that object (players), or the one before it (bots)
+  const seatOf = (v, s) => s > 0 ? (seatGun.get(v + s)?.v === v ? v + s : seatGun.get(v + s - 1)?.v === v ? v + s - 1 : null) : null;
+  const lastRe = (v, tt) => { let re = -1; for (const x of vre.get(v) || []) if (x <= tt) re = x; return re; };
+  const walk = L => ({ L: L || [], k: 0, val: 2048, at: -1 });
+  const valNow = (w, tt, re) => { while (w.k < w.L.length && w.L[w.k][0] <= tt) { w.val = w.L[w.k][1]; w.at = w.L[w.k][0]; w.k++; } return w.at >= re ? w.val : 2048; };
+  const SG = new Map([...seatGun.keys()].map(c => [c, { y: walk(segY.get(c)), p: walk(segP.get(c)) }]));
+  const A12 = u => (u - 2048) / 4096 * 2 * Math.PI;   // a 12-bit angle -> rad
+  // world yaw and elevation (rad, up) of a gun at yaw rel (clockwise from the nose) and elevation el on a hull with heading
+  // hy, nose up-component fy, right side up-component ry (vehicleRot; small tilts: the tilt along the gun adds to it)
+  const asn = x => Math.asin(Math.max(-1, Math.min(1, x || 0)));
+  const gunWorld = (hy, fy, ry, rel, el) => [hy + rel, el + asn(fy) * Math.cos(rel) + asn(ry) * Math.sin(rel)];
+  const mradOf = a => { let x = a % (2 * Math.PI); if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return Math.round(x * 1000); };
   // (the frames are made in time order, so each list is walked with a pointer kept in a per-soldier / per-vehicle state
   // instead of being searched every frame)
-  const VS = vids.map(v => ({ v, id: 'v' + v, tr: vtrack.get(v), i: 0, H: vhead.get(v), k: 0, hl: vhTr.get(v) || [], hi: 0, re: vre.get(v) || [] }));
+  const VS = vids.map(v => ({ v, id: 'v' + v, tr: vtrack.get(v), i: 0, H: vhead.get(v), k: 0, hl: vhTr.get(v) || [], hi: 0, re: vre.get(v) || [], gun: TURRET_VEH.has(tplV(v)), ty: walk(turY.get(v)), tp: walk(turP.get(v)), fy: 0, ry: 0 }));
+  const vIdx = new Map(vids.map((v, j) => [v, j]));
   const PS = plist.map(pl => ({ pl, id: 'p' + pl, tr: track.get(pl) || [], i: 0, last: null, yaw: undefined, yawAt: undefined, rt: rtrack.get(pl) || null, ri: 0,
     R: ride.get(pl) || null, life: life.get(pl) || [], li: 0, al: false, start: -1, hl: hpTr.get(pl) || [], hi: 0, pt: null, ptAt: -99, vel: null }));
   const withHp = hasHp || hasVhp, withDown = withHp || downWin.size > 0;
@@ -4754,6 +4876,9 @@ async function buildTimeline(r) {
   const cL = new Uint8Array(n * NE), cVT = new Uint16Array(n * NE), cHP = new Float32Array(n * NE).fill(NaN), cDN = new Uint8Array(n * NE);
   const cPT = new Int16Array(n * NE).fill(-32768);   // view pitch of a soldier on foot (mrad, up positive; -32768 = not known)
   const cSP = new Int16Array(n * NE).fill(-1), cVV = new Int16Array(n * NE).fill(-32768);   // his speed over the ground, and up (cm/s)
+  // where the gun points (mrad, 0 = north, clockwise; -32768 = no gun or not known): a vehicle's main gun, a soldier's in a
+  // seat with a gun (the driver of a tank, APC or AA vehicle, a roof gunner); GB: a vehicle's roof machine gun while manned
+  const cGA = new Int16Array(n * NE).fill(-32768), cGB = new Int16Array(n * NE).fill(-32768);
   const cFO = new Int8Array(n * nfl).fill(-1), cFC = new Float32Array(n * nfl), cTK = new Float32Array(n * 2), times = new Array(n);
   const vtNames = [''], vtIdx = new Map([['', 0]]);
   const vtOf = nm => { if (!nm) return 0; let k = vtIdx.get(nm); if (k === undefined) { k = vtNames.length; vtNames.push(nm); vtIdx.set(nm, k); } return k; };
@@ -4766,11 +4891,15 @@ async function buildTimeline(r) {
     times[f] = r2(t);
     for (let j = 0; j < NV; j++) {
       const V = VS[j], v = V.v, tr = V.tr; let i = V.i;
-      while (i < tr.length && tr[i][0] <= t) { vlast.set(v, tr[i]); i++; }
+      while (i < tr.length && tr[i][0] <= t) { vlast.set(v, tr[i]); if (tr[i][5] != null) { V.fy = tr[i][5]; V.ry = tr[i][6]; } i++; }
       { const H = V.H; let k = V.k; while (k < H.length && H[k][0] <= t) { vyaw.set(v, H[k][1]); k++; } V.k = k; }
       V.i = i; const o = vlast.get(v);
       if (o) {
         const e = b + j; cX[e] = r2(o[1]); cY[e] = r2(o[3]); cA[e] = r3(vyaw.get(v) || 0) || 0; cL[e] = 1; cHH[e] = r2(o[2]); cVT[e] = 0;
+        if (V.gun) {   // the main gun: GA its yaw, PT (unused for a vehicle otherwise) its elevation
+          const re = lastRe(v, t), [gy, ge] = gunWorld(vyaw.get(v) || 0, V.fy, V.ry, A12(valNow(V.ty, t, re)), -A12(valNow(V.tp, t, re)));
+          cGA[e] = mradOf(gy); cPT[e] = Math.round(ge * 1000);
+        }
         if (withHp) {
           // hit points in % of a new vehicle (negative while it burns out), full again after a respawn
           const hl = V.hl; let k = V.hi; while (k < hl.length && hl[k][0] <= t) k++; V.hi = k;
@@ -4807,6 +4936,18 @@ async function buildTimeline(r) {
       const al = S.al, e = b + NV + j;
       cX[e] = r2(x); cY[e] = r2(z); cA[e] = r3(yw) || 0; cL[e] = al ? 1 : 0; cHH[e] = r2(y); cVT[e] = vtOf(veh);
       cPT[e] = al && !veh && S.pt != null ? Math.round(S.pt * 1000) : -32768;
+      // at a gun: GA where it points, PT its elevation (as his view pitch on foot)
+      if (al && veh && rd) {
+        const v = rd[1], vj = vIdx.get(v), c = seatOf(v, rd[3]);
+        // (the driver: seat 0; bots enter one id up, so seat 1 with no gun seat there is a bot driving)
+        if ((rd[3] === 0 || (rd[3] === 1 && c === null)) && vj !== undefined && VS[vj].gun) { cGA[e] = cGA[b + vj]; cPT[e] = cPT[b + vj]; }
+        else if (c !== null && vj !== undefined) {
+          const V = VS[vj], g = SG.get(c), sg = seatGun.get(c), re = lastRe(v, t);
+          const [gy, ge] = gunWorld(vyaw.get(v) || 0, V.fy, V.ry, sg.mount + A12(valNow(g.y, t, re)), -A12(valNow(g.p, t, re)));
+          cGA[e] = mradOf(gy); cPT[e] = Math.round(ge * 1000);
+          if (sg.roof) cGB[b + vj] = cGA[e];   // (a roof gun is drawn on the vehicle, a firing port not)
+        }
+      }
       if (al && !veh && S.vel) { cSP[e] = Math.min(32767, Math.round(Math.hypot(S.vel[0], S.vel[2]) * 100)); cVV[e] = Math.max(-32767, Math.min(32767, Math.round(S.vel[1] * 100))); } else { cSP[e] = -1; cVV[e] = -32768; }
       if (withDown) {
         // health (full after a spawn or revive until a record says otherwise), waiting for a medic
@@ -4820,7 +4961,7 @@ async function buildTimeline(r) {
     for (const [id, owner, ctrl] of applyFlags(t)) { const k = flagIdx.get(id); if (k === undefined) continue; cFO[f * nfl + k] = owner; cFC[f * nfl + k] = ctrl ?? (owner === 0 ? 1 : owner === 1 ? -1 : 0); }
     if (hasTk) { const tk = applyTickets(t); cTK[f * 2] = tk[0] ?? 0; cTK[f * 2 + 1] = tk[1] ?? 0; }
   }
-  const cols = { times, n: NE, nf: nfl, X: cX, Y: cY, A: cA, L: cL, HH: cHH, VT: cVT, VTN: vtNames, HP: cHP, DN: cDN, PT: cPT, SP: cSP, VV: cVV, FO: cFO, FC: cFC, TK: cTK };
+  const cols = { times, n: NE, nf: nfl, X: cX, Y: cY, A: cA, L: cL, HH: cHH, VT: cVT, VTN: vtNames, HP: cHP, DN: cDN, PT: cPT, SP: cSP, VV: cVV, GA: cGA, GB: cGB, FO: cFO, FC: cFC, TK: cTK };
   const vset0 = new Set(vids);
   // the vehicle a kill was made from: the killer's ride at that moment, when the weapon is a vehicle's gun (and not
   // another vehicle type's), a mounted machine gun, or none (run over); a grenade or claymore he threw or set before he got
@@ -4929,7 +5070,7 @@ async function buildTimeline(r) {
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', scoreEstimate: true, manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: mi ? mi.teams[0] : 'Team 1', tickets: tkStart[0] ?? 0 }, { id: 1, name: mi ? mi.teams[1] : 'Team 2', tickets: tkStart[1] ?? 0 }],
     players: ents, flags, frames: [], cols, events, emplacements,
-    stats: { emplacements: emplacements.length, throws: throws.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
+    stats: { emplacements: emplacements.length, throws: throws.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
 }
 
 // @worker-end
@@ -4959,7 +5100,7 @@ function workerMain() {
     try {
       const tl = await decodeDemo(ev.data.data, (f, stage) => { const now = Date.now(); if (now - last > 100) { last = now; self.postMessage({ type: 'progress', f, stage }); } });
       // the timeline's columns are handed over, not copied
-      const bufs = tl && tl.cols ? ['X', 'Y', 'A', 'L', 'HH', 'VT', 'HP', 'DN', 'PT', 'SP', 'VV', 'FO', 'FC', 'TK'].map(k => tl.cols[k].buffer) : [];
+      const bufs = tl && tl.cols ? ['X', 'Y', 'A', 'L', 'HH', 'VT', 'HP', 'DN', 'PT', 'SP', 'VV', 'GA', 'GB', 'FO', 'FC', 'TK'].map(k => tl.cols[k].buffer) : [];
       self.postMessage({ type: 'done', tl }, bufs);
     } catch (e) { self.postMessage({ type: 'error', message: String(e && e.stack || e) }); }
   };
