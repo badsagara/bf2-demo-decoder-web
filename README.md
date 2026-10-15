@@ -58,12 +58,13 @@ VPS сам кожні 5 хвилин дивиться в GitHub. Коли там
 
 ### Кожна нова версія
 
-Від Claude приходить новий `bf2-round-replay.zip`. На Mac:
+Від Claude приходить новий `bf2-round-replay-vNN.zip` (усередині — папка `bf2-round-replay-vNN/`). На Mac:
 
 ```bash
-cd ~/Downloads && rm -rf bf2-round-replay-new && mkdir bf2-round-replay-new && unzip -q bf2-round-replay.zip -d bf2-round-replay-new
-rsync -a --delete --exclude .git bf2-round-replay-new/bf2-round-replay/ ~/bf2-round-replay/
-cd ~/bf2-round-replay && git add -A && git commit -m "v58" && git push
+V=v81   # номер версії з назви архіву
+cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q bf2-round-replay-$V.zip
+rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
+cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
 ```
 
 За ≤ 5 хвилин нова версія на сайті. Перевірити на VPS: `journalctl -u bf2replay-update -n 20`.

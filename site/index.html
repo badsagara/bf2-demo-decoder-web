@@ -738,7 +738,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v81';
+const APP_VERSION = 'v82';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -2304,7 +2304,11 @@ function draw() {
       const g = cx.createRadialGradient(qx, qy, 0, qx, qy, Rg);
       g.addColorStop(0, `rgba(255,200,90,${0.6 * a})`); g.addColorStop(0.65, `rgba(255,120,40,${0.32 * a})`); g.addColorStop(1, 'rgba(255,90,30,0)');
       cx.fillStyle = g; shape(Rg); cx.fill();
-      if (age < 0.3) { cx.fillStyle = `rgba(255,248,215,${0.9 * (1 - age / 0.3)})`; shape(Math.max(4, R * 0.3)); cx.fill(); }
+      if (age < 0.3) {   // (soft-edged, so it reads as a flash, not a ring)
+        const rf = Math.max(5, R * 0.35), gf = cx.createRadialGradient(qx, qy, 0, qx, qy, rf), f = 0.9 * (1 - age / 0.3);
+        gf.addColorStop(0, `rgba(255,248,215,${f})`); gf.addColorStop(0.6, `rgba(255,236,180,${0.6 * f})`); gf.addColorStop(1, 'rgba(255,230,170,0)');
+        cx.fillStyle = gf; shape(rf); cx.fill();
+      }
       cx.globalAlpha = a; if (ring) { cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.setLineDash([5, 4]); shape(R); cx.stroke(); cx.setLineDash([]); }
       if (Rk) { cx.fillStyle = `rgba(255,70,30,${0.38 * a})`; shape(Rk * grow); cx.fill(); cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.stroke(); }
       cx.globalAlpha = 1;
@@ -2359,8 +2363,9 @@ function draw() {
       } else if (e.type === 'blast' && t - e.t <= 2) {
         // (a rocket's 2 m drawn at least 7 px across the middle; a claymore as its fan, when its face is known)
         const [qx, qy] = toC(e.x, e.y), R = Math.max(MISSILES.has(e.kind) ? 7 : 4, pm(e.r)), lr = lethalR(e), fc = e.kind === 'Claymore' ? clayFace(e) : null;
-        // (a grenade: the fire ball and where it kills, no dashed ring - Sagara)
-        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr ? Math.max(3, pm(lr)) : 0, e.kind !== 'Grenade');
+        // (a grenade: only the fire ball - no ring, no lethal circle: Sagara, v81-v82)
+        const gr = e.kind === 'Grenade';
+        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr && !gr ? Math.max(3, pm(lr)) : 0, !gr);
       }
     }
     // tank / APC cannon shells that hit (shotsOf: a kill, or a vehicle hit): the shell flies from the gun at its real speed
