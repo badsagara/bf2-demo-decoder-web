@@ -12,6 +12,7 @@ __SITE__ {
 	header /r/* Cache-Control "no-cache"
 	header /p/* Cache-Control "no-cache"
 	header /assets/* Cache-Control "public, max-age=86400"
+	header /rss.xml Content-Type "application/rss+xml; charset=utf-8"
 	header X-Content-Type-Options nosniff
 	header Referrer-Policy strict-origin-when-cross-origin
 
@@ -20,6 +21,15 @@ __SITE__ {
 	@share path_regexp share ^/([rp])/([A-Za-z0-9_.-]+)$
 	rewrite @share /data/share/{re.share.1}/{re.share.2}.html
 
+	# pages for search engines (every round, player and map as plain HTML), the RSS feed of new rounds, sitemap.xml and
+	# robots.txt: data/www, written by ingest.mjs
+	@www path /rounds /rounds/* /players /players/* /maps /maps/* /rss.xml /sitemap.xml /robots.txt
+	handle @www {
+		header Cache-Control "no-cache"
+		root * /srv/bf2replay/data/www
+		try_files {path} {path}/index.html
+		file_server
+	}
 	# rounds.json, decoded rounds (rounds/*.bfr), the demos themselves (demos/*.bf2demo), kill spots (heat/*.json)
 	# (heat files are named with a version by rounds.json: heat/<map>.json?v=...)
 	handle_path /data/* {

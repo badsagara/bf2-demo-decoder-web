@@ -3,7 +3,8 @@
 //
 //   node ingest.mjs              new demos in upload/incoming -> data/demos (the demo), data/rounds (decoded), rounds.json,
 //                                data/heat/<map>.json (every kill's spot, for heatmaps and player pages),
-//                                data/share/r|p/*.html (link previews: /r/<round>, /p/<player>)
+//                                data/share/r|p/*.html (link previews: /r/<round>, /p/<player>),
+//                                data/www (pages for search engines: /rounds/, /players/, /maps/; /rss.xml, /sitemap.xml)
 //   node ingest.mjs --reprocess  also decode again every round made by an older decoder (after a site update)
 //   node ingest.mjs --rebuild    decode every kept demo again and write rounds.json from scratch
 //
@@ -252,6 +253,167 @@ function writeShares(d, dec) {
     for (const f of fs.readdirSync(dir)) if (f.endsWith('.html') && !want[kind].has(f.slice(0, -5))) fs.unlinkSync(path.join(dir, f));
   }
 }
+// ---------- pages for search engines, RSS ----------
+// The page itself shows rounds and players from data/rounds.json with script (#round=…, #player=…), which search engines
+// can't list. ingest.mjs also writes plain pages into data/www, which the web server serves at /rounds/, /players/ and
+// /maps/ (Caddyfile.in, nginx-example.conf): every round with its players and numbers, every player with his rounds,
+// every map; links into the replay. With a domain (BF2R_DOMAIN) also /sitemap.xml and /robots.txt; /rss.xml lists the
+// newest rounds (a feed reader shows each new round). Only files whose text changed are written; pages of rounds or
+// players no longer listed go.
+const WWW = path.join(DATA, 'www');
+const WWW_CSS = `:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;background:#0e1310;color:#dde4d6;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+a{color:#e2b547;text-decoration:none}a:hover{text-decoration:underline}header{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;padding:14px 20px;border-bottom:1px solid #2b3830;background:#151c17}
+.brand{font:700 20px/1 "Arial Narrow",sans-serif;letter-spacing:.04em;color:#dde4d6}.brand b{color:#e2b547}nav{display:flex;flex-wrap:wrap;gap:16px}nav a{color:#8b9a89}nav a:hover{color:#dde4d6}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}h1{font:700 28px/1.15 "Arial Narrow",sans-serif;letter-spacing:.02em;margin:6px 0 6px}h2{font-size:17px;margin:26px 0 8px}
+.sub{color:#8b9a89;margin:0 0 14px}.go{display:inline-block;margin:6px 0 14px;padding:8px 14px;border-radius:4px;background:#e2b547;color:#17130a;font-weight:600}.go:hover{text-decoration:none;filter:brightness(1.08)}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:6px 10px;border-bottom:1px solid #2b3830;text-align:left;white-space:nowrap}th{color:#8b9a89;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.t0{color:#ff6b4f}.t1{color:#5ea8ff}.mute{color:#8b9a89}.pic{float:right;width:min(220px,38vw);margin:0 0 12px 16px;border-radius:4px;border:1px solid #2b3830}
+.months{display:flex;flex-wrap:wrap;gap:6px 14px}footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:#8b9a89;font-size:13px}`;
+function wwwPage({ title, desc, canon, body, abs }) {
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escH(title)} · BF2 Round Replay</title>
+<meta name="description" content="${escH(desc)}">
+${abs ? `<link rel="canonical" href="${escH(abs + canon.replace(/^\//, ''))}">\n` : ''}<link rel="alternate" type="application/rss+xml" title="BF2 Round Replay: new rounds" href="/rss.xml">
+<meta property="og:site_name" content="BF2 Round Replay"><meta property="og:title" content="${escH(title)}"><meta property="og:description" content="${escH(desc)}">
+<style>${WWW_CSS}</style>
+</head><body>
+<header><a class="brand" href="/">BF2 <b>Round</b> Replay</a><nav><a href="/rounds/">Rounds</a><a href="/players/">Players</a><a href="/maps/">Maps</a><a href="/rss.xml">RSS</a></nav></header>
+<main>
+${body}
+</main>
+<footer>Battlefield 2 rounds from the Battle Recorder, decoded: every round can be watched on the map in <a href="/">BF2 Round Replay</a>.</footer>
+</body></html>
+`;
+}
+const WWW_VER = 1;   // (raise when the pages change: they are all written again)
+function writeWww(d, dec) {
+  const abs = DOMAIN ? `https://${DOMAIN}/` : '';
+  // nothing new (the same rounds, decoder, domain and pages as last time: update.sh runs this every 5 minutes): skip
+  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, d.rounds.map(r => [r.name, r.decoder, r.added])])).digest('hex'), stampF = path.join(WWW, '.stamp');
+  try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
+  const mapName = m => dec.GAME?.maps?.[m]?.name || m;
+  const idOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
+  const mk = s => mapOf(s).replace(/[^a-z0-9_-]+/g, '_');   // (a map's key as a file name)
+  const R = d.rounds.filter(r => r.sum && !r.sum.empty && /^[A-Za-z0-9_.-]+$/.test(idOf(r.name)));   // (newest first)
+  const files = new Map();   // path under www -> text
+  const kd = (k, dd) => (k / Math.max(1, dd)).toFixed(2);
+  const hasPic = m => fs.existsSync(path.join(SITE, 'assets', 'maps', m + '.webp'));
+  const result = s => s.winner != null && s.teams ? `<span class="t${s.winner}">${escH(s.teams[s.winner])}</span> won${s.tickets ? ` <span class="mute">${s.tickets[0][1]} : ${s.tickets[1][1]}</span>` : ''}` : s.tickets ? `<span class="mute">${s.tickets[0][1]} : ${s.tickets[1][1]}</span>` : '–';
+  const resultTxt = s => s.winner != null && s.teams ? `${s.teams[s.winner]} won${s.tickets ? `, tickets ${s.tickets[0][1]} : ${s.tickets[1][1]}` : ''}` : s.tickets ? `tickets ${s.tickets[0][1]} : ${s.tickets[1][1]}` : '';
+  const roundDesc = s => [resultTxt(s), mmss(s.duration), `${s.players} players`, `${s.kills} kills`, s.top ? `best: ${s.top.name} (${s.top.score})` : '', s.server].filter(Boolean).join(' · ');
+  // players over all rounds (by nick, as the page and the link previews)
+  const P = new Map();
+  for (const r of R) for (const p of r.sum.P || []) {
+    const k = nickOf(p.name); if (/^Player \d+$/.test(k)) continue;
+    const a = P.get(k) || { nick: k, name: p.name, names: new Set(), rounds: [], k: 0, d: 0, score: 0, wins: 0, hs: 0 };
+    a.names.add(p.name); a.rounds.push({ r, p }); a.k += p.k; a.d += p.d; a.score += p.score || 0; a.hs += p.hs || 0; if (p.win) a.wins++;
+    P.set(k, a);
+  }
+  const plink = name => { const k = nickOf(name); return P.has(k) ? `<a href="/players/${escH(nickSlug(k))}.html">${escH(name)}</a>` : escH(name); };
+  const roundRow = (r, cols) => {
+    const s = r.sum, id = idOf(r.name);
+    return `<tr><td><a href="/rounds/${escH(id)}.html">${escH(dayOf(s.date))}</a></td>${cols.map ? `<td><a href="/maps/${escH(mk(s))}.html">${escH(mapName(mapOf(s)))}</a></td>` : ''}${cols.server ? `<td class="mute">${escH(s.server)}</td>` : ''}<td class="n">${mmss(s.duration)}</td><td class="n">${s.players}</td><td class="n">${s.kills}</td><td>${result(s)}</td><td>${s.top ? `${plink(s.top.name)} <span class="mute">${s.top.score}</span>` : ''}</td></tr>`;
+  };
+  const roundTable = (list, cols) => `<div class="wrap"><table><thead><tr><th>Started</th>${cols.map ? '<th>Map</th>' : ''}${cols.server ? '<th>Server</th>' : ''}<th class="n">Length</th><th class="n">Players</th><th class="n">Kills</th><th>Result</th><th>Best ≈ score</th></tr></thead><tbody>
+${list.map(r => roundRow(r, cols)).join('\n')}
+</tbody></table></div>`;
+  const servers = new Set(R.map(r => r.sum.server)), manySrv = servers.size > 1;
+  // rounds: the newest 100, then month by month
+  const months = new Map(); for (const r of R) { const m = (r.sum.date || '').slice(0, 7) || 'unknown'; if (!months.has(m)) months.set(m, []); months.get(m).push(r); }
+  const monthName = m => { const x = /^(\d{4})-(\d\d)$/.exec(m); return x ? new Date(Date.UTC(+x[1], +x[2] - 1, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'Date unknown'; };
+  const monthLinks = `<div class="months">${[...months].map(([m, L]) => `<a href="/rounds/${escH(m)}.html">${escH(monthName(m))}</a> <span class="mute">${L.length}</span>`).join(' ')}</div>`;
+  files.set('rounds/index.html', wwwPage({ abs, canon: '/rounds/', title: 'Battlefield 2 rounds', desc: `${R.length} Battlefield 2 rounds from the Battle Recorder: map, players, kills, result; each one to watch on the map.`,
+    body: `<h1>Battlefield 2 rounds</h1><p class="sub">${R.length} rounds${manySrv ? ` from ${servers.size} servers` : ''}, newest first. Each one opens on the map: who went where, who killed whom.</p>
+${roundTable(R.slice(0, 100), { map: true, server: manySrv })}
+<h2>By month</h2>${monthLinks}` }));
+  for (const [m, L] of months) files.set(`rounds/${m}.html`, wwwPage({ abs, canon: `/rounds/${m}.html`, title: `Battlefield 2 rounds · ${monthName(m)}`, desc: `${L.length} Battlefield 2 rounds played in ${monthName(m)}.`,
+    body: `<h1>Rounds · ${escH(monthName(m))}</h1><p class="sub">${L.length} rounds. <a href="/rounds/">All rounds</a></p>${roundTable(L, { map: true, server: manySrv })}<h2>Other months</h2>${monthLinks}` }));
+  // one round: its sides and players
+  for (const r of R) {
+    const s = r.sum, id = idOf(r.name), m = mapOf(s), mf = mk(s);
+    const sides = [0, 1].map(tm => (s.P || []).filter(p => p.team === tm).sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k));
+    const side = (tm, L) => L.length ? `<h2><span class="t${tm}">${escH(s.teams?.[tm] || 'Team ' + (tm + 1))}</span>${s.winner === tm ? ' · won' : ''}${s.tickets ? ` <span class="mute">tickets ${s.tickets[tm][0]} → ${s.tickets[tm][1]}</span>` : ''}</h2>
+<div class="wrap"><table><thead><tr><th>Player</th><th class="n">≈ Score</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">Headshots</th><th class="n">Best streak</th><th class="n">Revives</th></tr></thead><tbody>
+${L.map(p => `<tr><td>${plink(p.name)}</td><td class="n">${p.score || 0}</td><td class="n">${p.k}</td><td class="n">${p.d}</td><td class="n">${p.hs || 0}</td><td class="n">${p.streak || '–'}</td><td class="n">${p.rev || 0}</td></tr>`).join('\n')}
+</tbody></table></div>` : '';
+    files.set(`rounds/${id}.html`, wwwPage({ abs, canon: `/rounds/${id}.html`, title: `${mapName(m)} · ${dayOf(s.date)}`, desc: `Battlefield 2 on ${mapName(m)}: ${roundDesc(s)}.`,
+      body: `${hasPic(m) ? `<img class="pic" src="/assets/maps/${escH(m)}.webp" alt="Map of ${escH(mapName(m))}" width="220" height="220">` : ''}<h1>${escH(mapName(m))} · ${escH(dayOf(s.date))}</h1>
+<p class="sub">${escH(s.server)} · ${mmss(s.duration)} · ${s.players} players · ${s.kills} kills</p><p>${result(s)}</p>
+<a class="go" href="/#round=${encodeURIComponent(id)}">▶ Watch the round on the map</a> <a href="/maps/${escH(mf)}.html">More rounds on ${escH(mapName(m))}</a>
+${side(0, sides[0])}${side(1, sides[1])}` }));
+  }
+  // players: everyone with his rounds
+  const PL = [...P.values()].sort((a, b) => b.rounds.length - a.rounds.length || b.k - a.k);
+  files.set('players/index.html', wwwPage({ abs, canon: '/players/', title: 'Battlefield 2 players', desc: `${PL.length} Battlefield 2 players: rounds, kills, deaths, K/D.`,
+    body: `<h1>Players</h1><p class="sub">${PL.length} players over ${R.length} rounds, most rounds first. One player under several clan tags is one row.</p>
+<div class="wrap"><table><thead><tr><th>Player</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">≈ Score</th><th>Last played</th></tr></thead><tbody>
+${PL.map(a => `<tr><td><a href="/players/${escH(nickSlug(a.nick))}.html">${escH(a.name)}</a></td><td class="n">${a.rounds.length}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.score}</td><td class="mute">${escH(dayOf(a.rounds[0].r.sum.date).replace(/, \d\d:\d\d$/, ''))}</td></tr>`).join('\n')}
+</tbody></table></div>` }));
+  for (const a of PL) {
+    const slug = nickSlug(a.nick), maps = new Map(); for (const { r } of a.rounds) maps.set(mk(r.sum), (maps.get(mk(r.sum)) || 0) + 1);
+    const aka = [...a.names].filter(x => x !== a.name);
+    files.set(`players/${slug}.html`, wwwPage({ abs, canon: `/players/${slug}.html`, title: `${a.name} · Battlefield 2 player`, desc: `${a.name} in Battlefield 2: ${a.rounds.length} rounds, ${a.k} kills, ${a.d} deaths (K/D ${kd(a.k, a.d)}), won ${a.wins}.`,
+      body: `<h1>${escH(a.name)}</h1><p class="sub">${aka.length ? `also as ${aka.map(escH).join(', ')} · ` : ''}${a.rounds.length} rounds · ${a.k} kills · ${a.d} deaths · K/D ${kd(a.k, a.d)} · won ${a.wins} · ≈ score ${a.score}${a.hs ? ` · ${a.hs} headshots` : ''}</p>
+<a class="go" href="/#player=${encodeURIComponent(a.nick)}">▶ His page in the replay</a>
+<h2>Maps</h2><p>${[...maps].sort((x, y) => y[1] - x[1]).map(([m, c]) => `<a href="/maps/${escH(m)}.html">${escH(mapName(m))}</a> <span class="mute">${c}</span>`).join(' · ')}</p>
+<h2>Rounds</h2><div class="wrap"><table><thead><tr><th>Started</th><th>Map</th><th>Side</th><th>Result</th><th class="n">≈ Score</th><th class="n">Kills</th><th class="n">Deaths</th></tr></thead><tbody>
+${a.rounds.map(({ r, p }) => { const s = r.sum; return `<tr><td><a href="/rounds/${escH(idOf(r.name))}.html">${escH(dayOf(s.date))}</a></td><td>${escH(mapName(mapOf(s)))}</td><td><span class="t${p.team}">${escH(s.teams?.[p.team] || '')}</span></td><td>${s.winner == null ? '–' : p.win ? 'Won' : 'Lost'}</td><td class="n">${p.score || 0}</td><td class="n">${p.k}</td><td class="n">${p.d}</td></tr>`; }).join('\n')}
+</tbody></table></div>` }));
+  }
+  // maps
+  const M = new Map(); for (const r of R) { const m = mk(r.sum); if (!M.has(m)) M.set(m, []); M.get(m).push(r); }
+  const ML = [...M].sort((a, b) => b[1].length - a[1].length);
+  files.set('maps/index.html', wwwPage({ abs, canon: '/maps/', title: 'Battlefield 2 maps', desc: `Battlefield 2 rounds by map: ${ML.map(([m, L]) => `${mapName(m)} (${L.length})`).join(', ')}.`,
+    body: `<h1>Maps</h1><p class="sub">${ML.length} maps, ${R.length} rounds.</p><div class="wrap"><table><thead><tr><th>Map</th><th class="n">Rounds</th><th class="n">Kills</th><th>Last played</th></tr></thead><tbody>
+${ML.map(([m, L]) => `<tr><td><a href="/maps/${escH(m)}.html">${escH(mapName(m))}</a></td><td class="n">${L.length}</td><td class="n">${L.reduce((x, r) => x + r.sum.kills, 0)}</td><td class="mute">${escH(dayOf(L[0].sum.date))}</td></tr>`).join('\n')}
+</tbody></table></div>` }));
+  for (const [m, L] of ML) {
+    const top = new Map(); for (const r of L) for (const p of r.sum.P || []) { const k = nickOf(p.name); if (!P.has(k)) continue; const x = top.get(k) || { name: p.name, n: 0, k: 0, d: 0 }; x.n++; x.k += p.k; x.d += p.d; top.set(k, x); }
+    const T = [...top.values()].sort((a, b) => b.k - a.k).slice(0, 20), wins = [0, 0], teams = L[0].sum.teams || [];
+    for (const r of L) if (r.sum.winner === 0 || r.sum.winner === 1) wins[r.sum.winner]++;
+    files.set(`maps/${m}.html`, wwwPage({ abs, canon: `/maps/${m}.html`, title: `${mapName(m)} · Battlefield 2 rounds`, desc: `${L.length} Battlefield 2 rounds on ${mapName(m)}: who plays there most, who kills most, every round to watch.`,
+      body: `${hasPic(m) ? `<img class="pic" src="/assets/maps/${escH(m)}.webp" alt="Map of ${escH(mapName(m))}" width="220" height="220">` : ''}<h1>${escH(mapName(m))}</h1>
+<p class="sub">${L.length} rounds · ${L.reduce((x, r) => x + r.sum.kills, 0)} kills${teams.length === 2 ? ` · <span class="t0">${escH(teams[0])}</span> won ${wins[0]}, <span class="t1">${escH(teams[1])}</span> ${wins[1]}` : ''}</p>
+<a class="go" href="/#map=${encodeURIComponent(m)}">▶ Where they die on ${escH(mapName(m))}</a>
+<h2>Most kills here</h2><div class="wrap"><table><thead><tr><th>Player</th><th class="n">Rounds</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th></tr></thead><tbody>
+${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n">${x.k}</td><td class="n">${x.d}</td><td class="n">${kd(x.k, x.d)}</td></tr>`).join('\n')}
+</tbody></table></div>
+<h2>Rounds</h2>${roundTable(L, { map: false, server: manySrv })}` }));
+  }
+  // the feed: the newest 50 rounds
+  const rfc = iso => { const t = Date.parse(iso || ''); return Number.isFinite(t) ? new Date(t).toUTCString() : new Date().toUTCString(); };
+  const site = abs || '/';
+  files.set('rss.xml', `<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
+<title>BF2 Round Replay: new rounds</title>
+<link>${escH(site)}</link>
+<description>New Battlefield 2 rounds, decoded from the Battle Recorder: each one to watch on the map.</description>
+<language>en</language>
+${abs ? `<atom:link href="${escH(abs)}rss.xml" rel="self" type="application/rss+xml"/>\n` : ''}${R.length ? `<lastBuildDate>${rfc(R.map(r => r.added).filter(Boolean).sort().pop())}</lastBuildDate>\n` : ''}${R.slice().sort((a, b) => String(b.added || '').localeCompare(String(a.added || ''))).slice(0, 50).map(r => {
+    const s = r.sum, id = idOf(r.name);
+    return `<item><title>${escH(`${mapName(mapOf(s))} · ${dayOf(s.date)}`)}</title><link>${escH(`${site}${d.share ? 'r/' + id : '#round=' + encodeURIComponent(id)}`)}</link><guid isPermaLink="false">bf2rr-${escH(id)}</guid><pubDate>${rfc(r.added)}</pubDate><description>${escH(roundDesc(s))}</description></item>`;
+  }).join('\n')}
+</channel></rss>
+`);
+  if (abs) {
+    const urls = ['', 'rounds/', 'players/', 'maps/', ...[...months.keys()].map(m => `rounds/${m}.html`), ...R.map(r => `rounds/${idOf(r.name)}.html`), ...PL.map(a => `players/${nickSlug(a.nick)}.html`), ...ML.map(([m]) => `maps/${m}.html`)];
+    files.set('sitemap.xml', `<?xml version="1.0" encoding="utf-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `<url><loc>${escH(abs + u)}</loc></url>`).join('\n')}\n</urlset>\n`);
+    files.set('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${abs}sitemap.xml\n`);
+  }
+  // write what changed; remove what is no longer listed
+  fs.mkdirSync(WWW, { recursive: true });
+  for (const [rel, text] of files) {
+    const f = path.join(WWW, rel); fs.mkdirSync(path.dirname(f), { recursive: true });
+    let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {}
+    if (old !== text) { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); }
+  }
+  for (const dir of ['', 'rounds', 'players', 'maps']) {
+    let L = []; try { L = fs.readdirSync(path.join(WWW, dir)); } catch (e) {}
+    for (const f of L) { const rel = dir ? `${dir}/${f}` : f; if (/\.(html|xml|txt)$/.test(f) && !files.has(rel)) fs.unlinkSync(path.join(WWW, rel)); }
+  }
+  fs.writeFileSync(stampF, stamp);
+}
 // a round off the list: its demo goes (to data/empty with BF2R_KEEP_EMPTY), its decoded round and kill spots too
 function dropRound(idx, name, src) {
   try { if (src && fs.existsSync(src)) { if (KEEP_EMPTY) fs.renameSync(src, path.join(DIRS.empty, name)); else fs.unlinkSync(src); } } catch (e) { log('could not remove', name, '-', e.message); }
@@ -323,5 +485,6 @@ async function main() {
   }
   if (changed || idx.moved || !idx.heat || !fs.existsSync(INDEX)) writeIndex(idx, dec);
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)
+  try { writeWww(idx, dec); } catch (e) { log('pages for search engines not written:', e.message); }
 }
 main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });

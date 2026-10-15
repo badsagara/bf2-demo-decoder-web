@@ -275,3 +275,20 @@ systemctl list-timers 'bf2replay-*'          # bf2replay-fetch: наступни
 ```
 
 Інший час — `BF2R_FETCH_AT=ГГ:ХХ` у `/etc/bf2replay.conf` (або в команді п. 3).
+
+## 13. Сторінки для пошуковиків і RSS
+
+Сам сайт показує раунди й гравців скриптом (`#round=…`, `#player=…`), і пошуковики їх не бачать. Тому `ingest.mjs`
+пише ще й звичайні сторінки в `data/www/`, а Caddy віддає їх за адресами:
+
+- `/rounds/` — останні 100 раундів і архів за місяцями; `/rounds/<раунд>.html` — раунд: сторони, гравці, очки,
+  вбивства, кнопка «Watch the round on the map»;
+- `/players/` — усі гравці; `/players/<нік>.html` — гравець і його раунди;
+- `/maps/` і `/maps/<мапа>.html` — раунди на мапі й хто там убиває найбільше;
+- `/rss.xml` — 50 найновіших раундів (RSS: у читалці новин чи в Telegram-боті з RSS видно кожен новий раунд);
+- з `BF2R_DOMAIN`: `/sitemap.xml` і `/robots.txt` (у Google Search Console можна додати `https://домен/sitemap.xml`).
+
+Файли переписуються лише тоді, коли змінилися; сторінки раундів, яких більше немає, видаляються. Нові адреси в
+`Caddyfile.in` стають самі (`units.sh` при кожному `update.sh`); з nginx — блоки `/rounds|players|maps` і
+`rss.xml / sitemap.xml / robots.txt` з `nginx-example.conf` треба додати руками. Уперше сторінки з'являться після
+першого ж запуску `ingest.mjs` (новий раунд або оновлення сайту: `sudo systemctl start bf2replay-update`).
