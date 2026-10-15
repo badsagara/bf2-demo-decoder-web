@@ -44,6 +44,8 @@
   --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   /* where a killing shot hit: head, body, arms and legs (one categorical set, checked for colour blindness) */
   --hit-head: #c98500; --hit-body: #199e70; --hit-limb: #9085e9;
+  /* houses, walls and other things nobody walks through (Buildings layer): a dark fill and a light outline */
+  --bld-fill: rgba(10, 12, 10, .5); --bld-line: rgba(236, 240, 228, .8); --bld-roof: rgba(10, 12, 10, .3);
   color-scheme: dark;
 }
 /* dark for everyone; light colours only when picked with the sun button in the header (remembered in the browser) */
@@ -53,6 +55,7 @@
   --mec: #d8401f; --us: #1f6fd6; --neutral: #6c7468; --veh-empty: #858a83; --wreck: #3d2f27; --stance-ink: #ffffff; --blast: #c9581a; --warn-bg: rgba(168,122,12,.12);
   --medic: #1f8a46; --hp-low: #c62828;
   --hit-head: #eda100; --hit-body: #1baf7a; --hit-limb: #4a3aa7;
+  --bld-fill: rgba(40, 44, 38, .32); --bld-line: rgba(18, 22, 16, .85); --bld-roof: rgba(40, 44, 38, .16);
   color-scheme: light;
 }
 /* a round where the first team is the USMC (a timeline from another tool, the sample round) keeps US blue */
@@ -571,7 +574,7 @@ body.mbar-on { padding-bottom: 72px; }
         <span class="tag" id="mapTag">Map</span>
         <span class="tag sim" id="simTag">Simulated</span>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="1" max="60" step="1" value="10" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
@@ -592,6 +595,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn" id="tHeat" title="Where soldiers died or the killers stood, as a heatmap: by side, weapon, soldier, this round or all rounds on the map">Heatmap</button>
+          <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs">Buildings</button>
           </span></span>
           <span class="spacer"></span>
           <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
@@ -1043,7 +1047,7 @@ let t = 0, playing = false, speed = 10, sel = null, tab = 0;
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', job: null, out: null, drag: null, sel: undefined };
-const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true };
+const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true };
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
 // ---------- map pictures ----------
 // The game's minimap (Levels/<map>/client.zip -> Hud/Minimap/ingameMap.dds) covers the whole terrain, north up,
@@ -1318,7 +1322,7 @@ function seenBy(i, tt) {
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
 // and wagons (bullets go through some), peeking round corners; BF2 destroys no cover but bridges and red barrels)
 const LOS = new Map();   // map key -> data, 'loading', or null (none for this map / failed)
-window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
+window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
 function losData() {
   const k = mapKey(), v = LOS.get(k);
   if (v === undefined) {
@@ -1354,6 +1358,89 @@ function groundAt(D, x, y) {
   if (!(c >= 0 && r >= 0 && c <= N - 1 && r <= N - 1)) return -1e9;
   const c0 = Math.min(N - 2, c | 0), r0 = Math.min(N - 2, r | 0), u = c - c0, v = r - r0, H = D.hm, i = r0 * N + c0;
   return D.hmBase + D.hmScale * ((H[i] * (1 - u) + H[i + 1] * u) * (1 - v) + (H[i + N] * (1 - u) + H[i + N + 1] * u) * v);
+}
+// Houses and walls for the map (Buildings layer): every 0.5 m square where the game's collision shapes (the sight-line
+// grid, 25 cm) take up any of 0.6-1.6 m over the ground - knee to head: a soldier can't walk through there - outlined
+// along the squares' edges, the outlines smoothed (corners off by under 0.35 m dropped); door gaps stay open. The ground
+// under a roof (from 2.2 m up: indoors, under a bridge or an arch) shaded lighter. Low kerbs and the terrain itself are
+// not drawn. Worked out once per map: Path2D in metres.
+const WALLS = new Map(), WALL_CHUNK = 64;
+function wallsPath() {
+  const key = mapKey(); if (WALLS.has(key)) return WALLS.get(key);
+  const D = losData(); if (!D) return null;
+  const T = D.T, W2 = D.gW >> 1, H2 = D.gH >> 1, M = new Uint8Array(W2 * H2), S = D.gStep;   // (M: 1 wall, 2 under a roof)
+  for (let ty = 0; ty < D.tH; ty++) for (let tx = 0; tx < D.tW; tx++) {
+    const k = D.tile[ty * D.tW + tx]; if (k < 0) continue;
+    for (let cy = 0; cy < T; cy++) for (let cxx = 0; cxx < T; cxx++) {
+      const c = k * T * T + cy * T + cxx, a = D.cs[c], b = D.cs[c + 1]; if (b <= a) continue;
+      const gx = tx * T + cxx, gy = ty * T + cy, mi = (gy >> 1) * W2 + (gx >> 1); if (M[mi] === 1) continue;
+      const g = groundAt(D, D.gX0 + (gx + 0.5) * S, D.gY0 + (gy + 0.5) * S), lo = (g + 0.6) * 10, hi = (g + 1.6) * 10, roof = (g + 2.2) * 10;
+      for (let m = a; m < b; m++) { if (D.sp[2 * m + 1] >= lo && D.sp[2 * m] <= hi) { M[mi] = 1; break; } if (D.sp[2 * m] >= roof) M[mi] = 2; }
+    }
+  }
+  // drawn in square chunks of 64 m, only those in view; for the whole map a picture of it all (wallsImage)
+  const px = 2 * S, NC = Math.ceil(W2 * px / WALL_CHUNK), NR = Math.ceil(H2 * px / WALL_CHUNK), chunks = [];
+  const chunkAt = (x, y) => { const cx_ = Math.min(NC - 1, Math.max(0, Math.floor((x - D.gX0) / WALL_CHUNK))), cy_ = Math.min(NR - 1, Math.max(0, Math.floor((y - D.gY0) / WALL_CHUNK))), k = cy_ * NC + cx_;
+    return chunks[k] || (chunks[k] = { walls: new Path2D(), roofs: new Path2D(), x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }); };
+  const grow = (C, ax, ay, bx, by) => { C.x0 = Math.min(C.x0, ax); C.y0 = Math.min(C.y0, ay); C.x1 = Math.max(C.x1, bx); C.y1 = Math.max(C.y1, by); };
+  // under a roof (indoors, under a bridge): the squares as rectangles, row runs merged
+  for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+    if (M[y * W2 + x] !== 2) continue; let e = x; while (e + 1 < W2 && M[y * W2 + e + 1] === 2 && (e + 1) * px % WALL_CHUNK !== 0) e++;
+    const ax = D.gX0 + x * px, ay = D.gY0 + y * px, C = chunkAt(ax + px / 2, ay + px / 2); C.roofs.rect(ax, ay, (e - x + 1) * px, px); grow(C, ax, ay, ax + (e - x + 1) * px, ay + px); x = e;
+  }
+  // the edges between a blocked square and an open one, walked round each blocked area (corners: (W2 + 1) x (H2 + 1))
+  const VW = W2 + 1, nxt = new Int32Array(VW * (H2 + 1) * 2).fill(-1);
+  const on = (x, y) => x >= 0 && y >= 0 && x < W2 && y < H2 && M[y * W2 + x] === 1;
+  const add = (a, b) => { const o = a * 2; if (nxt[o] < 0) nxt[o] = b; else nxt[o + 1] = b; };
+  for (let y = 0; y < H2; y++) for (let x = 0; x < W2; x++) {
+    if (M[y * W2 + x] !== 1) continue;
+    const v00 = y * VW + x, v10 = v00 + 1, v01 = v00 + VW, v11 = v01 + 1;
+    if (!on(x, y - 1)) add(v00, v10);
+    if (!on(x + 1, y)) add(v10, v11);
+    if (!on(x, y + 1)) add(v11, v01);
+    if (!on(x - 1, y)) add(v01, v00);
+  }
+  const X = v => D.gX0 + (v % VW) * px, Y = v => D.gY0 + Math.floor(v / VW) * px;
+  // (Ramer-Douglas-Peucker on a run of corner ids)
+  const simplify = (R, eps) => {
+    const keep = new Uint8Array(R.length); keep[0] = 1; keep[R.length - 1] = 1;
+    const st = [[0, R.length - 1]];
+    while (st.length) {
+      const [i, j] = st.pop(); const ax = X(R[i]), ay = Y(R[i]), bx = X(R[j]), by = Y(R[j]), L = Math.hypot(bx - ax, by - ay) || 1e-9;
+      let md = -1, mk = -1; for (let k = i + 1; k < j; k++) { const d = Math.abs((bx - ax) * (ay - Y(R[k])) - (ax - X(R[k])) * (by - ay)) / L; if (d > md) { md = d; mk = k; } }
+      if (md > eps) { keep[mk] = 1; st.push([i, mk], [mk, j]); }
+    }
+    return R.filter((v, k) => keep[k]);
+  };
+  for (let v = 0; v < nxt.length / 2; v++) {
+    while (nxt[v * 2] >= 0) {
+      const R = [v]; let cur = v;
+      for (let guard = 0; guard < 4e6; guard++) {
+        const o = cur * 2, n = nxt[o]; if (n < 0) break;
+        if (nxt[o + 1] >= 0) { nxt[o] = nxt[o + 1]; nxt[o + 1] = -1; } else nxt[o] = -1;
+        cur = n; R.push(cur); if (cur === v) break;
+      }
+      if (R.length < 4) continue;
+      // split the ring at its far point so both halves simplify well
+      let far = 1, fd = -1; for (let k = 1; k < R.length - 1; k++) { const d = Math.hypot(X(R[k]) - X(R[0]), Y(R[k]) - Y(R[0])); if (d > fd) { fd = d; far = k; } }
+      const P = simplify(R.slice(0, far + 1), 0.35).concat(simplify(R.slice(far), 0.35).slice(1));
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity; for (const q of P) { const x = X(q), y = Y(q); x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+      const C = chunkAt((x0 + x1) / 2, (y0 + y1) / 2); grow(C, x0, y0, x1, y1);
+      C.walls.moveTo(X(P[0]), Y(P[0])); for (let k = 1; k < P.length; k++) C.walls.lineTo(X(P[k]), Y(P[k])); C.walls.closePath();
+    }
+  }
+  const r = { chunks: chunks.filter(Boolean), img: null, D }; WALLS.set(key, r); return r;
+}
+// the whole map's houses and walls as one picture (2048 px across), for a view of more than 400 m
+function wallsImage(B) {
+  if (B.img) return B.img;
+  const D = B.D, w = D.gW * D.gStep, h = D.gH * D.gStep, n = 2048, c = document.createElement('canvas'); c.width = n; c.height = Math.round(n * h / w);
+  const g = c.getContext('2d'), k = n / w; g.setTransform(k, 0, 0, -k, -D.gX0 * k, (D.gY0 + h) * k);
+  g.fillStyle = css('--bld-roof'); for (const C of B.chunks) g.fill(C.roofs);
+  g.fillStyle = css('--bld-fill'); for (const C of B.chunks) g.fill(C.walls, 'evenodd');
+  g.lineJoin = 'round'; g.lineWidth = 0.8 / k; g.strokeStyle = css('--bld-line'); for (const C of B.chunks) g.stroke(C.walls);
+  B.img = { c, x0: D.gX0, y1: D.gY0 + h, w, h, theme: document.documentElement.dataset.theme || '' };
+  return B.img;
 }
 // is the straight line from (ax, ay, ah) to (bx, by, bh) blocked? (x east, y north, h height; the first and last 0.9 m
 // are left out: that is where the two soldiers themselves stand, and how far a head can lean past a corner)
@@ -1585,6 +1672,14 @@ function vehHits() {
   return (R._vh = out);
 }
 const p_name = j => round.players[j].name;
+// card: the spots the followed soldier made up to now (spotterOf; those worked out so far)
+function spotRows(p) {
+  if (p.vehicle || round.meta.source !== 'demo' || !round._spotter) return '';
+  const id = round.pidx.get(p.id); let n = 0, nv = 0, np = 0;
+  for (const e of round.events) { if (e.t > t) break; if (e.type !== 'spot' || !round._spotter.has(e)) continue; const r = round._spotter.get(e); if (!r || r.i !== id) continue; n++; if (e.target == null) np++; else if (round.players[round.pidx.get(e.target)]?.vehicle) nv++; }
+  if (!n) return '';
+  return `<dt title="Spots the demo gives to his side that were his: his crosshair was on it (within 2.5° or 1 m to the side) and nobody else's of his side was as close">Spotted</dt><dd>${n} <span class="w">· ${[n - nv - np ? (n - nv - np) + ' soldier' + (n - nv - np > 1 ? 's' : '') : '', nv ? nv + ' vehicle' + (nv > 1 ? 's' : '') : '', np ? np + ' place' + (np > 1 ? 's' : '') : ''].filter(Boolean).join(', ')}</span></dd>`;
+}
 const gunHit = (h, g) => { h.by = g.i; h.via = 'gun'; h.from = g.veh; h.dist = Math.round(g.d); h.wpn = g.veh || 'emplacement'; };
 // Attacks: the hits one soldier made on one vehicle with no more than 20 s between them; destroyed when the vehicle was
 // destroyed within 12 s of his last hit with nobody else's hit in between
@@ -1664,6 +1759,52 @@ function vehDuels() {
     out.push({ t: Math.min(a.t, b.t), first: f, second: s, gap: s.hits[0].t - f.hits[0].t });
   }
   return (R._vd = out.sort((x, y) => x.t - y.t));
+}
+// ---------- who spotted ----------
+// A spot names the side and what was spotted (or, with nothing under the crosshair, the point where it met the ground or a
+// wall) - not who spotted. The game takes what is nearest the crosshair, within a cone: in test 7 the user's view passed
+// 0.3-0.9° from the bot he spotted on foot, but 19-25° from the tank the bot drove (decoded view = the round logger's).
+// So the spotter is worked out from who could have done it: of that side's soldiers alive and within the view distance
+// of it (with nothing in between where the walls are known), the one whose line of sight passed closest to it from 1.5 s
+// before the message to 0.5 s after - within 30° (or 1 m to the side up close) - when everyone else who could see it
+// looked at least 10° further off (or the best within 3° and the next at least 6° off), and nobody of the side whose view
+// is not in the demo (a jeep's driver or passenger) could see it, unless the best was within 3°. sure: within 3°.
+// =FL= 20:37: the closest line of sight passes a median 0.7° from the point the crosshair met (0.2° for a quarter).
+const SPOT_BACK = 1.5, SPOT_AFTER = 0.5, SPOT_CONE = 30 * Math.PI / 180, SPOT_SURE = 3 * Math.PI / 180;
+function spotterOf(e) {
+  const C = round._spotter || (round._spotter = new Map()); if (C.has(e)) return C.get(e);
+  const ti = e.target != null ? round.pidx.get(e.target) : undefined, D = losData(), known = [], blind = [];
+  const tVeh = ti !== undefined && (round.players[ti].vehicle || !!playerAt(ti, e.t).veh);
+  round.players.forEach((p, i) => {
+    if (p.vehicle || i === ti || (e.team >= 0 && teamOf(i, e.t) !== e.team)) return;
+    let best = null, could = false;
+    for (let tt = e.t - SPOT_BACK; tt <= e.t + SPOT_AFTER + 1e-6; tt += 0.1) {
+      const q = playerAt(i, tt); if (!q.alive) continue;
+      let px = e.x, py = e.y, o = null;
+      if (ti !== undefined) { o = playerAt(ti, tt); if (!o.alive) continue; px = o.x; py = o.y; }
+      if (px == null) continue;
+      const dx = px - q.x, dy = py - q.y, d = Math.hypot(dx, dy); if (d < 1 || d > fogRange() + 30) continue;
+      const lk = looking(i, tt);
+      if (!lk) { could = true; continue; }   // (in a seat with no gun: where he looks is not known)
+      const off = angOff(Math.atan2(dx, dy), lk.yaw), side = Math.max(0, off - Math.atan2(1, d));   // (1 m to the side counts as on it)
+      if (!best || side < best.off) best = { i, off: side, d, tt };
+    }
+    if (best) known.push(best); else if (could) blind.push(i);
+  });
+  // who can't see it at all is out, where the walls are known (a soldier spotted) - unless nobody can by the grid (it
+  // misses gaps and foliage, and the crosshair was on him)
+  if (D && ti !== undefined && !tVeh) {
+    const ok = known.filter(c => c.off <= SPOT_CONE && canSee(c.i, ti, c.tt) !== false);
+    if (ok.length) { const keep = new Set(ok); for (let k = known.length - 1; k >= 0; k--) if (known[k].off <= SPOT_CONE && !keep.has(known[k])) known.splice(k, 1); }
+  }
+  known.sort((a, b) => a.off - b.off);
+  const b0 = known[0], b1 = known[1];
+  let r = null;
+  if (b0 && b0.off <= SPOT_CONE) {
+    const sure = b0.off <= SPOT_SURE, clear = !b1 || b1.off >= b0.off + 10 * Math.PI / 180 || (sure && b1.off >= 6 * Math.PI / 180);
+    if (clear && (sure || !blind.length)) r = { i: b0.i, d: b0.d, off: b0.off, sure };
+  }
+  C.set(e, r); return r;
 }
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
 // i at q, eye height eye, has a clear line to: [clear, of how many]
@@ -1829,6 +1970,22 @@ function draw() {
     const L = heatLayer();
     if (L) { const [ax, ay] = toC(-W / 2, W / 2), [bx, by] = toC(W / 2, -W / 2); cx.save(); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high'; cx.drawImage(L.c, ax, ay, bx - ax, by - ay); cx.restore(); }
   }
+
+  // houses and walls (wallsPath), in map metres
+  if (opts.walls) { const B = wallsPath(); if (B) {
+    if (view.span > 400) {   // (the whole map: one picture of it, made again when the colours change)
+      let I = wallsImage(B); if (I.theme !== (document.documentElement.dataset.theme || '')) { B.img = null; I = wallsImage(B); }
+      const [ax, ay] = toC(I.x0, I.y1), [bx, by] = toC(I.x0 + I.w, I.y1 - I.h); cx.save(); cx.imageSmoothingEnabled = true; cx.drawImage(I.c, ax, ay, bx - ax, by - ay); cx.restore();
+    } else {
+      const k = size / view.span, vx1 = view.x0 + view.span, vy0 = view.y0 - view.span * sizeH / size;
+      cx.save(); cx.transform(k, 0, 0, -k, -view.x0 * k, view.y0 * k); cx.lineJoin = 'round'; cx.lineWidth = Math.min(1.3, Math.max(0.7, 0.35 * k)) / k;
+      const vis = B.chunks.filter(C => C.x1 >= view.x0 && C.x0 <= vx1 && C.y1 >= vy0 && C.y0 <= view.y0);
+      cx.fillStyle = css('--bld-roof'); for (const C of vis) cx.fill(C.roofs);
+      cx.fillStyle = css('--bld-fill'); for (const C of vis) cx.fill(C.walls, 'evenodd');
+      cx.strokeStyle = css('--bld-line'); for (const C of vis) cx.stroke(C.walls);
+      cx.restore();
+    }
+  } }
 
   // flags
   const [fa] = frameAt(t);
@@ -2179,16 +2336,23 @@ function draw() {
     for (const e of round.events) {
       if (e.t > t) break; if (e.type !== 'spot') continue;
       const age = t - e.t; if (age > 10) continue;
-      const i = round.pidx.get(e.target); if (i === undefined) continue;
-      const q = playerAt(i, t); if (!q || q.x === undefined) continue;
-      const [px, py] = toC(q.x, q.y), a = 1 - age / 10, r = 15 + (age < 1.5 ? 6 * (1 - age / 1.5) : 0), col = teamColor(e.team);
-      cx.globalAlpha = 0.3 + 0.7 * a; cx.strokeStyle = col; cx.lineWidth = 2.5;
-      cx.beginPath(); cx.moveTo(px, py - r); cx.lineTo(px + r, py); cx.lineTo(px, py + r); cx.lineTo(px - r, py); cx.closePath(); cx.stroke();
+      // on the spotted soldier or vehicle; with nothing under the crosshair, a smaller dashed one on the point
+      const i = e.target != null ? round.pidx.get(e.target) : undefined; let q = null;
+      if (i !== undefined) { q = playerAt(i, t); if (!q || q.x === undefined) continue; } else if (e.x != null) q = { x: e.x, y: e.y }; else continue;
+      const [px, py] = toC(q.x, q.y), a = 1 - age / 10, r = (i !== undefined ? 15 : 10) + (age < 1.5 ? 6 * (1 - age / 1.5) : 0), col = teamColor(e.team);
+      const sp = round.meta.source === 'demo' && age < 4 ? spotterOf(e) : null;
+      if (sp && age < 4) {   // a dashed line from the spotter to it
+        const o = playerAt(sp.i, Math.min(t, e.t + 0.1)), [sx, sy] = toC(o.x, o.y);
+        cx.globalAlpha = 0.6 * (1 - age / 4); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.setLineDash([3, 4]); cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(px, py); cx.stroke(); cx.setLineDash([]);
+      }
+      cx.globalAlpha = 0.3 + 0.7 * a; cx.strokeStyle = col; cx.lineWidth = 2.5; if (i === undefined) cx.setLineDash([4, 3]);
+      cx.beginPath(); cx.moveTo(px, py - r); cx.lineTo(px + r, py); cx.lineTo(px, py + r); cx.lineTo(px - r, py); cx.closePath(); cx.stroke(); cx.setLineDash([]);
       cx.globalAlpha = 0.12 * a; cx.fillStyle = col; cx.fill(); cx.globalAlpha = 1;
       if (age < 4) {
-        cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText('SPOTTED').width;
+        const lab = sp ? 'SPOTTED · ' + round.players[sp.i].name : 'SPOTTED';
+        cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText(lab).width;
         cx.fillStyle = col; cx.fillRect(px - w / 2 - 3, py - r - 15, w + 6, 13);
-        cx.fillStyle = '#fff'; cx.fillText('SPOTTED', px - w / 2, py - r - 5);
+        cx.fillStyle = '#fff'; cx.fillText(lab, px - w / 2, py - r - 5);
       }
     }
   }
@@ -2375,7 +2539,7 @@ function panels(force) {
     $('#selInfo').innerHTML = `<dl class="meta"><dt>Name</dt><dd class="t${tmNow}">${esc(p.name)}</dd><dt>Team</dt><dd>${esc(round.teams[tmNow]?.name||'') || (p.vehicle ? '<span class="w">nobody in it</span>' : '')}${switched}</dd>
       <dt>Status</dt><dd>${status}</dd>${!p.vehicle && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t)) ? `<dt title="From the velocity the demo sends with his position">Moving</dt><dd>${moveText(q, stanceNow(p, t))}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
       ${viewRows(sel, p)}${vehTxt}${p.vehicle ? '' : `<dt>Kills / deaths</dt><dd>${K.get(p.id)||0} K / ${Dd.get(p.id)||0} D${HS.get(p.id) ? ` · ${HS.get(p.id)} headshot${HS.get(p.id) > 1 ? 's' : ''} (${Math.round(HS.get(p.id) / K.get(p.id) * 100)}%)` : ''}</dd>${medicTxt}${repTxt}
-${hitRows(p)}${sightRows(p)}${vehSightRows(p)}
+${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
       <div class="chips"><button class="btn" id="clearSel">Stop following</button></div>`;
@@ -3378,8 +3542,9 @@ function drawSide() {
 function engWarm(R) {
   if (R !== round || round.meta.source !== 'demo') return;
   const D = losData(); if (D === null && LOS.get(mapKey()) === 'loading') { setTimeout(() => engWarm(R), 600); return; }
-  const ks = round.events.filter(e => e.type === 'kill' && e.killer !== e.victim); let i = 0;
-  const run = () => { if (R !== round) return; const t0 = performance.now(); while (i < ks.length && performance.now() - t0 < 12) engagement(ks[i++]); if (i < ks.length) setTimeout(run, 30); else if (sel !== null) panels(true); };
+  // (and who spotted, for every spot)
+  const ks = round.events.filter(e => (e.type === 'kill' && e.killer !== e.victim) || e.type === 'spot'); let i = 0;
+  const run = () => { if (R !== round) return; const t0 = performance.now(); while (i < ks.length && performance.now() - t0 < 12) { const e = ks[i++]; if (e.type === 'spot') spotterOf(e); else engagement(e); } if (i < ks.length) setTimeout(run, 30); else if (sel !== null) panels(true); };
   setTimeout(run, 200);
 }
 // card: who the followed soldier has in his field of view, and which enemies on foot have him in theirs
@@ -3939,16 +4104,21 @@ function setPlaying(v) {
 $('#play').onclick = () => setPlaying(!playing);
 $('#play2').onclick = () => setPlaying(!playing);
 $('#seek').addEventListener('input', e => { t = Math.max(0, Math.min(round.duration, +e.target.value)); refresh(true); });
-// playback speed on the map (so it is there in full screen too): 1x to 60x in steps of 1; remembered in this browser
+// playback speed on the map (so it is there in full screen too): slow motion 0.1x to 0.75x, then 1x to 60x; the slider
+// goes through these steps; remembered in this browser
+const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 40, 50, 60];
+const speedText = v => v === 0.25 ? '¼×' : v === 0.5 ? '½×' : v === 0.75 ? '¾×' : v + '×';
+const speedIdx = v => { let k = 0; for (let i = 0; i < SPEEDS.length; i++) if (Math.abs(SPEEDS[i] - v) < Math.abs(SPEEDS[k] - v)) k = i; return k; };
 function setSpeed(v) {
-  speed = Math.max(1, Math.min(60, Math.round(+v) || 10));
-  $('#speedR').value = speed; $('#speedV').textContent = speed + '×'; $('#speedR').style.setProperty('--p', ((speed - 1) / 59 * 100).toFixed(2) + '%');
+  const k = speedIdx(Number.isFinite(+v) && +v > 0 ? +v : 10); speed = SPEEDS[k];
+  $('#speedR').value = k; $('#speedV').textContent = speedText(speed); $('#speedR').style.setProperty('--p', (k / (SPEEDS.length - 1) * 100).toFixed(2) + '%');
   try { localStorage.setItem('bf2rr.speed', String(speed)); } catch (e) {}
 }
-$('#speedR').addEventListener('input', e => setSpeed(e.target.value));
+$('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 1;
+$('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tNames:'names', tFeed:'feed', tKills:'kills', tHeat:'heat', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view' };
+const toggles = { tNames:'names', tFeed:'feed', tKills:'kills', tHeat:'heat', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view', tWalls:'walls' };
 Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'heat') { $('#heatBar').hidden = !opts.heat; if (opts.heat) fillHeat(); } refresh(true); });
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 function layCount() {
@@ -3980,8 +4150,8 @@ $('#mMap').onclick = () => $('#mapbox').scrollIntoView({ block: 'start', behavio
 document.addEventListener('keydown', e => {
   if (e.target.matches('input,select,textarea')) return;
   if (e.code==='Space') { e.preventDefault(); setPlaying(!playing); }
-  if (e.key==='+' || e.key==='=' || e.code==='NumpadAdd') setSpeed(speed + 1);
-  if (e.key==='-' || e.key==='_' || e.code==='NumpadSubtract') setSpeed(speed - 1);
+  if (e.key==='+' || e.key==='=' || e.code==='NumpadAdd') setSpeed(SPEEDS[Math.min(SPEEDS.length - 1, speedIdx(speed) + 1)]);
+  if (e.key==='-' || e.key==='_' || e.code==='NumpadSubtract') setSpeed(SPEEDS[Math.max(0, speedIdx(speed) - 1)]);
   if (e.code==='KeyF' && !e.ctrlKey && !e.metaKey && !e.altKey) setFull(!mapbox.classList.contains('fs'));
   if (e.code==='Escape' && mapbox.classList.contains('fs')) setFull(false);
   if (e.code==='ArrowRight') { t = Math.min(round.duration, t+10); refresh(true); }
@@ -4338,8 +4508,15 @@ function scanEvents(B, players, out, t, onlySpawns) {
     } else if (t7 === 11) {    // death (also suicides and other deaths without a killer): subtype 166, 63 zero bits, '10000', player index
       if (s + 91 > B.n) continue;
       if (B.u(s + 7, 8) === 166 && B.u(s + 15, 31) === 0 && B.u(s + 46, 32) === 0 && B.u(s + 78, 5) === 1) { const pl = B.u(s + 83, 8); if (players.has(pl)) out.push({ t, kind: 'death', player: pl }); }
-      // "Spotted!" from the commo rose: subtype 178, 63 bits = 2, then 99 (or 67), spotter team at +90, spotted object id at +98
-      else if (B.u(s + 7, 8) === 178 && B.u(s + 15, 31) === 2 && B.u(s + 46, 32) === 0) { const k = B.u(s + 78, 8); if (k === 99 || k === 67) { const target = B.u(s + 98, 12); if (target) out.push({ t, kind: 'spot', target, team: k === 99 ? B.u(s + 90, 2) : 0 }); } }
+      // "Spotted!" from the commo rose: subtype 178, 63 bits = 2; 275 bits. The spotting team: bit 5 (team 1) or 6 (team 2)
+      // of the byte at +110; the spotted object's id at +98 (0: nothing under the crosshair); where the crosshair met it,
+      // the ground or a wall: x and z (floats) at +147 and +179 (0, 0 from bots in test 7). The byte at +78 is 3 + 32 m,
+      // m 0-7 (not known; before v76 only m 2 and 3 were read, half of the spots), and +90 is no team on =FL= rounds
+      else if (B.u(s + 7, 8) === 178 && B.u(s + 15, 31) === 2 && B.u(s + 46, 32) === 0 && s + 211 <= B.n) {
+        const tb = B.u(s + 110, 8) & 0x60, target = B.u(s + 98, 12), x = B.f(s + 147), z = B.f(s + 179);
+        const at = Number.isFinite(x) && Number.isFinite(z) && Math.abs(x) < 4100 && Math.abs(z) < 4100 && (Math.abs(x) > 0.01 || Math.abs(z) > 0.01);
+        if (target || at) out.push({ t, kind: 'spot', target, team: tb === 32 ? 1 : tb === 64 ? 2 : 0, ...(at ? { x, z } : {}) });
+      }
     } else if (t7 === 9 || (t7 === 10 && s === 16)) {
       // enter (9): player index (7 bits) + seat object id (vehicle id + 0..8, or an emplacement); exit (10): player index.
       // As the first message of a reliable packet both are certain (test 11 with the logger: every enter and exit matched);
@@ -5424,14 +5601,21 @@ async function buildTimeline(r) {
   for (const u of unplaced) events.push({ t: +u.t.toFixed(2), type: 'blast', kind: u.kind, r: u.r, by: pid(u.by), x: +u.x.toFixed(1), y: +u.z.toFixed(1) });
   for (const w of wrecks) if (vset0.has(w.id)) events.push({ t: +w.t.toFixed(2), type: 'wreck', vehicle: 'v' + w.id, gone: +w.gone.toFixed(2), until: +w.until.toFixed(2) });
   for (const rp of repairs) if (vset0.has(rp.id)) events.push({ t: +rp.t0.toFixed(2), type: 'repair', vehicle: 'v' + rp.id, by: rp.by === null ? null : 'p' + rp.by, ...(rp.via != null ? { from: 'v' + rp.via } : {}), gain: Math.round(rp.gain / 10), until: +rp.t1.toFixed(2), ...(rp.x !== null ? { x: +rp.x.toFixed(1), y: +rp.z.toFixed(1) } : {}) });
-  // spots: the spotted object is a soldier (-> its player) or a vehicle; a repeat of the same spot within 3 s is one spot
+  // spots: the spotted object is a soldier (-> its player) or a vehicle, or with nothing under the crosshair a point
+  // (where it met the ground or a wall); a repeat of the same spot within 3 s is one spot. team: the side that spotted
   const vset = new Set(vids), spotEv = [];
   for (const e of evs.filter(e => e.kind === 'spot').sort((a, b) => a.t - b.t)) {
     let target = null, team = e.team === 1 ? 0 : e.team === 2 ? 1 : -1;
-    if (vset.has(e.target)) { target = 'v' + e.target; if (team < 0) { const side = VEHICLE_SIDE[r.tplOf ? r.tplOf(e.target) : -1]; if (side) team = side === 1 ? 1 : 0; } }
-    else { const pl = who(e.target, e.t); if (pl !== null && P.has(pl)) { target = 'p' + pl; team = teamAt(pl, e.t) === 1 ? 1 : 0; } }
-    if (!target || spotEv.some(q => q.target === target && e.t - q.t < 3)) continue;
-    spotEv.push({ t: +e.t.toFixed(2), type: 'spot', target, team });
+    // (a soldier and a vehicle can have had the same id: the one nearer the point the crosshair met - test 7: the bot's
+    // soldier 3660, a T-90's id on that map)
+    const pl = e.target ? who(e.target, e.t) : null, asSol = pl !== null && P.has(pl), asVeh = !!e.target && vset.has(e.target);
+    let useVeh = asVeh && !asSol;
+    if (asVeh && asSol) { const a = lastPos(vtrack.get(e.target), e.t), b = lastPos(track.get(pl), e.t); useVeh = e.x === undefined ? true : !b || (a && Math.hypot(a[1] - e.x, a[3] - e.z) < Math.hypot(b[1] - e.x, b[3] - e.z)); }
+    if (useVeh) { target = 'v' + e.target; if (team < 0) { const side = VEHICLE_SIDE[r.tplOf ? r.tplOf(e.target) : -1]; if (side) team = side === 1 ? 1 : 0; } }
+    else if (asSol) { target = 'p' + pl; if (team < 0) team = teamAt(pl, e.t) === 1 ? 1 : 0; }
+    if (!target && e.x === undefined) continue;
+    if (spotEv.some(q => e.t - q.t < 3 && (target ? q.target === target : !q.target && Math.hypot(q.x - e.x, q.y - e.z) < 3))) continue;
+    spotEv.push({ t: +e.t.toFixed(2), type: 'spot', ...(target ? { target } : {}), team, ...(e.x !== undefined ? { x: +e.x.toFixed(1), y: +e.z.toFixed(1) } : {}) });
   }
   events.push(...spotEv);
   // deaths that no kill explains (suicide from the menu, falls, ...)
