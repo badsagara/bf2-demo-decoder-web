@@ -1,44 +1,83 @@
-# Необов'язково: ігровий сервер сам відсилає демо
+# BF2 Round Replay — сайт
 
-Для сервера =FL= це **не потрібно** — VPS сам забирає демо з їхньої сторінки (`server/INSTALL.md`, п. 5).
-Ця папка — для ігрового сервера, до якого є доступ (свій тестовий сервер, або якщо адміни =FL= захочуть
-відсилати демо одразу після раунду). Скрипт кожні 2 хвилини шле нові `.bf2demo` (і `round_*.json` логера) по SFTP
-на один або кілька сайтів. Кожен файл іде на кожен сайт один раз; спершу під тимчасовим іменем `.part`,
-тож сайт ніколи не бере половину файла.
+Перегляд раундів Battlefield 2 з файлів `.bf2demo` на карті: хто де бігав, хто кого вбив, прапори, техніка, квитки.
+Цей репозиторій — це весь сайт разом зі скриптами для сервера:
 
-## Linux
+```
+site/         сам сайт: index.html + assets/ (мапи, іконки, дані про стіни й рельєф для «хто кого бачив»,
+              картинки для прев'ю посилань: assets/og)
+server/       для VPS: install.sh (ставить усе одним запуском), fetch.mjs (забирає демо з сторінки сервера),
+              ingest.mjs (розбирає демо), update.sh (оновлення з GitHub), units.sh (таймери systemd і Caddy),
+              systemd/, Caddyfile.in, INSTALL.md
+gameserver/   необов'язково: скрипт для ігрового сервера, який сам відсилає демо (якщо є доступ до сервера)
+```
+
+Як усе працює:
+
+```
+сторінка демо сервера =FL=  ──(раз на день, fetch.mjs)──►  VPS: upload/incoming
+(85.17.145.41/karkand/demos)                                 │ ingest.mjs: демо → розібраний раунд (.bfr, у ~6 разів менший);
+                                                             │ раунди без гравців і з одним гравцем відкидаються
+                                                             ▼
+                                data/rounds.json (список, легкий) + data/rounds/*.bfr (раунди)
+                                + data/heat/<мапа>.json (точки вбивств: теплова карта всіх раундів, сторінки гравців)
+                                + data/share/r|p/*.html (прев'ю посилань /r/<раунд>, /p/<гравець>)
+                                                             │ Caddy (HTTPS)
+                                                             ▼
+                                         браузер: список раундів, раунд відкривається за 1–3 с
+GitHub (цей репозиторій)  ──(кожні 5 хв, update.sh: git pull)──►  site/ на VPS
+```
+
+Встановлення на VPS — [server/INSTALL.md](server/INSTALL.md).
+
+## Оновлення сайту через GitHub
+
+VPS сам кожні 5 хвилин дивиться в GitHub. Коли там з'являється новий коміт, він оновлює `site/` і, якщо змінився
+розбір демо, перерозбирає всі раунди з їхніх демо (5–10 с на раунд, у фоні; сайт працює далі).
+Тобто «викласти нову версію» = зробити `git push`.
+
+### Один раз: створити репозиторій
+
+1. На github.com: **New repository** → назва `bf2-round-replay` → **Private** → без README → **Create**.
+2. На Mac, у Terminal (архів від Claude розпакований у `~/bf2-round-replay`):
+
+   ```bash
+   cd ~/bf2-round-replay
+   git init -b main
+   git add .
+   git commit -m "BF2 Round Replay v57"
+   git remote add origin git@github.com:ТВІЙ_ЛОГІН/bf2-round-replay.git
+   git push -u origin main
+   ```
+
+   (Якщо `git push` просить пароль або пише «Permission denied (publickey)» — додай свій SSH-ключ у GitHub:
+   Settings → SSH and GPG keys, або використай GitHub Desktop: File → Add local repository → Publish.)
+3. VPS читає репозиторій через **deploy key** лише на читання (`/root/.ssh/GitHub_bf2_repo` на VPS) — `install.sh`
+   сам його створить (або візьме вже наявний) і покаже, що вставити в репозиторії: Settings → Deploy keys →
+   Add deploy key (галочку «Allow write access» не ставити).
+
+### Кожна нова версія
+
+Від Claude приходить новий `bf2-round-replay-vNN.zip` (усередині — папка `bf2-round-replay-vNN/`). На Mac:
 
 ```bash
-sudo mkdir -p /opt/bf2replay && sudo cp linux/bf2replay-upload.* /opt/bf2replay/
-sudo ssh-keygen -t ed25519 -N '' -C bf2-server-1 -f /opt/bf2replay/id_ed25519
-sudo nano /opt/bf2replay/bf2replay-upload.conf      # DEMO_DIR, KEY, TARGETS
-# публічний ключ (/opt/bf2replay/id_ed25519.pub) -> на VPS у /etc/ssh/bf2replay_keys/bf2upload
-( sudo crontab -l 2>/dev/null; echo '*/2 * * * * /bin/bash /opt/bf2replay/bf2replay-upload.sh' ) | sudo crontab -
+V=v81   # номер версії з назви архіву
+cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q bf2-round-replay-$V.zip
+rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
+cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
 ```
 
-Журнал: `/opt/bf2replay/state/upload.log`.
+За ≤ 5 хвилин нова версія на сайті. Перевірити на VPS: `journalctl -u bf2replay-update -n 20`.
 
-## Windows
+**Відкат**, якщо нова версія щось зламала: `git revert HEAD && git push` — через 5 хвилин повернеться попередня.
 
-У PowerShell від адміністратора (клієнт OpenSSH є в Windows 10/11 і Server 2019+; якщо ні —
-Settings → Apps → Optional features → OpenSSH Client):
+**Простіше:** якщо підключити цей репозиторій до Claude (GitHub-інтеграція), Claude зможе сам робити `git push`
+нових версій — тоді не треба ні zip, ні команд.
 
-```powershell
-mkdir C:\BF2Server\bf2replay, C:\ProgramData\bf2replay
-copy windows\bf2replay-upload.* C:\BF2Server\bf2replay\
-cmd /c ssh-keygen -t ed25519 -N "" -C bf2-server-1 -f C:\ProgramData\bf2replay\id_ed25519
-icacls C:\ProgramData\bf2replay\id_ed25519 /inheritance:r /grant:r "SYSTEM:F" "Administrators:F"
-notepad C:\BF2Server\bf2replay\bf2replay-upload.conf.ps1     # $DemoDir, $Key, $Targets
-schtasks /Create /TN "BF2 Replay upload" /SC MINUTE /MO 2 /RU SYSTEM /RL HIGHEST /F /TR "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File C:\BF2Server\bf2replay\bf2replay-upload.ps1"
+### Перевірити локально перед push
+
+```bash
+cd ~/bf2-round-replay/site && python3 -m http.server 8000
 ```
 
-Вміст `C:\ProgramData\bf2replay\id_ed25519.pub` → на VPS у `/etc/ssh/bf2replay_keys/bf2upload` (один рядок).
-Журнал: `C:\BF2Server\bf2replay\state\upload.log`.
-
-## Налаштування
-
-- **DEMO_DIR / $DemoDir** — папка, куди сервер пише демо: зазвичай `mods/bf2/demos` у папці сервера; якщо
-  працює `rotate_demo.py` (`sv.autoDemoHook`), то його `target_root`.
-- **TARGETS / $Targets** — один або кілька сайтів: `bf2upload@replay.example.com` або `bf2upload@1.2.3.4:2222`.
-- **SINCE** — не слати демо, старші за дату (`РРРР-ММ-ДД`); **MIN_BYTES** — не слати менші (порожні ~400 KB).
-- Під час першого з'єднання нічого підтверджувати не треба: ключ сайту запам'ятовується сам (`accept-new`).
+і відкрити http://localhost:8000 — без `data/` сайт працює як звичайний переглядач (кнопка «Open .bf2demo»).

@@ -138,6 +138,9 @@ input[type=file] { display: none; }
   background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 4px; padding: 7px 9px; font-size: 12px;
   text-shadow: 0 0 3px var(--bg), 0 0 1px var(--bg); }
 .fsfeed[hidden], .fsfeed:empty { display: none; }
+/* light theme: a near-solid light panel (the dark text over a 55% one sank into dark or busy parts of the map) */
+:root[data-theme="light"] .fsfeed { background: color-mix(in srgb, var(--panel) 92%, transparent); border-color: var(--line); box-shadow: 0 2px 12px rgba(20, 30, 20, .22); text-shadow: none; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+:root[data-theme="light"] .fsfeed li.old { opacity: .72; }
 .mapbox.fs .fsfeed { width: min(360px, 42vw); max-height: 46vh; }
 .fsfeed li.old { opacity: .55; }
 /* outside full screen one line per event, a kill as killer - weapon icon - victim (details in the Kill feed list below) */
@@ -748,7 +751,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v88';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -4565,6 +4568,42 @@ function preamblePlayers(p, mapName) {
   }
   return out;
 }
+// The opening records (tick 0xffffffff; one or more: a long rotation fills the first and the players go on in the next)
+// are messages after 2 bytes. A long message starts 0x84, u32 kind, u32 length, and comes in pieces of up to 63 bytes,
+// each '04 <n>' + n bytes (kind 0: server name and welcome text; 5: the map rotation - u16 count, u16 the map being
+// played, then count x (u16 + map, u16 + mode, u16 size); 2: mode and level path). A player already on the server is a
+// 39-byte entry (low 5 bits of the first byte = 5): the 7-byte header of preamblePlayers + his name, zero-terminated.
+// (2F4Y.com 2026-10-01 09:08 Dalian Plant: 22 maps in the rotation; the map's name was first found in the rotation
+// list and the second record was not read, so 10 of 23 soldiers stayed "Player 33")
+function preambleParse(pres, mapName) {
+  const out = { players: [] }, u16 = (d, i) => d[i] | (d[i + 1] << 8), u32 = (d, i) => (d[i] | (d[i + 1] << 8) | (d[i + 2] << 16) | (d[i + 3] << 24)) >>> 0;
+  const okCh = c => (c >= 32 && c < 127) || c >= 160;
+  for (const p of pres) {
+    let i = 2;
+    while (i < p.length) {
+      if (p[i] === 0x84 && i + 9 <= p.length) {
+        const kind = u32(p, i + 1), len = u32(p, i + 5), d = []; i += 9;
+        while (d.length < len && i + 2 <= p.length && p[i] === 0x04) { const n = p[i + 1]; for (let k = 0; k < n && i + 2 + k < p.length; k++) d.push(p[i + 2 + k]); i += 2 + n; }
+        if (d.length !== len) break;
+        if (kind === 5 && len >= 4) {   // the rotation
+          const cnt = u16(d, 0), cur = u16(d, 2), L = []; let o = 4;
+          const str = () => { const n = u16(d, o); const v = String.fromCharCode(...d.slice(o + 2, o + 2 + n)); o += 2 + n; return v; };
+          for (let k = 0; k < cnt && o + 2 <= d.length; k++) { const map = str(), mode = str(), size = u16(d, o); o += 2; L.push({ map, mode, size }); }
+          const m = L[cur] && L[cur].map.toLowerCase() === mapName.toLowerCase() ? L[cur] : L.find(q => q.map.toLowerCase() === mapName.toLowerCase());
+          if (m) { out.mode = m.mode; out.size = m.size; }
+          out.rotation = L.map(q => q.map);
+        }
+      } else if ((p[i] & 31) === 5 && i + 39 <= p.length) {
+        let h = 0; for (let k = 6; k >= 0; k--) h = h * 256 + p[i + k];
+        let e = i + 7, nm = ''; while (e < i + 39 && p[e] && okCh(p[e])) nm += String.fromCharCode(p[e++]);
+        if (e >= i + 39 || p[e] !== 0 || !nm.trim()) break;
+        out.players.push({ index: Math.floor(h / 32768) % 256, team: Math.floor(h / 128) % 4, name: nm.trim() });
+        i += 39;
+      } else break;
+    }
+  }
+  return out;
+}
 const okPos = (x, y, z) => Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) && Math.abs(x) < 4100 && Math.abs(z) < 4100 && y > -100 && y < 2000;
 // Position records (found by scanRecords): soldier '1' + id12 + 42-bit header (6 zero bits; position flags at 13 and 19)
 // + x,y,z (float32); vehicle '1' + id12 + 40-bit header (6 zero bits; position flags at 20 and 22) + x,y,z.
@@ -4606,7 +4645,7 @@ function scanJoin(B, out, t) {
     if ((w[s] & 0x7fff) !== JOIN_HEAD) continue;
     const idx = B.u(s + 15, 8); if (B.u(s + 23, 8) !== ((idx + 1) & 255) || B.u(s + 31, 25) !== 0) continue;
     let name = '', end = false;
-    for (let o = s + 56; o + 8 <= B.n && name.length <= 40; o += 8) { const c = B.u(o, 8); if (!c) { end = true; break; } if (c < 32 || c > 126) break; name += String.fromCharCode(c); }
+    for (let o = s + 56; o + 8 <= B.n && name.length <= 40; o += 8) { const c = B.u(o, 8); if (!c) { end = true; break; } if (c < 32 || (c > 126 && c < 160)) break; name += String.fromCharCode(c); }
     if (end && name.trim()) { out.push({ t, index: idx, name: name.trim() }); s += 56 + 8 * name.length; }
   }
 }
@@ -5080,9 +5119,9 @@ function preambleInfo(p, mapName) {
 async function decodeDemo(data, progress) {
   const R = demoRecords(data); if (!R) return null;
   const [server, date, mapPath] = R.hdr.fields; const mapName = mapPath.split('/').pop() || mapPath;
-  const pre = R.recs.find(r => r[0] === 0xffffffff);
-  const players = pre ? preamblePlayers(pre[1], mapName) : [];
-  const info = pre ? preambleInfo(pre[1], mapName) : {};
+  const pres = R.recs.filter(r => r[0] === 0xffffffff).map(r => r[1]), PA = preambleParse(pres, mapName);
+  const players = PA.players.length ? PA.players : pres.length ? preamblePlayers(pres[0], mapName) : [];
+  const info = PA.mode ? { mode: PA.mode, size: PA.size } : pres.length ? preambleInfo(pres[0], mapName) : {};
   const pset = new Set(players.map(p => p.index));
   const obs = [], evs = [], rot = [], hp = [], vhp = [], stance = [], joins = [], sids = new Set(), created = new Map(), vehTpl = new Map(), cps = new Map(), cpEv = [], tkEv = [], stat = [], live = new Map(), flights = []; let t0 = null, lastTick = 0;
   const tur = [], cup = [], emp = [], empBase = [], statIds = new Set(); let nBlk = 0, nOld = 0;
@@ -5103,7 +5142,8 @@ async function decodeDemo(data, progress) {
     if (typ === 2 || typ === 6) { const ns = stat.length; scanCreates(BM, created, vehTpl, stat, t); for (let k = ns; k < stat.length; k++) statIds.add(stat[k].id); }
     st.rot = sids.size > 0 || vehTpl.size > 0 || live.size > 0; st.cp = typ === 4 && cps.size > 0;
     if (blk) scanRecs(B, blk.recs, t, st); else if (typ === 2 || typ === 4 || typ === 6) scanRecords(B, t, st);
-    if (typ === 4 && !cps.size && t <= 5) scanCPFull(B, cps);
+    // (the flags' full records: in the opening snapshot, a type 4 packet - on 2F4Y.com's Dalian Plant a type 6 one)
+    if ((typ === 4 || typ === 2 || typ === 6) && !cps.size && t <= 5) scanCPFull(B, cps);
     if (typ === 2 || typ === 6) { const nj = joins.length; scanJoin(BM, joins, t); for (let k = nj; k < joins.length; k++) pset.add(joins[k].index); }
     // The opening snapshot (first second) creates every soldier already alive when recording started, like a spawn
     // (=FL= 20:37: Vo1k, TapakaH, BCButcher); other messages are only read after it, where they are events

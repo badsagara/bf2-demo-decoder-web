@@ -1,0 +1,12 @@
+[Unit]
+Description=BF2 Round Replay: update the site from GitHub
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# (as root: GitHub is read with root's deploy key; update.sh runs the decoding as bf2replay)
+Nice=10
+EnvironmentFile=/etc/bf2replay.conf
+ExecStart=/usr/local/lib/bf2replay/update.sh
+TimeoutStartSec=2h
