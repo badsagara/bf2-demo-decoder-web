@@ -112,7 +112,7 @@ input[type=file] { display: none; }
 .mapplay .zm { gap: 7px; }
 .mapplay .zm .mg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; color: var(--muted); }
 .mapplay .zm b { min-width: 6ch; }
-.mapplay .spd b { font: 600 18px var(--font-data); min-width: 3.2ch; text-align: right; font-variant-numeric: tabular-nums; }
+.mapplay .spd b { font: 600 18px var(--font-data); min-width: 5ch; text-align: right; font-variant-numeric: tabular-nums; }
 /* the round time next to the seek bar: time in the round / its length, and the game server's clock below */
 .mapplay .seekw { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 0 14px 0 12px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
 .mapplay #seek { flex: 1; min-width: 40px; height: 100%; }
@@ -511,6 +511,15 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .mbar { displ
 .lmenu .btn::before { content: ''; flex: none; width: 14px; height: 14px; margin-right: 9px; border: 1.5px solid var(--muted); border-radius: 3px; box-sizing: border-box; }
 .lmenu .btn.on::before { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--panel); }
 .lmenu .btn:hover { background: var(--panel-2); }
+/* vehicles as the game's map icons or as its 3D models, seen from above */
+.vwseg { display: flex; align-items: center; gap: 0; padding: 4px 4px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); font: 500 12px/1 var(--font-body); color: var(--muted); }
+.vwseg > span { flex: 1; padding-right: 10px; }
+.vwseg .sg { font: 600 12px/1 var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); padding: 7px 10px; cursor: pointer; }
+.vwseg .sg + .sg { border-left: 0; }
+.vwseg .sg:first-of-type { border-radius: 4px 0 0 4px; }
+.vwseg .sg:last-of-type { border-radius: 0 4px 4px 0; }
+.vwseg .sg[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
+.vwseg .sg:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #kbBtn { min-width: 36px; justify-content: center; font-weight: 700; }
 .kbhelp { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12px; color: var(--muted); padding: 8px 2px 2px; }
 .kbhelp[hidden] { display: none; }
@@ -590,6 +599,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn" id="tClip" aria-pressed="false" title="Make a video of part of the round to share (I / O: clip starts / ends at the playhead)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg><span>Clip</span></button>
           <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Layers <b id="layN"></b> ▾</button>
           <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
+          <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
           <button class="btn on" id="tNames">Names</button>
           <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
@@ -610,7 +620,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>F</kbd> full screen</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -738,7 +748,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v87';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1054,7 +1064,8 @@ let t = 0, playing = false, speed = 10, sel = null, tab = 0;
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', job: null, out: null, drag: null, sel: undefined };
-const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true };
+const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true };
+try { if (localStorage.getItem('bf2rr.vehicles') === 'icons') opts.models = false; } catch (e) {}
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
 // ---------- map pictures ----------
 // The game's minimap (Levels/<map>/client.zip -> Hud/Minimap/ingameMap.dds) covers the whole terrain, north up,
@@ -1966,6 +1977,82 @@ function drawRoofGun(px, py, vs, a, col) {
   cx.strokeStyle = '#000'; cx.lineWidth = bw + 2.4; cx.stroke(); cx.strokeStyle = col; cx.lineWidth = bw; cx.stroke(); cx.lineCap = 'butt';
   cx.fillStyle = shadeOf(col, 0.55); cx.strokeStyle = '#000'; cx.lineWidth = 1.2; cx.beginPath(); cx.arc(px, py, 2.4, 0, Math.PI * 2); cx.fill(); cx.stroke();
 }
+// ---- vehicles as in the game (Layers > Vehicles: Models): pictures from above rendered from the game's own 3D models
+// (assets/models/models.js, made by models/py/build_models.py from the .bundledmesh files and the vehicles' object
+// templates): the hull, the turret and the roof gun apart, so the turret turns where the main gun points and the roof
+// gun where its gunner aims; a destroyed vehicle is its charred wreck model. To scale (the game's metres), but never
+// smaller than about the icon. A halo in the colour of the team in it (grey: empty). A helicopter's rotor is drawn
+// over it: a blurred disc and its blades while somebody is in it, still blades when empty.
+// The file is loaded the first time a vehicle is drawn this way; until then (or without it) the icons are drawn.
+const MODELS = { st: null, m: null, raf: 0 };   // st: null (not asked yet), 'loading', 'ok', 'fail'
+const modelsIn = () => { if (!MODELS.raf) MODELS.raf = requestAnimationFrame(() => { MODELS.raf = 0; if (round) refresh(true); }); };   // (once for many pictures)
+window.__bf2models = d => {
+  const m = {};
+  for (const [k, r] of Object.entries(d && d.m || {})) {
+    const o = { ppm: r.ppm, rotor: r.rotor || null };
+    for (const ly of ['hull', 'turret', 'mg', 'wreck']) if (r[ly]) {
+      const img = new Image(); img.onload = modelsIn; img.src = r[ly].src;
+      o[ly] = { ax: r[ly].ax, ay: r[ly].ay, w: r[ly].w, h: r[ly].h, px: r[ly].px || 0, pz: r[ly].pz || 0, rest: r[ly].rest || 0, on: r[ly].on || 'hull', img };
+    }
+    if (o.hull) { o.len = Math.max(o.hull.w, o.hull.h) / o.ppm; m[k] = o; }
+  }
+  MODELS.m = m; MODELS.st = 'ok'; modelsIn();
+};
+function modelsData() {
+  if (MODELS.st === null) {
+    MODELS.st = 'loading';
+    const sc = document.createElement('script'); sc.src = 'assets/models/models.js'; sc.onerror = () => { MODELS.st = 'fail'; }; document.head.appendChild(sc);
+  }
+  return MODELS.st === 'ok' ? MODELS.m : null;
+}
+const TPL_NAME = Object.fromEntries(Object.entries(GAME.vtpl || {}).map(([k, v]) => [v, k]));
+// the model of a vehicle (by its template), when vehicles are drawn as models and its pictures are in
+function vehModel(p) {
+  if (!opts.models || !p.vehicle) return null;
+  const M = modelsData(); if (!M) return null;
+  const k = typeof p.tpl === 'string' ? p.tpl.toLowerCase() : TPL_NAME[p.tpl], o = k ? M[k] : null;
+  return o && o.hull.img.complete && o.hull.img.naturalWidth ? o : null;
+}
+// draw it at (px, py): yaw the hull's heading, aim / mg where the main gun / the roof gun point (world, rad; null: at
+// rest), col the team's colour, spin: the rotor turns. Returns its radius on the canvas (px)
+function drawModel(o, px, py, yaw, aim, mg, col, wreck, spin, tt) {
+  const s0 = size / view.span, minL = Math.min(56, Math.max(26, o.len * 3.6)), k = Math.max(s0, minL / o.len), sc = k / o.ppm;
+  const L = wreck ? o.wreck || o.hull : o.hull, ok = l => l.img.complete && l.img.naturalWidth;
+  const img = l => { if (ok(l)) cx.drawImage(l.img, -l.ax * sc, -l.ay * sc, l.w * sc, l.h * sc); };
+  // the outline in the team's colour: its silhouette in that colour, drawn 2 px off all round under the picture
+  const rim = (l, c, dark) => {
+    if (!ok(l)) return; l.sil = l.sil || new Map(); let m = l.sil.get(c);
+    if (!m) { m = document.createElement('canvas'); m.width = l.w; m.height = l.h; const g = m.getContext('2d'); g.drawImage(l.img, 0, 0, l.w, l.h); g.globalCompositeOperation = 'source-in'; g.fillStyle = c; g.fillRect(0, 0, l.w, l.h); l.sil.set(c, m); }
+    const x = -l.ax * sc, y = -l.ay * sc, w = l.w * sc, h = l.h * sc;
+    if (dark) { cx.shadowColor = 'rgba(0,0,0,.6)'; cx.shadowBlur = 5; cx.drawImage(m, x, y, w, h); cx.shadowBlur = 0; cx.shadowColor = 'transparent'; }   // (one soft shadow under it all)
+    for (let a = 0; a < 8; a++) { const d = a % 2 ? 1.6 : 2.2; cx.drawImage(m, x + Math.cos(a * Math.PI / 4) * d, y + Math.sin(a * Math.PI / 4) * d, w, h); }
+  };
+  const part = l => { rim(l, col); cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 3; img(l); cx.shadowBlur = 0; cx.shadowColor = 'transparent'; };
+  cx.save(); cx.translate(px, py); cx.rotate(yaw);
+  if (wreck) { cx.shadowColor = 'rgba(255,110,30,.85)'; cx.shadowBlur = 7; img(L); cx.restore(); return o.len * k / 2; }
+  rim(L, col, true); img(L);
+  const T = o.turret, G = o.mg, tw = T ? (aim ?? yaw + T.rest) : yaw;
+  const gun = base => { const gw = mg ?? base + G.rest; cx.save(); cx.translate(G.px * k, -G.pz * k); cx.rotate(gw - base); part(G); cx.restore(); };
+  if (T) { cx.save(); cx.translate(T.px * k, -T.pz * k); cx.rotate(tw - yaw); part(T); if (G && G.on === 'turret') gun(tw); cx.restore(); }
+  if (G && G.on !== 'turret') gun(yaw);
+  let R = o.len * k / 2;
+  if (o.rotor) {   // [radius, blades, hub x, hub z, tail rotor x, z, radius] (m)
+    const [rr, n, hx, hz, tx, tz, tr] = o.rotor, r = rr * k, a0 = spin ? tt * 9 : Math.PI / 4;
+    cx.save(); cx.translate(hx * k, -hz * k);
+    if (spin) {
+      const g = cx.createRadialGradient(0, 0, r * 0.1, 0, 0, r); g.addColorStop(0, 'rgba(24,26,24,.06)'); g.addColorStop(0.85, 'rgba(24,26,24,.2)'); g.addColorStop(1, 'rgba(24,26,24,.05)');
+      cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill();
+    }
+    cx.strokeStyle = spin ? 'rgba(20,22,20,.32)' : 'rgba(20,22,20,.85)'; cx.lineWidth = Math.max(1.2, 0.32 * k); cx.lineCap = 'round';
+    cx.beginPath(); for (let b = 0; b < n; b++) { const a = a0 + b * 2 * Math.PI / n; cx.moveTo(0, 0); cx.lineTo(Math.sin(a) * r, -Math.cos(a) * r); } cx.stroke();
+    cx.fillStyle = 'rgba(20,22,20,.9)'; cx.beginPath(); cx.arc(0, 0, Math.max(1.5, 0.35 * k), 0, Math.PI * 2); cx.fill();
+    cx.restore();
+    // the tail rotor turns in a vertical plane: from above a short bar beside the tail
+    cx.strokeStyle = spin ? 'rgba(20,22,20,.45)' : 'rgba(20,22,20,.8)'; cx.lineWidth = Math.max(1, 0.2 * k);
+    cx.beginPath(); cx.moveTo(tx * k, -(tz - tr) * k); cx.lineTo(tx * k, -(tz + tr) * k); cx.stroke(); cx.lineCap = 'butt';
+  }
+  cx.restore(); return R;
+}
 // draw an atlas icon centred on (x, y), its longer side `size` px, optionally tinted and rotated
 function drawIcon(key, x, y, size, color, rot, mode) {
   const c = tinted(key, color, mode); if (!c) return false;
@@ -2201,7 +2288,7 @@ function draw() {
     }
   }
   // players (vehicles first in the list, so riders' names draw on top)
-  const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map();
+  const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map(), vehRad = new Map();   // (vehRad: a model's radius on the canvas)
   round.players.forEach((p,i) => { if (!p.vehicle) { const q = playerAt(i,t); if (q.alive && q.veh) { occupied.add(q.veh); if (!riders.has(q.veh)) riders.set(q.veh, teamOf(i, t)); } } });
   round.players.forEach((p,i) => {
     const q = playerAt(i,t);
@@ -2237,7 +2324,13 @@ function draw() {
     const vkey = p.vehicle ? vehIconKey(p) : null;
     // a soldier riding in such a vehicle is shown by it (his name goes next to it, one line per seat taken)
     const inIcon = !p.vehicle && q.veh && iconVeh.has(q.veh);
-    if (vkey && ARMOR_KIND[vkey] && !wreck) {
+    const mdl = p.vehicle ? vehModel(p) : null;
+    if (mdl) {   // (Layers > Vehicles: Models)
+      const r = drawModel(mdl, px, py, q.yaw, q.aim, q.mg, col, wreck, riders.has(p.name), t);
+      if (wreck) drawFire(px, py, Math.min(48, Math.max(20, r * 1.5)), wk ? t - wk[0] : 0);
+      iconVeh.add(p.name); vehRad.set(p.name, r);
+    }
+    else if (vkey && ARMOR_KIND[vkey] && !wreck) {
       const vs = Math.max(16, Math.max(GAME.icons[vkey][2], GAME.icons[vkey][3]) * 1.8);
       cx.shadowColor = 'rgba(0,0,0,.55)'; cx.shadowBlur = 3;
       drawArmor(ARMOR_KIND[vkey], px, py, vs * 1.1, q.yaw, q.aim != null ? q.aim - q.yaw : 0, col, q.mg);
@@ -2266,15 +2359,16 @@ function draw() {
       if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) { const k = figKey(sn, q); drawStance(k, px, py, 1.3, css('--stance-ink'), figFace(k, q.yaw)); if (MOVE_FIG[k]) moveStreaks(i, q, px, py, k, col); } }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
     }
-    if (sel===i) { cx.strokeStyle = css('--accent'); cx.lineWidth = 2; cx.beginPath(); cx.arc(px,py,p.vehicle ? 14 : 17,0,Math.PI*2); cx.stroke(); }
+    const vr = vehRad.get(p.name);
+    if (sel===i) { cx.strokeStyle = css('--accent'); cx.lineWidth = 2; cx.beginPath(); cx.arc(px,py,p.vehicle ? Math.max(14, (vr || 0) + 3) : 17,0,Math.PI*2); cx.stroke(); }
     else if (inView && inView.has(i)) {
       const hid = inView.get(i) === false;
       cx.strokeStyle = hid ? css('--muted') : css('--fg'); cx.globalAlpha = hid ? 0.7 : 1; cx.lineWidth = 1.5; cx.setLineDash(hid ? [1.5, 3] : [3, 3]);
-      cx.beginPath(); cx.arc(px, py, 16, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      cx.beginPath(); cx.arc(px, py, Math.max(16, (vr || 0) + 3), 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
     }
     // health bar under a hurt soldier or a damaged vehicle
     if (opts.medic && !q.veh && q.hp !== null && q.hp < 99.5 && !wreck) {
-      const w = p.vehicle ? 22 : 24, f = Math.max(0, Math.min(1, q.hp / 100)), yb = py + (p.vehicle ? 12 : 13);
+      const w = p.vehicle ? 22 : 24, f = Math.max(0, Math.min(1, q.hp / 100)), yb = py + (p.vehicle ? Math.max(12, (vr || 0) * 0.75) : 13);
       cx.fillStyle = css('--bg'); cx.globalAlpha = 0.75; cx.fillRect(px - w/2 - 1, yb, w + 2, 5); cx.globalAlpha = 1;
       cx.fillStyle = f > 0.5 ? css('--medic') : f > 0.25 ? css('--accent') : css('--hp-low'); cx.fillRect(px - w/2, yb + 1, Math.max(1, w * f), 3);
     }
@@ -2282,7 +2376,7 @@ function draw() {
       // the kit's tool goes after the name at every zoom
       const kit = !p.vehicle && !q.veh ? kitNow(p, t) : null;
       cx.font = '500 10px ' + css('--font-data'); cx.fillStyle = wreck ? css('--muted') : css('--fg'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
-      const big = !p.vehicle && !inIcon, lx = px + (big ? 14 : 11); let ly = py - (big ? 11 : 8);
+      const big = !p.vehicle && !inIcon, rv = (inIcon ? vehRad.get(q.veh) : vr) || 0, lx = px + (big ? 14 : Math.max(11, rv * 0.85)); let ly = py - (big ? 11 : 8);
       if (inIcon) { const k = seated.get(q.veh) || 0; seated.set(q.veh, k + 1); ly = py - 8 + k * 11; }
       cx.strokeText(p.name, lx, ly); cx.fillText(p.name, lx, ly);
       if (kit) {   // the kit's tool after the name, in black (text if the kit is unknown)
@@ -2558,7 +2652,8 @@ function drawTimeline() {
     tx.fillStyle = css('--muted'); tx.fillText(m + ':00', Math.min(x + 3, w - 30), TL.axis / 2);
   }
   // ticket lines (only when the round has ticket data)
-  const tk = round.TK, F = round.times.length; const maxTk = Math.max(0, ...Array.from(tk));
+  // (a loop, not Math.max(...): a round over ~1.7 h has more than 120,000 values, too many arguments for one call)
+  const tk = round.TK, F = round.times.length; let maxTk = 0; for (let k = 0; k < tk.length; k++) if (tk[k] > maxTk) maxTk = tk[k];
   if (maxTk > 0) [0,1].forEach(team => { tx.strokeStyle = teamColor(team); tx.globalAlpha = .35; tx.lineWidth = 1.5; tx.beginPath();
     for (let k=0;k<F;k+=Math.max(1,Math.floor(F/w))) { const x = tlX(round.times[k], w), y = h-4 - tk[k*2+team]/maxTk*(h-TL.axis-8); k? tx.lineTo(x,y) : tx.moveTo(x,y); } tx.stroke(); tx.globalAlpha=1; });
   // event strip
@@ -3789,7 +3884,7 @@ const clipForceRec = /[?&]cliprec\b/.test(location.search);   // (testing: film 
 try { const o = JSON.parse(localStorage.getItem('bf2rr.clip') || '{}'); if (CLIP_SIZES[o.size]) clip.size = o.size; if (CLIP_SPEEDS.includes(o.speed)) clip.speed = o.speed; if (o.fmt === 'gif') clip.fmt = 'gif'; } catch (e) {}
 const clipPrefs = () => { try { localStorage.setItem('bf2rr.clip', JSON.stringify({ size: clip.size, speed: clip.speed, fmt: clip.fmt })); } catch (e) {} };
 const clipSecs = () => (clip.b - clip.a) / clip.speed;
-const speedLabel = v => v === 0.5 ? '½×' : v + '×';
+const speedLabel = v => v + '×';
 const fmtDur = s => { const r = Math.max(1, Math.round(s)); return r < 60 ? r + ' s' : Math.floor(r / 60) + ':' + String(r % 60).padStart(2, '0') + ' min'; };
 const clipMsg = m => { const el = $('#cMsg'); el.textContent = m || ''; el.hidden = !m; };
 // the clip's stretch of the round: at least 1 s, inside the round
@@ -4279,7 +4374,7 @@ $('#seek').addEventListener('input', e => { t = Math.max(0, Math.min(round.durat
 // playback speed on the map (so it is there in full screen too): slow motion 0.1x to 0.75x, then 1x to 60x; the slider
 // goes through these steps; remembered in this browser
 const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 40, 50, 60];
-const speedText = v => v === 0.25 ? '¼×' : v === 0.5 ? '½×' : v === 0.75 ? '¾×' : v + '×';
+const speedText = v => v + '×';   // (0.1×, 0.25×, 0.5×, 0.75×: Sagara prefers numbers to ¼ ½ ¾)
 const speedIdx = v => { let k = 0; for (let i = 0; i < SPEEDS.length; i++) if (Math.abs(SPEEDS[i] - v) < Math.abs(SPEEDS[k] - v)) k = i; return k; };
 function setSpeed(v) {
   const k = speedIdx(Number.isFinite(+v) && +v > 0 ? +v : 10); speed = SPEEDS[k];
@@ -4303,6 +4398,16 @@ $('#kbBtn').onclick = () => popToggle($('#kbBtn'), $('#kbHelp'), $('#kbHelp').hi
 document.addEventListener('click', e => { if (!$('#layMenu').hidden && !e.target.closest('.lwrap')) popToggle($('#layBtn'), $('#layMenu'), false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layMenu').hidden) { popToggle($('#layBtn'), $('#layMenu'), false); $('#layBtn').focus(); } });
 layCount();
+// vehicles as icons or as models (Layers menu, or M); remembered in this browser
+function setVehView(models) {
+  opts.models = !!models;
+  $('#vwIcons').setAttribute('aria-checked', String(!opts.models)); $('#vwModels').setAttribute('aria-checked', String(opts.models));
+  try { localStorage.setItem('bf2rr.vehicles', opts.models ? 'models' : 'icons'); } catch (e) {}
+  if (round) refresh(true);
+}
+$('#vwIcons').onclick = () => setVehView(false); $('#vwModels').onclick = () => setVehView(true);
+$('.vwseg').addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); $(opts.models ? '#vwModels' : '#vwIcons').focus(); } });
+setVehView(opts.models);
 // Round stats / Weapons: the long lists show their top 8 until "Show all"
 const stMore = { wpn: false, hit: false };
 document.addEventListener('click', e => { const b = e.target.closest('[data-more]'); if (!b || !(b.dataset.more in stMore)) return; stMore[b.dataset.more] = !stMore[b.dataset.more]; renderStats(); });
@@ -4330,6 +4435,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='ArrowLeft') { t = Math.max(0, t-10); refresh(true); }
   if ((e.code==='KeyN' || e.code==='KeyP') && !e.ctrlKey && !e.metaKey && !e.altKey) stepMoment(e.code==='KeyN' ? 1 : -1);
   if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round) clipMark(e.code==='KeyI' ? 'a' : 'b');
+  if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
 });
 $('#mapSize').addEventListener('change', e => { const v = Math.max(256, Math.min(8192, +e.target.value||2048)); if (source === 'sim') { loadSim(simSeed, v, round?.meta?.map); } else { W = v; viewFit(); refresh(true); } });
 
