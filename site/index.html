@@ -193,6 +193,7 @@ input[type=file] { display: none; }
 .feed li.empty { display: block; }
 .feed .ts { font: 400 12px var(--font-data); color: var(--muted); font-variant-numeric: tabular-nums; }
 .feed .w { color: var(--muted); font-size: 12px; }
+svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentColor; stroke: currentColor; }
 .feed .cap { color: var(--accent); }
 .feed .ico { margin: 0 2px; opacity: .9; }
 .feed[hidden], #hlBox[hidden] { display: none; }
@@ -425,6 +426,7 @@ body.site:not(.devshow) .mapsizel, body.site:not(.devshow) details.schema, body.
 .rlhead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 4px; }
 .rlhead label { font-size: 13px; color: var(--muted); display: inline-flex; gap: 6px; align-items: center; }
 .rlhead select { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 6px; }
+#rSrv { max-width: min(18em, 70vw); }
 .sttab.sess tr.day th { padding: 14px 6px 4px; color: var(--fg); font: 700 13px/1 var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
 .sttab.sess tr.day:first-child th { padding-top: 6px; }
 .rmore { margin-top: 8px; }
@@ -1246,6 +1248,24 @@ const STANCE_FIG = [
 ];
 const STANCE_NAME = ['Standing', 'Crouching', 'Prone'];
 const stancePaths = STANCE_FIG.map(f => new Path2D(f[3]));
+// upright and moving (speed as moveText): walking, running, sprinting - facing right, as [head x, head y, head r, body,
+// arms and legs (lines 1.25 wide: [x, y, x, y, ...]), speed lines (0.8 wide)]
+const MOVE_FIG = {
+  walk: [0.35, -3.9, 1.45, 'M-1.05 -2.35H1.35L1.15 1.35H-0.85Z', [[0.45, 1.0, 1.25, 3.0, 2.3, 4.95], [-0.25, 1.0, -0.9, 3.1, -1.95, 4.95], [0.95, -1.7, 1.75, -0.2, 2.35, 0.7], [-0.7, -1.7, -1.5, -0.2, -2.0, 0.6]]],
+  run: [2.05, -3.45, 1.4, 'M-0.35 -2.35L1.95 -1.55L0.75 1.45L-1.45 0.75Z', [[0.2, 0.9, 2.75, 1.95, 2.25, 4.9], [-0.65, 0.85, -1.4, 3.25, -3.7, 4.55], [1.4, -1.3, 2.65, -0.15, 3.65, -1.15], [0.1, -1.55, -1.25, -0.45, -2.25, -1.45]]],
+};
+MOVE_FIG.sprint = [...MOVE_FIG.run, [[-5.4, -2.6, -3.9, -2.6], [-5.8, -0.5, -4.3, -0.5]]];
+const movePaths = Object.fromEntries(Object.entries(MOVE_FIG).map(([k, f]) => [k, new Path2D(f[3])]));
+// the figure for a soldier at q in stance st: walk / run / sprint when upright and moving on the ground, else the stance
+const figKey = (st, q) => st !== 0 || !q || q.speed == null || q.speed < 0.3 || (q.vup ?? 0) < -4 || (q.vup ?? 0) > 2.5 ? st : q.speed >= 5 ? 'sprint' : q.speed >= 2.6 ? 'run' : 'walk';
+// facing: right when he looks to the right on the map (the figures face right; prone faces left)
+const figFace = (k, yaw) => (Math.sin(yaw) < 0 ? -1 : 1) * (k === 2 ? -1 : 1);
+// the same figure as a small picture in a line of text
+function figSvg(k, face = 1) {
+  const m = MOVE_FIG[k], f = m || STANCE_FIG[k]; if (!f) return '';
+  const line = (L, w) => (L || []).map(p => `<polyline points="${p.join(' ')}" fill="none" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`).join('');
+  return `<svg class="fig" viewBox="-6.5 -6.5 13 13" aria-hidden="true"><g transform="scale(${face} 1)"><path d="${f[3]}" stroke="none"/>${m ? line(m[4], 1.25) + line(m[5], 0.8) : ''}<circle cx="${f[0]}" cy="${f[1]}" r="${f[2]}" stroke="none"/></g></svg>`;
+}
 // stance of a soldier at time tt ([[t, 0 stand / 1 crouch / 2 prone], ...]); null when the round has none
 const stanceNow = (p, tt) => {
   const L = p.stance; if (!L || !L.length) return round?.meta?.stance ? 0 : null;
@@ -1253,9 +1273,13 @@ const stanceNow = (p, tt) => {
   while (lo < hi) { const m = (lo + hi + 1) >> 1; if (L[m][0] <= tt) lo = m; else hi = m - 1; }
   return L[lo][1];
 };
-function drawStance(k, x, y, scale, col) {
-  const f = STANCE_FIG[k]; if (!f) return;
-  cx.save(); cx.translate(x, y); cx.scale(scale, scale); cx.fillStyle = col; cx.fill(stancePaths[k]);
+function drawStance(k, x, y, scale, col, face = 1) {
+  const m = MOVE_FIG[k], f = m || STANCE_FIG[k]; if (!f) return;
+  cx.save(); cx.translate(x, y); cx.scale(scale * face, scale); cx.fillStyle = col; cx.strokeStyle = col; cx.fill(m ? movePaths[k] : stancePaths[k]);
+  if (m) {
+    cx.lineCap = 'round'; cx.lineJoin = 'round';
+    for (const [L, w] of [[m[4], 1.25], [m[5] || [], 0.8]]) { cx.lineWidth = w; for (const p of L) { cx.beginPath(); cx.moveTo(p[0], p[1]); for (let j = 2; j < p.length; j += 2) cx.lineTo(p[j], p[j + 1]); cx.stroke(); } }
+  }
   cx.beginPath(); cx.arc(f[0], f[1], f[2], 0, Math.PI * 2); cx.fill(); cx.restore();
 }
 // score at time tt: estimated points [[t, points, reason], ...] of a decoded demo, or the round logger's score events
@@ -1322,7 +1346,7 @@ function seenBy(i, tt) {
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
 // and wagons (bullets go through some), peeking round corners; BF2 destroys no cover but bridges and red barrels)
 const LOS = new Map();   // map key -> data, 'loading', or null (none for this map / failed)
-window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
+window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
 function losData() {
   const k = mapKey(), v = LOS.get(k);
   if (v === undefined) {
@@ -1675,10 +1699,14 @@ const p_name = j => round.players[j].name;
 // card: the spots the followed soldier made up to now (spotterOf; those worked out so far)
 function spotRows(p) {
   if (p.vehicle || round.meta.source !== 'demo' || !round._spotter) return '';
-  const id = round.pidx.get(p.id); let n = 0, nv = 0, np = 0;
-  for (const e of round.events) { if (e.t > t) break; if (e.type !== 'spot' || !round._spotter.has(e)) continue; const r = round._spotter.get(e); if (!r || r.i !== id) continue; n++; if (e.target == null) np++; else if (round.players[round.pidx.get(e.target)]?.vehicle) nv++; }
-  if (!n) return '';
-  return `<dt title="Spots the demo gives to his side that were his: his crosshair was on it (within 2.5° or 1 m to the side) and nobody else's of his side was as close">Spotted</dt><dd>${n} <span class="w">· ${[n - nv - np ? (n - nv - np) + ' soldier' + (n - nv - np > 1 ? 's' : '') : '', nv ? nv + ' vehicle' + (nv > 1 ? 's' : '') : '', np ? np + ' place' + (np > 1 ? 's' : '') : ''].filter(Boolean).join(', ')}</span></dd>`;
+  const id = round.pidx.get(p.id); let n = 0, nv = 0, np = 0, nq = 0;
+  for (const e of round.events) {
+    if (e.t > t) break; if (e.type !== 'spot' || !round._spotter.has(e)) continue; const r = round._spotter.get(e); if (!r || r.i !== id || r.alt) continue;
+    if (!r.sure) { nq++; continue; }
+    n++; if (e.target == null) np++; else if (round.players[round.pidx.get(e.target)]?.vehicle) nv++;
+  }
+  if (!n && !nq) return '';
+  return `<dt title="Spots the demo gives to his side that were his: of his side, his line of sight passed closest to it as the spot came (to the side and up or down) - 75% of the odds or more; probably: 45-75%">Spotted</dt><dd>${n} <span class="w">${[[n - nv - np, 'soldier'], [nv, 'vehicle'], [np, 'place']].filter(x => x[0]).map(([k, w]) => k + ' ' + w + (k > 1 ? 's' : '')).concat(nq ? [nq + ' more probably'] : []).map(x => '· ' + x).join(' ')}</span></dd>`;
 }
 const gunHit = (h, g) => { h.by = g.i; h.via = 'gun'; h.from = g.veh; h.dist = Math.round(g.d); h.wpn = g.veh || 'emplacement'; };
 // Attacks: the hits one soldier made on one vehicle with no more than 20 s between them; destroyed when the vehicle was
@@ -1762,47 +1790,83 @@ function vehDuels() {
 }
 // ---------- who spotted ----------
 // A spot names the side and what was spotted (or, with nothing under the crosshair, the point where it met the ground or a
-// wall) - not who spotted. The game takes what is nearest the crosshair, within a cone: in test 7 the user's view passed
-// 0.3-0.9° from the bot he spotted on foot, but 19-25° from the tank the bot drove (decoded view = the round logger's).
-// So the spotter is worked out from who could have done it: of that side's soldiers alive and within the view distance
-// of it (with nothing in between where the walls are known), the one whose line of sight passed closest to it from 1.5 s
-// before the message to 0.5 s after - within 30° (or 1 m to the side up close) - when everyone else who could see it
-// looked at least 10° further off (or the best within 3° and the next at least 6° off), and nobody of the side whose view
-// is not in the demo (a jeep's driver or passenger) could see it, unless the best was within 3°. sure: within 3°.
-// =FL= 20:37: the closest line of sight passes a median 0.7° from the point the crosshair met (0.2° for a quarter).
-const SPOT_BACK = 1.5, SPOT_AFTER = 0.5, SPOT_CONE = 30 * Math.PI / 180, SPOT_SURE = 3 * Math.PI / 180;
-function spotterOf(e) {
-  const C = round._spotter || (round._spotter = new Map()); if (C.has(e)) return C.get(e);
-  const ti = e.target != null ? round.pidx.get(e.target) : undefined, D = losData(), known = [], blind = [];
-  const tVeh = ti !== undefined && (round.players[ti].vehicle || !!playerAt(ti, e.t).veh);
+// wall) - not who spotted: in test 7 the spot message comes alone in its packet, and nothing else in the demo names him.
+// The game takes what is nearest the crosshair, within a cone: in test 7 the user's view passed 0.3-0.9° from the bot he
+// spotted on foot, but 19-25° from the tank the bot drove. So the spotter is worked out from the views of that side's
+// soldiers alive within view distance of it (on foot or at a gun; a jeep's driver or passenger: where he looks is not known):
+// - his miss: how far his line of sight passed from it, to the side and (where his pitch is known) up or down - a soldier
+//   from his feet to his head, a vehicle from 1 m under its position to 2 m over, a point from the ground up to 12 m (a
+//   wall) - less 0.6 m to the side (a vehicle 2.5 m, a point 0.5 m) and 2° up or down, plus 4° for each second away from
+//   the message; the least from 1.5 s before to 0.5 s after. (=FL= 20:37, 21:23, 19:52, the spots with one clear
+//   spotter: his sight passes closest 0-0.2 s after the message - median 2° then, 3.4° 0.4 s before, 8° a second before.)
+// - his odds against a soldier of the side looking anywhere within 30° of it: 22.5 / s e^(-miss / s) + 0.25, s = 1.5°
+//   (a vehicle 4°): 3/4 of spotters' sight passes near it, the rest anywhere in the cone; x 1/4 where the walls hide a
+//   soldier spotted from him; x √(1 + n) for the n spots he clearly made in the round (miss within 3°, everyone else's
+//   over 10°, no unknown views: some players spot all the time, most never). Each one of the side whose view is not
+//   known counts 0.3 (x √(1 + n)), and 0.1 is left for a spotter nobody can tell.
+// - his share of all the odds: 75% or more (and a miss within 4 s): named; under 75% with the next one 20% or more and
+//   the two 70% together: one of the two; else 45% or more: "probably"; else not known.
+// Test 7: the user's 10 spots all his (9 named, 1 probably: the T-90 18° off his view); the bot's 4 (it spots by
+// sight, not by aim): 2 probably, 2 not known. =FL= 20:37 + 21:23 + 19:52, 1189 spots: v77 (nearest line of sight,
+// nobody else within 10°) named 57%; now 61% named, 11% probably, 24% one of two, 4% not known.
+const SPOT_BACK = 1.5, SPOT_AFTER = 0.5, SPOT_CONE = 30, SPOT_LAG = 4, SPOT_VTOL = 2, SPOT_K = 22.5, SPOT_TAIL = 0.25, SPOT_BLIND = 0.3, SPOT_ELSE = 0.1, DEG = 180 / Math.PI;
+// by what was spotted: [m to the side that count as on it, band under and over its position (m), spread of the miss (°)]
+const SPOT_KIND = { sold: [0.6, -1.0, 0.8, 1.5], veh: [2.5, -1.0, 2.0, 4], point: [0.5, -0.3, 12, 1.5] };
+// everyone of the side who could have spotted it: { kind, known: [{ i, miss, off (° to the side), d, tt }] (least miss
+// first; hid: the walls hide the soldier spotted from him), blind: [i] (where he looks is not known) }
+function spotCands(e) {
+  const C = round._spotC || (round._spotC = new Map()); if (C.has(e)) return C.get(e);
+  const ti = e.target != null ? round.pidx.get(e.target) : undefined, D = losData();
+  const kind = ti === undefined ? 'point' : round.players[ti].vehicle || playerAt(ti, e.t).veh ? 'veh' : 'sold', [side, lo, hi] = SPOT_KIND[kind];
+  const gp = ti === undefined && D && e.x != null ? groundAt(D, e.x, e.y) : null, known = [], blind = [];
   round.players.forEach((p, i) => {
     if (p.vehicle || i === ti || (e.team >= 0 && teamOf(i, e.t) !== e.team)) return;
     let best = null, could = false;
     for (let tt = e.t - SPOT_BACK; tt <= e.t + SPOT_AFTER + 1e-6; tt += 0.1) {
       const q = playerAt(i, tt); if (!q.alive) continue;
-      let px = e.x, py = e.y, o = null;
-      if (ti !== undefined) { o = playerAt(ti, tt); if (!o.alive) continue; px = o.x; py = o.y; }
+      let px = e.x, py = e.y, ph = gp;
+      if (ti !== undefined) { const o = playerAt(ti, tt); if (!o.alive) continue; px = o.x; py = o.y; ph = o.h; }
       if (px == null) continue;
       const dx = px - q.x, dy = py - q.y, d = Math.hypot(dx, dy); if (d < 1 || d > fogRange() + 30) continue;
       const lk = looking(i, tt);
       if (!lk) { could = true; continue; }   // (in a seat with no gun: where he looks is not known)
-      const off = angOff(Math.atan2(dx, dy), lk.yaw), side = Math.max(0, off - Math.atan2(1, d));   // (1 m to the side counts as on it)
-      if (!best || side < best.off) best = { i, off: side, d, tt };
+      const off = Math.max(0, angOff(Math.atan2(dx, dy), lk.yaw) - Math.atan2(side, d)) * DEG;
+      let up = 0;
+      if (!lk.gun && lk.pitch != null && q.h != null && ph != null) {
+        const eye = eyeOf(i, q, tt), a0 = Math.atan2(ph + lo - eye, d), a1 = Math.atan2(ph + hi - eye, d);
+        up = Math.max(0, (lk.pitch < a0 ? a0 - lk.pitch : lk.pitch > a1 ? lk.pitch - a1 : 0) * DEG - SPOT_VTOL);
+      }
+      const miss = Math.hypot(off, up) + SPOT_LAG * Math.abs(tt - e.t - 0.05);
+      if (!best || miss < best.miss) best = { i, miss, off, d, tt };
     }
     if (best) known.push(best); else if (could) blind.push(i);
   });
-  // who can't see it at all is out, where the walls are known (a soldier spotted) - unless nobody can by the grid (it
-  // misses gaps and foliage, and the crosshair was on him)
-  if (D && ti !== undefined && !tVeh) {
-    const ok = known.filter(c => c.off <= SPOT_CONE && canSee(c.i, ti, c.tt) !== false);
-    if (ok.length) { const keep = new Set(ok); for (let k = known.length - 1; k >= 0; k--) if (known[k].off <= SPOT_CONE && !keep.has(known[k])) known.splice(k, 1); }
+  if (D && kind === 'sold') for (const c of known) if (c.miss <= SPOT_CONE && canSee(c.i, ti, c.tt) === false) c.hid = true;
+  known.sort((a, b) => a.miss - b.miss);
+  const r = { kind, known, blind }; C.set(e, r); return r;
+}
+// the spots each soldier clearly made in the round: Map(i -> n)
+function spotHabit() {
+  if (round._spotN) return round._spotN;
+  const N = new Map();
+  for (const e of round.events) {
+    if (e.type !== 'spot') continue;
+    const { known: k, blind } = spotCands(e);
+    if (k[0] && k[0].miss <= 3 && !k[0].hid && (!k[1] || k[1].miss > 10) && !blind.length) N.set(k[0].i, (N.get(k[0].i) || 0) + 1);
   }
-  known.sort((a, b) => a.off - b.off);
-  const b0 = known[0], b1 = known[1];
+  return (round._spotN = N);
+}
+// who spotted: { i, p (his share of the odds), sure (75% or more), d (m), off (° to the side), alt: { i, p } (the other
+// of the two most likely, when neither reaches 45%) }, or null
+function spotterOf(e) {
+  const C = round._spotter || (round._spotter = new Map()); if (C.has(e)) return C.get(e);
+  const { kind, known, blind } = spotCands(e), N = spotHabit(), sig = SPOT_KIND[kind][3], hab = i => Math.sqrt(1 + (N.get(i) || 0));
+  const w = known.filter(c => c.miss <= SPOT_CONE).map(c => ({ c, w: (SPOT_K / sig * Math.exp(-c.miss / sig) + SPOT_TAIL) * hab(c.i) * (c.hid ? 0.25 : 1) })).sort((a, b) => b.w - a.w);
+  const tot = w.reduce((s, x) => s + x.w, SPOT_ELSE) + blind.reduce((s, i) => s + SPOT_BLIND * hab(i), 0);
   let r = null;
-  if (b0 && b0.off <= SPOT_CONE) {
-    const sure = b0.off <= SPOT_SURE, clear = !b1 || b1.off >= b0.off + 10 * Math.PI / 180 || (sure && b1.off >= 6 * Math.PI / 180);
-    if (clear && (sure || !blind.length)) r = { i: b0.i, d: b0.d, off: b0.off, sure };
+  if (w.length) {
+    const p = w[0].w / tot, p2 = w[1] ? w[1].w / tot : 0, c = w[0].c, two = p < 0.75 && p2 >= 0.2 && p + p2 >= 0.7;
+    if (p >= 0.45 || two) r = { i: c.i, p, sure: p >= 0.75 && c.miss <= 4 * sig, d: c.d, off: c.off, ...(two ? { alt: { i: w[1].c.i, p: p2 } } : {}) };
   }
   C.set(e, r); return r;
 }
@@ -2162,8 +2226,8 @@ function draw() {
       if (p.vehicle) { cx.strokeStyle = wreck ? css('--wreck') : col; cx.lineWidth = 2.5; cx.beginPath(); cx.moveTo(0,-7); cx.lineTo(0,-13); cx.stroke(); }
       cx.restore();
       if (p.vehicle && !wreck && q.mg != null) drawRoofGun(px, py, 20, q.mg, col);
-      // standing, crouching or prone: an upright figure inside the disc
-      if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) drawStance(sn, px, py, 1.08, css('--stance-ink')); }
+      // standing, walking, running, sprinting, crouching or prone: a figure inside the disc, facing his way on the map
+      if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) { const k = figKey(sn, q); drawStance(k, px, py, 1.08, css('--stance-ink'), figFace(k, q.yaw)); } }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
     }
     if (sel===i) { cx.strokeStyle = css('--accent'); cx.lineWidth = 2; cx.beginPath(); cx.arc(px,py,p.vehicle ? 14 : 17,0,Math.PI*2); cx.stroke(); }
@@ -2341,15 +2405,17 @@ function draw() {
       if (i !== undefined) { q = playerAt(i, t); if (!q || q.x === undefined) continue; } else if (e.x != null) q = { x: e.x, y: e.y }; else continue;
       const [px, py] = toC(q.x, q.y), a = 1 - age / 10, r = (i !== undefined ? 15 : 10) + (age < 1.5 ? 6 * (1 - age / 1.5) : 0), col = teamColor(e.team);
       const sp = round.meta.source === 'demo' && age < 4 ? spotterOf(e) : null;
-      if (sp && age < 4) {   // a dashed line from the spotter to it
-        const o = playerAt(sp.i, Math.min(t, e.t + 0.1)), [sx, sy] = toC(o.x, o.y);
-        cx.globalAlpha = 0.6 * (1 - age / 4); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.setLineDash([3, 4]); cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(px, py); cx.stroke(); cx.setLineDash([]);
+      if (sp && age < 4) {   // a dashed line from the spotter to it (fainter when only probably him; from both of two)
+        for (const [k, a] of [[sp.i, sp.sure ? 0.6 : 0.4], ...(sp.alt ? [[sp.alt.i, 0.4]] : [])]) {
+          const o = playerAt(k, Math.min(t, e.t + 0.1)), [sx, sy] = toC(o.x, o.y);
+          cx.globalAlpha = a * (1 - age / 4); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.setLineDash([3, 4]); cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(px, py); cx.stroke(); cx.setLineDash([]);
+        }
       }
       cx.globalAlpha = 0.3 + 0.7 * a; cx.strokeStyle = col; cx.lineWidth = 2.5; if (i === undefined) cx.setLineDash([4, 3]);
       cx.beginPath(); cx.moveTo(px, py - r); cx.lineTo(px + r, py); cx.lineTo(px, py + r); cx.lineTo(px - r, py); cx.closePath(); cx.stroke(); cx.setLineDash([]);
       cx.globalAlpha = 0.12 * a; cx.fillStyle = col; cx.fill(); cx.globalAlpha = 1;
       if (age < 4) {
-        const lab = sp ? 'SPOTTED · ' + round.players[sp.i].name : 'SPOTTED';
+        const lab = !sp ? 'SPOTTED' : 'SPOTTED · ' + round.players[sp.i].name + (sp.alt ? ' / ' + round.players[sp.alt.i].name + '?' : sp.sure ? '' : '?');
         cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText(lab).width;
         cx.fillStyle = col; cx.fillRect(px - w / 2 - 3, py - r - 15, w + 6, 13);
         cx.fillStyle = '#fff'; cx.fillText(lab, px - w / 2, py - r - 5);
@@ -2537,7 +2603,7 @@ function panels(force) {
     const crewNow = p.vehicle ? round.players.map((q, i) => i).filter(i => !round.players[i].vehicle && playerAt(i, t).alive && playerAt(i, t).veh === p.name) : [];
     const tmNow = p.vehicle ? (crewNow.length ? teamOf(crewNow[0], t) : -1) : teamOf(sel, t), switched = (p.teams || []).length > 1 ? ` <span class="w">(changed sides: ${p.teams.map(([ts, tm]) => fmt(ts) + ' ' + esc(round.teams[tm]?.name || '')).join(', ')})</span>` : '';
     $('#selInfo').innerHTML = `<dl class="meta"><dt>Name</dt><dd class="t${tmNow}">${esc(p.name)}</dd><dt>Team</dt><dd>${esc(round.teams[tmNow]?.name||'') || (p.vehicle ? '<span class="w">nobody in it</span>' : '')}${switched}</dd>
-      <dt>Status</dt><dd>${status}</dd>${!p.vehicle && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t)) ? `<dt title="From the velocity the demo sends with his position">Moving</dt><dd>${moveText(q, stanceNow(p, t))}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
+      <dt>Status</dt><dd>${status}</dd>${!p.vehicle && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${figSvg(stanceNow(p, t), figFace(stanceNow(p, t), q.yaw))} ${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t)) ? `<dt title="From the velocity the demo sends with his position">Moving</dt><dd>${moveIcon(stanceNow(p, t), q)}${moveText(q, stanceNow(p, t))}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
       ${viewRows(sel, p)}${vehTxt}${p.vehicle ? '' : `<dt>Kills / deaths</dt><dd>${K.get(p.id)||0} K / ${Dd.get(p.id)||0} D${HS.get(p.id) ? ` · ${HS.get(p.id)} headshot${HS.get(p.id) > 1 ? 's' : ''} (${Math.round(HS.get(p.id) / K.get(p.id) * 100)}%)` : ''}</dd>${medicTxt}${repTxt}
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
@@ -3321,6 +3387,8 @@ function fillHeat() {
 // ---------- movement ----------
 // From the soldier's velocity (decoded with his position): standing still, walking, running (~3.5-3.9 m/s), sprinting
 // (~6.8 m/s), moving crouched, crawling, falling
+// the walking / running / sprinting figure before moveText (none standing still, crouched, prone or in the air)
+const moveIcon = (st, q) => { const k = figKey(st, q); return MOVE_FIG[k] ? figSvg(k, figFace(k, q.yaw)) + ' ' : ''; };
 function moveText(q, st) {
   if (q.speed == null) return null;
   const v = q.speed, up = q.vup ?? 0;
@@ -3401,8 +3469,8 @@ function csvKills() {
 }
 // the rounds list: one row per round, and every player over all rounds
 function csvSessionRounds() {
-  const head = ['Recorded', 'File', 'Map', 'Length (s)', 'Players', 'Kills', 'Team 1', 'Team 2', 'Team 1 tickets at start', 'Team 1 tickets at end', 'Team 2 tickets at start', 'Team 2 tickets at end', 'Won', 'Best player', 'Best score'];
-  const rows = session.rounds.filter(r => r.sum).map(r => { const s = r.sum; return [s.date, r.name, mapName(s.map), Math.round(s.duration), s.players, s.kills, s.teams?.[0] || '', s.teams?.[1] || '', s.tickets?.[0]?.[0] ?? '', s.tickets?.[0]?.[1] ?? '', s.tickets?.[1]?.[0] ?? '', s.tickets?.[1]?.[1] ?? '', s.winner != null ? s.teams?.[s.winner] || '' : '', s.top?.name || '', s.top?.score ?? '']; });
+  const head = ['Recorded', 'File', 'Server', 'Map', 'Length (s)', 'Players', 'Kills', 'Team 1', 'Team 2', 'Team 1 tickets at start', 'Team 1 tickets at end', 'Team 2 tickets at start', 'Team 2 tickets at end', 'Won', 'Best player', 'Best score'];
+  const rows = session.rounds.filter(r => r.sum).map(r => { const s = r.sum; return [s.date, r.name, s.server || '', mapName(s.map), Math.round(s.duration), s.players, s.kills, s.teams?.[0] || '', s.teams?.[1] || '', s.tickets?.[0]?.[0] ?? '', s.tickets?.[0]?.[1] ?? '', s.tickets?.[1]?.[0] ?? '', s.tickets?.[1]?.[1] ?? '', s.winner != null ? s.teams?.[s.winner] || '' : '', s.top?.name || '', s.top?.score ?? '']; });
   saveCsv('rounds.csv', toCsv(head, rows));
 }
 function csvSessionPlayers() {
@@ -3535,7 +3603,7 @@ function drawSide() {
     L.push(`<span class="w">First sight:</span> <b>${ENG_TEXT[g.kind]}</b> <span class="w">·</span> ${g.k != null ? `${pn(ki)} had him in sight ${sec(e.t - g.k)} before the kill` : `${pn(ki)} had no clear sight of him`}${vTxt ? '; ' + vTxt : ''}${g.walls ? '' : ' <span class="w">(walls not known: field of view only)</span>'}`);
   } else if (g && g.k != null) L.push(`<span class="w">First sight:</span> ${pn(ki)} had him in sight ${sec(e.t - g.k)} before the kill; ${pn(vi)} was in a vehicle`);
   if (vFoot) L.push(`<span class="w">${esc(vp.name)} faced ${Math.round(vFace * 180 / Math.PI)}° away from him${o.pitch != null ? ', looking ' + pitchText(o.pitch) : ''}.</span>`);
-  { const km = kFoot ? moveText(q, kSt) : null, vm = vFoot ? moveText(o, vSt) : null; if (km || vm) L.push(`<span class="w">Moving:</span> ${km ? `${pn(ki)} <span class="w">${km}</span>` : ''}${km && vm ? ' <span class="w">·</span> ' : ''}${vm ? `${pn(vi)} <span class="w">${vm}</span>` : ''}`); }
+  { const km = kFoot ? moveText(q, kSt) : null, vm = vFoot ? moveText(o, vSt) : null; if (km || vm) L.push(`<span class="w">Moving:</span> ${km ? `${pn(ki)} <span class="w">${moveIcon(kSt, q)}${km}</span>` : ''}${km && vm ? ' <span class="w">·</span> ' : ''}${vm ? `${pn(vi)} <span class="w">${moveIcon(vSt, o)}${vm}</span>` : ''}`); }
   info.innerHTML = L.map(x => `<div>${x}</div>`).join('');
 }
 // warm-up: who saw whom first for every kill, a few at a time once the walls are in (the card's "First sight" row reads it)
@@ -5928,7 +5996,7 @@ function summarizeRound(tl, info, name) {
 // all rounds' players, added up by nick (the name without its clan tag; shown with the latest name)
 function sessionPlayers() {
   const M = new Map();
-  for (const r of sessRoundsByDate()) for (const p of r.sum?.P || []) {
+  for (const r of sessRoundsByDate(session.srvF)) for (const p of r.sum?.P || []) {
     const key = nickOf(p.name), a = M.get(key) || { name: p.name, nick: key, rounds: 0, wins: 0, teams: [0, 0], k: 0, kVeh: 0, d: 0, tk: 0, sui: 0, hs: 0, rev: 0, heal: 0, rep: 0, score: 0, streak: 0, long: 0, alive: 0 };
     a.rounds++; if (p.win) a.wins++; if (p.team === 0 || p.team === 1) a.teams[p.team]++;
     for (const k of ['k', 'kVeh', 'd', 'tk', 'sui', 'hs', 'rev', 'heal', 'rep', 'score', 'alive']) a[k] += p[k];
@@ -6010,13 +6078,16 @@ function renderRoundBar(box, R, cur, tkCell) {
   box.classList.add('roundbar');
   const L = R.filter(r => r.status === 'done'), maps = [...new Set(L.map(r => r.sum?.map).filter(Boolean))];
   if (session.mapF && !maps.includes(session.mapF)) session.mapF = '';
+  // (several game servers: which one, a choice in the list - also for "Players · all rounds")
+  const srvs = [...new Set(L.map(r => r.sum?.server).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  if (session.srvF && !srvs.includes(session.srvF)) session.srvF = '';
   const ci = L.findIndex(r => r.name === cur), s = ci >= 0 ? L[ci].sum : null;
-  const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
+  const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${srvs.length > 1 && s.server ? `<span>${esc(s.server)}</span>` : ''}${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
     : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
   box.innerHTML = `<div class="rbar"><button class="rcur" id="rCur" aria-expanded="false" aria-controls="rList">${what}<span class="caret">▾ all rounds</span></button>
     <span class="rnav"><span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button></span></div>
     <div class="rlist" id="rList" hidden>
-      <div class="rlhead">${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<input type="search" class="rfind" id="rFind" placeholder="Find a player" aria-label="Find a player: his rounds and his page" autocomplete="off" spellcheck="false" value="${esc(session.find || '')}"><span class="w" id="rCount"></span><span class="spacer" style="flex:1"></span><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
+      <div class="rlhead">${srvs.length > 1 ? `<label>Server <select id="rSrv"><option value="">All servers</option>${srvs.map(m => `<option value="${esc(m)}"${m === session.srvF ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select></label>` : ''}${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<input type="search" class="rfind" id="rFind" placeholder="Find a player" aria-label="Find a player: his rounds and his page" autocomplete="off" spellcheck="false" value="${esc(session.find || '')}"><span class="w" id="rCount"></span><span class="spacer" style="flex:1"></span><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
       <div class="rhits" id="rHits"></div>
       <div class="stscroll"><table class="sttab sess"><thead><tr><th>Started</th><th>Map</th><th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th id="rLastH">Best score</th></tr></thead><tbody id="rBody"></tbody></table></div>
       <div id="rMoreW"></div>
@@ -6024,7 +6095,7 @@ function renderRoundBar(box, R, cur, tkCell) {
   // the list itself (also on its own while typing in "Find a player", so the box keeps the focus)
   const body = () => {
     const q = (session.find || '').trim().toLowerCase(), has = r => !q || (r.sum?.P || []).some(p => p.name.toLowerCase().includes(q));
-    const F = L.filter(r => (!session.mapF || r.sum?.map === session.mapF) && has(r)), n = session.listN || 40;
+    const F = L.filter(r => (!session.srvF || r.sum?.server === session.srvF) && (!session.mapF || r.sum?.map === session.mapF) && has(r)), n = session.listN || 40;
     let rows = '', last = null;
     for (const x of F.slice(0, n)) {
       const sx = x.sum, d = dayKey(sx?.date);
@@ -6051,6 +6122,7 @@ function renderRoundBar(box, R, cur, tkCell) {
   const go = d => { const x = L[ci + d]; if (x) { closePlayerPage(); openServerRound(x); } };
   $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1);
   const ms = $('#rMap'); if (ms) ms.onchange = () => { session.mapF = ms.value; session.listN = 40; body(); };
+  const ss = $('#rSrv'); if (ss) ss.onchange = () => { session.srvF = ss.value; session.listN = 40; body(); renderSessPlayers(L.length, 0); };
   $('#rFind').oninput = e => { session.find = e.target.value; session.listN = 40; body(); };
   $('#sessCsvR').onclick = csvSessionRounds;
 }
@@ -6067,7 +6139,8 @@ function renderSessPlayers(nDone, busy) {
   const cell = (p, k) => k === 'name' ? `<button class="plink t${p.teams[0] >= p.teams[1] ? 0 : 1}" data-nick="${esc(p.nick)}" title="His page: all his rounds">${esc(p.name)}</button>${p.teams[0] && p.teams[1] ? ' <span class="w" title="Played on both sides">⇄</span>' : ''}`
     : k === 'kd' ? (p.k / Math.max(1, p.d)).toFixed(2) : k === 'alive' ? fmt(p.alive) : k === 'long' ? (p.long ? p.long + ' m' : '–') : k === 'hs' ? (p.hs ? `${p.hs} <span class="w">${Math.round(p.hs / Math.max(1, p.k) * 100)}%</span>` : '–') : k === 'streak' ? (p.streak || '–') : (p[k] || (k === 'score' || k === 'wins' ? 0 : '–'));
   const SG = { kVeh: 'veh', rev: 'med', heal: 'med', rep: 'med', streak: 'more', long: 'more', alive: 'more' }, SC = SESS_COLS.filter(([k]) => pview.groups.has(SG[k] || 'main'));
-  pbox.innerHTML = `<div class="sesshead"><h2>Players over ${nDone} round${nDone === 1 ? '' : 's'} <span class="w">${P.length} players${busy ? ' · still adding up' : ''}</span></h2>${pgroupChips()}<div class="chips"><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button></div></div>
+  if (session.srvF) nDone = sessRoundsByDate(session.srvF).length;
+  pbox.innerHTML = `<div class="sesshead"><h2>Players over ${nDone} round${nDone === 1 ? '' : 's'} <span class="w">${session.srvF ? esc(session.srvF) + ' · ' : ''}${P.length} players${busy ? ' · still adding up' : ''}</span></h2>${pgroupChips()}<div class="chips"><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button></div></div>
     <div class="stscroll"><table class="sttab sessp"><thead><tr>${SC.map(([k, label, n]) => `<th class="${n ? 'n' : ''}${session.sort === k ? ' on' : ''}" data-k="${k}" aria-sort="${session.sort === k ? (session.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button class="sortb">${esc(label)}${session.sort === k ? (session.dir < 0 ? ' ▾' : ' ▴') : ''}</button></th>`).join('')}</tr></thead><tbody>
     ${P.map(p => `<tr>${SC.map(([k, label, n]) => `<td class="${n ? 'n' : ''}"${n ? ` data-l="${esc(label)}"` : ''}>${cell(p, k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
     <p class="stnote">Name colour: the side played most (⇄ played on both); a name opens his page. One player under several clan tags is one row. ≈ Score by the game's rules from what the demos show. Won: rounds that ended with more tickets on his side. Click a column to sort.</p>`;
@@ -6082,7 +6155,7 @@ function renderSessPlayers(nDone, busy) {
 // link previews: /p/<nickSlug>).
 function nickOf(name) { const s = String(name || '').trim(); return /^Player \d+$/.test(s) ? s : s.split(/\s+/).pop(); }
 function nickSlug(nick) { const s = nick.replace(/[^A-Za-z0-9_.-]+/g, '_'); if (s === nick) return s; let h = 0x811c9dc5; for (const ch of nick) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return s + '-' + h.toString(16).padStart(8, '0').slice(0, 6); }
-function sessRoundsByDate() { return session ? session.rounds.filter(r => r.status === 'done' && r.sum && !r.sum.empty).sort((a, b) => String(b.sum.date || b.name).localeCompare(String(a.sum.date || a.name))) : []; }
+function sessRoundsByDate(srv) { return session ? session.rounds.filter(r => r.status === 'done' && r.sum && !r.sum.empty && (!srv || r.sum.server === srv)).sort((a, b) => String(b.sum.date || b.name).localeCompare(String(a.sum.date || a.name))) : []; }
 // his rounds, newest first: { r, p (his line in the round's summary) }
 function playerRounds(nick) { const out = []; for (const r of sessRoundsByDate()) { const p = (r.sum.P || []).find(q => nickOf(q.name) === nick); if (p) out.push({ r, p }); } return out; }
 const ppage = { nick: null, all: false };

@@ -9,8 +9,8 @@
 # BF2R_GIT_KEY the deploy key's file (default /root/.ssh/GitHub_bf2_repo; made if missing, an existing one is used)
 # BF2R_DOMAIN  the site's name (HTTPS certificate from Let's Encrypt, automatic); empty = plain http on the IP
 # BF2R_BRANCH  default main
-# BF2R_FETCH_URLS   pages that list a game server's demos (space separated): new demos are downloaded once a day,
-#                   rounds with players decoded, empty ones dropped
+# BF2R_FETCH_URLS   where the demos are (space separated): pages that list them, or game servers' IPs (asked for
+#                   their demo page): new demos are downloaded once a day, rounds with players decoded, empty ones dropped
 # BF2R_FETCH_AT     HH:MM, when (server clock; default 05:30)
 # BF2R_FETCH_SINCE  YYYY-MM-DD: don't download demos recorded before this day (empty = all the page lists)
 # BF2R_FETCH_MAX    at most so many downloads a day (default 0 = no limit)
