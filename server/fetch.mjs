@@ -16,7 +16,9 @@
 //                         - a game server: its IP or name, with :port if not the usual (its game port 16567 or its query
 //                           port, 29900 by default) - asked (GameSpy query, UDP) for the demo page its settings name
 //                           (sv.demoIndexURL / sv.demoDownloadURL); when it doesn't answer: its web server, http://IP/
+//                         A page filed by month: {YYYY-MM} in the address (read for this month and the last).
 //                         Which server a round comes from is in the demo itself (its name), so the site tells them apart.
+//                         All pages are read first, then the new demos are downloaded newest first over all of them.
 //   BF2R_FETCH_SINCE      YYYY-MM-DD: skip demos recorded before this day (empty = all the page lists)
 //   BF2R_FETCH_MAX        at most this many downloads per run (0 = no limit, the default; the rest come on the next run)
 //   BF2R_FETCH_MIN_BYTES  skip smaller demos (empty 45-minute rounds are ~400 KB; default 0 = take all and let ingest
@@ -158,38 +160,53 @@ async function download(name, url, file) {
   } catch (e) { try { fs.unlinkSync(part); } catch (e2) {} throw e; }
 }
 
+// an address with {YYYY-MM} in it (a server that files its demos by month: http://1.2.3.4/archive/s01/{YYYY-MM}/) is
+// read for this month and the one before (UTC), so the start of a month misses nothing; {YYYY_MM} likewise
+function expand(entry) {
+  if (!/\{YYYY[-_]MM\}/.test(entry)) return [entry];
+  const now = new Date(), m = [0, 1].map(k => new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - k, 1)));
+  return m.map(d => entry.replace(/\{YYYY([-_])MM\}/g, (x, sep) => d.getUTCFullYear() + sep + String(d.getUTCMonth() + 1).padStart(2, '0')));
+}
+// when a demo was recorded, for the order: its name's date and time (auto_2026_10_15_21_00_00), else its name
+const whenKey = n => { const m = /(20\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)/.exec(n); return m ? m.slice(1).join('') : n; };
+
 async function main() {
-  const entries = PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS;
+  const entries = (PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS).flatMap(expand);
   if (!entries.length) { log('no BF2R_FETCH_URLS set: nothing to fetch'); return; }
   if (!PROBE) { fs.mkdirSync(INC, { recursive: true }); fs.mkdirSync(path.dirname(STATE), { recursive: true }); }
   const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, failed: 0 };
   const report = () => LIST
     ? log(`would download ${n.would} demos${n.wouldBytes ? ', ~' + mb(n.wouldBytes) : ''}; still being written ${n.busy}; skipped (BF2R_FETCH_SINCE / MIN_BYTES) ${n.skipped}; free on disk ${mb(freeBytes())}`)
     : log(`fetched ${n.got} demos (${mb(n.bytes)}); still being written ${n.busy} (next run); skipped ${n.skipped}` + (n.failed ? `; failed ${n.failed} (tried again next run)` : ''));
-  pages: for (const entry of entries) {
+  // 1. every page: what it lists that is new
+  const todo = [];
+  for (const entry of entries) {
     const src = await source(entry);
     if (!src.page) { log(src.label, '-', src.note); continue; }
     const where = src.label === src.page ? src.page : `${src.label} -> ${src.page}`;
     let found;
     try { found = await links(src.page, src.dl); } catch (e) { log('could not read', where, '-', e.message); continue; }
-    if (PROBE) { const names = [...found.keys()].sort(); log(where, '-', found.size, 'demos listed', names.length ? `(newest: ${names[names.length - 1]})` : ''); continue; }
-    // newest first (the names start with the date), so a fresh round shows up before an old backlog
-    const todo = [...found].filter(([nm, u]) => !seenAt(nm, u) && !(SINCE && nameDay(nm) && nameDay(nm) < SINCE)).sort((a, b) => b[0].localeCompare(a[0]));
-    log(where, '-', found.size, 'demos listed,', todo.length, 'new');
-    for (const [name, url] of todo) {
-      if (MAX && n.got + n.would >= MAX) { log('limit of', MAX, 'per run reached (BF2R_FETCH_MAX); the rest next run'); break pages; }
-      try {
-        const file = fileFor(name, url), r = await download(name, url, file);
-        if (r === 'busy') { log('still being written:', name); n.busy++; continue; }
-        if (r?.would !== undefined) { log('would download', name, Number.isFinite(r.would) ? mb(r.would) : ''); n.would++; if (Number.isFinite(r.would)) n.wouldBytes += r.would; continue; }
-        if (r === 'full') { log(`stopped: less than ${(MIN_FREE / 2 ** 30).toFixed(1)} GB free on the disk (BF2R_MIN_FREE_GB); ${name} and older ones next run`); break pages; }
-        if (r === 'old' || r === 'small') { if (!LIST) { seen[url] = { skipped: r, at: new Date().toISOString() }; save(); } n.skipped++; continue; }
-        seen[url] = { file, bytes: r, from: url, at: new Date().toISOString() }; taken.add(file); save(); n.got++; n.bytes += r;
-        log('fetched', file === name ? name : `${name} as ${file}`, mb(r));
-        if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
-      } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
-    }
+    if (PROBE) { const names = [...found.keys()].sort((x, y) => whenKey(x).localeCompare(whenKey(y))); log(where, '-', found.size, 'demos listed', names.length ? `(oldest: ${names[0]}, newest: ${names[names.length - 1]})` : ''); continue; }
+    const fresh = [...found].filter(([nm, u]) => !seenAt(nm, u) && !(SINCE && nameDay(nm) && nameDay(nm) < SINCE));
+    log(where, '-', found.size, 'demos listed,', fresh.length, 'new');
+    for (const [name, url] of fresh) todo.push({ name, url });
   }
-  if (!PROBE) report();
+  if (PROBE) return;
+  // 2. newest first over all the servers, so fresh rounds from each show up before any old backlog
+  todo.sort((a, b) => whenKey(b.name).localeCompare(whenKey(a.name)));
+  for (const { name, url } of todo) {
+    if (MAX && n.got + n.would >= MAX) { log('limit of', MAX, 'per run reached (BF2R_FETCH_MAX); the rest next run'); break; }
+    try {
+      const file = fileFor(name, url), r = await download(name, url, file);
+      if (r === 'busy') { log('still being written:', name); n.busy++; continue; }
+      if (r?.would !== undefined) { log('would download', name, Number.isFinite(r.would) ? mb(r.would) : ''); n.would++; if (Number.isFinite(r.would)) n.wouldBytes += r.would; continue; }
+      if (r === 'full') { log(`stopped: less than ${(MIN_FREE / 2 ** 30).toFixed(1)} GB free on the disk (BF2R_MIN_FREE_GB); ${name} and older ones next run`); break; }
+      if (r === 'old' || r === 'small') { if (!LIST) { seen[url] = { skipped: r, at: new Date().toISOString() }; save(); } n.skipped++; continue; }
+      seen[url] = { file, bytes: r, from: url, at: new Date().toISOString() }; taken.add(file); save(); n.got++; n.bytes += r;
+      log('fetched', file === name ? name : `${name} as ${file}`, mb(r), `(${hostOf(url)})`);
+      if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
+    } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
+  }
+  report();
 }
 main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });

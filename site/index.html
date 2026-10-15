@@ -36,6 +36,7 @@
   --wreck: #4a3a31;   /* a destroyed vehicle: charred body under the flames */
   --stance-ink: #0e120f;   /* the stance figure inside a soldier marker */
   --blast: #ff8a3d;
+  --spot: #ff3b2f;   /* spotted: the game's red */
   --warn-bg: rgba(226,181,71,.12);
   --medic: #6fd38a;
   --hp-low: #ff4d4d;
@@ -52,7 +53,7 @@
 :root[data-theme="light"] {
   --bg: #e9ede4; --panel: #f6f8f2; --panel-2: #eef2e8; --line: #cfd8c9;
   --fg: #1a231d; --muted: #5d6b5c; --accent: #a87a0c;
-  --mec: #d8401f; --us: #1f6fd6; --neutral: #6c7468; --veh-empty: #858a83; --wreck: #3d2f27; --stance-ink: #ffffff; --blast: #c9581a; --warn-bg: rgba(168,122,12,.12);
+  --mec: #d8401f; --us: #1f6fd6; --neutral: #6c7468; --veh-empty: #858a83; --wreck: #3d2f27; --stance-ink: #ffffff; --blast: #c9581a; --spot: #e0281c; --warn-bg: rgba(168,122,12,.12);
   --medic: #1f8a46; --hp-low: #c62828;
   --hit-head: #eda100; --hit-body: #1baf7a; --hit-limb: #4a3aa7;
   --bld-fill: rgba(40, 44, 38, .32); --bld-line: rgba(18, 22, 16, .85); --bld-roof: rgba(40, 44, 38, .16);
@@ -547,7 +548,7 @@ body.mbar-on { padding-bottom: 72px; }
 <div class="wrap" id="app">
   <header class="top">
     <div class="brand">
-      <h1>BF2 <b>Round</b> Replay</h1>
+      <h1 title="Viewer v80">BF2 <b>Round</b> Replay</h1>
       <span id="srcLabel">Sample round</span>
     </div>
     <div class="actions">
@@ -592,7 +593,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
           <button class="btn on" id="tSpots">Spots</button>
-          <button class="btn on" id="tBlast" title="Grenades and rockets in flight, blast radius where they go off, placed C4 / claymores / AT mines">Explosions</button>
+          <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines">Explosions</button>
           <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
@@ -1809,6 +1810,10 @@ function vehDuels() {
 // Test 7: the user's 10 spots all his (9 named, 1 probably: the T-90 18° off his view); the bot's 4 (it spots by
 // sight, not by aim): 2 probably, 2 not known. =FL= 20:37 + 21:23 + 19:52, 1189 spots: v77 (nearest line of sight,
 // nobody else within 10°) named 57%; now 61% named, 11% probably, 24% one of two, 4% not known.
+// on the map: a spot shows SPOT_SHOW s (fading over the last 1.5 s), who spotted it SPOT_LABEL s. The demo doesn't say how
+// long the game keeps it (it is the players' screens' business) - v76-v79 showed 10 s, too long by Sagara's eye; =FL=
+// 20:37 + 21:23 + 19:52: the same target is spotted again most often 3-5 s after (then 6-9 s, few after 10 s).
+const SPOT_SHOW = 5, SPOT_LABEL = 3;
 const SPOT_BACK = 1.5, SPOT_AFTER = 0.5, SPOT_CONE = 30, SPOT_LAG = 4, SPOT_VTOL = 2, SPOT_K = 22.5, SPOT_TAIL = 0.25, SPOT_BLIND = 0.3, SPOT_ELSE = 0.1, DEG = 180 / Math.PI;
 // by what was spotted: [m to the side that count as on it, band under and over its position (m), spread of the miss (°)]
 const SPOT_KIND = { sold: [0.6, -1.0, 0.8, 1.5], veh: [2.5, -1.0, 2.0, 4], point: [0.5, -0.3, 12, 1.5] };
@@ -1995,9 +2000,12 @@ const cvCtx = cx;
 const EXPLOSIVE_DMG = { 'Grenade': 140, 'C4': 1000, 'AT mine': 2500, 'Claymore': 200, 'M203': 150, 'GP-30': 150, 'GP-25': 150, 'F2000 GL': 150, 'SA80 GL': 150 };
 const lethalR = e => { const dmg = EXPLOSIVE_DMG[e.kind]; return dmg > 100 && e.r ? e.r * (1 - 100 / dmg) : 0; };
 const MISSILES = new Set(['SRAW', 'Eryx', 'TOW']);
-// Tank and APC cannon shells are not sent in the demo (only grenades and missiles are objects); a kill with a vehicle's
-// cannon gives the shot: from the vehicle to the victim, flying at the shell's speed (game files: T-90 / M1A2 150 m/s,
-// BTR-90 / LAV-25 cannon 375 m/s), hitting at the moment of the kill, and the shell's blast there (5 / 3.5 m)
+// Tank and APC cannon shells are not sent in the demo (only grenades and missiles are objects), so a shell shows only
+// where it hit something: a kill with a vehicle's cannon gives the shot from the vehicle to the victim; a hit on a vehicle
+// (vehHits: its hit points dropped with an enemy tank's or APC's gun on it - from a tank 15% or more, its main gun; less
+// is its machine gun) from the gun to the vehicle hit. The shell flies at its speed (game files: T-90 / M1A2 150 m/s,
+// BTR-90 / LAV-25 cannon 375 m/s), hits at the moment of the kill or the hit, and its blast is shown there (5 / 3.5 m).
+// A shell that hit nothing leaves no trace in the demo.
 function shotsOf(R) {
   if (R._shots) return R._shots;
   const out = [];
@@ -2007,7 +2015,30 @@ function shotsOf(R) {
     const tank = /T-90|M1A2|Type 98/.test(e.weapon), vi = R.pidx.get(e.kv); if (vi === undefined) continue;
     out.push({ t: e.t, kv: e.kv, vi, killer: e.killer, w: e.weapon, x: e.x, y: e.y, speed: tank ? 150 : 375, r: tank ? 5 : 3.5 });
   }
+  for (const h of vehHits()) {
+    if (h.via !== 'gun' || !h.from || h.by == null) continue;
+    const vi = R.players.findIndex(p => p.vehicle && p.name === h.from); if (vi < 0) continue;
+    const cls = vehClass(vi); if (!(cls === 'tank' && h.dmg >= 15) && cls !== 'apc') continue;
+    if (out.some(o => o.vi === vi && Math.abs(o.t - h.t) < 0.3)) continue;   // (the same shell killed someone inside)
+    const o = playerAt(h.v, h.t); if (!Number.isFinite(o.x)) continue;
+    out.push({ t: h.t, vi, killer: R.players[h.by].id, w: h.from + ' cannon', x: o.x, y: o.y, speed: cls === 'tank' ? 150 : 375, r: cls === 'tank' ? 5 : 3.5 });
+  }
+  out.sort((a, b) => a.t - b.t);
   return (R._shots = out);
+}
+// Where a claymore faces: the way its owner looked as he put it down (the game throws it 0-6 m ahead of him). It goes off
+// in a fan (object files: explosionConeAngle 45, explosionRadius 15; it is set off by an enemy within 7 m and 30° of its
+// face). =FL= 20:37, 21:23, 19:52: the 17 soldiers its blast killed stood 0-43° off that way (one 48°, 1.9 m from it).
+const CLAY_HALF = Math.PI / 4, CLAY_TRIG = [7, Math.PI / 6], clayCache = new WeakMap();
+function clayFace(e) {
+  if (clayCache.has(e)) return clayCache.get(e);
+  let f = null; const i = e.by != null ? round.pidx.get(e.by) : undefined;
+  if (i !== undefined) {
+    let th = null;
+    for (const w of round.events) { if (w.t > e.t + 0.05) break; if (w.type === 'throw' && w.kind === 'Claymore' && w.by === e.by && w.path?.length && w.t1 <= e.t + 0.05) { const z = w.path[w.path.length - 1]; if (Math.hypot(z[1] - e.x, z[2] - e.y) < 0.5) th = w; } }
+    if (th) { const q = playerAt(i, th.path[0][0]); if (q.alive && Number.isFinite(q.yaw)) f = q.yaw; }
+  }
+  clayCache.set(e, f); return f;
 }
 function draw() {
   if (!round) return;
@@ -2226,8 +2257,9 @@ function draw() {
       if (p.vehicle) { cx.strokeStyle = wreck ? css('--wreck') : col; cx.lineWidth = 2.5; cx.beginPath(); cx.moveTo(0,-7); cx.lineTo(0,-13); cx.stroke(); }
       cx.restore();
       if (p.vehicle && !wreck && q.mg != null) drawRoofGun(px, py, 20, q.mg, col);
-      // standing, walking, running, sprinting, crouching or prone: a figure inside the disc, facing his way on the map
-      if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) { const k = figKey(sn, q); drawStance(k, px, py, 1.08, css('--stance-ink'), figFace(k, q.yaw)); } }
+      // standing, walking, running, sprinting, crouching or prone: a figure inside the disc, facing his way on the map;
+      // moving upright, also 1 / 2 / 3 speed streaks (walk / run / sprint) behind the disc, against the way he moves
+      if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) { const k = figKey(sn, q); drawStance(k, px, py, 1.3, css('--stance-ink'), figFace(k, q.yaw)); if (MOVE_FIG[k]) moveStreaks(i, q, px, py, k, col); } }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
     }
     if (sel===i) { cx.strokeStyle = css('--accent'); cx.lineWidth = 2; cx.beginPath(); cx.arc(px,py,p.vehicle ? 14 : 17,0,Math.PI*2); cx.stroke(); }
@@ -2259,6 +2291,20 @@ function draw() {
   if (opts.blasts) {
     const pm = m => m / view.span * size, colOf = by => { const i = by == null ? undefined : round.pidx.get(by); return i === undefined ? css('--accent') : teamColor(teamOf(i, t)); };
     const tag = (txt, x, y, col) => { cx.font = '500 10px ' + css('--font-data'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(txt, x, y); cx.fillStyle = col; cx.fillText(txt, x, y); };
+    const labels = sel !== null || view.span <= 500;   // (distances and weapon names only zoomed in or following someone)
+    // a blast where it went off, over dur s: a white-hot flash, a fire ball growing to the blast radius R and fading, a
+    // dashed ring at R and (Rk) the part where it kills a soldier with full health; fan: [facing, half angle] (claymore)
+    const splash = (qx, qy, R, age, dur, fan, Rk) => {
+      const a = 1 - age / dur, grow = age < 0.25 ? 0.4 + 2.4 * age : 1, Rg = R * grow;
+      const shape = r => { cx.beginPath(); if (fan) { cx.moveTo(qx, qy); cx.arc(qx, qy, r, fan[0] - fan[1] - Math.PI / 2, fan[0] + fan[1] - Math.PI / 2); cx.closePath(); } else cx.arc(qx, qy, r, 0, Math.PI * 2); };
+      const g = cx.createRadialGradient(qx, qy, 0, qx, qy, Rg);
+      g.addColorStop(0, `rgba(255,200,90,${0.6 * a})`); g.addColorStop(0.65, `rgba(255,120,40,${0.32 * a})`); g.addColorStop(1, 'rgba(255,90,30,0)');
+      cx.fillStyle = g; shape(Rg); cx.fill();
+      if (age < 0.3) { cx.fillStyle = `rgba(255,248,215,${0.9 * (1 - age / 0.3)})`; shape(Math.max(4, R * 0.3)); cx.fill(); }
+      cx.globalAlpha = a; cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.setLineDash([5, 4]); shape(R); cx.stroke(); cx.setLineDash([]);
+      if (Rk) { cx.fillStyle = `rgba(255,70,30,${0.38 * a})`; shape(Rk * grow); cx.fill(); cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.stroke(); }
+      cx.globalAlpha = 1;
+    };
     for (const e of round.events) {
       if (e.t > t) break;
       if (e.type === 'throw' && e.path?.length && (t < e.t1 || (MISSILES.has(e.kind) && t < e.t1 + 3))) {
@@ -2275,6 +2321,9 @@ function draw() {
         cx.stroke(); cx.setLineDash([]);
         if (after) {
           cx.globalAlpha = 1; head = null;
+          // (a missile: what it was and how far it flew from where it was fired, by where it went off, for 1.5 s)
+          const z = e.path[e.path.length - 1], z0 = e.path[0];
+          if (msl && labels && t < e.t1 + 1.5) { const [zx, zy] = toC(z[1], z[2]); tag(`${e.kind} · ${Math.round(Math.hypot(z[1] - z0[1], z[2] - z0[2]))} m`, zx + Math.max(7, pm(EXPLOSIVE_R[e.kind] || 2)) + 4, zy + 3, col); }
         }
         if (head) {
           const [qx, qy] = toC(head[1], head[2]);
@@ -2282,34 +2331,36 @@ function draw() {
             const k = e.path.findIndex(o => o[0] > t), p0 = e.path[Math.max(0, (k < 0 ? e.path.length : k) - 2)], [ax, ay] = toC(p0[1], p0[2]), ang = Math.atan2(qy - ay, qx - ax);
             cx.save(); cx.translate(qx, qy); cx.rotate(ang); cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1;
             cx.beginPath(); cx.moveTo(6, 0); cx.lineTo(-5, -3.5); cx.lineTo(-3, 0); cx.lineTo(-5, 3.5); cx.closePath(); cx.fill(); cx.stroke(); cx.restore();
-          } else if (e.kind === 'Grenade') {   // a live grenade: the game's grenade icon in the middle of the radius it will hit
-            cx.strokeStyle = css('--blast'); cx.lineWidth = 1.2; cx.setLineDash([4, 3]); cx.beginPath(); cx.arc(qx, qy, Math.max(6, pm(EXPLOSIVE_R.Grenade)), 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]);
+          } else if (e.kind === 'Grenade') {   // a live grenade: the game's icon, and how far it is from where it was thrown
             if (!drawIcon('xGrenade', qx, qy, 15)) { cx.fillStyle = col; cx.beginPath(); cx.arc(qx, qy, 3, 0, Math.PI * 2); cx.fill(); }
+            if (labels) tag(Math.round(Math.hypot(head[1] - e.path[0][1], head[2] - e.path[0][2])) + ' m', qx + 9, qy + 3, col);
           } else { cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1; cx.beginPath(); cx.arc(qx, qy, 3, 0, Math.PI * 2); cx.fill(); cx.stroke(); }
         }
+      } else if (e.type === 'throw' && e.kind === 'Grenade' && e.path?.length && t < e.t1 + 1.5) {
+        if (labels) { const z = e.path[e.path.length - 1], [zx, zy] = toC(z[1], z[2]); tag(Math.round(Math.hypot(z[1] - e.path[0][1], z[2] - e.path[0][2])) + ' m', zx + Math.max(9, pm(e.r || 9) * 0.35) + 4, zy + 3, colOf(e.by)); }
       } else if (e.type === 'charge' && t <= (e.until ?? e.t + 10)) {
         // a C4 / claymore / mine lying where it was put, as long as it is there (the game's kit icon, framed in the colour
-        // of the team that put it)
+        // of the team that put it); a claymore's face: the fan where an enemy sets it off (7 m, 30° each side), zoomed in
         const [qx, qy] = toC(e.x, e.y), col = colOf(e.by), key = { 'C4': 'xC4', 'Claymore': 'xClaymore', 'AT mine': 'xMine' }[e.kind];
         cx.globalAlpha = e.until ? 1 : Math.min(1, 1.2 - (t - e.t) / 10);
+        const fc = e.kind === 'Claymore' && view.span <= 400 ? clayFace(e) : null;
+        if (fc != null) {
+          const r = pm(CLAY_TRIG[0]), a0 = fc - CLAY_TRIG[1] - Math.PI / 2, a1 = fc + CLAY_TRIG[1] - Math.PI / 2;
+          cx.save(); cx.globalAlpha *= 0.8; cx.fillStyle = rgbaOf(col, 0.12) || col; cx.strokeStyle = col; cx.lineWidth = 1; cx.setLineDash([3, 3]);
+          cx.beginPath(); cx.moveTo(qx, qy); cx.arc(qx, qy, r, a0, a1); cx.closePath(); if (rgbaOf(col, 0.12)) cx.fill(); cx.stroke(); cx.restore();
+        }
         cx.fillStyle = col; cx.fillRect(qx - 9, qy - 9, 18, 18);
         if (!key || !drawIcon(key, qx, qy, 15)) { cx.fillStyle = css('--bg'); cx.fillRect(qx - 3.5, qy - 3.5, 7, 7); }
         cx.globalAlpha = 1;
       } else if (e.type === 'blast' && t - e.t <= 2) {
-        const age = t - e.t, a = 1 - age / 2, [qx, qy] = toC(e.x, e.y), R = Math.max(4, pm(e.r)), Rg = R * (age < 0.25 ? 0.4 + 2.4 * age : 1);
-        const g = cx.createRadialGradient(qx, qy, 0, qx, qy, Rg);
-        g.addColorStop(0, `rgba(255,200,90,${0.6 * a})`); g.addColorStop(0.65, `rgba(255,120,40,${0.32 * a})`); g.addColorStop(1, 'rgba(255,90,30,0)');
-        cx.fillStyle = g; cx.beginPath(); cx.arc(qx, qy, Rg, 0, Math.PI * 2); cx.fill();
-        cx.globalAlpha = a; cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.setLineDash([5, 4]); cx.beginPath(); cx.arc(qx, qy, R, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]);
-        // where it kills a soldier with full health (inside) and where it only wounds (out to the dashed ring)
-        const lr = lethalR(e), Rk = lr ? Math.max(3, pm(lr)) * (Rg / R) : 0;
-        if (Rk) { cx.fillStyle = `rgba(255,70,30,${0.38 * a})`; cx.beginPath(); cx.arc(qx, qy, Rk, 0, Math.PI * 2); cx.fill(); cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.stroke(); }
-        cx.globalAlpha = 1;
+        // (a rocket's 2 m drawn at least 7 px across the middle; a claymore as its fan, when its face is known)
+        const [qx, qy] = toC(e.x, e.y), R = Math.max(MISSILES.has(e.kind) ? 7 : 4, pm(e.r)), lr = lethalR(e), fc = e.kind === 'Claymore' ? clayFace(e) : null;
+        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr ? Math.max(3, pm(lr)) : 0);
       }
     }
-    // tank / APC cannon shots that killed (shotsOf): the shell flies from the gun at its real speed (most kills are
-    // 7-65 m away, so 0.02-0.4 s), drawing its line; the line from the gun to the hit then stays 2 s, fading, with the
-    // shell's blast for the first 0.8 s
+    // tank / APC cannon shells that hit (shotsOf: a kill, or a vehicle hit): the shell flies from the gun at its real speed
+    // (most kills are 7-65 m away, so 0.02-0.4 s), drawing its line; the line from the gun to the hit then stays 2 s,
+    // fading, with the shell's blast (splash) for the first 1.2 s
     for (const o of shotsOf(round)) {
       if (o.t - t > 3.2 || t - o.t > 2) continue;
       if (o.fly == null) {   // where the gun was when it fired (the vehicle moves while the shell flies)
@@ -2327,9 +2378,9 @@ function draw() {
       } else {
         const age = t - o.t;
         cx.globalAlpha = 0.7 * (1 - age / 2); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(bx, by); cx.stroke();
-        if (age < 0.8) { const R = Math.max(4, pm(o.r)); cx.globalAlpha = 1 - age / 0.8; cx.fillStyle = 'rgba(255,150,60,0.35)'; cx.beginPath(); cx.arc(bx, by, R, 0, Math.PI * 2); cx.fill(); cx.strokeStyle = css('--blast'); cx.stroke(); }
         cx.globalAlpha = 1;
-        if (age < 1.5 && (sel !== null || view.span <= 500)) tag(`${o.w} · ${o.dist} m`, bx + Math.max(4, pm(o.r)) + 4, by + 3, col);
+        if (age < 1.2) splash(bx, by, Math.max(6, pm(o.r)), age, 1.2);
+        if (age < 1.5 && labels) tag(`${o.w} · ${o.dist} m`, bx + Math.max(6, pm(o.r)) + 4, by + 3, col);
       }
     }
   }
@@ -2395,30 +2446,60 @@ function draw() {
       }
     }
   }
-  // spotted markers (drawn last, on top): on the spotted soldier or vehicle for 10 s, colour of the team that spotted
+  // spotted markers (drawn last, on top), as in the game: red. A spotted soldier or vehicle: a red ring on its marker with
+  // a red pointer over it (a pulse as it comes), until the spot runs out or it dies; with nothing under the crosshair: the
+  // game's red question mark on the point. Who spotted ("SPOTTED BY", in the colour of the side that spotted) and the
+  // dashed line from him for the first SPOT_LABEL s. A newer spot of the same target takes over.
   if (opts.spots) {
+    const red = css('--spot'), last = new Map(), shown = [];
     for (const e of round.events) {
-      if (e.t > t) break; if (e.type !== 'spot') continue;
-      const age = t - e.t; if (age > 10) continue;
-      // on the spotted soldier or vehicle; with nothing under the crosshair, a smaller dashed one on the point
-      const i = e.target != null ? round.pidx.get(e.target) : undefined; let q = null;
-      if (i !== undefined) { q = playerAt(i, t); if (!q || q.x === undefined) continue; } else if (e.x != null) q = { x: e.x, y: e.y }; else continue;
-      const [px, py] = toC(q.x, q.y), a = 1 - age / 10, r = (i !== undefined ? 15 : 10) + (age < 1.5 ? 6 * (1 - age / 1.5) : 0), col = teamColor(e.team);
-      const sp = round.meta.source === 'demo' && age < 4 ? spotterOf(e) : null;
-      if (sp && age < 4) {   // a dashed line from the spotter to it (fainter when only probably him; from both of two)
-        for (const [k, a] of [[sp.i, sp.sure ? 0.6 : 0.4], ...(sp.alt ? [[sp.alt.i, 0.4]] : [])]) {
+      if (e.t > t) break; if (e.type !== 'spot' || t - e.t > SPOT_SHOW) continue;
+      if (e.target != null) { const k = e.target + ':' + e.team, o = last.get(k); if (o !== undefined) shown[o] = null; last.set(k, shown.length); }
+      shown.push(e);
+    }
+    for (const e of shown) {
+      if (!e) continue;
+      const age = t - e.t, a = Math.min(1, (SPOT_SHOW - age) / 1.5), col = teamColor(e.team);
+      const i = e.target != null ? round.pidx.get(e.target) : undefined; let q = null, r = 0;
+      if (i !== undefined) {
+        q = playerAt(i, t); if (!q || !q.alive || !Number.isFinite(q.x)) continue;
+        const vk = round.players[i].vehicle ? vehIconKey(round.players[i]) : null;
+        r = round.players[i].vehicle ? (vk && GAME.icons[vk] ? Math.max(16, Math.max(GAME.icons[vk][2], GAME.icons[vk][3]) * 1.8) / 2 + 4 : 18) : 15;
+      } else if (e.x != null) q = { x: e.x, y: e.y }; else continue;
+      const [px, py] = toC(q.x, q.y);
+      const sp = round.meta.source === 'demo' && age < SPOT_LABEL ? spotterOf(e) : null;
+      if (sp) {   // a dashed line from the spotter to it (fainter when only probably him; from both of two)
+        for (const [k, al] of [[sp.i, sp.sure ? 0.6 : 0.4], ...(sp.alt ? [[sp.alt.i, 0.4]] : [])]) {
           const o = playerAt(k, Math.min(t, e.t + 0.1)), [sx, sy] = toC(o.x, o.y);
-          cx.globalAlpha = a * (1 - age / 4); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.setLineDash([3, 4]); cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(px, py); cx.stroke(); cx.setLineDash([]);
+          cx.globalAlpha = al * (1 - age / SPOT_LABEL); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.setLineDash([3, 4]); cx.beginPath(); cx.moveTo(sx, sy); cx.lineTo(px, py); cx.stroke(); cx.setLineDash([]);
         }
       }
-      cx.globalAlpha = 0.3 + 0.7 * a; cx.strokeStyle = col; cx.lineWidth = 2.5; if (i === undefined) cx.setLineDash([4, 3]);
-      cx.beginPath(); cx.moveTo(px, py - r); cx.lineTo(px + r, py); cx.lineTo(px, py + r); cx.lineTo(px - r, py); cx.closePath(); cx.stroke(); cx.setLineDash([]);
-      cx.globalAlpha = 0.12 * a; cx.fillStyle = col; cx.fill(); cx.globalAlpha = 1;
-      if (age < 4) {
-        const lab = !sp ? 'SPOTTED' : 'SPOTTED · ' + round.players[sp.i].name + (sp.alt ? ' / ' + round.players[sp.alt.i].name + '?' : sp.sure ? '' : '?');
+      cx.globalAlpha = a;
+      if (age < 0.6) {   // the pulse
+        const u = age / 0.6; cx.strokeStyle = red; cx.lineWidth = 2; cx.globalAlpha = a * (1 - u);
+        cx.beginPath(); cx.arc(px, py, (i !== undefined ? r : 12) + 14 * (1 - u), 0, Math.PI * 2); cx.stroke(); cx.globalAlpha = a;
+      }
+      let top;
+      if (i !== undefined) {
+        cx.strokeStyle = css('--bg'); cx.lineWidth = 4.5; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
+        cx.strokeStyle = red; cx.lineWidth = 2.5; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
+        const ty = py - r - 3;   // the pointer
+        cx.fillStyle = red; cx.strokeStyle = css('--bg'); cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(px, ty); cx.lineTo(px - 5.5, ty - 8); cx.lineTo(px + 5.5, ty - 8); cx.closePath(); cx.stroke(); cx.fill();
+        top = ty - 11;
+      } else {
+        cx.font = '800 22px ' + css('--font-body'); cx.textAlign = 'center'; cx.textBaseline = 'middle';
+        cx.strokeStyle = 'rgba(0,0,0,.85)'; cx.lineWidth = 4; cx.lineJoin = 'round'; cx.strokeText('?', px, py); cx.fillStyle = red; cx.fillText('?', px, py);
+        cx.textAlign = 'start'; cx.textBaseline = 'alphabetic'; cx.lineJoin = 'miter';
+        top = py - 15;
+      }
+      cx.globalAlpha = 1;
+      if (age < SPOT_LABEL) {
+        const lab = !sp ? 'SPOTTED' : 'SPOTTED BY ' + round.players[sp.i].name + (sp.alt ? ' / ' + round.players[sp.alt.i].name + '?' : sp.sure ? '' : '?');
         cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText(lab).width;
-        cx.fillStyle = col; cx.fillRect(px - w / 2 - 3, py - r - 15, w + 6, 13);
-        cx.fillStyle = '#fff'; cx.fillText(lab, px - w / 2, py - r - 5);
+        cx.globalAlpha = Math.min(1, (SPOT_LABEL - age) / 0.5);
+        cx.fillStyle = col; cx.fillRect(px - w / 2 - 3, top - 13, w + 6, 13);
+        cx.fillStyle = '#fff'; cx.fillText(lab, px - w / 2, top - 3);
+        cx.globalAlpha = 1;
       }
     }
   }
@@ -3387,6 +3468,18 @@ function fillHeat() {
 // ---------- movement ----------
 // From the soldier's velocity (decoded with his position): standing still, walking, running (~3.5-3.9 m/s), sprinting
 // (~6.8 m/s), moving crouched, crawling, falling
+// speed streaks behind a soldier's marker: which way he moved over the last 0.3 s (on the map), n lines by figure k
+function moveStreaks(i, q, px, py, k, col) {
+  const q0 = playerAt(i, t - 0.3); if (!q0.alive || !Number.isFinite(q0.x)) return;
+  const dx = q.x - q0.x, dy = -(q.y - q0.y), L = Math.hypot(dx, dy); if (L < 0.15) return;
+  const ux = dx / L, uy = dy / L, n = k === 'sprint' ? 3 : k === 'run' ? 2 : 1, len = k === 'sprint' ? 9 : k === 'run' ? 7 : 5;
+  cx.save(); cx.strokeStyle = col; cx.lineWidth = 1.8; cx.lineCap = 'round'; cx.globalAlpha = 0.85;
+  for (let j = 0; j < n; j++) {
+    const o = (j - (n - 1) / 2) * 4.5, bx = px - ux * 13 - uy * o, by = py - uy * 13 + ux * o, back = j === (n - 1) / 2 ? 0 : 1.5;
+    cx.beginPath(); cx.moveTo(bx - ux * back, by - uy * back); cx.lineTo(bx - ux * (len + back), by - uy * (len + back)); cx.stroke();
+  }
+  cx.restore();
+}
 // the walking / running / sprinting figure before moveText (none standing still, crouched, prone or in the air)
 const moveIcon = (st, q) => { const k = figKey(st, q); return MOVE_FIG[k] ? figSvg(k, figFace(k, q.yaw)) + ' ' : ''; };
 function moveText(q, st) {
@@ -4267,7 +4360,7 @@ function updateNotice() {
   const n = $('#notice');
   if (source === 'json') { n.innerHTML = `<strong>Timeline loaded.</strong> Positions, kills and flags come from your JSON file.`; return; }
   if (source === 'demo' && (round.raw.stats || {}).players === 0) { n.innerHTML = `<strong>Decoded from the demo.</strong> Nobody spawned in this recording: the server was empty for the whole round, so there is nothing to replay.`; return; }
-  if (source === 'demo') { const st = round.raw.stats || {}; const pl = (k, w) => k + ' ' + w + (k === 1 ? '' : 's'); n.innerHTML = `<strong>Decoded from the demo.</strong> ${pl(st.players, 'player')}, ${pl(st.vehicles, 'vehicle')}, ${pl(st.kills, 'kill')} and ${pl(st.captures || 0, 'flag capture')} read straight from the Battle Recorder file. The decoder is experimental and was built from test rounds on Strike at Karkand and Gulf of Oman: soldiers, vehicles, names, kills, flags, weapons (${st.namedKills || 0} of ${st.kills} kills named), tickets, view direction, kits, health, ${pl(st.revives || 0, 'revive')}, ${pl(st.repairs || 0, 'repair')} and ${pl(st.throws || 0, 'grenade or rocket')} with their blast radius are decoded (placed C4, claymores and mines show where they lie; when one goes off is known only if it killed someone). Map pictures, flag names, team names and starting tickets of the 22 vanilla maps and the HUD icons come from the game files.`; return; }
+  if (source === 'demo') { const st = round.raw.stats || {}; const pl = (k, w) => k + ' ' + w + (k === 1 ? '' : 's'); n.innerHTML = `<strong>Decoded from the demo</strong> (viewer v80). ${pl(st.players, 'player')}, ${pl(st.vehicles, 'vehicle')}, ${pl(st.kills, 'kill')} and ${pl(st.captures || 0, 'flag capture')} read straight from the Battle Recorder file. The decoder is experimental and was built from test rounds on Strike at Karkand and Gulf of Oman: soldiers, vehicles, names, kills, flags, weapons (${st.namedKills || 0} of ${st.kills} kills named), tickets, view direction, kits, health, ${pl(st.revives || 0, 'revive')}, ${pl(st.repairs || 0, 'repair')} and ${pl(st.throws || 0, 'grenade or rocket')} with their blast radius are decoded (placed C4, claymores and mines show where they lie; when one goes off is known only if it killed someone). Map pictures, flag names, team names and starting tickets of the 22 vanilla maps and the HUD icons come from the game files.`; return; }
   if (demoHeader) n.innerHTML = `<strong>Header decoded, movement simulated.</strong> The map name, server and date below are read from your demo. The soldiers, kills and flag captures on the map are a generated round on that map, because the recorded game packets aren't decoded yet. Use it to explore the viewer, not as a record of the match.`;
   else n.innerHTML = `<strong>Sample round.</strong> Everything on the map is generated so you can try the viewer. Open a .bf2demo to read its header, or a timeline .json to replay real positions.`;
 }

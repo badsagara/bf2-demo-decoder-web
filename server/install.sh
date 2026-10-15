@@ -201,7 +201,8 @@ say "Timers"
 bash "$HERE/units.sh"
 systemctl daemon-reload
 systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer
-systemctl start bf2replay-ingest.service || true
+# (both in the background: with many demos waiting, decoding them takes hours, and install.sh must not wait for it)
+systemctl start --no-block bf2replay-ingest.service || true
 systemctl start --no-block bf2replay-fetch.service || true
 
 say "Done"
