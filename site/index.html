@@ -212,7 +212,8 @@ input[type=file] { display: none; }
 .hk-multi { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 .hk-long, .hk-above, .hk-gap { color: var(--fg); }
 .hk-back { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }
-.hk-veh { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }
+.hk-veh, .hk-duel { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }
+.hk-armor { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }
 .hk-flag { color: var(--muted); }
 .hk-revive { color: var(--medic); border-color: color-mix(in srgb, var(--medic) 55%, transparent); }
 .hs { color: var(--accent); vertical-align: -3px; margin: 0 3px 0 1px; }
@@ -1317,7 +1318,7 @@ function seenBy(i, tt) {
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
 // and wagons (bullets go through some), peeking round corners; BF2 destroys no cover but bridges and red barrels)
 const LOS = new Map();   // map key -> data, 'loading', or null (none for this map / failed)
-window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
+window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
 function losData() {
   const k = mapKey(), v = LOS.get(k);
   if (v === undefined) {
@@ -1481,6 +1482,189 @@ function engagement(e) {
   C.set(e, r); return r;
 }
 const ENG_TEXT = { first: 'saw him first', even: 'saw each other at once', second: 'was seen first', ambush: 'unseen (ambush)', blind: 'no clear sight' };
+// ---------- hits on vehicles, and who saw whom first there ----------
+// A hit: a vehicle's hit points falling by 4% of a new one or more within 0.3 s (frames of 0.1 s; smaller drops are left
+// out: small arms on a jeep, and the 2.5% every 0.5 s a vehicle loses in deep water or upside down). Who did it, the first
+// that fits: an AT rocket or missile going off within 8 m of it in that moment (SRAW, Eryx, TOW / HJ-8: its shooter,
+// via 'rocket'); an enemy gun pointing at it then or up to 0.7 s before (a tank's or APC's main gun, a roof gun, a firing
+// port, an emplacement - where it points is in the demo: its gunner, within 3° or 3 m to either side, out to 400 m,
+// via 'gun'); a kill of someone inside it at that moment (via 'kill'). Enemy: the other team than its crew (or the
+// crew it last had). Kept per round.
+const VHIT_MIN = 4, VHIT_JOIN = 0.3, VHIT_AT = new Set(['SRAW', 'Eryx', 'TOW']);
+const vhitRange = () => Math.min(400, fogRange() * 1.25);   // (a gun pointing at something it can't see past the fog: chance)
+const vehClass = j => ARMOR_KIND[vehIconKey(round.players[j])] || 'light';   // 'tank', 'apc', 'aa' or 'light' (jeeps)
+const VCLASS_NAME = { tank: 'tank', apc: 'APC', aa: 'AA vehicle', light: 'jeep' }, capFirst = x => x.charAt(0).toUpperCase() + x.slice(1);
+// the soldiers in vehicle j at tt
+const crewOf = (j, tt) => { const nm = round.players[j].name, out = []; round.players.forEach((p, i) => { if (p.vehicle) return; const q = playerAt(i, tt); if (q.alive && q.veh === nm) out.push(i); }); return out; };
+// its side: its crew's then, else the crew it had last (up to 30 s before); null for one nobody has used
+const vehTeam = (j, tt) => { for (let b = 0; b <= 30; b += b < 2 ? 0.5 : 3) { const c = crewOf(j, tt - b); if (c.length) return teamOf(c[0], tt - b); } return null; };
+function vehHits() {
+  const R = round; if (R._vh) return R._vh;
+  const out = [], n = R.n, F = R.times.length, pid = id => R.pidx.get(id);
+  if (!R.HP) return (R._vh = out);
+  const blasts = R.events.filter(e => e.type === 'blast' && VHIT_AT.has(e.kind)), throws = R.events.filter(e => e.type === 'throw' && VHIT_AT.has(e.kind));
+  const kills = R.events.filter(e => e.type === 'kill' && e.killer !== e.victim);
+  const gunners = R.players.map((p, i) => i).filter(i => !R.players[i].vehicle);
+  R.players.forEach((p, j) => {
+    if (!p.vehicle) return;
+    let cur = null;
+    const close = () => { if (cur && cur.dmg >= VHIT_MIN) out.push(cur); cur = null; };
+    for (let f = 1; f < F; f++) {
+      const a = (f - 1) * n + j, b = f * n + j;
+      if (!R.L[a] || !R.L[b]) { close(); continue; }
+      const h0 = R.HP[a], h1 = R.HP[b];
+      if (!(h0 > 0) || !(h1 < h0)) { if (cur && R.times[f] - cur.tEnd > VHIT_JOIN) close(); continue; }
+      if (cur && R.times[f] - cur.tEnd > VHIT_JOIN) close();
+      if (!cur) cur = { t: R.times[f], tEnd: R.times[f], v: j, hp0: h0, hp1: h1, dmg: 0 };
+      cur.tEnd = R.times[f]; cur.hp1 = h1; cur.dmg = cur.hp0 - Math.max(0, h1);
+    }
+    close();
+  });
+  out.sort((a, b) => a.t - b.t);
+  // (a small hit amid the 2.5% drops every 0.5 s of a vehicle in deep water or upside down is one of them)
+  const small = new Map();
+  R.players.forEach((p, j) => { if (!p.vehicle) return; const L = []; for (let f = 1; f < F; f++) { const a = (f - 1) * n + j, b = f * n + j; if (R.L[a] && R.L[b] && R.HP[a] > 0 && R.HP[b] < R.HP[a] && R.HP[a] - R.HP[b] < VHIT_MIN) L.push(R.times[f]); } small.set(j, L); });
+  for (let k = out.length - 1; k >= 0; k--) { const h = out[k]; if (h.dmg < 8 && (small.get(h.v) || []).some(x => Math.abs(Math.abs(x - h.t) - 0.5) <= 0.1)) out.splice(k, 1); }
+  // how it moved round the hit: velocity over the 0.4 s before (from 0.6 s to 0.2 s before) and the 0.4 s after (m/s)
+  const fr = tt => Math.max(0, Math.min(F - 1, Math.round(tt / (R.times[1] - R.times[0] || 0.1))));
+  const vel = (j, a, b) => { const p = fr(a) * n + j, q = fr(b) * n + j, dt = b - a; return [(R.X[q] - R.X[p]) / dt, (R.Y[q] - R.Y[p]) / dt, (R.HH[q] - R.HH[p]) / dt]; };
+  for (const h of out) { h.v0 = vel(h.v, h.t - 0.6, h.t - 0.2); h.v1 = vel(h.v, h.t, h.t + 0.4); }
+  // Who did it, in this order: a rocket that went off by it; an enemy gun pointing at it, for a big hit (15% or more: a
+  // tank's shell); a kill of someone inside then (C4 and mines: 'charge'); a crash; an enemy gun for a smaller hit (an
+  // APC's cannon round). Crashes: into another vehicle - both lose hit points within 0.2 s, under 10 m apart (middle to
+  // middle), closing at 2 m/s or more just before (=FL= 20:37: a Humvee into a BTR-90 at 18 m/s, -10% and -5%; two tanks
+  // ramming, -4% each); into a house, a wall or a tree, or a fall - a sudden stop (from 4 m/s or more to under 40% of
+  // that, or a change of 6 m/s or more) or coming down at 6 m/s or more. (Two tanks shooting each other from 10 m are
+  // not a crash: their shells take 25-45%.)
+  const sudden = h => { const s0 = Math.hypot(h.v0[0], h.v0[1]), s1 = Math.hypot(h.v1[0], h.v1[1]), dv = Math.hypot(h.v1[0] - h.v0[0], h.v1[1] - h.v0[1], h.v1[2] - h.v0[2]);
+    return (s0 >= 4 && (s1 <= 0.4 * s0 || dv >= 6)) || h.v0[2] <= -6; };
+  for (const h of out) {
+    const j = h.v, o = playerAt(j, h.t), tm = vehTeam(j, h.t), enemy = i => tm === null || teamOf(i, h.t) !== tm;
+    h.c = { sudden: sudden(h) };
+    // a rocket that went off by it
+    const bl = blasts.filter(e => Math.abs(e.t - h.t) <= 0.6 && e.x != null && Math.hypot(e.x - o.x, e.y - o.y) <= 8).sort((a, b) => Math.abs(a.t - h.t) - Math.abs(b.t - h.t))[0];
+    if (bl && pid(bl.by) !== undefined) h.c.rocket = bl;
+    // a gun pointing at it
+    let best = null;
+    for (const i of gunners) {
+      if (!enemy(i)) continue;
+      for (const dt of [0.1, 0.4, 0.7]) {
+        const q = playerAt(i, h.t - dt); if (!q.alive || q.aim == null || q.veh === p_name(j)) continue;
+        const d = Math.hypot(o.x - q.x, o.y - q.y); if (d < 2 || d > vhitRange()) continue;
+        const off = angOff(Math.atan2(o.x - q.x, o.y - q.y), q.aim), tol = Math.max(3 * Math.PI / 180, Math.atan2(3, d)), sc = off / tol;
+        if (sc <= 1 && (!best || sc < best.sc)) best = { i, sc, d, veh: q.veh || null };
+      }
+    }
+    if (best) h.c.gun = best;
+    // someone inside killed then
+    const k = kills.find(e => Math.abs(e.t - h.t) <= 0.5 && pid(e.victim) !== undefined && pid(e.killer) !== undefined && playerAt(pid(e.victim), e.t - 0.05).veh === p_name(j) && enemy(pid(e.killer)));
+    if (k) h.c.kill = k;
+  }
+  // another vehicle hit at the same moment next to it, closing in
+  for (const h of out) {
+    const o = playerAt(h.v, h.t);
+    for (const x of out) {
+      if (x === h || x.v === h.v || Math.abs(x.t - h.t) > 0.2) continue;
+      const q = playerAt(x.v, x.t), dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy); if (d >= 10 || d < 0.1) continue;
+      const cs = ((h.v0[0] - x.v0[0]) * dx + (h.v0[1] - x.v0[1]) * dy) / d; if (cs >= 2) { h.c.into = x; h.c.cs = cs; break; }
+    }
+  }
+  const shot = h => !!h.c.rocket || (!!h.c.gun && h.dmg >= 15);
+  for (const h of out) {
+    const j = h.v, o = playerAt(j, h.t), c = h.c;
+    if (c.rocket) {
+      const bl = c.rocket, th = throws.find(e => e.by === bl.by && Math.abs(e.t1 - bl.t) < 0.3), i = pid(bl.by), q = playerAt(i, th ? th.t : h.t);
+      h.by = i; h.via = 'rocket'; h.wpn = bl.kind; h.launch = th ? th.t : null; h.from = q.veh || null; h.dist = Math.round(Math.hypot(q.x - o.x, q.y - o.y));
+    } else if (c.gun && h.dmg >= 15) gunHit(h, c.gun);
+    else if (c.kill) { const k = c.kill, i = pid(k.killer), q = playerAt(i, k.t - 0.05); h.by = i; h.via = killCause(k, !!q.veh) === 'expl' ? 'charge' : 'kill'; h.wpn = k.weapon || ''; h.from = q.veh || null; h.dist = Math.round(Math.hypot(q.x - o.x, q.y - o.y)); }
+    else if (c.into && !shot(c.into)) { h.via = 'crash'; h.with = c.into.v; h.closing = c.cs; }
+    else if (c.sudden) h.via = 'crash';
+    else if (c.gun) gunHit(h, c.gun);
+  }
+  for (const h of out) delete h.c;
+  return (R._vh = out);
+}
+const p_name = j => round.players[j].name;
+const gunHit = (h, g) => { h.by = g.i; h.via = 'gun'; h.from = g.veh; h.dist = Math.round(g.d); h.wpn = g.veh || 'emplacement'; };
+// Attacks: the hits one soldier made on one vehicle with no more than 20 s between them; destroyed when the vehicle was
+// destroyed within 12 s of his last hit with nobody else's hit in between
+function vehAttacks() {
+  const R = round; if (R._va) return R._va;
+  const H = vehHits(), out = [], open = new Map();
+  for (const h of H) {
+    if (h.by == null) continue;
+    const key = h.by + ':' + h.v, a = open.get(key);
+    if (a && h.t - a.hits[a.hits.length - 1].t <= 20) { a.hits.push(h); a.dmg += h.dmg; continue; }
+    const na = { by: h.by, v: h.v, t: h.launch ?? h.t, hits: [h], dmg: h.dmg, via: h.via, wpn: h.wpn, from: h.from, dist: h.dist };
+    out.push(na); open.set(key, na);
+  }
+  // destroyed: by his last hit (to 0) or within 3 s of it (it burns out to 0 first), nobody else's hit in between
+  const wrecks = R.events.filter(e => e.type === 'wreck');
+  for (const a of out) {
+    const last = a.hits[a.hits.length - 1], w = wrecks.find(e => R.pidx.get(e.vehicle) === a.v && e.t >= last.t - 0.5 && e.t <= last.t + (last.hp1 <= 0 ? 12 : 3));
+    if (w && !H.some(h => h.v === a.v && h.by !== a.by && h.t > last.t && h.t <= w.t)) a.destroyed = w.t;
+  }
+  return (R._va = out);
+}
+// i sees vehicle j at tt (as sees() for a soldier; the vehicle a block from 1 m under its position to 1.5 m over it)
+function seesVeh(i, j, tt) {
+  const q = looking(i, tt); if (!q) return null;
+  const o = playerAt(j, tt); if (!o.alive) return false;
+  const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy);
+  if (hd < 1) return true;
+  if (hd > fogRange() || angOff(Math.atan2(dx, dy), q.yaw) > VIEW_HALF + Math.atan2(2.5, hd)) return false;
+  const eye = eyeOf(i, q, tt);
+  if (q.h != null && o.h != null && !inVBand(q.pitch, eye, hd, o.h - 1.0, o.h + 1.5)) return false;
+  const D = losData(); if (!D || q.h == null || o.h == null) return true;
+  for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  return false;
+}
+// An attack looked at from both sides over the 8 s before it (before the rocket left the launcher, or the first hit), as
+// engagement(): since when the attacker had the vehicle in view, since when anyone inside it who looks somewhere known
+// (at a gun: a tank's or APC's driver, a roof gunner, a passenger at a firing port) had the attacker in view. kind as
+// there ('ambush': nobody inside ever had him in view); v undefined: no one inside looks anywhere known (a jeep's driver)
+const VENG_WIN = 8;
+function vehEngagement(a) {
+  const C = round._veng || (round._veng = new Map()); if (C.has(a)) return C.get(a);
+  if (a.via === 'charge') { const r = { k: undefined, v: undefined, kind: null, crew: 0, walls: !!losData() }; C.set(a, r); return r; }   // (a mine or C4: no aiming)
+  const t1 = a.t - 0.05, ki = a.by, vj = a.v;
+  const span = (ok, back) => {
+    let end = null;
+    for (let tt = t1; tt >= t1 - back - 1e-6; tt -= ENG_STEP) if (ok(tt)) { end = tt; break; }
+    if (end === null) return null;
+    let first = end, miss = 0;
+    for (let tt = end - ENG_STEP; tt >= t1 - VENG_WIN - 1e-6; tt -= ENG_STEP) { if (ok(tt)) { first = tt; miss = 0; } else if ((miss += ENG_STEP) > 0.45) break; }
+    return first;
+  };
+  const k = looking(ki, t1) ? span(tt => seesVeh(ki, vj, tt), 1.0) : undefined;
+  const crew = crewOf(vj, t1).filter(c => looking(c, t1));
+  let v; if (crew.length) { v = null; for (const c of crew) { const s = span(tt => sees(c, ki, tt), VENG_WIN); if (s !== null && (v === null || s < v)) v = s; } }
+  const kind = k === undefined ? null : k === null ? 'blind' : v === undefined ? null : v === null ? 'ambush' : v < k - 0.3 ? 'second' : k < v - 0.3 ? 'first' : 'even';
+  const r = { k, v, kind, crew: crew.length, walls: !!losData() };
+  C.set(a, r); return r;
+}
+// first sight in an attack on a vehicle, said from the vehicle's side and from the attacker's
+const VENG_V = { first: 'he saw it first', even: 'saw each other at once', second: 'the crew saw him first', ambush: "never in the crew's view", blind: 'no clear sight for him' };
+const VENG_A = { first: 'saw it first', even: 'at once', second: 'seen first', ambush: 'unseen', blind: 'no clear sight' };
+const vhowText = a => a.via === 'rocket' ? a.wpn : a.via === 'gun' ? (a.from ? a.from + ' gun' : 'emplacement') : a.wpn || 'kill';
+// two enemy vehicles that hit each other (gaps of no more than 20 s): who hit first, how it ended
+function vehDuels() {
+  const R = round; if (R._vd) return R._vd;
+  const A = vehAttacks().filter(a => a.from && a.via !== 'kill'), out = [], used = new Set();
+  const vOf = name => R.players.findIndex(p => p.vehicle && p.name === name);
+  for (const a of A) {
+    if (used.has(a)) continue;
+    const va = vOf(a.from); if (va < 0) continue;
+    // the other side's attacks on a's vehicle that overlap a's in time
+    const t0 = a.hits[0].t, t1 = a.hits[a.hits.length - 1].t;
+    const b = A.find(x => !used.has(x) && x !== a && x.v === va && vOf(x.from) === a.v && x.hits[0].t <= t1 + 20 && x.hits[x.hits.length - 1].t >= t0 - 20);
+    if (!b) continue;
+    used.add(a); used.add(b);
+    const [f, s] = a.hits[0].t <= b.hits[0].t ? [a, b] : [b, a];
+    out.push({ t: Math.min(a.t, b.t), first: f, second: s, gap: s.hits[0].t - f.hits[0].t });
+  }
+  return (R._vd = out.sort((x, y) => x.t - y.t));
+}
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
 // i at q, eye height eye, has a clear line to: [clear, of how many]
 function bodyLines(D, q, eye, j, o, tt) {
@@ -2191,7 +2375,7 @@ function panels(force) {
     $('#selInfo').innerHTML = `<dl class="meta"><dt>Name</dt><dd class="t${tmNow}">${esc(p.name)}</dd><dt>Team</dt><dd>${esc(round.teams[tmNow]?.name||'') || (p.vehicle ? '<span class="w">nobody in it</span>' : '')}${switched}</dd>
       <dt>Status</dt><dd>${status}</dd>${!p.vehicle && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t)) ? `<dt title="From the velocity the demo sends with his position">Moving</dt><dd>${moveText(q, stanceNow(p, t))}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
       ${viewRows(sel, p)}${vehTxt}${p.vehicle ? '' : `<dt>Kills / deaths</dt><dd>${K.get(p.id)||0} K / ${Dd.get(p.id)||0} D${HS.get(p.id) ? ` · ${HS.get(p.id)} headshot${HS.get(p.id) > 1 ? 's' : ''} (${Math.round(HS.get(p.id) / K.get(p.id) * 100)}%)` : ''}</dd>${medicTxt}${repTxt}
-${hitRows(p)}${sightRows(p)}
+${hitRows(p)}${sightRows(p)}${vehSightRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
       <div class="chips"><button class="btn" id="clearSel">Stop following</button></div>`;
@@ -2657,7 +2841,7 @@ function renderStats() {
 // from the killer's eye to the victim's head, chest and hips clear. From behind: the victim on foot faced 135° or more
 // away from the killer at the kill and 120° a second before. A jump lands a little before the moment, on the soldier who
 // made it.
-const HL_KINDS = [['multi', 'Multi-kills'], ['long', 'Long shots'], ['above', 'From above'], ['gap', 'Through a gap'], ['back', 'From behind'], ['veh', 'Vehicles'], ['flag', 'Flags'], ['revive', 'Revives']];
+const HL_KINDS = [['multi', 'Multi-kills'], ['long', 'Long shots'], ['above', 'From above'], ['gap', 'Through a gap'], ['back', 'From behind'], ['veh', 'Vehicles'], ['armor', 'Ambushes on armour'], ['duel', 'Vehicle duels'], ['flag', 'Flags'], ['revive', 'Revives']];
 const HL_KILL = new Set(['long', 'above', 'gap', 'back']);   // highlights of one kill (a side view to go with them)
 const HL_LEAD = 2;
 let hlFilter = 'all', feedTab = 0, hlShown = -2;
@@ -2697,6 +2881,17 @@ function highlights() {
       const heavy = !/jeep|Vodnik|Humvee|buggy|hmmwv/i.test((R.players[vi]?.tpl && VEHICLES[R.players[vi].tpl]) || vname || '');
       if (by || inside || heavy) out.push({ t: e.t, kind: 'veh', actor: by ? by.killer : null, vehicle: vname, by, crew: crew.length, inside, x: vp?.x, y: vp?.y });
     } else if (e.type === 'vehdestroyed' && !/_soldier$/i.test(e.vehicle || '')) out.push({ t: e.t, kind: 'veh', actor: e.attacker ?? null, vehicle: e.vehicle, by: null, crew: 0, x: e.x, y: e.y });
+  }
+  // Ambush on armour: a tank, APC or AA vehicle hit (a fifth of its hit points or more, or destroyed) by someone its
+  // crew never had in view in the 8 s before (vehEngagement; its crew must look somewhere known: the driver of a tank or
+  // APC works its gun). Vehicle duel: two enemy vehicles that hit each other (vehDuels): who hit first
+  if (R.meta.source === 'demo' && R.HP) {
+    for (const a of vehAttacks()) {
+      if (vehClass(a.v) === 'light' || (a.dmg < 20 && !a.destroyed)) continue;
+      if (vehEngagement(a).kind !== 'ambush') continue;
+      const o = playerAt(a.v, a.hits[0].t); out.push({ t: a.hits[0].t, kind: 'armor', actor: R.players[a.by].id, att: a, x: o.x, y: o.y });
+    }
+    for (const d of vehDuels()) { const o = playerAt(d.first.v, d.first.hits[0].t); out.push({ t: d.first.hits[0].t, kind: 'duel', actor: R.players[d.first.by].id, duel: d, x: o.x, y: o.y }); }
   }
   // from above, through a gap, from behind
   const D = losData();
@@ -2746,6 +2941,18 @@ function hlDescribe(h) {
   }
   if (h.kind === 'veh') { const note = [h.by?.weapon ? esc(h.by.weapon) : '', h.crew ? h.crew + ' killed inside' : '', h.actor == null ? (h.inside === false ? 'nobody inside' : 'who did it is not in the demo') : ''].filter(Boolean).join(' · ');
     return ['veh', `<b>${esc(h.vehicle || 'Vehicle')} destroyed</b>${h.actor != null ? ' by ' + pn(h.actor) : ''} <span class="w">${note}</span>`, `${h.vehicle || 'Vehicle'} destroyed${h.actor != null ? ' by ' + pt(h.actor) : ''}`]; }
+  if (h.kind === 'armor') {
+    const a = h.att, cls = VCLASS_NAME[vehClass(a.v)], crew = crewOf(a.v, a.hits[0].t - 0.15), vn = round.players[a.v].name, dmg = Math.round(Math.min(100, a.dmg));
+    return [a.destroyed ? 'kill' : '−' + dmg + '%', `<b>Ambush on ${cls === 'APC' || cls === 'AA vehicle' ? 'an' : 'a'} ${cls}</b> ${pn(h.actor)} → ${esc(vn)}${crew.length ? ' <span class="w">(</span>' + crew.map(i => pn(round.players[i].id)).join(', ') + '<span class="w">)</span>' : ''} <span class="w">${esc(vhowText(a))} · ${a.dist} m · −${dmg}%${a.destroyed ? ' · destroyed' : ''} · never in the crew's view</span>`,
+      `Ambush on ${cls === 'APC' || cls === 'AA vehicle' ? 'an' : 'a'} ${cls}: ${pt(h.actor)} → ${vn}${a.destroyed ? ', destroyed' : ''}`];
+  }
+  if (h.kind === 'duel') {
+    const d = h.duel, A = d.first, B = d.second, va = round.players.findIndex(q => q.vehicle && q.name === A.from), ca = VCLASS_NAME[vehClass(va)], cb = VCLASS_NAME[vehClass(A.v)];
+    const title = ca === cb ? (ca === 'tank' ? 'Tank duel' : ca === 'APC' ? 'APC duel' : capFirst(ca) + 's') : capFirst(ca) + ' vs ' + cb;
+    const end = A.destroyed && B.destroyed ? 'both destroyed' : A.destroyed ? esc(round.players[A.v].name) + ' destroyed' : B.destroyed ? esc(A.from) + ' destroyed' : 'neither destroyed';
+    return ['duel', `<b>${esc(title)}</b> ${esc(A.from)} ${pn(round.players[A.by].id)} hit ${esc(round.players[A.v].name)} ${pn(round.players[B.by].id)} first <span class="w">· ${d.gap < 0.3 ? 'it hit back at once' : 'it hit back ' + d.gap.toFixed(1) + ' s later'} · ${A.hits.length} : ${B.hits.length} hits · ${end}</span>`,
+      `${title}: ${A.from} (${pt(round.players[A.by].id)}) hit ${round.players[A.v].name} first`];
+  }
   if (h.kind === 'flag') { const tn = round.teams[h.team]?.name || ''; return ['flag', `<span class="t${h.team}">${esc(tn)}</span> <b>captured ${esc(h.flag)}</b>`, `${tn} captured ${h.flag}`]; }
   return ['revive', `<b>Revive under fire</b> ${pn(h.actor)} → ${pn(h.patient)} <span class="w">${h.near !== null ? 'enemy ' + Math.round(h.near) + ' m away' : 'fighting nearby'}</span>`, `Revive under fire: ${pt(h.actor)} → ${pt(h.patient)}`];
 }
@@ -2786,7 +2993,7 @@ function momentsOf(i) {
     if (e.type === 'kill' && (e.killer === id || e.victim === id)) L.push({ t: e.t, txt: e.killer === e.victim ? `${nm(id)}: suicide` : `${nm(e.killer)} → ${nm(e.victim)}${killWpn(e) ? ' · ' + killWpn(e) : ''}${e.dist !== undefined ? ' · ' + e.dist + ' m' : ''}` });
     else if (e.type === 'revive' && (e.medic === id || e.player === id)) L.push({ t: e.t, txt: e.medic == null ? `${nm(e.player)} revived` : `${nm(e.medic)} revived ${nm(e.player)}` });
   }
-  for (const h of highlights()) if (h.actor === id && h.kind === 'veh') L.push({ t: h.t, txt: hlDescribe(h)[2] });
+  for (const h of highlights()) if (h.actor === id && (h.kind === 'veh' || h.kind === 'armor' || h.kind === 'duel')) L.push({ t: h.t, txt: hlDescribe(h)[2] });
   return L.sort((a, b) => a.t - b.t);
 }
 function stepMoment(dir) {
@@ -2816,7 +3023,33 @@ function vehRows(p) {
     const e = ks[ks.length - 1], g = killWpn(e).replace(p.name + ' · ', '').replace(p.name, '') || 'no weapon (run over?)';
     h += `<dt>Last kill</dt><dd>${fmt(e.t)} ${pi(e.killer) !== undefined ? nm(pi(e.killer)) : ''} → ${pi(e.victim) !== undefined ? nm(pi(e.victim)) : ''} <span class="w">(${esc(g)}${e.dist !== undefined ? ', ' + e.dist + ' m' : ''})</span></dd>`;
   }
+  // hits it took and made (vehHits): who, with what, and who saw whom first
+  if (round.meta.source === 'demo' && round.HP) {
+    const vi = round.pidx.get(p.id), A = vehAttacks().filter(a => a.t <= t);
+    const took = A.filter(a => a.v === vi), made = A.filter(a => a.from === p.name), pct = a => Math.round(Math.min(100, a.dmg));
+    const line = (a, mine) => { const g = vehEngagement(a), sight = g.kind ? (mine ? VENG_A[g.kind] : VENG_V[g.kind]) : '';
+      const head = mine ? `${nm(a.by)} → ${esc(round.players[a.v].name)}${a.via === 'rocket' ? ' <span class="w">' + esc(a.wpn) + '</span>' : ''}` : `${nm(a.by)} <span class="w">${esc(vhowText(a))}</span>`;
+      return `${fmt(a.hits[0].t)} ${head} <span class="w">· ${a.dist} m · −${pct(a)}%${a.destroyed ? ' · destroyed' : ''}${sight ? ' · ' + sight : ''}</span>`; };
+    if (took.length) h += `<dt title="Hits on it (4% of its hit points or more at once; crashes not counted), by whom: a rocket going off by it, an enemy gun pointing at it, or a kill inside it. First sight over the 8 s before (before the rocket was fired): did anyone inside have him in view - along the guns: the demo has where a tank's or APC's gun, a roof gun or a firing port points, not where a third-person camera looks">Hits taken</dt><dd>${took.length}${took.length > 3 ? ' <span class="w">· last 3:</span>' : ''}<br>${took.slice(-3).map(a => line(a, false)).join('<br>')}</dd>`;
+    const cr = vehHits().filter(x => x.v === vi && x.via === 'crash' && x.t <= t);
+    if (cr.length) {
+      const kmh = v => Math.round(v * 3.6) + ' km/h';
+      const what = x => x.with != null ? 'with ' + esc(round.players[x.with].name) + ', closing at ' + kmh(x.closing) : x.v0[2] <= -6 ? 'a fall at ' + kmh(-x.v0[2]) : 'into a house, wall or tree at ' + kmh(Math.hypot(x.v0[0], x.v0[1]));
+      const x = cr[cr.length - 1];
+      h += `<dt title="Hit points it lost crashing (not counted as hits): with another vehicle (both lose hit points at once, closing in), into a house, wall or tree (a sudden stop), or falling">Crashes</dt><dd>${cr.length} <span class="w">· −${Math.round(cr.reduce((a, y) => a + Math.min(100, y.dmg), 0))}% in all · last ${fmt(x.t)} ${what(x)}, −${Math.round(Math.min(100, x.dmg))}%</span></dd>`;
+    }
+    if (made.length) h += `<dt title="Its guns' hits on other vehicles">Hits made</dt><dd>${made.length}${made.length > 3 ? ' <span class="w">· last 3:</span>' : ''}<br>${made.slice(-3).map(a => line(a, true)).join('<br>')}</dd>`;
+  }
   return h;
+}
+// card: the followed soldier's hits on vehicles up to now, by who saw whom first (vehEngagement)
+function vehSightRows(p) {
+  if (p.vehicle || round.meta.source !== 'demo' || !round.HP) return '';
+  const id = round.pidx.get(p.id), A = vehAttacks().filter(a => a.by === id && a.t <= t); if (!A.length) return '';
+  const c = {}; for (const a of A) { const g = vehEngagement(a); if (g.kind) c[g.kind] = (c[g.kind] || 0) + 1; }
+  const parts = [['first', 'he saw it first'], ['even', 'at once'], ['second', 'seen first'], ['ambush', 'unseen by the crew'], ['blind', 'no clear sight']].filter(([k]) => c[k]).map(([k, x]) => c[k] + ' ' + x).join(' · ');
+  const dest = A.filter(a => a.destroyed).length;
+  return `<dt title="Hits on enemy vehicles (rockets, a vehicle's or emplacement's gun, C4): how many, how many destroyed it, and who saw whom first over the 8 s before">Vs vehicles</dt><dd>${A.length} hit${A.length > 1 ? 's' : ''}${dest ? ` · ${dest} destroyed` : ''}${parts ? ` <span class="w">· ${parts}</span>` : ''}</dd>`;
 }
 // ---------- heatmap ----------
 // Where soldiers died (the victim's spot) or where their killers stood (kill spots), as a density over the map: every kill
