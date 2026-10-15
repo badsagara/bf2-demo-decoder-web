@@ -194,6 +194,7 @@ input[type=file] { display: none; }
 .feed li.empty { display: block; }
 .feed .ts { font: 400 12px var(--font-data); color: var(--muted); font-variant-numeric: tabular-nums; }
 .feed .w { color: var(--muted); font-size: 12px; }
+.brand .ver { font: 500 11px var(--font-data); color: var(--muted); align-self: center; }
 svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentColor; stroke: currentColor; }
 .feed .cap { color: var(--accent); }
 .feed .ico { margin: 0 2px; opacity: .9; }
@@ -548,7 +549,7 @@ body.mbar-on { padding-bottom: 72px; }
 <div class="wrap" id="app">
   <header class="top">
     <div class="brand">
-      <h1 title="Viewer v80">BF2 <b>Round</b> Replay</h1>
+      <h1>BF2 <b>Round</b> Replay</h1><span class="ver" id="appVer" title="Viewer version"></span>
       <span id="srcLabel">Sample round</span>
     </div>
     <div class="actions">
@@ -736,6 +737,9 @@ body.mbar-on { padding-bottom: 72px; }
 <script>
 (() => {
 'use strict';
+// the viewer's version: shown next to the name in the header; the build scripts name the zips after it
+const APP_VERSION = 'v81';
+{ const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
 // symbols), taken from the Battlefield 2 game folder (export-game-files.bat). Map pictures sit next to the page in assets/maps.
@@ -2294,14 +2298,14 @@ function draw() {
     const labels = sel !== null || view.span <= 500;   // (distances and weapon names only zoomed in or following someone)
     // a blast where it went off, over dur s: a white-hot flash, a fire ball growing to the blast radius R and fading, a
     // dashed ring at R and (Rk) the part where it kills a soldier with full health; fan: [facing, half angle] (claymore)
-    const splash = (qx, qy, R, age, dur, fan, Rk) => {
+    const splash = (qx, qy, R, age, dur, fan, Rk, ring = true) => {
       const a = 1 - age / dur, grow = age < 0.25 ? 0.4 + 2.4 * age : 1, Rg = R * grow;
       const shape = r => { cx.beginPath(); if (fan) { cx.moveTo(qx, qy); cx.arc(qx, qy, r, fan[0] - fan[1] - Math.PI / 2, fan[0] + fan[1] - Math.PI / 2); cx.closePath(); } else cx.arc(qx, qy, r, 0, Math.PI * 2); };
       const g = cx.createRadialGradient(qx, qy, 0, qx, qy, Rg);
       g.addColorStop(0, `rgba(255,200,90,${0.6 * a})`); g.addColorStop(0.65, `rgba(255,120,40,${0.32 * a})`); g.addColorStop(1, 'rgba(255,90,30,0)');
       cx.fillStyle = g; shape(Rg); cx.fill();
       if (age < 0.3) { cx.fillStyle = `rgba(255,248,215,${0.9 * (1 - age / 0.3)})`; shape(Math.max(4, R * 0.3)); cx.fill(); }
-      cx.globalAlpha = a; cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.setLineDash([5, 4]); shape(R); cx.stroke(); cx.setLineDash([]);
+      cx.globalAlpha = a; if (ring) { cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.setLineDash([5, 4]); shape(R); cx.stroke(); cx.setLineDash([]); }
       if (Rk) { cx.fillStyle = `rgba(255,70,30,${0.38 * a})`; shape(Rk * grow); cx.fill(); cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.stroke(); }
       cx.globalAlpha = 1;
     };
@@ -2355,7 +2359,8 @@ function draw() {
       } else if (e.type === 'blast' && t - e.t <= 2) {
         // (a rocket's 2 m drawn at least 7 px across the middle; a claymore as its fan, when its face is known)
         const [qx, qy] = toC(e.x, e.y), R = Math.max(MISSILES.has(e.kind) ? 7 : 4, pm(e.r)), lr = lethalR(e), fc = e.kind === 'Claymore' ? clayFace(e) : null;
-        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr ? Math.max(3, pm(lr)) : 0);
+        // (a grenade: the fire ball and where it kills, no dashed ring - Sagara)
+        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr ? Math.max(3, pm(lr)) : 0, e.kind !== 'Grenade');
       }
     }
     // tank / APC cannon shells that hit (shotsOf: a kill, or a vehicle hit): the shell flies from the gun at its real speed
@@ -4360,7 +4365,7 @@ function updateNotice() {
   const n = $('#notice');
   if (source === 'json') { n.innerHTML = `<strong>Timeline loaded.</strong> Positions, kills and flags come from your JSON file.`; return; }
   if (source === 'demo' && (round.raw.stats || {}).players === 0) { n.innerHTML = `<strong>Decoded from the demo.</strong> Nobody spawned in this recording: the server was empty for the whole round, so there is nothing to replay.`; return; }
-  if (source === 'demo') { const st = round.raw.stats || {}; const pl = (k, w) => k + ' ' + w + (k === 1 ? '' : 's'); n.innerHTML = `<strong>Decoded from the demo</strong> (viewer v80). ${pl(st.players, 'player')}, ${pl(st.vehicles, 'vehicle')}, ${pl(st.kills, 'kill')} and ${pl(st.captures || 0, 'flag capture')} read straight from the Battle Recorder file. The decoder is experimental and was built from test rounds on Strike at Karkand and Gulf of Oman: soldiers, vehicles, names, kills, flags, weapons (${st.namedKills || 0} of ${st.kills} kills named), tickets, view direction, kits, health, ${pl(st.revives || 0, 'revive')}, ${pl(st.repairs || 0, 'repair')} and ${pl(st.throws || 0, 'grenade or rocket')} with their blast radius are decoded (placed C4, claymores and mines show where they lie; when one goes off is known only if it killed someone). Map pictures, flag names, team names and starting tickets of the 22 vanilla maps and the HUD icons come from the game files.`; return; }
+  if (source === 'demo') { const st = round.raw.stats || {}; const pl = (k, w) => k + ' ' + w + (k === 1 ? '' : 's'); n.innerHTML = `<strong>Decoded from the demo</strong> (viewer ${APP_VERSION}). ${pl(st.players, 'player')}, ${pl(st.vehicles, 'vehicle')}, ${pl(st.kills, 'kill')} and ${pl(st.captures || 0, 'flag capture')} read straight from the Battle Recorder file. The decoder is experimental and was built from test rounds on Strike at Karkand and Gulf of Oman: soldiers, vehicles, names, kills, flags, weapons (${st.namedKills || 0} of ${st.kills} kills named), tickets, view direction, kits, health, ${pl(st.revives || 0, 'revive')}, ${pl(st.repairs || 0, 'repair')} and ${pl(st.throws || 0, 'grenade or rocket')} with their blast radius are decoded (placed C4, claymores and mines show where they lie; when one goes off is known only if it killed someone). Map pictures, flag names, team names and starting tickets of the 22 vanilla maps and the HUD icons come from the game files.`; return; }
   if (demoHeader) n.innerHTML = `<strong>Header decoded, movement simulated.</strong> The map name, server and date below are read from your demo. The soldiers, kills and flag captures on the map are a generated round on that map, because the recorded game packets aren't decoded yet. Use it to explore the viewer, not as a record of the match.`;
   else n.innerHTML = `<strong>Sample round.</strong> Everything on the map is generated so you can try the viewer. Open a .bf2demo to read its header, or a timeline .json to replay real positions.`;
 }
