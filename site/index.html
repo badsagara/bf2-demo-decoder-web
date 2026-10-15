@@ -1284,7 +1284,7 @@ const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -
 // where soldier i looks: on foot his view; in a seat with a gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a
 // passenger at a firing port) where the gun points, up or down (gun: true); a jeep's driver, a passenger without a port:
 // not known (null)
-const looking = (i, tt) => { const q = playerAt(i, tt); if (!q.alive || round.players[i].vehicle) return null; return !q.veh ? q : q.aim != null ? { ...q, yaw: q.aim, gun: true } : null; };
+const looking = (i, tt) => { const q = playerAt(i, tt); if (!q.alive || round.players[i].vehicle) return null; return q.aim != null ? { ...q, yaw: q.aim, gun: true } : !q.veh ? q : null; };
 // soldiers (alive) in the field of view of soldier i: [{ i, d, seen }] nearest first (seen: true / false where the map's
 // walls and hills are known, else null); null when his view is not known
 function inViewOf(i, tt) {
@@ -1556,6 +1556,12 @@ function drawArmor(kind, px, py, L, hull, gunRel, col, mg) {
   cx.restore(); cx.lineJoin = 'miter';
 }
 // a jeep's roof machine gun (on the game's jeep symbol) while somebody works it: its barrel from the middle, black outline
+// an emplacement's gun yaw at time tt (rad, 0 = north, clockwise), or null when the demo has none
+function empAim(e, tt) {
+  if (e.rot == null) return null; const A = e.aim; if (!A || !A.length || A[0][0] > tt) return e.rot / 1000;
+  let lo = 0, hi = A.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (A[m][0] <= tt) lo = m; else hi = m - 1; }
+  return A[lo][1] / 1000;
+}
 function drawRoofGun(px, py, vs, a, col) {
   const len = vs * 0.5, bw = 1.8, ex = px + Math.sin(a) * len, ey = py - Math.cos(a) * len;
   cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(px, py); cx.lineTo(ex, ey);
@@ -1669,7 +1675,10 @@ function draw() {
       const [px, py] = toC(e.x, e.y); if (px < -20 || py < -20 || px > size + 20 || py > sizeH + 20) continue;
       // grey while nobody mans it, the gunner's team colour while someone does
       const c = (e.crew || []).find(q => q[0] <= t && t < q[1]);
-      const r = GAME.icons[e.icon]; if (r) drawIcon(e.icon, px, py, Math.max(r[2], r[3]) * 1.5, c ? teamColor(c[2]) : css('--veh-empty'), 0, 'body');
+      const r = GAME.icons[e.icon], col = c ? teamColor(c[2]) : css('--veh-empty');
+      if (r) drawIcon(e.icon, px, py, Math.max(r[2], r[3]) * 1.5, col, 0, 'body');
+      // its gun: where it points (from the demo), from where it faces at rest until someone turns it
+      const ga = empAim(e, t); if (ga !== null && r) drawRoofGun(px, py, Math.max(r[2], r[3]) * 2.6, ga, col);
     }
     cx.globalAlpha = 1; cx.shadowBlur = 0; cx.shadowColor = 'transparent';
   }
@@ -3155,7 +3164,7 @@ function viewRows(i, p) {
     const ad = ap ? Math.hypot(ap.x - q0.x, ap.y - q0.y) : 0, dz = ap ? ap.h - eyeOf(i, q0, t) : 0;
     h += (lk.gun ? `<dt title="Where his gun points up or down from level (the gun's elevation and the vehicle's tilt), from the demo; the cross on the map is where its line meets the ground or a wall">Gun</dt>`
       : `<dt title="Up or down from level, from the demo; the cross on the map is where his line of sight meets the ground or a wall">Looking</dt>`)
-      + `<dd>${pitchText(lk.pitch)}${ap ? ` <span class="w">· at ${ap.h - gd < 0.3 ? 'the ground' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the vehicle' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}</span>` : ''}</dd>`;
+      + `<dd>${pitchText(lk.pitch)}${ap ? ` <span class="w">· at ${ap.h - gd < 0.3 ? 'the ground' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the gun' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}</span>` : ''}</dd>`;
   }
   const atGun = !!lk?.gun;
   h += `<dt title="${atGun ? 'Inside the field of view along his gun (where it points is in the demo): about 79° across' : 'Inside his field of view: about 79° across and 63° high (where he looks up or down is in the demo)'}, out to ${viewRange()} m, ${how}">In view</dt><dd>`;
@@ -3849,17 +3858,6 @@ class Bits {
   f(s) { if (s < 0 || s + 32 > this.n) return NaN; F32.setInt32(0, this.w[s], true); return F32.getFloat32(0, true); }
 }
 const mkBits = p => new Bits(p);
-// Where a reliable packet's messages end. A type 2 / 6 packet: 3-bit type, 7 bits, 5-bit sequence number, 1 bit, the
-// reliable messages from bit 16, then the record's tick (u32) and the object records - the state part that a type 4
-// packet has from bit 3. Every message sits before that tick (=FL= 2026-10-13 21:14: all 462 deaths, 481 spawns, 301
-// first-message enters, 381 exits, 18 joins, 207 spots, 1696 thrown / fired items). The kill pattern also turns up inside
-// object records (1380 times in that round; 12 of them got past the filters, e.g. HANIBAL "killing" IceyPheonix 300 m
-// away at 07:06: the bits of object 298's update records). A packet without the tick (the opening snapshot): all of it.
-function msgEnd(B, tick) {
-  const w = B.w, last = B.n - 32;
-  for (let s = 16; s <= last; s++) if ((w[s] >>> 0) === tick) return s;
-  return B.n;
-}
 function demoRecords(data) {
   const dv = new DataView(data.buffer, data.byteOffset, data.byteLength);
   const hdr = readHeader(data); if (!hdr) return null;
@@ -3921,9 +3919,9 @@ function vehicleRot(B, p) {
 // Usually the first message of its packet, but not always: =FL= 2026-10-11 21:03 "shawiniguner" joined in the middle of
 // a packet (bit 944, after other messages) and was shown as "Player 27" - so the whole packet is searched.
 const JOIN_HEAD = 5 | (130 << 7);   // the first 15 bits: type 5, then 130
-function scanJoin(B, out, t, me = B.n) {
+function scanJoin(B, out, t) {
   const w = B.w;
-  for (let s = 16; s + 72 <= B.n && s < me; s++) {
+  for (let s = 16; s + 72 <= B.n; s++) {
     if ((w[s] & 0x7fff) !== JOIN_HEAD) continue;
     const idx = B.u(s + 15, 8); if (B.u(s + 23, 8) !== ((idx + 1) & 255) || B.u(s + 31, 25) !== 0) continue;
     let name = '', end = false;
@@ -4029,7 +4027,7 @@ const EXPLOSIVE_R = Object.fromEntries(Object.values(EXPLOSIVES).map(([n, r]) =>
 //
 // rotRecord: the record at bit s (a set bit, header bits 1-5 clear: checked by scanRecords) as a rotation, health,
 // stance or vehicle health record of a known soldier / vehicle, or a position of an explosive in flight.
-function rotRecord(B, s, t, st) {
+function rotRecord(B, s, t, st, exact) {
   const sids = st.sids, out = st.rotOut, hp = st.hp, vids = st.vehTpl, vhp = st.vhp, live = st.live, stance = st.stance;
   const full = s < B.n - 102;
   if (full && live && live.size && s + 135 <= B.n && B.u(s + 14, 5) === 0) {
@@ -4043,18 +4041,13 @@ function rotRecord(B, s, t, st) {
   if (B.u(s + 13, 6) !== 0) return;
   const d = s + 13, id = B.u(s + 1, 12);
   if (sids.has(id)) {
-    if (stance && B.bit(d + 24) && !B.bit(d + 25) && B.u(d + 14, 5) === 0 && B.u(d + 27, 4) === 0 && !B.bit(d + 32) && B.u(d + 34, 4) === 0 && !B.bit(d + 39)) {
+    if (stance && !exact && B.bit(d + 24) && !B.bit(d + 25) && B.u(d + 14, 5) === 0 && B.u(d + 27, 4) === 0 && !B.bit(d + 32) && B.u(d + 34, 4) === 0 && !B.bit(d + 39)) {
       const v = B.u(d + 40, 2); if (v < 3) stance.push([t, id, v]);
     }
     if (!full) return;
+    if (exact) return;   // (the view and health: solRecord)
     if (!B.bit(d + 13) && !B.bit(d + 19) && B.bit(d + 20) && B.bit(d + 21) && B.bit(d + 22) && B.bit(d + 26)) out.push([t, id, B.u(d + 73, 16) / 65536 * 2 * Math.PI, B.bit(d + 23) && !B.bit(d + 24) && !B.bit(d + 25) && d + 126 <= B.n ? (2048 - B.u(d + 114, 12)) / 2048 * Math.PI / 2 : null]);
-    else if (B.bit(d + 25) && s + 61 <= B.n) {
-      // header bits 14-18, 24 and 27-39 clear, 13 and 19 both set (moving) or both clear (standing still): 99% match
-      // the logger in tests 9 and 10; other bit sets are misreads, and one bad value would stick (health is only sent
-      // when it changes)
-      if (B.u(d + 14, 5) === 0 && !B.bit(d + 24) && B.u(d + 27, 13) === 0 && B.bit(d + 13) === B.bit(d + 19)) hp.push([t, id, B.u(d + 42, 6) * 100 / 63]);
-      else if (B.u(d, 21) === DOWN_LO && B.u(d + 21, 21) === DOWN_HI) hp.push([t, id, -1]);
-    }
+    else if (B.bit(d + 25) && s + 61 <= B.n) rotHealth(B, s, d, t, id, hp);
   } else if (vids.has(id)) {
     if (full && B.bit(d + 23)) {
       const f = B.u(d + 13, 27), o = (f & ~VF_ONLY) === 0 ? 40 : VH_AT.get(f);
@@ -4065,9 +4058,15 @@ function rotRecord(B, s, t, st) {
     const a = seatGunAim(B, d); if (a) st.cup.push([t, id, a[0], a[1], a[2]]);
   }
 }
-function scanEvents(B, players, out, t, onlySpawns, me = B.n) {
-  // (messages start before the tick: msgEnd)
-  for (let s = 16, end = Math.min(B.n - 60, me); s < end; s++) {
+// header bits 14-18, 24 and 27-39 clear, 13 and 19 both set (moving) or both clear (standing still): 99% match the logger
+// in tests 9 and 10; other bit sets are misreads, and one bad value would stick (health is only sent when it changes)
+function rotHealth(B, s, d, t, id, hp) {
+  if (B.u(d + 14, 5) === 0 && !B.bit(d + 24) && B.u(d + 27, 13) === 0 && B.bit(d + 13) === B.bit(d + 19)) hp.push([t, id, B.u(d + 42, 6) * 100 / 63]);
+  else if (B.u(d, 21) === DOWN_LO && B.u(d + 21, 21) === DOWN_HI) hp.push([t, id, -1]);
+}
+function scanEvents(B, players, out, t, onlySpawns) {
+  // (B: the packet's messages only, up to its block of records - so a message can end right at B.n)
+  for (let s = 16; s < B.n - 13; s++) {
     const t7 = B.u(s, 7);
     if (onlySpawns && t7 !== 6) continue;
     if (t7 === 6) {            // create object; soldier spawn carries owner player index
@@ -4100,9 +4099,11 @@ function scanEvents(B, players, out, t, onlySpawns, me = B.n) {
       }
       if (hit) out.push({ t, kind: 'spawn', id: B.u(s + 38, 12), player: B.u(s + hit.k + hit.dd, 8), tpl, kit: hit.kit, x, y, z, ...(hit.dd > 282 ? { seat: B.u(s + hit.k + hit.dd - 101, 12) } : {}) });
     } else if (t7 === 21) {    // kill: killer8, victim8, 17-bit field (all ones for explosives/vehicles), weapon template id (13 bits) at +40
+      if (s + 53 > B.n) continue;
       const k = B.u(s + 7, 8), v = B.u(s + 15, 8), w = B.u(s + 23, 17);
-      if (s + 53 <= me && players.has(k) && players.has(v) && (w === 131071 || (w >= 1 && w <= 1023)) && !(k === v && w !== 131071)) out.push({ t, kind: 'kill', killer: k, victim: v, w, wid: B.u(s + 40, 13) });
+      if (players.has(k) && players.has(v) && (w === 131071 || (w >= 1 && w <= 1023)) && !(k === v && w !== 131071)) out.push({ t, kind: 'kill', killer: k, victim: v, w, wid: B.u(s + 40, 13) });
     } else if (t7 === 11) {    // death (also suicides and other deaths without a killer): subtype 166, 63 zero bits, '10000', player index
+      if (s + 91 > B.n) continue;
       if (B.u(s + 7, 8) === 166 && B.u(s + 15, 31) === 0 && B.u(s + 46, 32) === 0 && B.u(s + 78, 5) === 1) { const pl = B.u(s + 83, 8); if (players.has(pl)) out.push({ t, kind: 'death', player: pl }); }
       // "Spotted!" from the commo rose: subtype 178, 63 bits = 2, then 99 (or 67), spotter team at +90, spotted object id at +98
       else if (B.u(s + 7, 8) === 178 && B.u(s + 15, 31) === 2 && B.u(s + 46, 32) === 0) { const k = B.u(s + 78, 8); if (k === 99 || k === 67) { const target = B.u(s + 98, 12); if (target) out.push({ t, kind: 'spot', target, team: k === 99 ? B.u(s + 90, 2) : 0 }); } }
@@ -4110,6 +4111,7 @@ function scanEvents(B, players, out, t, onlySpawns, me = B.n) {
       // enter (9): player index (7 bits) + seat object id (vehicle id + 0..8, or an emplacement); exit (10): player index.
       // As the first message of a reliable packet both are certain (test 11 with the logger: every enter and exit matched);
       // an enter further in is often noise, so the timeline checks it against positions
+      if (s + (t7 === 9 ? 26 : 14) > B.n) continue;
       const i7 = B.u(s + 7, 7), c = [...players].filter(p => (p & 127) === i7);
       if (c.length === 1) out.push(t7 === 9 ? { t, kind: 'enter', player: c[0], seat: B.u(s + 14, 12), sure: s === 16 } : { t, kind: 'exit', player: c[0] });
     }
@@ -4242,21 +4244,128 @@ function scanRecords(B, t, st) {
   for (let i = 0, j = 0; i < sx.length || j < vx.length;) {
     const a = i < sx.length ? sx[i] : Infinity, b = j < vx.length ? vx[j] : Infinity, isS = a <= b, s = isS ? a : b;
     if (isS) { i++; if (b === a) j++; } else j++;
-    const p = xyzAt(B, s); if (!p) continue;
-    const [x, y, z] = p;
-    // soldier: after x,y,z, when header bit 26 is set, 2 set bits and the velocity: east, up, north, each a sign bit and 11
-    // bits of cm/s (on the ground "up" rests at -0.48 m/s); then 12 bits for each of header bits 20-23: 20 the view
-    // direction (low 11 bits, 0 = north, clockwise; read as 16 bits from 5 bits earlier), 21 and 22 something that moves
-    // with turning (2048 = still; not used), 23 the view pitch (2048 = level, 0 = straight up, 4095 = straight down).
-    // Without bit 26, or with bit 24 / 25 (stance, health) set, the layout differs and is not read
-    if (isS) {
-      const b26 = B.bit(s - 16), pt = b26 && B.bit(s - 19) && !B.bit(s - 18) && !B.bit(s - 17) && s + 194 <= n ? (2048 - B.u(s + 134 + 12 * (B.bit(s - 22) + B.bit(s - 21) + B.bit(s - 20)), 12)) / 2048 * Math.PI / 2 : null;
-      const vc = o => (B.bit(s + o) ? -1 : 1) * B.u(s + o + 1, 11) / 100, vel = b26 && s + 134 <= n ? [vc(98), vc(110), vc(122)] : null;
-      st.obs.push([t, 'S', B.u(s - 54, 12), x, y, z, b26 && B.bit(s - 22) && s + 145 <= n ? B.u(s + 129, 16) / 65536 * 2 * Math.PI : null, pt, vel]);
-    }
-    else { const ro = B.bit(s - 21) ? vehicleRot(B, s + 96) : null; st.obs.push([t, 'V', B.u(s - 52, 12), x, y, z, ro ? ro[0] : null, ro ? ro[1] : null, ro ? ro[2] : null]); }
+    if (isS) solObs(B, s, t, st); else vehObs(B, s, t, st);
   }
 }
+// a soldier's position record, x at bit s: after x,y,z, when header bit 26 is set, 2 set bits and the velocity: east, up,
+// north, each a sign bit and 11 bits of cm/s (on the ground "up" rests at -0.48 m/s); then 12 bits for each of header
+// bits 20-23: 20 the view direction (low 11 bits, 0 = north, clockwise; read as 16 bits from 5 bits earlier), 21 and 22
+// something that moves with turning (2048 = still; not used), 23 the view pitch (2048 = level, 0 = straight up, 4095 =
+// straight down). Without bit 26, or with bit 24 / 25 (stance, health) set, the layout differs and is not read
+function solObs(B, s, t, st, P = s - 23) {
+  // (P: where the record's flags start; the bit-pattern search only reads records with no data before x)
+  const p = xyzAt(B, s); if (!p) return; const n = B.n, [x, y, z] = p;
+  const f7 = B.bit(P + 7), f1 = B.bit(P + 1), q = s + 98 + (f7 ? 36 : 0), pq = q + 12 * (f1 + B.bit(P + 2) + B.bit(P + 3));
+  const vc = o => (B.bit(s + o) ? -1 : 1) * B.u(s + o + 1, 11) / 100, vel = f7 && s + 134 <= n ? [vc(98), vc(110), vc(122)] : null;
+  const pt = B.bit(P + 4) && pq + 12 <= n ? (2048 - B.u(pq, 12)) / 2048 * Math.PI / 2 : null;
+  st.obs.push([t, 'S', B.u(P - 31, 12), x, y, z, f1 && q + 11 <= n ? B.u(q - 5, 16) / 65536 * 2 * Math.PI : null, pt, vel]);
+}
+// A soldier's record read by its flags (exact framing; 99.9% of them add up to their length in tests 9, 11, 13): 21 flags
+// and 2 bits (the stance), then the data of the flags set, in this order: 6 9 bits (health: 6 of them); 5 6 bits;
+// 0 x, y, z and 2 bits; 7 the velocity (36 bits, and 2 more bits further on); 1 - 4 12 bits each (1 the view direction,
+// 4 the view pitch); 15 (while wounded) 7 bits and where his body lies - it falls and slides for 3-5 s after the hit (=FL=
+// 20:37: 1.8 m median, 5 m for one in ten, up to 28 m thrown by a blast), 74 bits more. Further flags: 12 4 bits, 14 5,
+// 16 21, 19 5, 20 4, and 7 bits at the end. (The search before v74 skipped records with flags 5 or 6, and read the view
+// only with the velocity.)
+function solRecord(B, rc, t, st) {
+  const P = rc.s + 32, n = B.n, x0 = P + 23 + (B.bit(P + 5) ? 6 : 0) + (B.bit(P + 6) ? 9 : 0);
+  // health: 6 bits of flag 6's 9 (63 = full), read with flags 0-7 only (a spawn's first record has it 0); while wounded
+  // (flag 15) down
+  const f = B.u(P, 21);
+  if ((f & 0x20) && st.stance) { const v = B.u(P + 21, 2); if (v < 3) st.stance.push([t, rc.id, v]); }   // stance changed (2 bits after the flags)
+  if (f & 0x8000) st.hp.push([t, rc.id, -1]);
+  else if ((f & 0x40) && !(f & ~0xff) && x0 <= n) st.hp.push([t, rc.id, B.u(P + 23, 6) * 100 / 63]);
+  if (B.bit(P)) { if (x0 + 98 <= n) solObs(B, x0, t, st, P); return; }
+  if (B.bit(P + 1) && !(f & ~0xfe)) {   // the view without a position (flags 1-7 only)
+    const q = x0 + (B.bit(P + 7) ? 36 : 0), pq = q + 12 * (1 + B.bit(P + 2) + B.bit(P + 3));
+    if (q + 11 <= n) st.rotOut.push([t, rc.id, B.u(q - 5, 16) / 65536 * 2 * Math.PI, B.bit(P + 4) && pq + 12 <= n ? (2048 - B.u(pq, 12)) / 2048 * Math.PI / 2 : null]);
+  } else if (B.bit(P + 15) && !(f & ~0x8060) && x0 + 103 <= n) {   // wounded (flags 5, 6 and 15 only): his body
+    const p = xyzAt(B, x0 + 7); if (p) st.obs.push([t, 'B', rc.id, p[0], p[1], p[2]]);
+  }
+}
+// a vehicle's position record, x at bit s (rotation: vehicleRot)
+function vehObs(B, s, t, st) {
+  const p = xyzAt(B, s); if (!p) return; const [x, y, z] = p;
+  const ro = B.bit(s - 21) ? vehicleRot(B, s + 96) : null; st.obs.push([t, 'V', B.u(s - 52, 12), x, y, z, ro ? ro[0] : null, ro ? ro[1] : null, ro ? ro[2] : null]);
+}
+// ---- packets, exactly (v74) ----
+// Every packet of types 2, 4 and 6 ends with a block of object records (the game's "ghosts"): 3 bits (the last always
+// set), the packet's own tick (32 bits, as in the demo's record header), the number of records (9 bits), then the records
+// one after another to the packet's end (0-7 bits of padding). A type 4 packet is only that block (its first 3 bits
+// are the packet type). Types 2 and 6 carry their reliable messages first (from bit 16: creations, spawns, kills,
+// seats, joins ...), so there the block is where the tick stands and its count of records leads exactly to the packet's
+// end (the tick alone can also turn up by chance inside a message: =FL= 20:37 once in 5083; every message sits before
+// it: =FL= 2026-10-13 21:14, all 462 deaths, 481 spawns, 301 first-message enters, 381 exits, 18 joins, 207 spots, 1696
+// thrown / fired items, while the kill pattern turned up 1380 times inside object records and 12 got past the filters,
+// e.g. HANIBAL "killing" IceyPheonix 300 m away at 07:06: the bits of object 298's records). A record: '1', the object's
+// id (12 bits), a flag, 5 zero bits, its length L (13 bits), L bits; or, for an object that has gone (out of reach,
+// removed), '1', id and 5 zero bits only - told apart by the set bit right after them, where the next record starts.
+// Every packet of every demo so far but the 2-3 setup packets at the very start (=FL= 20:37: 81001 packets, 1.9 million
+// records). Reading records only where they start, and messages only before the block, leaves out what the bit-pattern
+// search (scanRecords, used where no block is found) took from inside other data.
+function ghostRecs(B, p, cnt) {
+  const R = [];
+  for (let i = 0; i < cnt; i++) {
+    if (p > B.n - 18 || !B.bit(p)) return null;
+    if (B.u(p + 13, 5) === 0 && B.bit(p + 18)) { R.push({ s: p, id: B.u(p + 1, 12), gone: true }); p += 18; continue; }
+    if (p > B.n - 32 || B.u(p + 14, 5) !== 0) return null;
+    const L = B.u(p + 19, 13), q = p + 32 + L; if (q > B.n) return null;
+    R.push({ s: p, id: B.u(p + 1, 12), f: B.bit(p + 13), L }); p = q;
+  }
+  return B.n - p < 8 ? R : null;
+}
+// the packet's block { b: its first bit, recs }, or null
+function ghostBlock(B, typ, tick) {
+  const w = B.w;
+  for (let b = typ === 4 ? 0 : 16; b + 44 <= B.n; b++) {
+    if ((w[b + 3] >>> 0) !== tick) { if (typ === 4) return null; continue; }
+    const R = ghostRecs(B, b + 44, B.u(b + 35, 9)); if (R) return { b, recs: R };
+    if (typ === 4) return null;
+  }
+  return null;
+}
+// An emplacement's record (its id from its creation message): 19 flags of its own, as a vehicle's. The first one (the
+// opening snapshot, a new emplacement) has flags 0, 1 and 3: a 2-bit mode, x, y, z and the rotation as a bare quaternion
+// of 4 x 14 bits (no code before it) - which way it faces at rest, the same heading as the level's object (=FL= 20:37: all
+// 24 on Karkand). Updates: flag 4 (9 bits) and then two blocks (rotBlock): the first the gun's yaw relative to that rest
+// heading (2048 = ahead, 4096 a full turn clockwise), the second its pitch (flag 1; 2048 level, more = down). Checked on
+// 7 kills from HJ-8 launchers and a mounted machine gun in 5 rounds (=FL= and test 9): median 0.8 deg off the line to the
+// victim, all within 7.3 deg.
+function empRecord(B, rc, t, st) {
+  const P = rc.s + 32, e = P + rc.L, f = B.u(P, 19);
+  if ((f & 11) === 11) {
+    const p = P + 19 + 2 + 96; if (p + 56 > e) return;
+    const c = k => B.u(p + 14 * k, 14) / 16383 * 2 - 1, w = c(0), x = c(1), y = c(2), z = c(3);
+    if (Math.abs(w * w + x * x + y * y + z * z - 1) > 0.01) return;
+    st.empBase.push([t, rc.id, Math.atan2(2 * (x * z - w * y), 1 - 2 * (x * x + y * y))]);
+    return;
+  }
+  if (f & ~16) return;
+  const b1 = rotBlock(B, P + 19 + (f & 16 ? 9 : 0)); if (b1.next + 7 > e) return;
+  const b2 = rotBlock(B, b1.next); if (b2.next !== e) return;
+  if (b1.v[0] !== undefined || b2.v[1] !== undefined) st.emp.push([t, rc.id, b1.v[0] ?? null, b2.v[1] ?? null]);
+}
+// the same work as scanRecords, on the block's records only
+function scanRecs(B, recs, t, st) {
+  const n = B.n, w = B.w, rot = st.rot, cp = st.cp, vt = st.vehTpl, em = st.statIds;
+  for (let k = 0; k < recs.length; k++) {
+    const rc = recs[k]; if (rc.gone) continue;
+    if (em.has(rc.id)) { empRecord(B, rc, t, st); continue; }
+    const r = rc.s, h = w[r + 13];
+    if (cp && (h & 255) === CP_UPD && r < n - 71) cpRecord(B, r, st.cps, st.cpEv, t);
+    if (rot) rotRecord(B, r, t, st, true);
+    if (h & 1) continue;
+    if (st.sids.has(rc.id) && !vt.has(rc.id)) { solRecord(B, rc, t, st); continue; }
+    // a vehicle's position x 53 bits after the record's start (header bits 20 and 22), anything else's as a soldier's,
+    // 55 bits after (13 and 19)
+    if (vt.has(rc.id)) { if (r < n - 148 && B.bit(r + 33) && B.bit(r + 35)) vehObs(B, r + 53, t, st); }
+    else if (r < n - 150 && B.bit(r + 26) && B.bit(r + 32)) solObs(B, r + 55, t, st);
+    else if (r < n - 148 && B.bit(r + 33) && B.bit(r + 35)) vehObs(B, r + 53, t, st);
+    if (r < n - 81) ticketRecord(B, r, st.tkEv, t);
+  }
+}
+// a view of a packet's bits that ends where its block begins (its messages only)
+function msgBits(B, end) { const V = Object.create(B); V.n = Math.min(B.n, end); return V; }
 function preambleInfo(p, mapName) {
   const s = new TextDecoder('latin1').decode(p);
   let i = s.indexOf(mapName); if (i < 0) return {};
@@ -4272,23 +4381,30 @@ async function decodeDemo(data, progress) {
   const info = pre ? preambleInfo(pre[1], mapName) : {};
   const pset = new Set(players.map(p => p.index));
   const obs = [], evs = [], rot = [], hp = [], vhp = [], stance = [], joins = [], sids = new Set(), created = new Map(), vehTpl = new Map(), cps = new Map(), cpEv = [], tkEv = [], stat = [], live = new Map(), flights = []; let t0 = null, lastTick = 0;
-  const tur = [], cup = [];
-  const st = { obs, rotOut: rot, hp, vhp, stance, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, rot: false, cp: false };
+  const tur = [], cup = [], emp = [], empBase = [], statIds = new Set(); let nBlk = 0, nOld = 0;
+  const st = { obs, rotOut: rot, hp, vhp, stance, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false };
   let lastYield = performance.now();
   for (let i = 0; i < R.recs.length; i++) {
     const [tick, p] = R.recs[i];
     if (tick >= 0xfffffff0 || !p.length) continue;
     if (t0 === null) t0 = tick; lastTick = tick;
-    const t = (tick - t0) / 30, typ = p[0] & 7, B = mkBits(p), me = typ === 2 || typ === 6 ? msgEnd(B, tick) : 0;
+    const t = (tick - t0) / 30, typ = p[0] & 7, B = mkBits(p);
     if (live.size) for (const [id, pr] of live) if (t - pr.t > 2 || t - pr.t0 > EXPLOSIVES[pr.tpl][3]) live.delete(id);   // landed, went off or gone
-    if (typ === 4 || typ === 2 || typ === 6) { st.rot = sids.size > 0 || vehTpl.size > 0 || live.size > 0; st.cp = typ === 4 && cps.size > 0; scanRecords(B, t, st); }
-    if (typ === 2 || typ === 6) scanCreates(B, created, vehTpl, stat, t);
+    // the packet's block of records (exact), its messages before it (up to the block's set 3rd bit: a message can run
+    // into its first 2); where no block is found (the setup packets at the start), the old search over all of it
+    const blk = typ === 2 || typ === 4 || typ === 6 ? ghostBlock(B, typ, tick) : null;
+    if (blk) nBlk++; else if (typ === 2 || typ === 4 || typ === 6) nOld++;
+    const BM = blk && typ !== 4 ? msgBits(B, blk.b + 2) : B;
+    // (creations first: a vehicle made in this packet is known for its records)
+    if (typ === 2 || typ === 6) { const ns = stat.length; scanCreates(BM, created, vehTpl, stat, t); for (let k = ns; k < stat.length; k++) statIds.add(stat[k].id); }
+    st.rot = sids.size > 0 || vehTpl.size > 0 || live.size > 0; st.cp = typ === 4 && cps.size > 0;
+    if (blk) scanRecs(B, blk.recs, t, st); else if (typ === 2 || typ === 4 || typ === 6) scanRecords(B, t, st);
     if (typ === 4 && !cps.size && t <= 5) scanCPFull(B, cps);
-    if (typ === 2 || typ === 6) { const nj = joins.length; scanJoin(B, joins, t, me); for (let k = nj; k < joins.length; k++) pset.add(joins[k].index); }
+    if (typ === 2 || typ === 6) { const nj = joins.length; scanJoin(BM, joins, t); for (let k = nj; k < joins.length; k++) pset.add(joins[k].index); }
     // The opening snapshot (first second) creates every soldier already alive when recording started, like a spawn
     // (=FL= 20:37: Vo1k, TapakaH, BCButcher); other messages are only read after it, where they are events
     if (typ === 2 || typ === 6) {
-      const before = evs.length; scanEvents(B, pset, evs, t, t <= 1, me);
+      const before = evs.length; scanEvents(BM, pset, evs, t, t <= 1);
       for (let k = before; k < evs.length; k++) {
         const e = evs[k];
         if (e.kind === 'spawn') { pset.add(e.player); sids.add(e.id); }
@@ -4304,7 +4420,7 @@ async function decodeDemo(data, progress) {
   const duration = t0 === null ? 0 : (lastTick - t0) / 30;
   const cpList = [...cps.keys()].filter(id => created.has(id)).map(id => ({ id, pos: created.get(id), tpl: created.get(id)[3], ...cps.get(id) }));
   progress && progress(0.6, 'build');
-  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, tplOf: id => vehTpl.get(id),
+  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, packets: { exact: nBlk, searched: nOld }, tplOf: id => vehTpl.get(id),
     progress: progress ? f => progress(0.6 + 0.4 * f, 'build') : null });
 }
 async function buildTimeline(r) {
@@ -4369,11 +4485,12 @@ async function buildTimeline(r) {
     if (!owner.has(e.id)) owner.set(e.id, []); owner.get(e.id).push([e.t, e.player, next ? next.t : Infinity]);
   }
   const who = (sid, t) => { const L = owner.get(sid); if (!L) return null; let b = null; for (let k = 0; k < L.length; k++) { const q = L[k]; if (q[0] <= t + 0.5) b = t < q[2] ? q[1] : null; } return b; };
-  const track = new Map(), vtrack = new Map();
+  const track = new Map(), vtrack = new Map(), btrack = new Map();
   const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
   for (let k = 0; k < r.obs.length; k++) {
     const [t, cls, id, x, y, z, yw, pt, vel] = r.obs[k];
     if (cls === 'S') { const pl = who(id, t); if (pl !== null) push(track, pl, [t, x, y, z, yw ?? null, pt ?? null, vel ?? null]); }
+    else if (cls === 'B') { const pl = who(id, t); if (pl !== null) push(btrack, pl, [t, x, y, z]); }   // a wounded soldier's body (solRecord)
     else if (cls === 'V' && id >= 1024) push(vtrack, id, [t, x, y, z, yw ?? null, pt ?? null, vel ?? null]);   // (vehicle: pt, vel = its tilt, vehicleRot)
     if (k % 200000 === 199999) await step(0.1 * k / r.obs.length);
   }
@@ -4803,7 +4920,7 @@ async function buildTimeline(r) {
   let fe = 0;
   const applyFlags = t => {
     while (fe < fev.length && fev[fe].t <= t) {
-      const e = fev[fe++], k = fidx.get(e.cp), s = fst[k];
+      const e = fev[fe++], k = fidx.get(e.cp), s = fst[k]; if (!s) continue;   // (a flag whose creation was not read)
       if (e.team !== undefined && e.team !== s.owner) {
         flagEvents.push(e.team === 0 ? { t: +e.t.toFixed(2), type: 'neutral', flag: k, from: vt(s.owner) } : { t: +e.t.toFixed(2), type: 'flag', flag: k, team: vt(e.team) });
         s.owner = e.team;
@@ -4920,12 +5037,27 @@ async function buildTimeline(r) {
   const asn = x => Math.asin(Math.max(-1, Math.min(1, x || 0)));
   const gunWorld = (hy, fy, ry, rel, el) => [hy + rel, el + asn(fy) * Math.cos(rel) + asn(ry) * Math.sin(rel)];
   const mradOf = a => { let x = a % (2 * Math.PI); if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return Math.round(x * 1000); };
+  // emplacement guns (empRecord): per object id its rest heading from each creation (an id can come back for a new
+  // emplacement, on this spot or another) and the gun's yaw / pitch rows; a new one stands straight ahead and level
+  const empCre = new Map(); for (const e of r.stat || []) push(empCre, e.id, e.t);
+  for (const L of empCre.values()) L.sort((a, b) => a - b);
+  const empBase = new Map(); for (const [bt, id, h] of r.empBase || []) push(empBase, id, [bt, h]);
+  const empY = rotTr(r.emp || [], 2), empP = rotTr(r.emp || [], 3);
+  const lastOf = (L, tt) => { let v = null; for (const x of L || []) { if (x[0] > tt + 0.05) break; v = x; } return v; };
+  const empRe = (id, tt) => { let re = -1; for (const x of empCre.get(id) || []) if (x <= tt + 0.05) re = x; return re; };
+  // [world yaw, elevation] (rad) of emplacement id's gun at time tt, or null (no rest heading known)
+  const empGun = (id, tt) => {
+    const b = lastOf(empBase.get(id), tt); if (!b) return null;
+    const re = Math.max(empRe(id, tt), b[0] - 0.05), y = lastOf(empY.get(id), tt), pt = lastOf(empP.get(id), tt);
+    return [b[1] + A12(y && y[0] >= re ? y[1] : 2048), -A12(pt && pt[0] >= re ? pt[1] : 2048)];
+  };
   // (the frames are made in time order, so each list is walked with a pointer kept in a per-soldier / per-vehicle state
   // instead of being searched every frame)
   const VS = vids.map(v => ({ v, id: 'v' + v, tr: vtrack.get(v), i: 0, H: vhead.get(v), k: 0, hl: vhTr.get(v) || [], hi: 0, re: vre.get(v) || [], gun: TURRET_VEH.has(tplV(v)), ty: walk(turY.get(v)), tp: walk(turP.get(v)), fy: 0, ry: 0 }));
   const vIdx = new Map(vids.map((v, j) => [v, j]));
   const PS = plist.map(pl => ({ pl, id: 'p' + pl, tr: track.get(pl) || [], i: 0, last: null, yaw: undefined, yawAt: undefined, rt: rtrack.get(pl) || null, ri: 0,
-    R: ride.get(pl) || null, life: life.get(pl) || [], li: 0, al: false, start: -1, hl: hpTr.get(pl) || [], hi: 0, pt: null, ptAt: -99, vel: null }));
+    R: ride.get(pl) || null, life: life.get(pl) || [], li: 0, al: false, start: -1, hl: hpTr.get(pl) || [], hi: 0, pt: null, ptAt: -99, vel: null,
+    E: eride.filter(o => o.pl === pl).sort((a, b) => a.t0 - b.t0), bt: (btrack.get(pl) || []).sort((a, b) => a[0] - b[0]), bi: 0, body: null, died: -1 }));
   const withHp = hasHp || hasVhp, withDown = withHp || downWin.size > 0;
   // The frames go straight into columns (one typed array per value, frame after frame, an entry per vehicle and then per
   // soldier, in the order of the players list below), the form the viewer plays from; a round logger file's frames rows
@@ -4992,8 +5124,11 @@ async function buildTimeline(r) {
         // last walked before getting in, which made him jump back there for a frame or more)
         const vo = lo ? lastPosB(vtrack.get(lo[1]), lo[2]) : null; if (vo) { x = vo[1]; y = vo[2]; z = vo[3]; }
       }
-      { const L = S.life; let k = S.li; while (k < L.length && L[k][1] <= t) { const sp = L[k][0] === 'spawn'; S.al = sp; if (sp) { S.start = L[k][1]; if (S.ptAt < S.start) S.pt = null; S.vel = null; } k++; } S.li = k; }
+      { const L = S.life; let k = S.li; while (k < L.length && L[k][1] <= t) { const sp = L[k][0] === 'spawn'; S.al = sp; if (sp) { S.start = L[k][1]; if (S.ptAt < S.start) S.pt = null; S.vel = null; } else S.died = L[k][1]; k++; } S.li = k; }
       const al = S.al, e = b + NV + j;
+      // down or dead: where his body fell (it is thrown and slides for a few seconds after the hit)
+      { const L = S.bt; let k = S.bi; while (k < L.length && L[k][0] <= t) { S.body = L[k]; k++; } S.bi = k; }
+      if (!al && !veh && S.body && S.body[0] >= S.died - 0.2) { x = S.body[1]; y = S.body[2]; z = S.body[3]; }
       cX[e] = r2(x); cY[e] = r2(z); cA[e] = r3(yw) || 0; cL[e] = al ? 1 : 0; cHH[e] = r2(y); cVT[e] = vtOf(veh);
       cPT[e] = al && !veh && S.pt != null ? Math.round(S.pt * 1000) : -32768;
       // at a gun: GA where it points, PT its elevation (as his view pitch on foot)
@@ -5007,6 +5142,9 @@ async function buildTimeline(r) {
           cGA[e] = mradOf(gy); cPT[e] = Math.round(ge * 1000);
           if (sg.roof) cGB[b + vj] = cGA[e];   // (a roof gun is drawn on the vehicle, a firing port not)
         }
+      } else if (al && S.E.length) {   // on an emplacement: its gun
+        const o = S.E.find(q => q.t0 <= t && t < q.t1), g = o ? empGun(o.id, t) : null;
+        if (g) { cGA[e] = mradOf(g[0]); cPT[e] = Math.round(g[1] * 1000); cA[e] = r3(g[0]); }   // (he looks along it)
       }
       if (al && !veh && S.vel) { cSP[e] = Math.min(32767, Math.round(Math.hypot(S.vel[0], S.vel[2]) * 100)); cVV[e] = Math.max(-32767, Math.min(32767, Math.round(S.vel[1] * 100))); } else { cSP[e] = -1; cVV[e] = -32768; }
       if (withDown) {
@@ -5118,10 +5256,25 @@ async function buildTimeline(r) {
     if (last && last.tpl === e.tpl) { if (!last.ids.includes(e.id)) last.ids.push(e.id); continue; }   // the same weapon again (repeated snapshot, respawn)
     emplacements.push({ t: +Math.max(0, e.t).toFixed(2), x: +e.x.toFixed(1), y: +e.z.toFixed(1), tpl: e.tpl, icon: st[0], team: st[1], name: st[2], ids: [e.id] });
   }
-  // who manned it: [from, to, team]; empty means nobody, drawn grey
-  for (const em of emplacements) {
+  // who manned it: [from, to, team]; empty means nobody, drawn grey. Where its gun points: rot = its rest heading, aim =
+  // [time, yaw, elevation] (mrad, yaw from north clockwise) whenever it turned, until the next weapon on the spot
+  for (let k = 0; k < emplacements.length; k++) {
+    const em = emplacements[k], next = emplacements.slice(k + 1).find(q => Math.hypot(q.x - em.x, q.y - em.y) < 2), until = next ? next.t : Infinity;
     const crew = eride.filter(o => em.ids.includes(o.id) && o.t0 >= em.t - 1).map(o => [+o.t0.toFixed(2), +o.t1.toFixed(2), teamAt(o.pl, o.t0) === 1 ? 0 : 1]);
     if (crew.length) em.crew = crew;
+    const g0 = em.ids.map(id => empGun(id, em.t + 0.1)).find(g => g); if (g0) em.rot = mradOf(g0[0]);
+    const aim = [];
+    for (const id of em.ids) {
+      // this id's own stretches on the spot: from each of its creations here until it is created again anywhere
+      const cr = (r.stat || []).filter(e => e.id === id).sort((a, b) => a.t - b.t);
+      for (let j = 0; j < cr.length; j++) {
+        if (Math.hypot(cr[j].x - em.x, cr[j].z - em.y) >= 2 || cr[j].t > until) continue;
+        const t1 = Math.min(until, j + 1 < cr.length ? cr[j + 1].t : Infinity);
+        const ts = new Set([...(empY.get(id) || []), ...(empP.get(id) || [])].map(x => x[0]).filter(x => x >= cr[j].t && x < t1));
+        for (const tt of [...ts].sort((a, b) => a - b)) { const g = empGun(id, tt); if (g) aim.push([r2(tt), mradOf(g[0]), Math.round(g[1] * 1000)]); }
+      }
+    }
+    if (aim.length) em.aim = aim.sort((a, b) => a[0] - b[0]);
     delete em.ids;
   }
   const ext = Float64Array.from(r.obs, o => Math.max(Math.abs(o[3]), Math.abs(o[5]))).sort();
@@ -5130,7 +5283,7 @@ async function buildTimeline(r) {
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', scoreEstimate: true, manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: mi ? mi.teams[0] : 'Team 1', tickets: tkStart[0] ?? 0 }, { id: 1, name: mi ? mi.teams[1] : 'Team 2', tickets: tkStart[1] ?? 0 }],
     players: ents, flags, frames: [], cols, events, emplacements,
-    stats: { emplacements: emplacements.length, throws: throws.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
+    stats: { emplacements: emplacements.length, throws: throws.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, emplacementAim: (r.emp || []).length, packets: r.packets, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
 }
 
 // @worker-end
