@@ -9,6 +9,7 @@
 <meta property="og:description" content="Battlefield 2 rounds from the Battle Recorder on the map: who went where, who killed whom, flags, vehicles, tickets.">
 <meta property="og:image" content="assets/og/site.jpg">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="alternate" type="application/rss+xml" title="BF2 Round Replay: new rounds" href="rss.xml">
 <title>BF2 Round Replay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -502,6 +503,39 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .mbar { displ
 .plink:hover { text-decoration-color: currentColor; }
 .plink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pbar { display: block; height: 4px; margin-top: 3px; border-radius: 2px; background: var(--accent); opacity: .7; }
+/* two players side by side (#player=…&vs=…) */
+.vsw { font: 500 18px var(--font-data); color: var(--muted); margin: 0 4px; vertical-align: middle; }
+.vsb { flex: none; font: 600 10px/1 var(--font-data); color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 3px; padding: 3px 5px; cursor: pointer; }
+.vsb:hover { color: var(--fg); border-color: var(--muted); }
+.vsb:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cmpask { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: -4px 0 12px; font-size: 13px; color: var(--muted); }
+.cmpask[hidden] { display: none; }
+.cmpask label { display: inline-flex; gap: 8px; align-items: center; }
+.sttab.cmptab { max-width: 640px; margin: 0 auto; }
+.sttab.cmptab th.m { text-align: center; color: var(--muted); font-weight: 500; white-space: normal; line-height: 1.25; }
+.sttab.cmptab td.n { width: 32%; font-size: 15px; white-space: nowrap; }
+@media (max-width: 560px) { .sttab.cmptab td.n { font-size: 13px; } .sttab.cmptab th.m { font-size: 10px; } }
+.sttab.cmptab td.n:first-child, .sttab.cmptab thead th:first-child { text-align: right; }
+.sttab.cmptab td:last-child, .sttab.cmptab thead th:last-child { text-align: left; }
+.sttab.cmptab td.best { color: var(--accent); font-weight: 700; }
+.h2h { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.h2h > div { background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; }
+.h2h b { display: block; font: 700 26px/1.1 var(--font-display); }
+.h2h span { font-size: 12px; color: var(--muted); }
+/* a map over all rounds (#map=…) */
+.mphead { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin: 4px 0 10px; font-size: 13px; color: var(--muted); }
+.mphead .seg { display: inline-flex; }
+.mphead .seg .btn + .btn { margin-left: -1px; }
+.mphead .seg .btn.on { background: var(--accent); border-color: var(--accent); color: #17130a; }
+.mphead select { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; margin-left: 4px; }
+.mpgrid { display: grid; grid-template-columns: minmax(0, 640px) minmax(220px, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .mpgrid { grid-template-columns: minmax(0, 1fr); } }
+.mpcv { min-width: 0; }
+.mpcv canvas { display: block; border-radius: 4px; border: 1px solid var(--line); }
+.mpspots { margin: 0; padding: 0 0 0 22px; font-size: 13px; }
+.mpspots li { padding: 4px 0; border-bottom: 1px solid var(--line); }
+.mpspots li .nmc { display: inline; }
+.mpspots li .n { float: right; font: 500 12px var(--font-data); }
 .rfind { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 190px; }
 .rhits { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 2px; font-size: 13px; }
 .rhits:empty { display: none; }
@@ -607,7 +641,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
           <button class="btn on" id="tSpots">Spots</button>
-          <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines">Explosions</button>
+          <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines; smoke from vehicles' launchers and smoke grenades">Explosions</button>
           <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
@@ -751,7 +785,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v88';
+const APP_VERSION = 'v90';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -2290,6 +2324,32 @@ function draw() {
       }
     }
   }
+  // smoke (Explosions layer): a launcher's or a soldier's smoke grenade in flight, then its cloud - soft grey puffs that
+  // grow over 1.5 s and fade out over the last 4 s - under the soldiers and vehicles, which stay visible in it
+  if (opts.blasts) {
+    const SM = round._smoke || (round._smoke = round.events.filter(e => e.type === 'smoke')), m2px = size / view.span;
+    const light = document.documentElement.dataset.theme === 'light', c0 = light ? '125,130,124' : '205,210,200', c1 = light ? '110,115,108' : '190,195,186';
+    for (const e of SM) {
+      if (e.t > t) break; if (t > e.until) continue;
+      if (t < e.t1) {   // in flight: a small grey grenade along its path
+        const P = e.path; let k = 0; while (k < P.length - 1 && P[k + 1][0] <= t) k++;
+        const a = P[k], b = P[Math.min(k + 1, P.length - 1)], u = b[0] > a[0] ? Math.min(1, (t - a[0]) / (b[0] - a[0])) : 0;
+        const [qx, qy] = toC(a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u);
+        cx.fillStyle = '#d9ddd5'; cx.strokeStyle = 'rgba(0,0,0,.65)'; cx.lineWidth = 1; cx.beginPath(); cx.arc(qx, qy, 2.6, 0, Math.PI * 2); cx.fill(); cx.stroke();
+        continue;
+      }
+      const age = t - e.t1, life = Math.max(1, e.until - e.t1), grow = Math.min(1, 0.35 + 0.65 * age / 1.5) * (1 + 0.15 * age / life), fade = Math.max(0, Math.min(1, (e.until - t) / 4));
+      const [qx, qy] = toC(e.x, e.y), R = Math.max(6, e.r * m2px * grow);
+      let h = ((Math.round(e.x * 10) * 73856093) ^ (Math.round(e.y * 10) * 19349663)) & 0x7fffffff;   // (the same puffs every frame)
+      const rnd = () => { h = (h * 1103515245 + 12345) & 0x7fffffff; return h / 0x7fffffff; };
+      for (let k = 0; k < 5; k++) {
+        const ang = rnd() * Math.PI * 2, d = k ? (0.25 + 0.35 * rnd()) * R : 0, rr = R * (k ? 0.55 + 0.25 * rnd() : 0.8);
+        const px = qx + Math.cos(ang) * d, py = qy + Math.sin(ang) * d, g = cx.createRadialGradient(px, py, 0, px, py, rr);
+        g.addColorStop(0, `rgba(${c0},${0.5 * fade})`); g.addColorStop(0.6, `rgba(${c1},${0.32 * fade})`); g.addColorStop(1, `rgba(${c1},0)`);
+        cx.fillStyle = g; cx.beginPath(); cx.arc(px, py, rr, 0, Math.PI * 2); cx.fill();
+      }
+    }
+  }
   // players (vehicles first in the list, so riders' names draw on top)
   const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map(), vehRad = new Map();   // (vehRad: a model's radius on the canvas)
   round.players.forEach((p,i) => { if (!p.vehicle) { const q = playerAt(i,t); if (q.alive && q.veh) { occupied.add(q.veh); if (!riders.has(q.veh)) riders.set(q.veh, teamOf(i, t)); } } });
@@ -2556,8 +2616,8 @@ function draw() {
   }
   // spotted markers (drawn last, on top), as in the game: red. A spotted soldier or vehicle: a red ring on its marker with
   // a red pointer over it (a pulse as it comes), until the spot runs out or it dies; with nothing under the crosshair: the
-  // game's red question mark on the point. Who spotted ("SPOTTED BY", in the colour of the side that spotted) and the
-  // dashed line from him for the first SPOT_LABEL s. A newer spot of the same target takes over.
+  // game's red question mark on the point. Who spotted (a magnifying glass and his name, in the colour of the side that
+  // spotted) and the dashed line from him for the first SPOT_LABEL s. A newer spot of the same target takes over.
   if (opts.spots) {
     const red = css('--spot'), last = new Map(), shown = [];
     for (const e of round.events) {
@@ -2602,11 +2662,14 @@ function draw() {
       }
       cx.globalAlpha = 1;
       if (age < SPOT_LABEL) {
-        const lab = !sp ? 'SPOTTED' : 'SPOTTED BY ' + round.players[sp.i].name + (sp.alt ? ' / ' + round.players[sp.alt.i].name + '?' : sp.sure ? '' : '?');
-        cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText(lab).width;
+        // (a magnifying glass, then who: "A", "A?" when only probably him, "A / B?" when one of two; nobody known: the glass alone)
+        const lab = !sp ? '' : round.players[sp.i].name + (sp.alt ? ' / ' + round.players[sp.alt.i].name + '?' : sp.sure ? '' : '?');
+        cx.font = '700 10px ' + css('--font-data'); const tw = lab ? cx.measureText(lab).width : 0, iw = 11, w = iw + (lab ? 4 + tw : 0), x0 = px - w / 2;
         cx.globalAlpha = Math.min(1, (SPOT_LABEL - age) / 0.5);
-        cx.fillStyle = col; cx.fillRect(px - w / 2 - 3, top - 13, w + 6, 13);
-        cx.fillStyle = '#fff'; cx.fillText(lab, px - w / 2, top - 3);
+        cx.fillStyle = col; cx.fillRect(x0 - 3, top - 13, w + 6, 13);
+        cx.strokeStyle = '#fff'; cx.lineWidth = 1.5; cx.lineCap = 'round';
+        cx.beginPath(); cx.arc(x0 + 4.2, top - 7.8, 3.1, 0, Math.PI * 2); cx.moveTo(x0 + 6.5, top - 5.5); cx.lineTo(x0 + 9.6, top - 2.4); cx.stroke(); cx.lineCap = 'butt';
+        if (lab) { cx.fillStyle = '#fff'; cx.fillText(lab, x0 + iw + 4, top - 3); }
         cx.globalAlpha = 1;
       }
     }
@@ -4730,6 +4793,13 @@ function gunSeats(st) {
 // throw), rockets fly at ~165 m/s, a thrown charge lands within a few seconds; after that the id can belong to a new object.
 const EXPLOSIVES = { 5457: ['Grenade', 9, 40, 3.2], 5461: ['Claymore', 15, 25, 5], 5360: ['AT mine', 7, 25, 5], 5368: ['C4', 7, 25, 5],
   5314: ['SRAW', 2, 250, 15], 5315: ['Eryx', 2, 250, 15], 5336: ['TOW', 2, 250, 15], 5337: ['TOW', 2, 250, 15] };
+// Smoke: a tank's or APC's smoke launcher (two grenades, ahead to the left and right: Smokeflare 5335) and the smoke
+// grenade (hgr_smoke_Projectile 5405) are objects like the grenades and followed the same way; the cloud stands where
+// the last record is. [name, cloud radius m, top speed m/s, longest flight s, how long the cloud lasts s] - object files:
+// the launcher fires at 12 m/s, the grenade is thrown at 20 m/s and goes off after 4 s; the smoke's particles live
+// 9 ± 1 s (vehicle) and 10 ± 2 s (grenade) and grow to 12 m and 8 m. (=FL= 13 Oct 21:14: 113 from vehicles, 2 grenades)
+const SMOKES = { 5335: ['Vehicle smoke', 9, 40, 20, 11], 5405: ['Smoke grenade', 8, 30, 4.5, 13] };
+const FLYING = { ...EXPLOSIVES, ...SMOKES };
 // Where the killing shot hit (=FL= rounds 19:52, 20:37, 21:23): the 17-bit field of the kill message is material * 2 + 1
 // (all ones = no hit point: splash damage). The soldier templates give each collision bone a material: head 25, chest
 // and upper legs 24 (23 on the heavy, body-armoured soldier templates), arms and lower legs 77. Material 23 only ever
@@ -4754,7 +4824,7 @@ function rotRecord(B, s, t, st, exact) {
     const pr = live.get(B.u(s + 1, 12));
     if (pr && t > pr.t) {
       const x = B.f(s + 39), y = B.f(s + 71), z = B.f(s + 103);
-      const dt = t - pr.t, ex = EXPLOSIVES[pr.tpl];
+      const dt = t - pr.t, ex = FLYING[pr.tpl];
       if (okPos(x, y, z) && Math.hypot(x - pr.x, z - pr.z) < 3 + ex[2] * dt && Math.abs(y - pr.y) < 3 + ex[2] * dt) { pr.recs.push([+t.toFixed(3), x, y, z]); pr.x = x; pr.y = y; pr.z = z; pr.t = t; }
     }
   }
@@ -5132,7 +5202,7 @@ async function decodeDemo(data, progress) {
     if (tick >= 0xfffffff0 || !p.length) continue;
     if (t0 === null) t0 = tick; lastTick = tick;
     const t = (tick - t0) / 30, typ = p[0] & 7, B = mkBits(p);
-    if (live.size) for (const [id, pr] of live) if (t - pr.t > 2 || t - pr.t0 > EXPLOSIVES[pr.tpl][3]) live.delete(id);   // landed, went off or gone
+    if (live.size) for (const [id, pr] of live) if (t - pr.t > 2 || t - pr.t0 > FLYING[pr.tpl][3]) live.delete(id);   // landed, went off or gone
     // the packet's block of records (exact), its messages before it (up to the block's set 3rd bit: a message can run
     // into its first 2); where no block is found (the setup packets at the start), the old search over all of it
     const blk = typ === 2 || typ === 4 || typ === 6 ? ghostBlock(B, typ, tick) : null;
@@ -5152,7 +5222,7 @@ async function decodeDemo(data, progress) {
       for (let k = before; k < evs.length; k++) {
         const e = evs[k];
         if (e.kind === 'spawn') { pset.add(e.player); sids.add(e.id); }
-        else if (e.kind === 'proj' && EXPLOSIVES[e.tpl] && !(live.get(e.id)?.tpl === e.tpl && t - live.get(e.id).t0 < 0.5)) {
+        else if (e.kind === 'proj' && FLYING[e.tpl] && !(live.get(e.id)?.tpl === e.tpl && t - live.get(e.id).t0 < 0.5)) {
           const pr = { tpl: e.tpl, id: e.id, t0: t, t, x: e.x, y: e.y, z: e.z, recs: [[+t.toFixed(3), e.x, e.y, e.z]] };
           live.set(e.id, pr); flights.push(pr);
         }
@@ -5457,7 +5527,7 @@ async function buildTimeline(r) {
   const bags = projs.filter(e => e.tpl === 5358 || e.tpl === 5409).map(e => ({ t: e.t, kind: e.tpl === 5358 ? 'ammo' : 'medic', by: nearest(e.t, e.x, e.z, 4, null), x: e.x, z: e.z }));
   // ---- explosives: a grenade or rocket goes off at the end of its flight; a placed C4 / claymore / mine shows where it lies,
   // and its explosion only when a kill with it gives the moment (nothing else in the demo says when a charge went off) ----
-  const throws = [], charges = [], placed = [], usedKills = new Set();
+  const throws = [], charges = [], placed = [], smokes = [], usedKills = new Set();
   // where a soldier was at time tt: his own last record, or the vehicle he got into after it (where it was when he got
   // out, if his own records have not started again yet)
   const posAt = (pl, tt) => {
@@ -5487,6 +5557,13 @@ async function buildTimeline(r) {
   const MISSILE = new Set([5314, 5315, 5336, 5337]);
   for (const f0 of r.flights || []) {
     const f = { ...f0, recs: trimFlight(f0.recs) };
+    if (SMOKES[f.tpl]) {   // smoke: who (the vehicle's driver / the nearest soldier), its flight, the cloud where it stopped
+      const [nm, rr, , , last] = SMOKES[f.tpl], a = f.recs[0], b = f.recs[f.recs.length - 1];
+      const by = f.tpl === 5335 ? shooterAt(a[0], a[1], a[3]) : nearest(a[0], a[1], a[3], 5, null);
+      const path = f.recs.filter((o, i) => i === 0 || i === f.recs.length - 1 || i % 3 === 0).map(o => [+o[0].toFixed(2), +o[1].toFixed(1), +o[3].toFixed(1)]);
+      smokes.push({ t0: a[0], t: b[0], kind: nm, r: rr, last, by, x: b[1], z: b[3], path });
+      continue;
+    }
     const [name, rad] = EXPLOSIVES[f.tpl], a = f.recs[0], b = f.recs[f.recs.length - 1];   // first record = create
     const by = nearest(a[0], a[1], a[3], 5, null) ?? (MISSILE.has(f.tpl) ? shooterAt(a[0], a[1], a[3]) : null);
     const path = f.recs.filter((o, i) => i === 0 || i === f.recs.length - 1 || i % 3 === 0).map(o => [+o[0].toFixed(2), +o[1].toFixed(1), +o[3].toFixed(1)]);
@@ -5933,6 +6010,8 @@ async function buildTimeline(r) {
     if (c.went) events.push({ t: +c.went.toFixed(2), type: 'blast', kind: c.kind, r: c.r, by: pid(c.by), x: +c.x.toFixed(1), y: +c.z.toFixed(1) });
   }
   for (const u of unplaced) events.push({ t: +u.t.toFixed(2), type: 'blast', kind: u.kind, r: u.r, by: pid(u.by), x: +u.x.toFixed(1), y: +u.z.toFixed(1) });
+  // smoke: thrown / fired at t, the cloud at x, y from t1 until 'until'
+  for (const m of smokes) events.push({ t: +m.t0.toFixed(2), type: 'smoke', kind: m.kind, by: pid(m.by), t1: +m.t.toFixed(2), until: +(m.t + m.last).toFixed(2), r: m.r, x: +m.x.toFixed(1), y: +m.z.toFixed(1), path: m.path });
   for (const w of wrecks) if (vset0.has(w.id)) events.push({ t: +w.t.toFixed(2), type: 'wreck', vehicle: 'v' + w.id, gone: +w.gone.toFixed(2), until: +w.until.toFixed(2) });
   for (const rp of repairs) if (vset0.has(rp.id)) events.push({ t: +rp.t0.toFixed(2), type: 'repair', vehicle: 'v' + rp.id, by: rp.by === null ? null : 'p' + rp.by, ...(rp.via != null ? { from: 'v' + rp.via } : {}), gain: Math.round(rp.gain / 10), until: +rp.t1.toFixed(2), ...(rp.x !== null ? { x: +rp.x.toFixed(1), y: +rp.z.toFixed(1) } : {}) });
   // spots: the spotted object is a soldier (-> its player) or a vehicle, or with nothing under the crosshair a point
@@ -6034,7 +6113,7 @@ async function buildTimeline(r) {
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', scoreEstimate: true, manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: mi ? mi.teams[0] : 'Team 1', tickets: tkStart[0] ?? 0 }, { id: 1, name: mi ? mi.teams[1] : 'Team 2', tickets: tkStart[1] ?? 0 }],
     players: ents, flags, frames: [], cols, events, emplacements,
-    stats: { emplacements: emplacements.length, throws: throws.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, emplacementAim: (r.emp || []).length, packets: r.packets, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
+    stats: { emplacements: emplacements.length, throws: throws.length, smokes: smokes.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, emplacementAim: (r.emp || []).length, packets: r.packets, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
 }
 
 // @worker-end
@@ -6351,9 +6430,9 @@ function renderRoundBar(box, R, cur, tkCell) {
   const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${srvs.length > 1 && s.server ? `<span>${esc(s.server)}</span>` : ''}${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
     : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
   box.innerHTML = `<div class="rbar"><button class="rcur" id="rCur" aria-expanded="false" aria-controls="rList">${what}<span class="caret">▾ all rounds</span></button>
-    <span class="rnav"><span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button></span></div>
+    <span class="rnav"><span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button>${s ? `<button class="btn sm" id="rMapPg" title="${esc(mapName(s.map))} over all rounds: where they die most, who kills most">Map page</button>` : ''}</span></div>
     <div class="rlist" id="rList" hidden>
-      <div class="rlhead">${srvs.length > 1 ? `<label>Server <select id="rSrv"><option value="">All servers</option>${srvs.map(m => `<option value="${esc(m)}"${m === session.srvF ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select></label>` : ''}${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<input type="search" class="rfind" id="rFind" placeholder="Find a player" aria-label="Find a player: his rounds and his page" autocomplete="off" spellcheck="false" value="${esc(session.find || '')}"><span class="w" id="rCount"></span><span class="spacer" style="flex:1"></span><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
+      <div class="rlhead">${srvs.length > 1 ? `<label>Server <select id="rSrv"><option value="">All servers</option>${srvs.map(m => `<option value="${esc(m)}"${m === session.srvF ? ' selected' : ''}>${esc(m)}</option>`).join('')}</select></label>` : ''}${maps.length > 1 ? `<label>Map <select id="rMap"><option value="">All maps</option>${maps.map(m => `<option value="${esc(m)}"${m === session.mapF ? ' selected' : ''}>${esc(mapName(m))}</option>`).join('')}</select></label>` : ''}<input type="search" class="rfind" id="rFind" placeholder="Find a player" aria-label="Find a player: his rounds and his page" autocomplete="off" spellcheck="false" value="${esc(session.find || '')}"><span class="w" id="rCount"></span><span class="spacer" style="flex:1"></span><a class="btn sm" href="rss.xml" title="New rounds in a feed reader (RSS)">RSS</a><button class="btn sm" id="sessCsvR" title="One row per round, as a CSV table">Rounds CSV</button></div>
       <div class="rhits" id="rHits"></div>
       <div class="stscroll"><table class="sttab sess"><thead><tr><th>Started</th><th>Map</th><th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th id="rLastH">Best score</th></tr></thead><tbody id="rBody"></tbody></table></div>
       <div id="rMoreW"></div>
@@ -6387,6 +6466,7 @@ function renderRoundBar(box, R, cur, tkCell) {
   $('#rCur').onclick = () => roundListOpen(!session.listOpen);
   const go = d => { const x = L[ci + d]; if (x) { closePlayerPage(); openServerRound(x); } };
   $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1);
+  const mpg = $('#rMapPg'); if (mpg) mpg.onclick = () => openMapPage(s.map);
   const ms = $('#rMap'); if (ms) ms.onchange = () => { session.mapF = ms.value; session.listN = 40; body(); };
   const ss = $('#rSrv'); if (ss) ss.onchange = () => { session.srvF = ss.value; session.listN = 40; body(); renderSessPlayers(L.length, 0); };
   $('#rFind').oninput = e => { session.find = e.target.value; session.listN = 40; body(); };
@@ -6424,21 +6504,21 @@ function nickSlug(nick) { const s = nick.replace(/[^A-Za-z0-9_.-]+/g, '_'); if (
 function sessRoundsByDate(srv) { return session ? session.rounds.filter(r => r.status === 'done' && r.sum && !r.sum.empty && (!srv || r.sum.server === srv)).sort((a, b) => String(b.sum.date || b.name).localeCompare(String(a.sum.date || a.name))) : []; }
 // his rounds, newest first: { r, p (his line in the round's summary) }
 function playerRounds(nick) { const out = []; for (const r of sessRoundsByDate()) { const p = (r.sum.P || []).find(q => nickOf(q.name) === nick); if (p) out.push({ r, p }); } return out; }
-const ppage = { nick: null, all: false };
+const ppage = { nick: null, all: false, vs: null, map: null };   // vs: the player he is compared with; map: a map's page instead
 let WID_BY_NAME = null;
 const widOf = w => { if (!WID_BY_NAME) { WID_BY_NAME = new Map(); for (const [id, n] of Object.entries(WEAPONS)) if (!WID_BY_NAME.has(n)) WID_BY_NAME.set(n, +id); } return WID_BY_NAME.get(w) || 0; };
-function openPlayerPage(nick, fromLink) {
+function openPlayerPage(nick, fromLink, vs) {
   if (!session || !nick || !playerRounds(nick).length) return false;
-  ppage.nick = nick; ppage.all = false;
+  ppage.nick = nick; ppage.all = false; ppage.map = null; ppage.vs = vs && vs !== nick && playerRounds(vs).length ? vs : null;
   document.body.classList.add('pview'); $('#pPage').hidden = false;
-  if (session.server && !fromLink) hashSet({ player: nick });
+  if (session.server && !fromLink) hashSet({ player: nick, vs: ppage.vs, map: null });
   renderPlayerPage(); window.scrollTo({ top: 0 });
   return true;
 }
 function closePlayerPage(keepHash) {
-  if (!ppage.nick) return;
-  ppage.nick = null; document.body.classList.remove('pview'); $('#pPage').hidden = true; $('#pPage').innerHTML = '';
-  if (session && session.server && !keepHash) hashSet({ player: null });
+  if (!ppage.nick && !ppage.map) return;
+  ppage.nick = null; ppage.vs = null; ppage.map = null; document.body.classList.remove('pview'); $('#pPage').hidden = true; $('#pPage').innerHTML = '';
+  if (session && session.server && !keepHash) hashSet({ player: null, vs: null, map: null });
   if (round) refresh(true);
 }
 // a round from his page: opened following him
@@ -6450,6 +6530,8 @@ async function openRoundWith(r, name) {
   if (i >= 0) { sel = i; refresh(true); }
 }
 function renderPlayerPage() {
+  if (ppage.map) return renderMapPage();
+  if (ppage.vs) return renderComparePage();
   const nick = ppage.nick, box = $('#pPage'); if (!nick || !session) return;
   const R = playerRounds(nick); if (!R.length) { closePlayerPage(); return; }
   const name = R[0].p.name, aka = [...new Set(R.map(x => x.p.name))].filter(x => x !== name), n = R.length;
@@ -6479,6 +6561,7 @@ function renderPlayerPage() {
   const wpn = group(mine, q => q[7] || 'no weapon'), vic = group(mine, q => nickOf(q[9])), kil = group(onMe, q => nickOf(q[8]));
   const vicN = new Map(vic), kilN = new Map(kil);
   const pl = kk => `<button class="plink" data-nick="${esc(kk)}" title="His page">${esc(names.get(kk) || kk)}</button>`;
+  const vsb = kk => `<button class="vsb" data-vs="${esc(kk)}" title="${esc(name)} and ${esc(names.get(kk) || kk)} side by side">vs</button>`;
   const list = (rows, f, cap) => rows.length ? `<ul class="plist">${rows.slice(0, cap || 8).map(f).join('')}</ul>${rows.length > (cap || 8) ? `<p class="stnote">${rows.length - (cap || 8)} more</p>` : ''}` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`;
   const share = (v, all) => `<span class="pbar" style="width:${Math.max(4, Math.round(v / Math.max(1, all) * 100))}%"></span>`;
   // with whom: rounds on his side and on the other side (at the end of the round), and the kills between them
@@ -6488,7 +6571,8 @@ function renderPlayerPage() {
   const kinds = group(mine, q => q[6]), KN = Object.fromEntries(HEAT_CAUSE);
   const shown = ppage.all ? R : R.slice(0, 15);
   box.innerHTML = `<section class="card"><div class="pphead"><div><h2 class="ppname">${esc(name)}</h2><span class="aka">${aka.length ? `also as ${aka.map(esc).join(', ')} · ` : ''}${n} round${n === 1 ? '' : 's'}${span ? ', ' + esc(span) : ''} · ${[...maps].map(([m, c]) => esc(mapName(m)) + (maps.size > 1 ? ' ' + c : '')).join(' · ')}</span></div>
-      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
+      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}<button class="btn sm" id="ppCmp" aria-expanded="false" title="Him and another player side by side">Compare with…</button>${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
+      <div class="cmpask" id="ppCmpBox" hidden><label>Compare ${esc(name)} with <input type="search" class="rfind" id="ppCmpIn" list="ppCmpList" placeholder="A player's name" autocomplete="off" spellcheck="false"></label><datalist id="ppCmpList">${[...names].filter(([kk]) => kk !== nick && !/^Player \d+$/.test(kk)).map(([kk, nm]) => `<option value="${esc(nm)}">`).join('')}</datalist><span class="w" id="ppCmpMsg"></span></div>
       <div class="kpis">${tiles.join('')}</div></section>
     <section class="card"><h2>Rounds <span class="w">newest first · a row opens the round following him</span></h2>
       <div class="stscroll"><table class="sttab pprounds"><thead><tr><th>Started</th><th>Map</th><th>Side</th><th>Result</th><th class="n">≈ Score</th><th class="n">K</th><th class="n">D</th><th class="n">HS</th><th class="n">Streak</th><th class="n">On the field</th></tr></thead><tbody>
@@ -6500,17 +6584,233 @@ function renderPlayerPage() {
       <div><h3>Killed by</h3>${list(kil, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">×${c}</span></li>`)}</div>
     </div>${kinds.length ? `<p class="pkdline">${kinds.map(([c, v]) => `${esc(KN[c] || c)} <b>${Math.round(v / mine.length * 100)}%</b>`).join(' · ')}</p>` : ''}</section>
     <section class="card"><div class="pcols">
-      <div><h3>Played with <span class="w">rounds on his side</span></h3>${list(withL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c}</span></li>`, 10)}</div>
-      <div><h3>Played against <span class="w">rounds · kills between them, his – theirs</span></h3>${list(vsL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c} <span class="w">· ${vicN.get(kk) || 0}–${kilN.get(kk) || 0}</span></span></li>`, 10)}</div>
-      <div><h3>Maps</h3>${list([...maps].sort((a, b) => b[1] - a[1]), ([m, c]) => `<li><span class="nmc">${esc(mapName(m))}</span><span class="n">${c}</span></li>`)}</div>
+      <div><h3>Played with <span class="w">rounds on his side</span></h3>${list(withL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c}</span>${vsb(kk)}</li>`, 10)}</div>
+      <div><h3>Played against <span class="w">rounds · kills between them, his – theirs</span></h3>${list(vsL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c} <span class="w">· ${vicN.get(kk) || 0}–${kilN.get(kk) || 0}</span></span>${vsb(kk)}</li>`, 10)}</div>
+      <div><h3>Maps <span class="w">a map: its page</span></h3>${list([...maps].sort((a, b) => b[1] - a[1]), ([m, c]) => `<li><span class="nmc"><button class="plink" data-map="${esc(String(m).toLowerCase())}" title="This map over all rounds">${esc(mapName(m))}</button></span><span class="n">${c}</span></li>`)}</div>
     </div></section>`;
   box.querySelectorAll('.pprounds tbody tr').forEach(tr => tr.onclick = () => { const x = shown[+tr.dataset.i]; openRoundWith(x.r, x.p.name.trim()); });
   box.querySelectorAll('[data-nick]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.nick));
+  box.querySelectorAll('[data-vs]').forEach(b => b.onclick = () => openPlayerPage(nick, false, b.dataset.vs));
+  box.querySelectorAll('[data-map]').forEach(b => b.onclick = () => openMapPage(b.dataset.map));
   const bk = $('#ppBack'); if (bk) bk.onclick = () => closePlayerPage();
   const al = $('#ppAll'); if (al) al.onclick = () => { ppage.all = !ppage.all; renderPlayerPage(); };
+  // compare with: a name (or his nick) from the list
+  const cb = $('#ppCmp'), cx_ = $('#ppCmpBox'), ci = $('#ppCmpIn');
+  cb.onclick = () => { const on = cx_.hidden; cx_.hidden = !on; cb.setAttribute('aria-expanded', String(on)); if (on) ci.focus(); };
+  const pick = () => {
+    const q = ci.value.trim().toLowerCase(); if (!q) return;
+    const hit = [...names].find(([kk, nm]) => kk !== nick && (nm.toLowerCase() === q || kk.toLowerCase() === q)) || [...names].find(([kk, nm]) => kk !== nick && !/^Player \d+$/.test(kk) && nm.toLowerCase().includes(q));
+    if (hit) openPlayerPage(nick, false, hit[0]); else $('#ppCmpMsg').textContent = 'No player like that';
+  };
+  ci.onchange = pick; ci.onkeydown = e => { if (e.key === 'Enter') pick(); };
   const lk = $('#ppLink'); if (lk) lk.onclick = async () => { const u = playerLink(nick); try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to his page:', u); } };
 }
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && ppage.nick && !(session && session.listOpen) && !e.target.closest('input, select, textarea')) closePlayerPage(); });
+// ---------- two players side by side (#player=<nick>&vs=<nick>) ----------
+// Their numbers over all their rounds (the better one of each pair in the accent colour), how they did when they met -
+// rounds on one side and against each other, and the kills between them -, their weapons, their maps and the rounds
+// they played together.
+function renderComparePage() {
+  const a = ppage.nick, b = ppage.vs, box = $('#pPage'); if (!a || !b || !session) return;
+  const RA = playerRounds(a), RB = playerRounds(b);
+  if (!RA.length) { closePlayerPage(); return; }
+  if (!RB.length) { ppage.vs = null; renderPlayerPage(); return; }
+  const nameA = RA[0].p.name, nameB = RB[0].p.name;
+  const st = R => {
+    const sum = k => R.reduce((x, y) => x + (y.p[k] || 0), 0), max = k => R.reduce((x, y) => Math.max(x, y.p[k] || 0), 0), n = R.length;
+    return { n, wins: R.filter(x => x.p.win).length, decided: R.filter(x => x.r.sum.winner != null).length, k: sum('k'), d: sum('d'), kVeh: sum('kVeh'), hs: sum('hs'), score: sum('score'),
+      alive: sum('alive'), med: sum('rev') + sum('heal') + sum('rep'), tk: sum('tk'), streak: max('streak'), long: max('long') };
+  };
+  const A = st(RA), B = st(RB);
+  const pct = (x, y) => y ? Math.round(x / y * 100) + '%' : '–', per = (x, n) => (x / Math.max(1, n)).toFixed(1);
+  const hm = v => { v = Math.round(v); const h = Math.floor(v / 3600), m = Math.floor(v / 60) % 60; return h ? `${h} h ${m} min` : `${m} min`; };
+  // [label, value (to compare), shown, which is better: 1 more, -1 less, 0 neither]
+  const rows = [
+    ['Rounds', S => S.n, S => S.n, 0],
+    ['Won', S => S.decided ? S.wins / S.decided : null, S => S.decided ? `${S.wins} · ${pct(S.wins, S.decided)}` : '–', 1],
+    ['≈ Score a round', S => S.score / S.n, S => per(S.score, S.n), 1],
+    ['Kills', S => S.k, S => S.k, 0],
+    ['Kills a round', S => S.k / S.n, S => per(S.k, S.n), 1],
+    ['Deaths a round', S => S.d / S.n, S => per(S.d, S.n), -1],
+    ['K/D', S => S.k / Math.max(1, S.d), S => (S.k / Math.max(1, S.d)).toFixed(2), 1],
+    ['Headshots', S => S.k ? S.hs / S.k : null, S => S.hs ? `${S.hs} · ${pct(S.hs, S.k)}` : '–', 1],
+    ['Kills from vehicles', S => S.k ? S.kVeh / S.k : null, S => S.kVeh ? `${S.kVeh} · ${pct(S.kVeh, S.k)}` : '–', 0],
+    ['Best streak', S => S.streak, S => S.streak || '–', 1],
+    ['Longest kill', S => S.long, S => S.long ? S.long + ' m' : '–', 1],
+    ['On the field a round', S => S.alive / S.n, S => hm(S.alive / S.n), 0],
+    ['Revives, heals, repairs a round', S => S.med / S.n, S => per(S.med, S.n), 1],
+    ['Team kills a round', S => S.tk / S.n, S => per(S.tk, S.n), -1],
+  ];
+  const cell = (S, O, r) => { const v = r[1](S), w = r[1](O), win = r[3] && v != null && w != null && (r[3] > 0 ? v > w + 1e-9 : v < w - 1e-9); return `<td class="n${win ? ' best' : ''}">${r[2](S)}</td>`; };
+  // rounds both played: same side or against
+  const byName = new Map(RB.map(x => [x.r.name, x]));
+  const both = RA.filter(x => byName.has(x.r.name)).map(x => ({ r: x.r, pa: x.p, pb: byName.get(x.r.name).p }));
+  const same = both.filter(x => x.pa.team === x.pb.team), opp = both.filter(x => x.pa.team !== x.pb.team);
+  const sameWon = same.filter(x => x.pa.win).length, oppA = opp.filter(x => x.pa.win).length, oppB = opp.filter(x => x.pb.win).length;
+  // kills between them and their weapons, from the kill spots (on the site loaded per map)
+  const need = [...new Set(RA.concat(RB).filter(x => !ptsOf(x.r) && heatSrc(x.r.sum.map)).map(x => x.r.sum.map))];
+  if (need.length) loadHeat(need).then(() => { if (ppage.nick === a && ppage.vs === b) renderComparePage(); });
+  const kills = (R, nick) => { const out = []; for (const x of R) for (const q of ptsOf(x.r) || []) if (q[8] !== q[9] && !(q[4] && q[4] === q[5]) && nickOf(q[8]) === nick) out.push(q); return out; };
+  const KA = kills(RA, a), KB = kills(RB, b), aOnB = KA.filter(q => nickOf(q[9]) === b).length, bOnA = KB.filter(q => nickOf(q[9]) === a).length;
+  const group = (L, key) => { const M = new Map(); for (const q of L) { const k = key(q); M.set(k, (M.get(k) || 0) + 1); } return [...M].sort((x, y) => y[1] - x[1]); };
+  const wl = (L) => { const g = group(L, q => q[7] || 'no weapon'); return g.length ? `<ul class="plist">${g.slice(0, 6).map(([w, c]) => `<li><span class="wi">${weaponIcon(widOf(w), w) || ''}</span><span class="nmc">${esc(w)}<span class="pbar" style="width:${Math.max(4, Math.round(c / L.length * 100))}%"></span></span><span class="n">${Math.round(c / L.length * 100)}%</span></li>`).join('')}</ul>` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`; };
+  // maps: rounds and K/D of each
+  const mstat = R => { const M = new Map(); for (const x of R) { const m = String(x.r.sum.map).toLowerCase(), o = M.get(m) || { n: 0, k: 0, d: 0 }; o.n++; o.k += x.p.k; o.d += x.p.d; M.set(m, o); } return M; };
+  const MA = mstat(RA), MB = mstat(RB), ML = [...new Set([...MA.keys(), ...MB.keys()])].sort((x, y) => ((MB.get(y)?.n || 0) + (MA.get(y)?.n || 0)) - ((MB.get(x)?.n || 0) + (MA.get(x)?.n || 0)));
+  const mc = o => o ? `${o.n} <span class="w">· K/D ${(o.k / Math.max(1, o.d)).toFixed(2)}</span>` : '–';
+  const shown = ppage.all ? both : both.slice(0, 15);
+  const side = (s, p) => `<span class="t${p.team}">${esc(s.teams?.[p.team] || '')}</span>`;
+  const res = x => x.r.sum.winner == null ? '–' : x.pa.team === x.pb.team ? (x.pa.win ? 'Won together' : 'Lost together') : x.pa.win ? esc(nameA) + "'s side won" : x.pb.win ? esc(nameB) + "'s side won" : '–';
+  box.innerHTML = `<section class="card"><div class="pphead"><div><h2 class="ppname">${esc(nameA)} <span class="vsw">vs</span> ${esc(nameB)}</h2><span class="aka">${A.n} and ${B.n} rounds · ${both.length ? `${both.length} together: ${same.length} on one side, ${opp.length} against each other` : 'never in the same round'}</span></div>
+      <div class="chips">${round ? '<button class="btn sm" id="cmBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}<button class="btn sm" data-nick="${esc(a)}">${esc(nameA)}'s page</button><button class="btn sm" data-nick="${esc(b)}">${esc(nameB)}'s page</button><button class="btn sm" id="cmSwap" title="Swap the two">⇄ Swap</button>${session.server ? '<button class="btn sm" id="cmLink" title="A link to this comparison">Copy link</button>' : ''}</div></div>
+      <div class="stscroll"><table class="sttab cmptab"><thead><tr><th class="n">${esc(nameA)}</th><th class="m"></th><th class="n">${esc(nameB)}</th></tr></thead><tbody>
+      ${rows.map(r => `<tr>${cell(A, B, r)}<th class="m" scope="row">${esc(r[0])}</th>${cell(B, A, r)}</tr>`).join('')}
+      </tbody></table></div><p class="stnote">Over all the rounds of each; the better of the two in colour. ≈ Score by the game's rules from what the demos show.</p></section>
+    <section class="card"><div class="pcols">
+      <div><h3>When they met</h3>${both.length ? `<div class="h2h"><div><b>${aOnB}</b><span>${esc(nameA)} killed ${esc(nameB)}</span></div><div><b>${bOnA}</b><span>${esc(nameB)} killed ${esc(nameA)}</span></div></div>
+        <ul class="plist"><li><span class="nmc">On one side</span><span class="n">${same.length} <span class="w">· won ${sameWon}</span></span></li><li><span class="nmc">Against each other</span><span class="n">${opp.length} <span class="w">· ${oppA} – ${oppB}</span></span></li></ul>${need.length ? '<p class="stnote">Loading the kills…</p>' : ''}` : '<p class="empty">They never played in the same round.</p>'}</div>
+      <div><h3>${esc(nameA)} killed with</h3>${wl(KA)}</div>
+      <div><h3>${esc(nameB)} killed with</h3>${wl(KB)}</div>
+    </div></section>
+    <section class="card"><h3>Maps <span class="w">rounds · K/D</span></h3><div class="stscroll"><table class="sttab cmpmaps"><thead><tr><th>Map</th><th class="n">${esc(nameA)}</th><th class="n">${esc(nameB)}</th></tr></thead><tbody>
+      ${ML.map(m => `<tr><td><button class="plink" data-map="${esc(m)}">${esc(mapName(m))}</button></td><td class="n">${mc(MA.get(m))}</td><td class="n">${mc(MB.get(m))}</td></tr>`).join('')}</tbody></table></div></section>
+    ${both.length ? `<section class="card"><h2>Rounds together <span class="w">newest first · a row opens the round following ${esc(nameA)}</span></h2>
+      <div class="stscroll"><table class="sttab pprounds"><thead><tr><th>Started</th><th>Map</th><th>${esc(nameA)}</th><th class="n">K–D</th><th>${esc(nameB)}</th><th class="n">K–D</th><th>Result</th></tr></thead><tbody>
+      ${shown.map((x, i) => { const s = x.r.sum; return `<tr data-i="${i}"><td>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</td><td>${esc(mapName(s.map))}</td><td>${side(s, x.pa)}</td><td class="n">${x.pa.k}–${x.pa.d}</td><td>${side(s, x.pb)}</td><td class="n">${x.pb.k}–${x.pb.d}</td><td>${res(x)}</td></tr>`; }).join('')}
+      </tbody></table></div>${both.length > 15 ? `<button class="btn sm rmore" id="cmAll">${ppage.all ? 'Show the latest 15' : `Show all ${both.length}`}</button>` : ''}</section>` : ''}`;
+  box.querySelectorAll('.pprounds tbody tr').forEach(tr => tr.onclick = () => { const x = shown[+tr.dataset.i]; openRoundWith(x.r, x.pa.name.trim()); });
+  box.querySelectorAll('[data-nick]').forEach(el => el.onclick = () => openPlayerPage(el.dataset.nick));
+  box.querySelectorAll('[data-map]').forEach(el => el.onclick = () => openMapPage(el.dataset.map));
+  const bk = $('#cmBack'); if (bk) bk.onclick = () => closePlayerPage();
+  $('#cmSwap').onclick = () => openPlayerPage(b, false, a);
+  const al = $('#cmAll'); if (al) al.onclick = () => { ppage.all = !ppage.all; renderComparePage(); };
+  const lk = $('#cmLink'); if (lk) lk.onclick = async () => { const u = siteBase() + '#player=' + encodeURIComponent(a) + '&vs=' + encodeURIComponent(b); try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to this comparison:', u); } };
+}
+
+// ---------- a map over all rounds (#map=<map>) ----------
+// The rounds played on one map: how many, how long, which side won; where soldiers died over all of them (or where their
+// killers stood) as a heatmap on the map's picture - by side and kind of weapon -, the busiest spots named after the
+// nearest flag; who killed most there and with what; the rounds themselves.
+const mview = { mode: 'deaths', side: 'all', kind: 'all' };
+const mapRounds = key => sessRoundsByDate().filter(r => String(r.sum.map || '').toLowerCase() === key);
+function openMapPage(key, fromLink) {
+  key = String(key || '').toLowerCase();
+  if (!session || !key || !mapRounds(key).length) return false;
+  ppage.nick = null; ppage.vs = null; ppage.map = key; ppage.all = false;
+  document.body.classList.add('pview'); $('#pPage').hidden = false;
+  if (session.server && !fromLink) hashSet({ map: key, player: null, vs: null });
+  renderMapPage(); window.scrollTo({ top: 0 });
+  return true;
+}
+// the grid of the heatmap (as heatLayer: 256 x 256 cells over the map, a soft spot for each point) and the busiest spots
+function mapDensity(pts, W) {
+  const N = 256, cs = W / N, sig = 2, rad = 5, G = new Float32Array(N * N);
+  for (const [x, y] of pts) {
+    const ci = (x + W / 2) / cs - 0.5, cj = (W / 2 - y) / cs - 0.5, i0 = Math.round(ci), j0 = Math.round(cj);
+    for (let j = j0 - rad; j <= j0 + rad; j++) { if (j < 0 || j >= N) continue; for (let i = i0 - rad; i <= i0 + rad; i++) { if (i < 0 || i >= N) continue; const d2 = (i - ci) ** 2 + (j - cj) ** 2; if (d2 <= rad * rad) G[j * N + i] += Math.exp(-d2 / (2 * sig * sig)); } }
+  }
+  let mx = 0; for (const v of G) if (v > mx) mx = v;
+  // busiest spots: the densest cells at least 60 m apart; with how many points within 30 m
+  const order = [...G.keys()].filter(k => G[k] > mx * 0.15).sort((p, q) => G[q] - G[p]), spots = [], sep = 60 / cs;
+  for (const k of order) {
+    const i = k % N, j = (k - i) / N; if (spots.some(o => Math.hypot(o.i - i, o.j - j) < sep)) continue;
+    const x = (i + 0.5) * cs - W / 2, y = W / 2 - (j + 0.5) * cs;
+    spots.push({ i, j, x, y, n: pts.filter(([px, py]) => Math.hypot(px - x, py - y) <= 30).length }); if (spots.length >= 5) break;
+  }
+  return { N, G, mx, spots };
+}
+// a spot's name: at the nearest flag (within 25 m), else how far and which way from it
+function spotName(key, x, y) {
+  const mi = GAME.maps[key], seen = new Map();
+  for (const L of Object.values(mi?.layouts || {})) for (const q of L) if (!seen.has(q[0])) seen.set(q[0], q);
+  let best = null, bd = Infinity; for (const q of seen.values()) { const d = Math.hypot(q[1] - x, q[2] - y); if (d < bd) { bd = d; best = q; } }
+  if (!best) return `${Math.round(x)}, ${Math.round(y)}`;
+  if (bd <= 25) return 'at ' + best[0];
+  const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+  const a = Math.atan2(x - best[1], y - best[2]), k = ((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8;
+  return `${Math.round(bd / 10) * 10} m ${DIRS[k]} of ${best[0]}`;
+}
+function drawMapHeat(cv, key, W, D) {
+  const box = cv.parentElement, S = Math.max(200, Math.min(640, box.clientWidth || 600)), k = window.devicePixelRatio || 1;
+  cv.style.width = cv.style.height = S + 'px'; cv.width = cv.height = Math.round(S * k);
+  const g = cv.getContext('2d'); g.setTransform(k, 0, 0, k, 0, 0);
+  g.fillStyle = css('--panel-2'); g.fillRect(0, 0, S, S);
+  const img = gamePicture(key);
+  if (img && img.complete && img.naturalWidth) g.drawImage(img, 0, 0, S, S);
+  else if (img && !img._mpWait) { img._mpWait = true; img.addEventListener('load', () => { if (ppage.map === key) renderMapPage(); }, { once: true }); }
+  g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(0, 0, S, S);   // (the picture a little darker under the heat)
+  if (D.mx > 0) {
+    const c = document.createElement('canvas'); c.width = c.height = D.N;
+    const cg = c.getContext('2d'), im = cg.createImageData(D.N, D.N), d = im.data;
+    for (let q = 0; q < D.N * D.N; q++) {
+      const v = D.G[q] / D.mx; if (v < 0.04) continue;
+      const w = Math.pow(v, 0.6), f = w * (HEAT_RAMP.length - 1), a = Math.min(HEAT_RAMP.length - 2, Math.floor(f)), u = f - a, P = HEAT_RAMP[a], Q = HEAT_RAMP[a + 1];
+      d[4 * q] = P[0] + (Q[0] - P[0]) * u; d[4 * q + 1] = P[1] + (Q[1] - P[1]) * u; d[4 * q + 2] = P[2] + (Q[2] - P[2]) * u; d[4 * q + 3] = 255 * (0.32 + 0.6 * w);
+    }
+    cg.putImageData(im, 0, 0); g.imageSmoothingEnabled = true; g.drawImage(c, 0, 0, S, S);
+  }
+  // the busiest spots, numbered
+  g.font = '700 12px ' + css('--font-data'); g.textAlign = 'center'; g.textBaseline = 'middle';
+  D.spots.forEach((o, n) => { const px = (o.i + 0.5) / D.N * S, py = (o.j + 0.5) / D.N * S; g.beginPath(); g.arc(px, py, 9, 0, Math.PI * 2); g.fillStyle = '#0e1310'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#ffffff'; g.stroke(); g.fillStyle = '#ffffff'; g.fillText(String(n + 1), px, py + 0.5); });
+  g.textAlign = 'start'; g.textBaseline = 'alphabetic';
+}
+function renderMapPage() {
+  const key = ppage.map, box = $('#pPage'); if (!key || !session) return;
+  const R = mapRounds(key); if (!R.length) { closePlayerPage(); return; }
+  const mi = GAME.maps[key], W = mi?.size || 2048, n = R.length;
+  const kills = R.reduce((x, r) => x + (r.sum.kills || 0), 0), dur = R.reduce((x, r) => x + (r.sum.duration || 0), 0), players = R.reduce((x, r) => x + (r.sum.players || 0), 0);
+  const teams = R[0].sum.teams || [], wins = [0, 0]; for (const r of R) if (r.sum.winner === 0 || r.sum.winner === 1) wins[r.sum.winner]++;
+  const nicks = new Map(); for (const r of R) for (const p of r.sum.P || []) { const k = nickOf(p.name); if (/^Player \d+$/.test(k)) continue; const o = nicks.get(k) || { name: p.name, n: 0, k: 0, d: 0 }; o.n++; o.k += p.k; o.d += p.d; nicks.set(k, o); }
+  const days = R.map(r => dayKey(r.sum.date)).filter(Boolean), span = days.length ? (days[0] === days[days.length - 1] ? dayName(days[0]) : `${dayName(days[days.length - 1])} – ${dayName(days[0])}`) : '';
+  const srvs = [...new Set(R.map(r => r.sum.server).filter(Boolean))];
+  const tile = (l, v, sub) => `<div class="kpi"><span class="kl">${l}</span><span class="kv">${v}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
+  const tiles = [tile('Rounds', n, esc(span)), tile('Kills', kills, `${Math.round(kills / n)} a round`), tile('Length', fmt(dur / n), 'a round on average'),
+    tile('Players', nicks.size, `${Math.round(players / n)} a round`)];
+  if (teams.length === 2 && wins[0] + wins[1]) tiles.push(tile('Won', `<span class="t0">${wins[0]}</span> · <span class="t1">${wins[1]}</span>`, `${esc(teams[0])} · ${esc(teams[1])}`));
+  // the kills of these rounds (on the site from the map's kill spots file)
+  const need = R.filter(r => !ptsOf(r) && heatSrc(r.sum.map));
+  if (need.length) loadHeat([key]).then(() => { if (ppage.map === key) renderMapPage(); });
+  const all = []; for (const r of R) for (const q of ptsOf(r) || []) if (q[8] !== q[9]) all.push(q);
+  const D_ = mview.mode === 'deaths', sides = [...new Set(all.map(q => q[4]).concat(all.map(q => q[5])).filter(Boolean))];
+  if (mview.side !== 'all' && !sides.includes(mview.side)) mview.side = 'all';
+  const sel = all.filter(q => (mview.side === 'all' || (D_ ? q[4] : q[5]) === mview.side) && (mview.kind === 'all' || q[6] === mview.kind) && (D_ || q[2] != null));
+  const pts = sel.map(q => D_ ? [q[0], q[1]] : [q[2], q[3]]), dens = mapDensity(pts, W);
+  const group = (L, f) => { const M = new Map(); for (const q of L) { const k = f(q); M.set(k, (M.get(k) || 0) + 1); } return [...M].sort((x, y) => y[1] - x[1]); };
+  const wpn = group(all.filter(q => !(q[4] && q[4] === q[5])), q => q[7] || 'no weapon'), wn = wpn.reduce((x, y) => x + y[1], 0);
+  const top = [...nicks].sort((x, y) => y[1].k - x[1].k).slice(0, 10);
+  const KN = Object.fromEntries(HEAT_CAUSE), what = D_ ? (pts.length === 1 ? 'death' : 'deaths') : (pts.length === 1 ? 'kill spot' : 'kill spots');
+  const shown = ppage.all ? R : R.slice(0, 15);
+  const tkCell = s => s.tickets ? s.tickets.map((x, k) => `<span class="t${k}">${x[1]}</span>`).join(' : ') : '–';
+  box.innerHTML = `<section class="card"><div class="pphead"><div><h2 class="ppname">${esc(mapName(key))}</h2><span class="aka">${n} round${n === 1 ? '' : 's'}${span ? ', ' + esc(span) : ''}${srvs.length ? ' · ' + srvs.map(esc).join(', ') : ''}</span></div>
+      <div class="chips">${round ? '<button class="btn sm" id="mpBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}${session.server ? '<button class="btn sm" id="mpLink" title="A link to this page">Copy link</button>' : ''}</div></div>
+      <div class="kpis">${tiles.join('')}</div></section>
+    <section class="card"><h2>Where they ${D_ ? 'die' : 'kill from'} <span class="w">all ${n} rounds · suicides left out</span></h2>
+      <div class="mphead"><span class="seg" role="group" aria-label="What the heatmap shows"><button class="btn sm${D_ ? ' on' : ''}" data-mode="deaths" aria-pressed="${D_}" title="Where soldiers died">Deaths</button><button class="btn sm${D_ ? '' : ' on'}" data-mode="kills" aria-pressed="${!D_}" title="Where their killers stood">Kill spots</button></span>
+        <label>Side <select id="mpSide"><option value="all">Both</option>${sides.map(x => `<option value="${esc(x)}"${x === mview.side ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
+        <label>Weapon <select id="mpKind"><option value="all">Any</option>${HEAT_CAUSE.map(([k, l]) => `<option value="${k}"${k === mview.kind ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>
+        <span class="w">${pts.length} ${what}</span></div>
+      <div class="mpgrid"><div class="mpcv"><canvas id="mpHeat" role="img" aria-label="Heatmap of ${what} on ${esc(mapName(key))}"></canvas></div>
+        <div><h3>Busiest spots</h3>${dens.spots.length ? `<ol class="mpspots">${dens.spots.map(o => `<li><span class="nmc">${esc(spotName(key, o.x, o.y))}</span><span class="n">${o.n} <span class="w">· ${Math.round(o.n / Math.max(1, pts.length) * 100)}%</span></span></li>`).join('')}</ol><p class="stnote">Within 30 m of each numbered spot on the map.</p>` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`}</div></div></section>
+    <section class="card"><div class="pcols">
+      <div><h3>Most kills here <span class="w">kills · rounds · K/D</span></h3>${top.length ? `<ul class="plist">${top.map(([k, o]) => `<li><span class="nmc"><button class="plink" data-nick="${esc(k)}" title="His page">${esc(o.name)}</button></span><span class="n">${o.k} <span class="w">· ${o.n} · ${(o.k / Math.max(1, o.d)).toFixed(2)}</span></span></li>`).join('')}</ul>` : '<p class="empty">None.</p>'}</div>
+      <div><h3>Killed with</h3>${wpn.length ? `<ul class="plist">${wpn.slice(0, 10).map(([w, c]) => `<li><span class="wi">${weaponIcon(widOf(w), w) || ''}</span><span class="nmc">${esc(w)}<span class="pbar" style="width:${Math.max(4, Math.round(c / wn * 100))}%"></span></span><span class="n">${c}</span></li>`).join('')}</ul>` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`}</div>
+      <div><h3>By kind of weapon</h3>${wn ? `<ul class="plist">${group(all.filter(q => !(q[4] && q[4] === q[5])), q => q[6]).map(([c, v]) => `<li><span class="nmc">${esc(KN[c] || c)}<span class="pbar" style="width:${Math.max(4, Math.round(v / wn * 100))}%"></span></span><span class="n">${Math.round(v / wn * 100)}%</span></li>`).join('')}</ul>` : '<p class="empty">None.</p>'}</div>
+    </div></section>
+    <section class="card"><h2>Rounds <span class="w">newest first · a row opens the round</span></h2>
+      <div class="stscroll"><table class="sttab pprounds"><thead><tr><th>Started</th>${srvs.length > 1 ? '<th>Server</th>' : ''}<th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th>Best score</th></tr></thead><tbody>
+      ${shown.map((r, i) => { const s = r.sum; return `<tr data-i="${i}"><td>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</td>${srvs.length > 1 ? `<td>${esc(s.server || '')}</td>` : ''}<td class="n">${s.duration ? fmt(s.duration) : ''}</td><td class="n">${s.players}</td><td class="n">${tkCell(s)}</td><td>${s.winner != null ? `<span class="t${s.winner}">${esc(s.teams[s.winner])}</span>` : '–'}</td><td class="n">${s.kills}</td><td>${s.top ? `<span class="t${s.top.team}">${esc(s.top.name)}</span> <span class="w">${s.top.score}</span>` : ''}</td></tr>`; }).join('')}
+      </tbody></table></div>${n > 15 ? `<button class="btn sm rmore" id="mpAll">${ppage.all ? 'Show the latest 15' : `Show all ${n} rounds`}</button>` : ''}</section>`;
+  drawMapHeat($('#mpHeat'), key, W, dens);
+  box.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { mview.mode = b.dataset.mode; renderMapPage(); });
+  $('#mpSide').onchange = e => { mview.side = e.target.value; renderMapPage(); };
+  $('#mpKind').onchange = e => { mview.kind = e.target.value; renderMapPage(); };
+  box.querySelectorAll('[data-nick]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.nick));
+  box.querySelectorAll('.pprounds tbody tr').forEach(tr => tr.onclick = async () => { const r = shown[+tr.dataset.i]; closePlayerPage(); if (session.server) openServerRound(r); else await openDemo(r.file); });
+  const bk = $('#mpBack'); if (bk) bk.onclick = () => closePlayerPage();
+  const al = $('#mpAll'); if (al) al.onclick = () => { ppage.all = !ppage.all; renderMapPage(); };
+  const lk = $('#mpLink'); if (lk) lk.onclick = async () => { const u = siteBase() + '#map=' + encodeURIComponent(key); try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to this page:', u); } };
+}
+let mpResize = 0; window.addEventListener('resize', () => { if (!ppage.map || mpResize) return; mpResize = requestAnimationFrame(() => { mpResize = 0; if (ppage.map && $('#mpHeat')) renderMapPage(); }); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && (ppage.nick || ppage.map) && !(session && session.listOpen) && !e.target.closest('input, select, textarea')) closePlayerPage(); });
 
 $('#fJson').addEventListener('change', async e => {
   const f = e.target.files[0]; if (!f) return; e.target.value='';
@@ -6646,10 +6946,13 @@ async function serverBoot() {
   const hit = findSrv(want), pick = hit || session.rounds.find(r => r.status === 'done');
   if (hit) pendingLink = { r: hit, t: h.has('t') ? +h.get('t') : null, p: h.get('p') };
   if (pick) openServerRound(pick);
-  if (h.get('player')) openPlayerPage(h.get('player'), true);
+  if (h.get('player')) openPlayerPage(h.get('player'), true, h.get('vs'));
+  else if (h.get('map')) openMapPage(h.get('map'), true);
 }
 window.addEventListener('hashchange', () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)), r = findSrv(h.get('round'));
-  if (h.get('player')) { if (ppage.nick !== h.get('player')) openPlayerPage(h.get('player'), true); return; } else if (ppage.nick) closePlayerPage(true); if ((h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
+  if (h.get('player')) { if (ppage.nick !== h.get('player') || ppage.vs !== (h.get('vs') || null)) openPlayerPage(h.get('player'), true, h.get('vs')); return; }
+  if (h.get('map')) { if (ppage.map !== h.get('map').toLowerCase()) openMapPage(h.get('map'), true); return; }
+  if (ppage.nick || ppage.map) closePlayerPage(true); if ((h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
 
 new ResizeObserver(resize).observe(cv);
 new ResizeObserver(resize).observe(tl);
@@ -6662,7 +6965,7 @@ function setTheme(light, save) {
   b.querySelector('svg').innerHTML = light ? MOON : SUN; b.title = tip; b.setAttribute('aria-label', tip); b.setAttribute('aria-pressed', String(light));
   if (save) try { localStorage.setItem('bf2rr.theme', light ? 'light' : 'dark'); } catch (e) {}
   if (round) { terrain = makeTerrain(hashStr(String(round.meta.map))); refresh(true); }
-  if (ppage.nick) renderPlayerPage();
+  if (ppage.nick || ppage.map) renderPlayerPage();
 }
 $('#themeBtn').onclick = () => setTheme(document.documentElement.dataset.theme !== 'light', true);
 setTheme(document.documentElement.dataset.theme === 'light', false);
