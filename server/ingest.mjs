@@ -289,7 +289,7 @@ ${body}
 const WWW_VER = 1;   // (raise when the pages change: they are all written again)
 function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
-  // nothing new (the same rounds, decoder, domain and pages as last time: update.sh runs this every 5 minutes): skip
+  // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
   const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, d.rounds.map(r => [r.name, r.decoder, r.added])])).digest('hex'), stampF = path.join(WWW, '.stamp');
   try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
   const mapName = m => dec.GAME?.maps?.[m]?.name || m;

@@ -10,7 +10,8 @@
 | сайт через Caddy, HTTPS-сертифікат сам (Let's Encrypt) | постійно | `systemctl status caddy` |
 | `fetch.mjs`: нові демо зі сторінки демо → `upload/incoming` | раз на день, о 05:30 (`BF2R_FETCH_AT`) | `journalctl -u bf2replay-fetch` |
 | `ingest.mjs`: демо → розібраний раунд, список раундів (раунди без гравців відкидаються) | одразу, як з'явився файл (і кожні 2 хв) | `journalctl -u bf2replay-ingest` |
-| `update.sh`: `git pull` з GitHub, оновлення сайту | кожні 5 хв | `journalctl -u bf2replay-update` |
+| `update.sh`: `git pull` з GitHub, оновлення сайту | щохвилини | `journalctl -u bf2replay-update` |
+| `ingest.mjs --reprocess`: перерозбір раундів після зміни декодера (запускає `update.sh`, окремо від нього) | після оновлення | `journalctl -u bf2replay-reprocess` |
 | SFTP-скринька `bf2upload` (для тих, хто сам відсилає демо) | — | необов'язково, п. 8 |
 
 Усе живе в `/srv/bf2replay`: `repo/` (копія GitHub), `site/` (те, що бачать люди), `data/` (демо і раунди),
@@ -76,7 +77,7 @@ Add deploy key, назва `bf2replay VPS`, «Allow write access» **не** ст
 sudo ssh -F /dev/null -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git@github.com   # Hi ЛОГІН/bf2-round-replay! ...
 ```
 
-Сам `git pull` (кожні 5 хв) теж іде від root з цим ключем (він записаний у `/srv/bf2replay/repo/.git/config`,
+Сам `git pull` (щохвилини) теж іде від root з цим ключем (він записаний у `/srv/bf2replay/repo/.git/config`,
 `core.sshCommand`); розбір демо й завантаження — від користувача `bf2replay`.
 
 Наприкінці він напише адресу сайту. Перше завантаження стартує одразу після встановлення (бере все, що є на
@@ -175,7 +176,7 @@ df -h /srv/bf2replay                                     # місце на ди�
 | `BF2R_RAW_KEEP_DAYS` | через N днів видаляти саме демо, розібраний раунд лишається | 0 = не видаляти |
 
 Після зміни нічого перезапускати не треба — наступний прохід візьме нові значення (новий `BF2R_FETCH_AT` —
-за ≤ 5 хв, його ставить `update.sh`; перевірити: `systemctl list-timers bf2replay-fetch`).
+за ≤ 1 хв, його ставить `update.sh`; перевірити: `systemctl list-timers bf2replay-fetch`).
 Увага щодо `BF2R_RAW_KEEP_DAYS`: раунд без демо не можна перерозібрати після оновлення розбору — він лишиться
 таким, як був розібраний.
 
@@ -258,7 +259,7 @@ WhatsApp показують під таким посиланням назву м
 стоїть, цього ще не вміє — тому один раз руками:
 
 ```bash
-# 1. після git push: підтягнути нову версію зараз (а не через ≤ 5 хв) і перевірити
+# 1. після git push: підтягнути нову версію зараз (а не через ≤ 1 хв) і перевірити
 sudo systemctl start bf2replay-update && journalctl -u bf2replay-update -n 5 --no-pager
 
 # 2. подивитися, що буде скачано: скільки демо, скільки MB, скільки вільно на диску (нічого не качає)

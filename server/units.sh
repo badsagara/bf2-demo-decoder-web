@@ -1,7 +1,7 @@
 #!/bin/bash
 # BF2 Round Replay: put this repository's systemd units, update.sh and the Caddy config in place (only what changed), and the daily
 # download time from /etc/bf2replay.conf (BF2R_FETCH_AT=HH:MM) as a drop-in for bf2replay-fetch.timer.
-# Run as root by install.sh and, every 5 minutes, by update.sh: a unit changed in GitHub, or a new BF2R_FETCH_AT,
+# Run as root by install.sh and, every minute, by update.sh: a unit changed in GitHub, or a new BF2R_FETCH_AT,
 # takes effect without running install.sh again.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)

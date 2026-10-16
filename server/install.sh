@@ -138,7 +138,7 @@ if [[ $REPO == git@* || $REPO == ssh://* ]]; then
   # the automatic pull can't type a passphrase; the public half (for GitHub) is made from the key if it's missing
   if ! ssh-keygen -y -P '' -f "$GIT_KEY" > "$GIT_KEY.pub.new" 2>/dev/null; then
     rm -f "$GIT_KEY.pub.new"
-    echo "$GIT_KEY has a passphrase (or is not a private key). The git pull every 5 minutes can't type it."
+    echo "$GIT_KEY has a passphrase (or is not a private key). The git pull every minute can't type it."
     echo "Remove the passphrase (old one, then Enter twice):  ssh-keygen -p -f $GIT_KEY   - then run this again."
     exit 1
   fi
@@ -197,7 +197,7 @@ else
 fi
 
 say "Timers"
-# (units.sh puts the units, update.sh and the download time in place; update.sh runs it again every 5 minutes)
+# (units.sh puts the units, update.sh and the download time in place; update.sh runs it again every minute)
 bash "$HERE/units.sh"
 systemctl daemon-reload
 systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer

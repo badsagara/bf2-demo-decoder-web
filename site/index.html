@@ -83,6 +83,10 @@ header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px
 .btn.on { border-color: var(--accent); color: var(--accent); }
 input[type=file] { display: none; }
 
+/* a new version on the site: a bar at the top of the screen, with Reload */
+.newver { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 6px; background: var(--panel); border: 1px solid var(--accent); box-shadow: 0 6px 24px rgba(0,0,0,.35); font-size: 13px; max-width: calc(100vw - 32px); }
+.newver b { color: var(--accent); }
+.newver .btn { padding: 5px 10px; }
 .notice { background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 4px; padding: 10px 12px; font-size: 13px; }
 .notice strong { color: var(--accent); }
 
@@ -807,7 +811,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v96';
+const APP_VERSION = 'v97';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -7308,6 +7312,33 @@ function linkHere() {
 }
 const playerLink = nick => serverData?.shareOk ? siteBase() + 'p/' + nickSlug(nick) : siteBase() + '#player=' + encodeURIComponent(nick);
 $('#vLink').onclick = async () => { const u = linkHere(); if (!u) return; try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to this moment:', u); } };
+// A new version on the site (build_site.py writes version.json next to the page; the web server never caches it): looked
+// for every 2 minutes and whenever the tab comes back into view; when there is one, a bar offers to reload - into the
+// same round, moment and soldier
+let verTimer = 0, verShown = null;
+async function versionCheck() {
+  if (!session || !session.server || document.hidden) return;
+  let v = null; try { const res = await fetch(siteBase() + 'version.json', { cache: 'no-cache' }); if (res.ok) v = (await res.json()).v; } catch (e) { return; }
+  const num = x => +String(x || '').replace(/\D/g, '') || 0;
+  if (!v || num(v) <= num(APP_VERSION) || verShown === v) return;
+  verShown = v; document.querySelector('.newver')?.remove();
+  const bar = document.createElement('div'); bar.className = 'newver'; bar.setAttribute('role', 'status');
+  bar.innerHTML = `<span>A new version is out: <b>${esc(v)}</b> (this page: ${esc(APP_VERSION)})</span><button class="btn primary" type="button">Reload</button><button class="btn" type="button" aria-label="Later">Later</button>`;
+  const [go, later] = bar.querySelectorAll('button');
+  go.onclick = () => {
+    const r = session.rounds.find(x => x.name === $('#srcLabel').textContent), p = sel !== null && round ? round.players[sel] : null;
+    const h = ppage.nick ? '#player=' + encodeURIComponent(ppage.nick) + (ppage.vs ? '&vs=' + encodeURIComponent(ppage.vs) : '') : ppage.map ? '#map=' + encodeURIComponent(ppage.map)
+      : r && round ? '#round=' + encodeURIComponent(linkId(r.name)) + '&t=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '') : '';
+    history.replaceState(null, '', location.pathname + location.search + h); location.reload();
+  };
+  later.onclick = () => bar.remove();
+  document.body.appendChild(bar);
+}
+function versionWatch() {
+  if (verTimer) return; verTimer = setInterval(versionCheck, 120000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) versionCheck(); });
+  setTimeout(versionCheck, 5000);
+}
 async function serverBoot() {
   if (!/^https?:$/.test(location.protocol)) return;
   let d = null; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) d = await res.json(); } catch (e) { return; }
@@ -7316,7 +7347,7 @@ async function serverBoot() {
   // links with previews only when the web server serves them (its config may not have /r/ and /p/ yet)
   const r0 = d.share && d.rounds.find(x => !x.empty);
   if (r0) fetch(siteBase() + 'r/' + encodeURIComponent(linkId(r0.name)), { method: 'HEAD', cache: 'no-cache' }).then(res => { serverData.shareOk = res.ok && /html/.test(res.headers.get('content-type') || ''); }).catch(() => {});
-  document.body.classList.add('site'); $('#moreBtn').hidden = false;
+  document.body.classList.add('site'); $('#moreBtn').hidden = false; versionWatch();
   session = { server: true, done: true, showEmpty: false, sort: 'score', dir: -1, job: null, rounds: d.rounds.map(x => ({ name: x.name, status: x.empty ? 'empty' : 'done', sum: x.sum, srv: x, file: null })) };
   $('#vLink').hidden = false;
   renderSession();
