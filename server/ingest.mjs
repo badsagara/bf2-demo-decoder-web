@@ -10,11 +10,16 @@
 //
 // The decoder is the page's own (the part of site/index.html between "// @worker-begin" and "// @worker-end"), so the
 // server and the browsers always decode the same way. Settings: /etc/bf2replay.conf (BF2R_ROOT, BF2R_KEEP_EMPTY, BF2R_MIN_PLAYERS,
-// BF2R_RAW_KEEP_DAYS), or the same names in the environment.
+// BF2R_RAW_KEEP_DAYS, BF2R_JOBS), or the same names in the environment.
+// Decoding again (--reprocess, --rebuild) runs BF2R_JOBS demos at once in worker threads (default: as many as the CPU
+// cores and the memory allow, ~1.2 GB each, at most 4) and keeps its progress in rounds.json (reprocess: done / total /
+// left, for bf2replay-status and the site), and in the log: "[45/480 9%, ~1 h 10 min left]".
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import crypto from 'node:crypto';
+import os from 'node:os';
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 
 // ---------- settings ----------
 const conf = {};
@@ -23,6 +28,7 @@ const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
 const ROOT = opt('BF2R_ROOT', '/srv/bf2replay');
 const KEEP_EMPTY = opt('BF2R_KEEP_EMPTY', '0') === '1';      // keep demos of rounds nobody played (in data/empty)
 const MIN_PLAYERS = Math.max(1, Math.floor(+opt('BF2R_MIN_PLAYERS', '2') || 2));   // fewer players on the field: not listed
+const JOBS = Math.max(1, Math.floor(+opt('BF2R_JOBS', '0')) || Math.min(4, os.cpus().length || 1, Math.max(1, Math.floor(os.totalmem() / (1.2 * 2 ** 30)))));
 const RAW_KEEP_DAYS = +opt('BF2R_RAW_KEEP_DAYS', '0');       // delete the demo itself after so many days (0: never); the decoded round stays
 const SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
 const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), logs: path.join(DATA, 'logs'), empty: path.join(DATA, 'empty'), bad: path.join(DATA, 'bad') };
@@ -182,6 +188,13 @@ function writeIndex(d, dec) {
   d.heat = heat;
   try { writeShares(d, dec); d.share = true; } catch (e) { log('link previews not written:', e.message); }
   const tmp = INDEX + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(d)); fs.renameSync(tmp, INDEX);
+  // how far decoding again is, in a file of its own: the site's progress tag reads it every 30 s while it lasts (rounds.json
+  // is too big for that)
+  if (d.reprocess) writeProgress({ ...d.reprocess, updated: d.updated });
+}
+function writeProgress(P) {
+  const f = path.join(DATA, 'reprocess.json');
+  try { fs.writeFileSync(f + '.tmp', JSON.stringify(P)); fs.renameSync(f + '.tmp', f); } catch (e) { log('progress not written:', e.message); }
 }
 
 // ---------- link previews ----------
@@ -422,10 +435,16 @@ function dropRound(idx, name, src) {
   const old = idx.rounds.findIndex(r => r.name === name); if (old >= 0) idx.rounds.splice(old, 1);
   heatPut(name, null);
 }
-async function processDemo(dec, idx, src, name, { move }) {
-  const t0 = Date.now(), { tl, hdr, info } = await decodeFile(dec, src);
-  const old = idx.rounds.findIndex(r => r.name === name), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
-  if (!tl || sum.empty || sum.players < MIN_PLAYERS) {
+// the heavy part of a demo, also in a worker thread: decoded, summed up, packed (.bfr) - { sum, info, bfr } or { sum, drop }
+async function decodeWork(dec, src, name) {
+  const { tl, hdr, info } = await decodeFile(dec, src), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
+  if (!tl || sum.empty || sum.players < MIN_PLAYERS) return { sum, drop: true };
+  return { sum, info, bfr: bfrBuild({ name, info, tl }) };
+}
+async function processDemo(dec, idx, src, name, { move, pre, t0 = Date.now(), note = '' }) {
+  const { sum, info, bfr, drop } = pre || await decodeWork(dec, src, name);
+  const old = idx.rounds.findIndex(r => r.name === name);
+  if (drop) {
     // nobody played (no spawn, or nobody was ever alive on the field), or fewer than BF2R_MIN_PLAYERS did (one soldier
     // alone on an empty server): no round to list
     dropRound(idx, name, src);
@@ -434,14 +453,26 @@ async function processDemo(dec, idx, src, name, { move }) {
   }
   const base = baseOf(name), bfrName = `${base}.${dec.hash}.bfr`;
   for (const f of fs.readdirSync(DIRS.rounds)) if (f.startsWith(base + '.') && f !== bfrName) fs.unlinkSync(path.join(DIRS.rounds, f));   // made by an older decoder
-  const bfr = bfrBuild({ name, info, tl }), tmp = path.join(DIRS.rounds, bfrName + '.tmp');
+  const tmp = path.join(DIRS.rounds, bfrName + '.tmp');
   fs.writeFileSync(tmp, bfr); fs.renameSync(tmp, path.join(DIRS.rounds, bfrName));
   if (move) fs.renameSync(src, path.join(DIRS.demos, name));
   const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum };
   heatPut(name, entry.sum);
   if (old >= 0) idx.rounds[old] = entry; else idx.rounds.push(entry);
-  log('round', name, `${(info.bytes / 1e6).toFixed(1)} MB -> ${(bfr.length / 1e6).toFixed(1)} MB`, `${entry.sum.players} players, ${entry.sum.kills} kills`, `${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  log('round', name, `${(info.bytes / 1e6).toFixed(1)} MB -> ${(bfr.length / 1e6).toFixed(1)} MB`, `${entry.sum.players} players, ${entry.sum.kills} kills`, `${((Date.now() - t0) / 1000).toFixed(1)} s`, note);
 }
+// worker threads for decoding many demos: each loads the page's decoder itself (the same file: the same hash)
+class Pool {
+  constructor(n, hash) { this.free = []; this.all = []; this.wait = []; for (let i = 0; i < n; i++) { const w = new Worker(new URL(import.meta.url), { workerData: { hash } }); w.unref(); this.all.push(w); this.free.push(w); } }
+  run(src, name) {
+    return new Promise((res, rej) => {
+      const go = w => { w.once('message', m => { this.free.push(w); if (this.wait.length) this.wait.shift()(); m.ok ? res(m.r) : rej(new Error(m.err)); }); w.postMessage({ src, name }); };
+      const w = this.free.pop(); if (w) go(w); else this.wait.push(() => go(this.free.pop()));
+    });
+  }
+  close() { for (const w of this.all) w.terminate(); }
+}
+const hm = s => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
 
 async function main() {
   for (const d of Object.values(DIRS)) fs.mkdirSync(d, { recursive: true });
@@ -466,14 +497,28 @@ async function main() {
   }
   // 2. after a site update: rounds made by another decoder are decoded again from their demo
   if (args.has('--reprocess') || args.has('--rebuild')) {
-    const names = args.has('--rebuild') ? fs.readdirSync(DIRS.demos).filter(f => /\.bf2demo(\.gz)?$/i.test(f)) : idx.rounds.filter(r => r.decoder !== dec.hash).map(r => r.name);
-    if (args.has('--rebuild')) idx.rounds = idx.rounds.filter(r => names.includes(r.name) || fs.existsSync(path.join(DATA, r.bfr)));
-    for (const name of names) {
-      const src = path.join(DIRS.demos, name);
-      if (!fs.existsSync(src)) { log('no demo left for', name, '(kept as it was)'); continue; }
-      try { await processDemo(dec, idx, src, name, { move: false }); changed = true; writeIndex(idx, dec); }
-      catch (e) { log('could not decode again', name, '-', e.message); }
+    const all = args.has('--rebuild') ? fs.readdirSync(DIRS.demos).filter(f => /\.bf2demo(\.gz)?$/i.test(f)) : idx.rounds.filter(r => r.decoder !== dec.hash).map(r => r.name);
+    if (args.has('--rebuild')) idx.rounds = idx.rounds.filter(r => all.includes(r.name) || fs.existsSync(path.join(DATA, r.bfr)));
+    const names = all.filter(name => { if (fs.existsSync(path.join(DIRS.demos, name))) return true; log('no demo left for', name, '(kept as it was)'); return false; });
+    if (names.length) {
+      // (newest rounds first: rounds.json lists them so; several at once in worker threads; progress kept in rounds.json)
+      const jobs = Math.min(JOBS, names.length), pool = jobs > 1 ? new Pool(jobs, dec.hash) : null, t0 = Date.now(), P = { hash: dec.hash, total: names.length, done: 0, jobs, since: new Date(t0).toISOString() };
+      idx.reprocess = P; writeIndex(idx, dec);
+      log(`decoding ${names.length} rounds again with decoder ${dec.hash}, ${jobs} at once`);
+      let next = 0;
+      const one = async () => {
+        while (next < names.length) {
+          const name = names[next++], src = path.join(DIRS.demos, name), t1 = Date.now();
+          let pre = null; try { pre = pool ? await pool.run(src, name) : await decodeWork(dec, src, name); } catch (e) { log('could not decode again', name, '-', e.message); }
+          P.done++; const el = (Date.now() - t0) / 1000, left = el / P.done * (P.total - P.done); P.left = Math.round(left);
+          if (pre) { try { await processDemo(dec, idx, src, name, { move: false, pre, t0: t1, note: `[${P.done}/${P.total} ${Math.floor(100 * P.done / P.total)}%${P.done < P.total ? ', ~' + hm(left) + ' left' : ''}]` }); changed = true; } catch (e) { log('could not write', name, '-', e.message); } }
+          writeIndex(idx, dec);
+        }
+      };
+      try { await Promise.all(Array.from({ length: jobs }, one)); } finally { if (pool) pool.close(); }
+      log(`decoded ${P.total} rounds again in ${hm((Date.now() - t0) / 1000)}`);
     }
+    if (idx.reprocess) { const P = idx.reprocess; delete idx.reprocess; changed = true; writeProgress({ ...P, left: 0, end: new Date().toISOString() }); }   // (the tag: done)
   }
   // 3. demos older than BF2R_RAW_KEEP_DAYS go (the decoded round stays and still opens)
   if (RAW_KEEP_DAYS > 0) {
@@ -487,4 +532,11 @@ async function main() {
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)
   try { writeWww(idx, dec); } catch (e) { log('pages for search engines not written:', e.message); }
 }
-main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });
+if (isMainThread) main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });
+else {   // a decoding worker (Pool): the page's decoder, one demo at a time
+  const dec = loadDecoder();
+  parentPort.on('message', async ({ src, name }) => {
+    try { if (dec.hash !== workerData.hash) throw new Error('the site changed while decoding (decoder ' + dec.hash + ')'); parentPort.postMessage({ ok: true, r: await decodeWork(dec, src, name) }); }
+    catch (e) { parentPort.postMessage({ ok: false, err: e.message }); }
+  });
+}

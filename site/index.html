@@ -41,6 +41,8 @@
   --warn-bg: rgba(226,181,71,.12);
   --medic: #6fd38a;
   --hp-low: #ff4d4d;
+  --seen: #ff5ad8;   /* an enemy the followed soldier sees: glow, reticle, sight line */
+  --aim: #ffe14a;    /* the followed soldier's aim line (on a dark edge) */
   --font-display: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
   --font-body: "Archivo", "Segoe UI", system-ui, sans-serif;
   --font-data: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -55,7 +57,7 @@
   --bg: #e9ede4; --panel: #f6f8f2; --panel-2: #eef2e8; --line: #cfd8c9;
   --fg: #1a231d; --muted: #5d6b5c; --accent: #a87a0c;
   --mec: #d8401f; --us: #1f6fd6; --neutral: #6c7468; --veh-empty: #858a83; --wreck: #3d2f27; --stance-ink: #ffffff; --blast: #c9581a; --spot: #e0281c; --warn-bg: rgba(168,122,12,.12);
-  --medic: #1f8a46; --hp-low: #c62828;
+  --medic: #1f8a46; --hp-low: #c62828; --seen: #c0189a; --aim: #ffd21f;
   --hit-head: #eda100; --hit-body: #1baf7a; --hit-limb: #4a3aa7;
   --bld-fill: rgba(40, 44, 38, .32); --bld-line: rgba(18, 22, 16, .85); --bld-roof: rgba(40, 44, 38, .16);
   color-scheme: light;
@@ -67,7 +69,7 @@ html, body { background: var(--bg); color: var(--fg); }
 body { font: 14px/1.45 var(--font-body); padding-inline: 16px; padding-block: 12px 24px; }
 .wrap { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
-.brand { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+.brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; min-width: 0; }
 .brand h1 { font: 700 28px/1 var(--font-display); letter-spacing: .04em; text-transform: uppercase; margin: 0; }
 .brand h1 b { color: var(--accent); font-weight: 700; }
 .brand span { color: var(--muted); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
@@ -86,6 +88,12 @@ input[type=file] { display: none; }
 /* a new version on the site: a bar at the top of the screen, with Reload */
 .newver { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 14px; border-radius: 6px; background: var(--panel); border: 1px solid var(--accent); box-shadow: 0 6px 24px rgba(0,0,0,.35); font-size: 13px; max-width: calc(100vw - 32px); }
 .newver b { color: var(--accent); }
+/* rounds being decoded again after a site update: a chip in the round bar */
+.vcam { display: inline-flex; gap: 0; margin-left: 6px; vertical-align: middle; }
+.vcam .btn.sm { padding: 3px 7px; font-size: 11px; border-radius: 0; }
+.vcam .btn:first-child { border-radius: 4px 0 0 4px; } .vcam .btn:last-child { border-radius: 0 4px 4px 0; margin-left: -1px; }
+.brand .rproc { overflow-wrap: normal; display: inline-flex; align-items: center; gap: 7px; font: 600 12px/1 var(--font-data); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent); border-radius: 12px; padding: 5px 10px; white-space: nowrap; align-self: center; }
+.brand .rproc i { display: inline-block; width: 52px; height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--accent) var(--p, 0%), color-mix(in srgb, var(--accent) 22%, transparent) var(--p, 0%)); }
 .newver .btn { padding: 5px 10px; }
 .notice { background: var(--warn-bg); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 4px; padding: 10px 12px; font-size: 13px; }
 .notice strong { color: var(--accent); }
@@ -811,7 +819,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v97';
+const APP_VERSION = 'v99';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1127,8 +1135,10 @@ let t = 0, playing = false, speed = 10, sel = null, tab = 0;
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', job: null, out: null, drag: null, sel: undefined };
-const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true };
+const opts = { names:true, feed:true, kills:true, heat:false, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true, cam3:false };
 try { if (localStorage.getItem('bf2rr.vehicles') === 'icons') opts.models = false; } catch (e) {}
+// a vehicle seat's view from its third-person camera instead of its own (the card's View row switches it)
+try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
 // ---------- map pictures ----------
 // The game's minimap (Levels/<map>/client.zip -> Hud/Minimap/ingameMap.dds) covers the whole terrain, north up,
@@ -1427,12 +1437,12 @@ const looking = (i, tt) => { const q = playerAt(i, tt); if (!q.alive || round.pl
 // soldiers (alive) in the field of view of soldier i: [{ i, d, seen }] nearest first (seen: true / false where the map's
 // walls and hills are known, else null); null when his view is not known
 function inViewOf(i, tt) {
-  const q = looking(i, tt); if (!q) return null;
-  const R = viewRange(), out = [];
+  const q = viewOf(i, tt); if (!q) return null;
+  const R = viewRange(), out = [], who = q.who ?? i, eye = q.eye ?? (q.h != null ? eyeOf(who, q, tt) : null);
   round.players.forEach((p, j) => {
-    if (j === i || p.vehicle) return; const o = playerAt(j, tt); if (!o.alive) return;
+    if (j === i || j === who || p.vehicle) return; const o = playerAt(j, tt); if (!o.alive || (o.veh && o.veh === q.veh)) return;
     const dx = o.x - q.x, dy = o.y - q.y, d = Math.hypot(dx, dy, (o.h || 0) - (q.h || 0));
-    if (d <= R && d > 0.3 && angOff(Math.atan2(dx, dy), q.yaw) <= VIEW_HALF && (q.h == null || o.h == null || inVBand(q.pitch, eyeOf(i, q, tt), Math.hypot(dx, dy), ...bodyCol(j, o, tt)))) out.push({ i: j, d, seen: canSee(i, j, tt) });
+    if (d <= R && d > 0.3 && angOff(Math.atan2(dx, dy), q.yaw) <= VIEW_HALF && (eye == null || o.h == null || inVBand(q.pitch, eye, Math.hypot(dx, dy), ...bodyCol(j, o, tt)))) out.push({ i: j, d, seen: canSee(who, j, tt, q) });
   });
   return out.sort((a, b) => a.d - b.d);
 }
@@ -1608,8 +1618,8 @@ function losBlocked(D, ax, ay, ah, bx, by, bh) {
 // eye height by stance, over the soldier's position (which is 1.0 m over his feet, standing, crouching or prone alike:
 // =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest)
 const EYE_H = [0.65, 0.05, -0.55], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75]];
-// (at a vehicle's gun: 1.5 m over the vehicle's position, about a tank's sights or a roof gunner's head)
-const eyeOf = (i, q, tt) => q.veh ? q.h + 1.5 : q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
+// (in a vehicle: his seat's camera, seatView; 1.5 m over the vehicle's position where that is not known)
+const eyeOf = (i, q, tt) => q.eye != null ? q.eye : q.veh ? (seatView(i, tt)?.eye ?? q.h + 1.5) : q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
 // ---------- smoke (sight lines) ----------
 // A smoke cloud (the decoded smoke events) hides what is in it or behind it: from 0.5 s after it forms until 2 s before it
 // is gone (it thins out at the end), a sight line that passes through the dense middle of it (85% of its radius, as it
@@ -1649,13 +1659,15 @@ function smokeRay(ax, ay, ux, uy, tt) {
   }
   return best;
 }
-// can soldier i see soldier j? true / false; null where the map's walls and hills are not known (and no smoke between them)
-function canSee(i, j, tt) {
-  const q = playerAt(i, tt), o = playerAt(j, tt);
+// can soldier i see soldier j? true / false; null where the map's walls and hills are not known (and no smoke between them).
+// From his eye (sightOf: in a vehicle his seat's camera), or from V (a view: viewOf, which may be the third-person camera)
+function canSee(i, j, tt, V) {
+  const q = V || sightOf(i, tt), o = playerAt(j, tt);
   if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return false;
   const D = losData(); if (!D) return null;
   if (q.h == null || o.h == null) return null;
-  const eye = eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
+  const eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
+  if (eye == null) return null;
   for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh)) return true;
   return false;
 }
@@ -1699,6 +1711,80 @@ function vehBlocks(ax, ay, ah, bx, by, bh, tt, skip1, skip2) {
     if (Math.max(h0, h1) >= b.h0 && Math.min(h0, h1) <= b.h1) return true;
   }
   return false;
+}
+// ---------- where a soldier in a vehicle sees from ----------
+// His seat's own first-person camera (Objects/Vehicles/*/*.con + .tweak: the Camera under the seat's PlayerControlObject,
+// through the turret or cupola it sits on), in the vehicle's frame: x right, y up, z forward, m from the vehicle's
+// position. d: the driver / pilot (seat 0; on a tank, APC or AA vehicle that is the gunner's sight on the turret, which
+// turns about t with the main gun), g: a roof or door gunner (turns with his gun about u), p: firing ports (r: the way
+// the port faces at rest, deg clockwise from the nose; the passenger's camera turns ±30-35° there). k: the seat's
+// third-person (chase) camera: [distance back, target up, target ahead (m), angle up (rad)]. All are 79° across (1.1 rad
+// high), as on foot. The demo holds nothing of the player's own screen: whether he played in first or third person (the
+// game's C key, where the server allows it) is not in it, nor where a jeep's driver or a pilot turns his head (they can,
+// 80-140° each way): with no gun to go by, his view is drawn straight ahead.
+const VEH_CAM = {"aav_tunguska":{"d":{"c":[0.0,2.18,0.87],"t":[0.0,0.68],"k":[18.5,1.0,9.0,0.15]}},"aav_type95":{"d":{"c":[0.03,1.84,0.09],"t":[0.0,-1.53],"k":[17.0,1.5,8.0,0.15]}},"ahe_ah1z":{"d":{"c":[0.0,0.83,2.22],"k":[23.0,2.5,6.0,0.25]},"g":{"c":[-0.03,0.74,3.36],"u":[-0.02,3.01],"r":-1.6,"k":[23.0,2.5,6.0,0.25]}},"ahe_havoc":{"d":{"c":[-0.0,0.95,1.83],"k":[30.0,2.5,6.0,0.25]},"g":{"c":[-0.0,0.41,3.4],"u":[0.0,3.2],"r":-1.1,"k":[30.0,2.5,6.0,0.25]}},"ahe_z10":{"d":{"c":[0.0,1.13,1.61],"k":[28.0,2.5,6.0,0.25]},"g":{"c":[0.0,0.57,3.03],"u":[0.0,2.88],"k":[28.0,2.5,6.0,0.25]}},"air_f35b":{"d":{"c":[0.0,0.99,5.83],"k":[28.0,2.5,6.0,0.18]}},"air_j10":{"d":{"c":[0.0,0.72,5.5],"k":[28.0,2.6,6.0,0.18]}},"air_su30mkk":{"d":{"c":[0.0,1.36,8.08],"k":[35.0,2.5,6.0,0.18]},"p":[{"c":[-0.0,1.85,6.49],"k":[35.0,2.5,6.0,0.18]}]},"apc_btr90":{"d":{"c":[-0.29,2.32,1.27],"t":[0.0,1.0],"k":[17.0,1.5,8.0,0.15]},"p":[{"c":[1.0,1.4,0.07],"r":90.0,"k":[14.5,1.0,7.0,0.15]},{"c":[-1.0,1.4,0.07],"r":-90.0,"k":[14.5,1.0,7.0,0.15]},{"c":[1.0,1.44,-1.08],"r":90.0,"k":[14.5,1.0,7.0,0.15]},{"c":[-1.0,1.44,-1.08],"r":-90.0,"k":[14.5,1.0,7.0,0.15]}]},"apc_wz551":{"d":{"c":[-0.4,1.92,-0.14],"t":[0.0,-0.65],"k":[17.0,1.5,8.2,0.15]},"p":[{"c":[-0.83,1.35,-2.15],"r":-60.0,"k":[14.3,1.0,7.0,0.15]},{"c":[0.12,1.34,-3.18],"r":-180.0,"k":[14.3,1.0,7.0,0.15]},{"c":[0.82,1.34,-1.72],"r":60.0,"k":[14.3,1.0,7.0,0.15]},{"c":[0.83,1.35,-2.62],"r":60.0,"k":[14.3,1.0,7.0,0.15]}]},"boat_rib":{"d":{"c":[0.06,1.75,-1.71],"k":[15.0,2.5,6.0,0.07]},"g":{"c":[0.02,1.53,2.24],"u":[0.02,2.76],"k":[15.0,2.5,6.0,0.07]}},"chthe_z8":{"d":{"c":[-0.57,0.6,4.5],"k":[30.0,2.5,6.0,0.25]},"g":{"c":[-0.8,0.24,3.19],"u":[-1.19,3.19],"r":-90.0,"k":[30.0,2.5,6.0,0.25]}},"jeep_faav":{"d":{"c":[-0.31,0.64,-0.4],"k":[15.0,1.0,7.0,0.15]},"g":{"c":[0.0,1.31,-0.91],"u":[0.0,-0.46],"k":[15.0,1.0,7.0,0.15]}},"jep_mec_paratrooper":{"d":{"c":[-0.32,0.67,-0.02],"k":[15.0,1.0,7.0,0.15]},"g":{"c":[-0.0,1.61,-0.98],"u":[0.0,-0.99],"k":[15.0,1.0,7.0,0.15]}},"jep_nanjing":{"d":{"c":[-0.44,0.98,0.85],"k":[15.0,1.0,7.0,0.15]},"g":{"c":[-0.0,2.15,-0.33],"u":[-0.01,-0.39],"k":[15.0,1.0,7.0,0.15]}},"jep_paratrooper":{"d":{"c":[-0.32,0.67,-0.02],"k":[15.0,1.0,7.0,0.15]},"g":{"c":[-0.0,1.61,-0.98],"u":[0.0,-0.99],"k":[15.0,1.0,7.0,0.15]}},"jep_vodnik":{"d":{"c":[-0.46,0.86,1.87],"k":[15.0,1.0,6.0,0.15]},"g":{"c":[0.0,2.11,-0.75],"u":[0.0,-0.97],"k":[15.0,1.0,6.0,0.15]}},"ruair_mig29":{"d":{"c":[0.0,1.32,5.33],"k":[28.0,2.5,6.0,0.18]}},"ruair_su34":{"d":{"c":[-0.37,1.1,7.11],"k":[32.0,2.5,6.0,0.25]},"p":[{"c":[0.41,1.11,7.09],"k":[32.0,2.5,6.0,0.25]}]},"rutnk_t90":{"d":{"c":[-0.74,1.02,0.95],"t":[0.0,0.0],"k":[17.0,1.0,8.5,0.15]},"g":{"c":[0.57,1.77,-0.2],"t":[0.0,0.0],"u":[0.58,-0.41],"k":[16.0,1.0,7.0,0.2]}},"the_mi17":{"d":{"c":[-0.58,-0.53,4.29],"k":[30.0,2.5,6.0,0.25]},"g":{"c":[-1.05,-0.84,2.88],"u":[-1.55,2.88],"r":-90.0,"k":[30.0,2.5,6.0,0.25]}},"tnk_type98":{"d":{"c":[-0.72,1.51,1.47],"t":[0.0,0.48],"k":[17.0,1.0,8.5,0.15]},"g":{"c":[0.39,2.39,0.27],"t":[0.0,0.48],"u":[0.39,-0.12],"k":[16.0,1.0,7.0,0.2]}},"usaav_m6":{"d":{"c":[-0.18,1.98,-0.09],"t":[0.22,-0.43],"k":[17.0,1.25,8.5,0.15]}},"usair_f15":{"d":{"c":[0.0,1.58,6.54],"k":[35.0,2.5,6.0,0.18]}},"usair_f18":{"d":{"c":[0.0,1.2,5.42],"k":[28.0,2.5,6.0,0.18]}},"usapc_lav25":{"d":{"c":[-0.39,1.59,-0.51],"t":[-0.09,-0.93],"k":[17.0,1.0,9.0,0.15]},"p":[{"c":[-0.9,0.8,-1.75],"r":-90.0,"k":[14.0,1.0,7.0,0.15]},{"c":[0.9,0.8,-1.76],"r":90.0,"k":[14.0,1.0,7.0,0.15]},{"c":[-0.41,0.79,-3.01],"r":-180.0,"k":[14.0,1.0,7.0,0.15]},{"c":[0.4,0.79,-3.0],"r":-180.0,"k":[14.0,1.0,7.0,0.15]}]},"usjep_hmmwv":{"d":{"c":[-0.69,0.65,0.38],"k":[15.0,1.0,6.0,0.15]},"g":{"c":[-0.0,1.61,-0.05],"u":[0.0,-0.14],"k":[14.0,1.0,7.0,0.15]}},"usthe_uh60":{"d":{"c":[0.72,0.56,2.97],"k":[30.0,2.5,6.0,0.25]}},"ustnk_m1a2":{"d":{"c":[-1.02,1.62,1.42],"t":[0.0,0.17],"k":[17.0,1.0,8.5,0.15]},"g":{"c":[0.55,2.54,0.13],"t":[0.0,0.17],"u":[0.48,-0.26],"k":[16.0,1.0,7.0,0.2]}}};
+const vehKey = p => typeof p.tpl === 'string' ? p.tpl.toLowerCase() : TPL_NAME[p.tpl];
+// the index of the vehicle called name (per round)
+function vehIdx(name) {
+  const M = round._vIdx || (round._vIdx = new Map(round.players.map((p, i) => [p, i]).filter(([p]) => p.vehicle).map(([p, i]) => [p.name, i])));
+  return M.get(name);
+}
+// the view from soldier i's seat at tt (q: playerAt(i, tt)): { x, y, eye (height, m; null where heights are not known),
+// yaw, pitch (null: not known), gun (his gun's direction, from the demo) or ahead (none: straight ahead, a guess), role
+// ('driver' | 'pilot' | 'gunner' | 'port'), veh, vi (the vehicle's index), c3: the third-person camera { x, y, eye,
+// pitch } or null } - null on foot, dead, or a passenger without a gun (where he looks is not known)
+function seatView(i, tt, q) {
+  q = q || playerAt(i, tt); if (!q.alive || !q.veh) return null;
+  const vi = vehIdx(q.veh); if (vi === undefined) return null;
+  const vp = round.players[vi], v = playerAt(vi, tt); if (!Number.isFinite(v.x)) return null;
+  const C = VEH_CAM[vehKey(vp)] || {}, air = airNames().has(q.veh), hy = v.yaw, D2R = Math.PI / 180;
+  let S = null, yaw, pitch, gun = q.aim != null, role;
+  if (q.drv) { S = C.d; role = air ? 'pilot' : 'driver'; if (gun) { yaw = q.aim; pitch = q.pitch; } else { yaw = hy; pitch = air ? null : 0; } }
+  else if (gun) {
+    yaw = q.aim; pitch = q.pitch;
+    if (C.g) { S = C.g; role = 'gunner'; }
+    else if (C.p) { role = 'port'; let best = 9; for (const o of C.p) { const d = angOff(yaw, hy + (o.r || 0) * D2R); if (d < best) { best = d; S = o; } } }
+    else role = 'gunner';
+  } else return null;
+  // (in the hull's frame: a turret turns its seats about t with the main gun, a cupola its gunner about u with his gun)
+  const rot = (x, z, px, pz, a) => { const dx = x - px, dz = z - pz, c = Math.cos(a), sn = Math.sin(a); return [px + dx * c + dz * sn, pz - dx * sn + dz * c]; };
+  let lx = 0, ly = 1.5, lz = 0;
+  if (S) {
+    [lx, ly, lz] = S.c;
+    const relT = S.t && v.aim != null ? v.aim - hy : 0, relS = yaw - hy - (S.r || 0) * D2R;
+    if (S.u) { const [ux, uz] = S.t ? rot(S.u[0], S.u[1], S.t[0], S.t[1], relT) : S.u, [cx, cz] = rot(lx, lz, S.u[0], S.u[1], relS); lx = ux + cx - S.u[0]; lz = uz + cz - S.u[1]; }
+    else if (S.t) [lx, lz] = rot(lx, lz, S.t[0], S.t[1], relT);
+  }
+  const c = Math.cos(hy), sn = Math.sin(hy), x = v.x + lx * c + lz * sn, y = v.y - lx * sn + lz * c, eye = v.h != null ? v.h + ly : null;
+  let c3 = null;
+  if (S && S.k) {   // (it turns with his view: a point k[2] m ahead of the vehicle, the camera k[0] m back from it and up)
+    const [kd, kup, kah, ka] = S.k, fx = Math.sin(yaw), fy = Math.cos(yaw), back = kd * Math.cos(ka) - kah;
+    c3 = { x: v.x - fx * back, y: v.y - fy * back, eye: v.h != null ? v.h + kup + kd * Math.sin(ka) : null, pitch: pitch == null ? null : pitch - ka };
+  }
+  return { x, y, eye, yaw, pitch, gun, ahead: !gun, role, veh: q.veh, vi, c3 };
+}
+// the eye a soldier sees from in the game (first person): his own on foot, his seat's camera in a vehicle
+function sightOf(i, tt) {
+  const q = playerAt(i, tt);
+  if (q.alive && q.veh) { const s = seatView(i, tt, q); if (s) return { ...q, x: s.x, y: s.y, eye: s.eye }; }
+  return q;
+}
+// the view drawn for soldier i (or vehicle i: its driver's, else a gunner's) - on foot where he looks, in a seat its camera
+// (in third person when that is picked, opts.cam3): looking()'s fields with x, y, eye of the camera, role, ahead, third,
+// who (the soldier whose view it is) - or null
+function viewOf(i, tt) {
+  const p = round.players[i];
+  if (p.vehicle) {
+    const crew = round.players.map((o, j) => j).filter(j => !round.players[j].vehicle && playerAt(j, tt).alive && playerAt(j, tt).veh === p.name);
+    crew.sort((a, b) => (playerAt(b, tt).drv ? 1 : 0) - (playerAt(a, tt).drv ? 1 : 0));
+    for (const j of crew) { const V = viewOf(j, tt); if (V) return V; }
+    return null;
+  }
+  const q = playerAt(i, tt); if (!q.alive) return null;
+  if (!q.veh) { const lk = looking(i, tt); return lk ? { ...lk, eye: lk.h != null ? eyeOf(i, lk, tt) : null, role: 'foot', who: i } : null; }
+  const s = seatView(i, tt, q); if (!s) return null;
+  const third = !!(opts.cam3 && s.c3);
+  return { ...q, x: third ? s.c3.x : s.x, y: third ? s.c3.y : s.y, eye: third ? s.c3.eye : s.eye, yaw: s.yaw, pitch: third ? s.c3.pitch : s.pitch, gun: s.gun, ahead: s.ahead, role: s.role, third, seat: s, who: i };
 }
 // What soldier i sees of the ground in his field of view (the view drawn on the map): rays every few pixels across his
 // 79°, each walked out to the fog limit (or the edge of the screen) through every 25 cm cell of the object grid - so a
@@ -1808,7 +1894,11 @@ const AIM_TOL = 3;
 function aimLine(i, tt, tol = AIM_TOL) {
   const p = round.players[i]; let q, eye;
   if (p.vehicle) { const o = playerAt(i, tt); if (!o.alive || o.aim == null || !Number.isFinite(o.x)) return null; q = { ...o, yaw: o.aim }; eye = o.h != null ? o.h + 1.5 : null; }
-  else { q = looking(i, tt); if (!q || !Number.isFinite(q.x)) return null; eye = q.h != null ? eyeOf(i, q, tt) : null; }
+  else {   // (in a seat: from its camera)
+    q = looking(i, tt); if (!q || !Number.isFinite(q.x)) return null;
+    if (q.veh) { const sv = seatView(i, tt); if (sv) q = { ...q, x: sv.x, y: sv.y, eye: sv.eye }; }
+    eye = q.h != null ? q.eye ?? eyeOf(i, q, tt) : null;
+  }
   const flat = eye == null, pt = flat ? 0 : q.pitch ?? 0, cp = Math.cos(pt), ux = Math.sin(q.yaw) * cp, uy = Math.cos(q.yaw) * cp, uh = Math.sin(pt);
   const e0 = flat ? 0 : eye, maxL = fogRange() / Math.max(cp, 0.05), own = p.vehicle ? p.name : q.veh;
   let best = { l: maxL, kind: 'sky', j: null };
@@ -2472,6 +2562,46 @@ function clayFace(e) {
   }
   clayCache.set(e, f); return f;
 }
+// Soldiers on foot whose markers would lie over each other (closer than SPREAD_D px on the screen) are pushed apart:
+// rounds of shoving every pair that is too close to that distance (coincident ones each their own way) - a crowd pushed
+// into its neighbours pushes them on too - so every one of them shows; the followed soldier is not moved. -> { spread:
+// Map(index -> [x, y]) of the moved ones, groups: [[index, ...]] - the markers that touch after that, 2 or more, with at
+// least one that lay over another where they really are }
+const SPREAD_D = 22;
+function spreadOut() {
+  const L = [];
+  round.players.forEach((p, i) => {
+    if (p.vehicle) return; const q = playerAt(i, t); if (!q.alive || q.veh || !Number.isFinite(q.x)) return;
+    const [x, y] = toC(q.x, q.y); if (x < -60 || y < -60 || x > size + 60 || y > sizeH + 60) return;
+    L.push({ i, x0: x, y0: y, x, y, pin: i === sel, over: false });
+  });
+  const n = L.length, S = SPREAD_D, spread = new Map(), groups = [];
+  let any = false;
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) {
+    const A = L[a], B = L[b];
+    if (Math.abs(A.x0 - B.x0) < S && Math.abs(A.y0 - B.y0) < S && Math.hypot(A.x0 - B.x0, A.y0 - B.y0) < S * 0.95) { A.over = B.over = true; any = true; }
+  }
+  if (!any) return { spread, groups };
+  for (let it = 0; it < 40; it++) {
+    let moved = false;
+    for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) {
+      const A = L[a], B = L[b]; if (A.pin && B.pin) continue;
+      let dx = B.x - A.x, dy = B.y - A.y; if (Math.abs(dx) >= S || Math.abs(dy) >= S) continue;
+      let d = Math.hypot(dx, dy); if (d >= S - 0.5) continue;
+      if (d < 0.05) { const ang = (B.i * 2.39996 + A.i * 0.7) % (2 * Math.PI); dx = Math.cos(ang); dy = Math.sin(ang); d = 1; } else { dx /= d; dy /= d; }
+      const push = (S - d) * (it < 30 ? 0.55 : 0.5), wa = A.pin ? 0 : B.pin ? 1 : 0.5, wb = 1 - wa;
+      A.x -= dx * push * wa; A.y -= dy * push * wa; B.x += dx * push * wb; B.y += dy * push * wb; moved = true;
+    }
+    if (!moved) break;
+  }
+  for (const o of L) if (Math.hypot(o.x - o.x0, o.y - o.y0) > 0.5) spread.set(o.i, [o.x, o.y]);
+  // (groups: markers touching where they are drawn now)
+  const par = L.map((o, k) => k), find = k => { while (par[k] !== k) k = par[k] = par[par[k]]; return k; }, T = S + 4;
+  for (let a = 0; a < n; a++) for (let b = a + 1; b < n; b++) { const A = L[a], B = L[b]; if (Math.abs(A.x - B.x) < T && Math.abs(A.y - B.y) < T && Math.hypot(A.x - B.x, A.y - B.y) < T) par[find(a)] = find(b); }
+  const G = new Map(); L.forEach((o, k) => { const r = find(k); if (!G.has(r)) G.set(r, []); G.get(r).push(o); });
+  for (const M of G.values()) if (M.length > 1 && M.some(o => o.over)) groups.push(M.map(o => o.i));
+  return { spread, groups };
+}
 function draw() {
   if (!round) return;
   if (cx === cvCtx) syncZoom();
@@ -2591,25 +2721,28 @@ function draw() {
     }
   }
 
-  // field of view of the followed soldier (at a vehicle's gun: along the gun) out to the fog limit: what he sees of it
-  // (viewShed) filled - the ground he sees strong, where only a standing soldier would be seen light, both fading with
-  // distance - inside the sector's dashed outline. Without the map's walls and hills the sector itself, faintly. Who he
-  // sees gets a dashed ring, who is in the sector behind cover a dotted grey one
-  // who the followed soldier has in view (any layers): those he sees get a reticle in his colour, those in his field of
-  // view behind cover a dotted grey ring
+  // field of view of the followed soldier (at a vehicle's gun: along the gun; a vehicle followed: its driver's or gunner's)
+  // out to the fog limit, from where he sees (on foot his eyes, in a vehicle his seat's camera - or its third-person one,
+  // opts.cam3): what he sees of it (viewShed) filled - the ground he sees strong, where only a standing soldier would be seen
+  // light, both fading with distance - inside the sector's dashed outline (dotted: a driver or pilot without a gun, drawn
+  // straight ahead). Without the map's walls and hills the sector itself, faintly. In a vehicle a tag by it says whose
+  // view it is and from which camera.
+  // who the followed soldier has in view (any layers): enemies he sees get a glow, a bold reticle and a sight line,
+  // team mates a thin ring, those in his field of view behind cover a dotted grey ring
+  const selView = sel !== null ? viewOf(sel, t) : null;
   let inView = null;
-  if (sel !== null && looking(sel, t)) inView = new Map((inViewOf(sel, t) || []).map(o => [o.i, o.seen]));
-  if (opts.view && sel !== null) {
-    const q = looking(sel, t);
-    if (q) {
-      const [px, py] = toC(q.x, q.y), m2px = size / view.span, a0 = q.yaw - Math.PI / 2, col = teamColor(teamOf(sel, t));
+  if (selView) inView = new Map((inViewOf(sel, t) || []).map(o => [o.i, o.seen]));
+  if (opts.view && selView) {
+    const q = selView, who = q.who ?? sel;
+    {
+      const [px, py] = toC(q.x, q.y), m2px = size / view.span, a0 = q.yaw - Math.PI / 2, col = teamColor(teamOf(who, t));
       // (only as far as the screen reaches; rays a few pixels apart out there, points about as far apart along them)
       const [wx0, wy0] = toW(0, 0), [wx1, wy1] = toW(size, sizeH);
       const far = Math.max(...[[wx0, wy0], [wx1, wy0], [wx0, wy1], [wx1, wy1]].map(([x, y]) => Math.hypot(x - q.x, y - q.y)));
       const Rv = Math.min(fogRange(), far), R = Rv * m2px, nr = Math.max(40, Math.min(240, Math.ceil(R * 2 * VIEW_HALF / 4)));
-      const key = sel + '|' + t + '|' + view.x0 + '|' + view.y0 + '|' + view.span + '|' + size + '|' + sizeH + '|' + !!losData();
+      const key = sel + '|' + t + '|' + (q.third ? 3 : 1) + '|' + view.x0 + '|' + view.y0 + '|' + view.span + '|' + size + '|' + sizeH + '|' + !!losData();
       let vs = round._vsC && round._vsC.key === key ? round._vsC.vs : undefined;
-      if (vs === undefined) { vs = viewShed(sel, q, t, Rv, nr, Math.max(0.25, 2 / m2px)); round._vsC = { key, vs }; }
+      if (vs === undefined) { vs = viewShed(who, q, t, Rv, nr, Math.max(0.25, 2 / m2px)); round._vsC = { key, vs }; }
       const grad = (al0, al1) => { const g = cx.createRadialGradient(px, py, 0, px, py, Math.max(1, fogRange() * m2px)), c0 = rgbaOf(col, al0), c1 = rgbaOf(col, al1); if (!c0) return col; g.addColorStop(0, c0); g.addColorStop(1, c1); return g; };
       if (vs) {
         const P = [null, new Path2D(), new Path2D()];
@@ -2621,13 +2754,30 @@ function draw() {
             path.lineTo(px + sR * s1 * m2px, py - cR * s1 * m2px); path.lineTo(px + sR * s0 * m2px, py - cR * s0 * m2px); path.closePath();
           }
         });
-        const plain = !rgbaOf(col, 0.3);
-        cx.globalAlpha = plain ? 0.12 : 1; cx.fillStyle = grad(0.16, 0.03); cx.fill(P[1]);
-        cx.globalAlpha = plain ? 0.3 : 1; cx.fillStyle = grad(0.42, 0.08); cx.fill(P[2]); cx.globalAlpha = 1;
+        const plain = !rgbaOf(col, 0.3), dim = q.ahead ? 0.75 : 1;
+        cx.globalAlpha = (plain ? 0.12 : 1) * dim; cx.fillStyle = grad(0.2, 0.05); cx.fill(P[1]);
+        cx.globalAlpha = (plain ? 0.3 : 1) * dim; cx.fillStyle = grad(0.5, 0.12); cx.fill(P[2]); cx.globalAlpha = 1;
       }
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - VIEW_HALF, a0 + VIEW_HALF); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
-      cx.strokeStyle = col; cx.globalAlpha = vs ? 0.45 : 0.6; cx.lineWidth = 1; cx.setLineDash([5, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      // (its edges: dashed in his colour on a dark line, so they show over any ground)
+      cx.globalAlpha = 1; cx.strokeStyle = 'rgba(6,8,6,.45)'; cx.lineWidth = 3; cx.stroke();
+      cx.strokeStyle = col; cx.globalAlpha = 0.9; cx.lineWidth = 1.6; cx.setLineDash(q.ahead ? [2, 4] : [7, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      if (q.role && q.role !== 'foot') {
+        // third person: the camera behind and above the vehicle, a dashed line to where he sits
+        if (q.third && q.seat) {
+          const [sx, sy] = toC(q.seat.x, q.seat.y);
+          cx.strokeStyle = col; cx.globalAlpha = 0.7; cx.lineWidth = 1.2; cx.setLineDash([3, 3]); cx.beginPath(); cx.moveTo(px, py); cx.lineTo(sx, sy); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+          cx.save(); cx.translate(px, py); cx.rotate(q.yaw); cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1.5;
+          cx.beginPath(); cx.rect(-5, -1, 10, 8); cx.moveTo(-3, -1); cx.lineTo(-5, -6); cx.lineTo(5, -6); cx.lineTo(3, -1); cx.closePath(); cx.fill(); cx.stroke(); cx.restore();
+        }
+        // whose view and which camera: a tag 40-90 px along it
+        const ROLE = { driver: 'driver', pilot: 'pilot', gunner: 'gunner', port: 'firing port' };
+        const tag = `${round.players[who].name.trim()} · ${ROLE[q.role] || q.role} · ${q.third ? '3rd' : '1st'} person${q.ahead ? ' · ahead?' : ''}`;
+        const dl = Math.max(40, Math.min(90, R * 0.45)), tx = px + Math.sin(q.yaw) * dl, ty = py - Math.cos(q.yaw) * dl;
+        cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.lineJoin = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3.5;
+        cx.strokeText(tag, tx, ty); cx.fillStyle = css('--fg'); cx.fillText(tag, tx, ty); cx.textAlign = 'start'; cx.lineJoin = 'miter';
+      }
     }
   }
   // smoke (Explosions layer): a launcher's or a soldier's smoke grenade in flight, then its cloud - soft grey puffs that
@@ -2659,6 +2809,35 @@ function draw() {
   // players (vehicles first in the list, so riders' names draw on top)
   const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map(), vehRad = new Map();   // (vehRad: a model's radius on the canvas)
   round.players.forEach((p,i) => { if (!p.vehicle) { const q = playerAt(i,t); if (q.alive && q.veh) { occupied.add(q.veh); if (!riders.has(q.veh)) riders.set(q.veh, teamOf(i, t)); } } });
+  // soldiers on foot over each other on the screen: pushed apart just enough that each shows (a thin line back to where he
+  // really is; the followed one stays put), and each such group gets a count by side (spreadOut)
+  const { spread, groups } = spreadOut();
+  round._spread = spread;
+  // each such group under its markers: a soft disc over them with a dashed rim, so it reads as one crowd (its tag goes on
+  // the rim, after the markers)
+  const gHalo = new Map();
+  for (const G of groups) {
+    const P = G.map(i => spread.get(i) || toC(playerAt(i, t).x, playerAt(i, t).y));
+    const mx = P.reduce((a, b) => a + b[0], 0) / P.length, my = P.reduce((a, b) => a + b[1], 0) / P.length;
+    const r = Math.max(...P.map(([x, y]) => Math.hypot(x - mx, y - my))) + 16;
+    cx.beginPath(); cx.arc(mx, my, r, 0, Math.PI * 2);
+    cx.fillStyle = css('--bg'); cx.globalAlpha = 0.38; cx.fill();
+    cx.strokeStyle = css('--fg'); cx.globalAlpha = 0.8; cx.lineWidth = 1.4; cx.setLineDash([4, 3]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+    gHalo.set(G, [mx, my, r]);
+  }
+  // sight lines from the followed soldier to the enemies he sees (under the markers)
+  if (inView && selView && opts.view) {
+    const [ox, oy] = toC(selView.x, selView.y), sc = css('--seen'), tmS = teamOf(selView.who ?? sel, t);
+    cx.lineCap = 'round';
+    for (const [j, seen] of inView) {
+      if (seen === false || teamOf(j, t) === tmS) continue;
+      const o = playerAt(j, t), [jx, jy] = spread.get(j) || toC(o.x, o.y), L = Math.hypot(jx - ox, jy - oy); if (L < 24) continue;
+      const ex = jx - (jx - ox) / L * 17, ey = jy - (jy - oy) / L * 17;
+      cx.globalAlpha = 0.5; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(ox, oy); cx.lineTo(ex, ey); cx.stroke();
+      cx.globalAlpha = 0.85; cx.strokeStyle = sc; cx.lineWidth = 1.4; cx.setLineDash([6, 4]); cx.stroke(); cx.setLineDash([]);
+    }
+    cx.globalAlpha = 1; cx.lineCap = 'butt';
+  }
   round.players.forEach((p,i) => {
     const q = playerAt(i,t);
     if (!q.alive) {
@@ -2680,7 +2859,17 @@ function draw() {
       }
       return;
     }
-    const [px,py] = toC(q.x,q.y);
+    let [px,py] = toC(q.x,q.y), nameLeft = false;
+    { const sp = spread.get(i); if (sp) {
+      nameLeft = sp[0] < px - 3;   // (pushed to the left: his name goes on his left)   // (pushed out of a crowd: a line back to where he is, a dot there)
+      const col0 = teamColor(teamOf(i, t)), L = Math.hypot(sp[0] - px, sp[1] - py);
+      if (L > 3) { cx.strokeStyle = col0; cx.globalAlpha = 0.85; cx.lineWidth = 1.2; cx.beginPath(); cx.moveTo(px, py); cx.lineTo(sp[0] - (sp[0] - px) / L * 8, sp[1] - (sp[1] - py) / L * 8); cx.stroke();
+        cx.fillStyle = col0; cx.strokeStyle = css('--bg'); cx.lineWidth = 1; cx.beginPath(); cx.arc(px, py, 2.6, 0, Math.PI * 2); cx.fill(); cx.stroke(); cx.globalAlpha = 1; }
+      px = sp[0]; py = sp[1];
+    } }
+    // an enemy the followed soldier sees: a glow under him
+    const seenEn = inView && inView.has(i) && inView.get(i) !== false && sel !== i && !p.vehicle && teamOf(i, t) !== teamOf(selView?.who ?? sel, t);
+    if (seenEn) { const g = cx.createRadialGradient(px, py, 6, px, py, 27), c0 = rgbaOf(css('--seen'), 0.55), c1 = rgbaOf(css('--seen'), 0); if (c0) { g.addColorStop(0, c0); g.addColorStop(1, c1); cx.fillStyle = g; cx.beginPath(); cx.arc(px, py, 27, 0, Math.PI * 2); cx.fill(); } }
     // a vehicle takes the colour of the team inside it; empty (nobody known to be in it) it is grey
     const col = !p.vehicle ? teamColor(teamOf(i, t)) : riders.has(p.name) ? teamColor(riders.get(p.name)) : css('--veh-empty');
     // destroyed: a burning wreck for ~10 s, then gone from the map until it respawns at its spawn point
@@ -2739,16 +2928,19 @@ function draw() {
         else { cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(w.name, px, yb + 3); cx.fillStyle = css('--fg'); cx.fillText(w.name, px, yb + 3); cx.textAlign = 'start'; }
       }
     }
-    else if (inView && inView.has(i)) {
-      const hid = inView.get(i) === false, r = Math.max(16, (vr || 0) + 3);
+    else if (inView && inView.has(i) && !(selView && selView.who === i)) {
+      const hid = inView.get(i) === false, r = Math.max(16, (vr || 0) + 3), bg = css('--bg'), sc = css('--seen');
       if (hid) {   // in his field of view, behind cover
-        cx.strokeStyle = css('--muted'); cx.globalAlpha = 0.7; cx.lineWidth = 1.5; cx.setLineDash([1.5, 3]);
-        cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
-      } else {   // he sees him: a reticle in the followed soldier's colour - a ring with four ticks
-        const sc = teamColor(teamOf(sel, t)), bg = css('--bg'), tk = 5;
-        const path = () => { cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2, c = Math.cos(a), s2 = Math.sin(a); cx.moveTo(px + c * (r - tk * 0.6), py + s2 * (r - tk * 0.6)); cx.lineTo(px + c * (r + tk), py + s2 * (r + tk)); } };
-        cx.lineCap = 'round'; path(); cx.strokeStyle = bg; cx.lineWidth = 4.5; cx.globalAlpha = 0.75; cx.stroke();
-        cx.globalAlpha = 1; cx.strokeStyle = sc; cx.lineWidth = 2.2; cx.stroke(); cx.lineCap = 'butt';
+        cx.strokeStyle = bg; cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
+        cx.strokeStyle = css('--muted'); cx.globalAlpha = 0.95; cx.lineWidth = 1.8; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      } else if (seenEn) {   // an enemy he sees: a bold reticle - a ring with four ticks
+        const tk = 6;
+        const path = () => { cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + Math.PI / 4, c = Math.cos(a), s2 = Math.sin(a); cx.moveTo(px + c * (r - tk * 0.5), py + s2 * (r - tk * 0.5)); cx.lineTo(px + c * (r + tk), py + s2 * (r + tk)); } };
+        cx.lineCap = 'round'; path(); cx.strokeStyle = bg; cx.lineWidth = 6; cx.globalAlpha = 0.85; cx.stroke();
+        cx.globalAlpha = 1; cx.strokeStyle = sc; cx.lineWidth = 3; cx.stroke(); cx.lineCap = 'butt';
+      } else {   // a team mate he sees: a thin ring
+        cx.strokeStyle = bg; cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
+        cx.strokeStyle = sc; cx.globalAlpha = 0.9; cx.lineWidth = 1.5; cx.stroke(); cx.globalAlpha = 1;
       }
     }
     // health bar under a hurt soldier or a damaged vehicle
@@ -2761,44 +2953,76 @@ function draw() {
       // the kit's tool goes after the name at every zoom
       const kit = !p.vehicle ? kitNow(p, t) : null;   // (also in a vehicle: after his line by it, smaller)
       cx.font = '500 10px ' + css('--font-data'); cx.fillStyle = wreck ? css('--muted') : css('--fg'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
-      const big = !p.vehicle && !inIcon, rv = (inIcon ? vehRad.get(q.veh) : vr) || 0, lx = px + (big ? 14 : Math.max(11, rv * 0.85)); let ly = py - (big ? 11 : 8);
+      const big = !p.vehicle && !inIcon, rv = (inIcon ? vehRad.get(q.veh) : vr) || 0; let lx = px + (big ? 14 : Math.max(11, rv * 0.85)), ly = py - (big ? 11 : 8);
       if (inIcon) { const k = seated.get(q.veh) || 0; seated.set(q.veh, k + 1); ly = py - 8 + k * 13; }
+      const B = q.veh ? 14 : 20;
+      if (nameLeft && big) lx = px - 14 - cx.measureText(p.name).width - (kit ? 3 + B : 0);
       cx.strokeText(p.name, lx, ly); cx.fillText(p.name, lx, ly);
       if (kit) {   // the kit's tool after the name, in black (text if the kit is unknown)
-        const B = q.veh ? 14 : 20, x = lx + cx.measureText(p.name).width + 3 + B / 2, y = ly - 3.5;
+        const x = lx + cx.measureText(p.name).width + 3 + B / 2, y = ly - 3.5;
         if (!drawKitGlyph(kit, x, y, B)) { const lb = ' · ' + (KIT_SHORT[kit] || kit); cx.strokeText(lb, x - B / 2, ly); cx.fillText(lb, x - B / 2, ly); }
       }
     }
   });
-  // the followed soldier's aim (any layers): a line from him along his crosshair to what it meets - somebody (a ring on
-  // him, his name), a vehicle, a wall or the ground (a cross) - with how far; into the sky / past the fog it fades out
+  // groups of soldiers drawn apart (spreadOut): how many there are, by side, in a tag on the top of the group's rim - two
+  // stacked discs, then a dot in each side's colour with its count
+  for (const G of groups) {
+    const cnt = [0, 0, 0]; for (const i of G) { const tm = teamOf(i, t); cnt[tm === 0 ? 0 : tm === 1 ? 1 : 2]++; }
+    const parts = cnt.map((n, k) => n ? [String(n), k === 2 ? css('--neutral') : teamColor(k)] : null).filter(Boolean);
+    const [mx, my, r] = gHalo.get(G);
+    cx.font = '700 12px ' + css('--font-data'); const ws = parts.map(([s2]) => cx.measureText(s2).width), H = 19;
+    const W = 24 + ws.reduce((a2, b2) => a2 + b2, 0) + parts.length * 11 + (parts.length - 1) * 6 + 6;
+    const bx = mx - W / 2, by = Math.max(2, my - r - H / 2);
+    cx.fillStyle = css('--bg'); cx.globalAlpha = 0.92; cx.beginPath(); cx.roundRect ? cx.roundRect(bx, by, W, H, 9.5) : cx.rect(bx, by, W, H); cx.fill(); cx.globalAlpha = 1;
+    cx.strokeStyle = css('--fg'); cx.lineWidth = 1.2; cx.globalAlpha = 0.85; cx.stroke(); cx.globalAlpha = 1;
+    cx.fillStyle = css('--fg'); for (const dx of [5, 0]) { cx.beginPath(); cx.arc(bx + 9 + dx, by + H / 2, 3.6, 0, Math.PI * 2); cx.globalAlpha = dx ? 0.5 : 1; cx.fill(); } cx.globalAlpha = 1;
+    let xx = bx + 24;
+    parts.forEach(([s2, c2], k) => {
+      cx.fillStyle = c2; cx.beginPath(); cx.arc(xx + 4, by + H / 2, 4, 0, Math.PI * 2); cx.fill();
+      cx.fillStyle = css('--fg'); cx.fillText(s2, xx + 11, by + H - 5); xx += 11 + ws[k] + 6;
+    });
+  }
+  // the followed soldier's aim (any layers): a laser-bright line (its own colour, --aim, on a dark edge - not his side's,
+  // so it stands out of his field of view) from where he sees along his crosshair to what it meets - somebody (a
+  // crosshair ring on him, his name), a vehicle, a wall or the ground (a cross in a ring) - with how far; into the sky /
+  // past the fog it fades out. A vehicle followed: its driver's or gunner's
   if (sel !== null) {
-    const al = aimLine(sel, t);
+    const al = aimLine(selView?.who ?? sel, t);
     if (al) {
-      const [px, py] = toC(al.from.x, al.from.y), [ax, ay] = toC(al.x, al.y), col = teamColor(teamOf(sel, t)), bg = css('--bg');
+      const [px, py] = toC(al.from.x, al.from.y), ac = css('--aim'), ink = 'rgba(6,8,6,.82)', bg = css('--bg');
       const hitP = al.kind === 'soldier' || al.kind === 'vehicle', far = al.kind === 'sky';
-      let stroke = col;
-      if (far) { const g = cx.createLinearGradient(px, py, ax, ay), c0 = rgbaOf(col, 0.95), c1 = rgbaOf(col, 0); if (c0) { g.addColorStop(0, c0); g.addColorStop(0.6, rgbaOf(col, 0.6)); g.addColorStop(1, c1); stroke = g; } }
+      // (on a soldier drawn out of a crowd: to where he is drawn)
+      let [ax, ay] = toC(al.x, al.y); if (al.kind === 'soldier' && spread.get(al.j)) [ax, ay] = spread.get(al.j);
+      let stroke = ac, core = 'rgba(255,255,255,.95)', edge = ink;
+      if (far) {   // (fading out along the line)
+        const fade = (c, a0) => { const g = cx.createLinearGradient(px, py, ax, ay), c0 = rgbaOf(c, a0); if (!c0) return c; g.addColorStop(0, c0); g.addColorStop(0.6, rgbaOf(c, a0 * 0.65)); g.addColorStop(1, rgbaOf(c, 0)); return g; };
+        stroke = fade(ac, 1); core = fade('#ffffff', 0.95); edge = fade('#060806', 0.8);
+      }
       // (from the edge of his marker, not across it)
       const Lc = Math.hypot(ax - px, ay - py), sx0 = Lc > 12 ? px + (ax - px) / Lc * 10 : px, sy0 = Lc > 12 ? py + (ay - py) / Lc * 10 : py;
+      const ex = hitP && Lc > 26 ? ax - (ax - px) / Lc * 15 : ax, ey = hitP && Lc > 26 ? ay - (ay - py) / Lc * 15 : ay;
+      const line = () => { cx.beginPath(); cx.moveTo(sx0, sy0); cx.lineTo(ex, ey); };
       cx.lineCap = 'round';
-      cx.globalAlpha = far ? 0.35 : 0.7; cx.strokeStyle = bg; cx.lineWidth = 3.6; cx.beginPath(); cx.moveTo(sx0, sy0); cx.lineTo(ax, ay); cx.stroke();
-      cx.globalAlpha = 1; cx.strokeStyle = stroke; cx.lineWidth = 1.7; cx.beginPath(); cx.moveTo(sx0, sy0); cx.lineTo(ax, ay); cx.stroke(); cx.lineCap = 'butt';
+      cx.strokeStyle = edge; cx.lineWidth = 7.5; line(); cx.stroke();
+      cx.strokeStyle = stroke; cx.lineWidth = 4; line(); cx.stroke();
+      cx.strokeStyle = core; cx.lineWidth = 1.3; line(); cx.stroke(); cx.lineCap = 'butt';
       let lab = null, lx = ax, ly = ay;
-      if (hitP) {   // whom it is on: a ring round him in his side's colour
-        const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t)), [tx, ty] = toC(playerAt(al.j, t).x, playerAt(al.j, t).y);
-        const r = o.vehicle ? Math.max(14, (vehRad.get(o.name) || 12) * 0.9) : 12;
-        cx.strokeStyle = bg; cx.lineWidth = 4.5; cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); cx.stroke();
-        cx.strokeStyle = tc; cx.lineWidth = 2.2; cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); cx.stroke();
-        lab = (opts.names ? '' : o.name + ' · ') + Math.round(al.l) + ' m'; lx = tx; ly = ty - r - 6;   // (his name is next to him already)
-      } else if (!far) {   // a wall, roof, the ground or the sea: a cross
-        const k = Math.max(4, Math.min(7, size / view.span * 1.2));
-        cx.lineWidth = 3.5; cx.strokeStyle = bg; cx.beginPath(); cx.moveTo(ax - k, ay); cx.lineTo(ax + k, ay); cx.moveTo(ax, ay - k); cx.lineTo(ax, ay + k); cx.stroke();
-        cx.lineWidth = 1.6; cx.strokeStyle = col; cx.stroke();
-        lab = Math.round(al.l) + ' m'; ly = ay - k - 5;
+      if (hitP) {   // whom it is on: a crosshair ring round him (ticks up, down and to the sides), his side's colour inside it
+        const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t));
+        const [tx, ty] = o.vehicle ? toC(playerAt(al.j, t).x, playerAt(al.j, t).y) : spread.get(al.j) || toC(playerAt(al.j, t).x, playerAt(al.j, t).y);
+        const r = o.vehicle ? Math.max(15, (vehRad.get(o.name) || 12) * 0.95) : 15, tk = 7;
+        const ring = () => { cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a2 = k * Math.PI / 2, c2 = Math.cos(a2), s2 = Math.sin(a2); cx.moveTo(tx + c2 * (r - 3), ty + s2 * (r - 3)); cx.lineTo(tx + c2 * (r + tk), ty + s2 * (r + tk)); } };
+        cx.lineCap = 'round'; ring(); cx.strokeStyle = ink; cx.lineWidth = 7; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 3.4; cx.stroke(); cx.lineCap = 'butt';
+        cx.beginPath(); cx.arc(tx, ty, r - 3.2, 0, Math.PI * 2); cx.strokeStyle = tc; cx.lineWidth = 1.8; cx.stroke();
+        lab = (opts.names ? '' : o.name + ' · ') + Math.round(al.l) + ' m'; lx = tx; ly = ty - r - tk - 5;   // (his name is next to him already)
+      } else if (!far) {   // a wall, roof, the ground or the sea: a cross in a ring
+        const k = Math.max(7, Math.min(10, size / view.span * 1.5));
+        const mark = () => { cx.beginPath(); cx.moveTo(ax - k, ay); cx.lineTo(ax + k, ay); cx.moveTo(ax, ay - k); cx.lineTo(ax, ay + k); cx.moveTo(ax + k * 0.62, ay); cx.arc(ax, ay, k * 0.62, 0, Math.PI * 2); };
+        cx.lineCap = 'round'; mark(); cx.lineWidth = 6; cx.strokeStyle = ink; cx.stroke(); cx.lineWidth = 2.8; cx.strokeStyle = ac; cx.stroke(); cx.lineCap = 'butt';
+        lab = Math.round(al.l) + ' m'; ly = ay - k - 6;
       }
       if (lab && al.l >= 2) {
-        cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.strokeStyle = bg; cx.lineWidth = 3; cx.lineJoin = 'round';
+        cx.font = '700 11px ' + css('--font-data'); cx.textAlign = 'center'; cx.strokeStyle = bg; cx.lineWidth = 3.5; cx.lineJoin = 'round';
         cx.strokeText(lab, lx, ly); cx.fillStyle = css('--fg'); cx.fillText(lab, lx, ly); cx.textAlign = 'start'; cx.lineJoin = 'miter';
       }
     }
@@ -3223,6 +3447,7 @@ ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
 }
 $('#lb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; sel = +tr.dataset.i; refresh(true); });
 [$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.svb'); if (b && round) openSide(round.events[+b.dataset.k]); }));
+$('#selInfo').addEventListener('click', ev => { const b = ev.target.closest('[data-cam]'); if (!b) return; opts.cam3 = b.dataset.cam === '3'; try { localStorage.setItem('bf2rr.vcam', opts.cam3 ? '3' : '1'); } catch (e) {} refresh(true); });
 $('#svX').onclick = closeSide;
 document.querySelectorAll('#heatBar [data-hm]').forEach(b => b.onclick = () => { heat.mode = b.dataset.hm; fillHeat(); refresh(true); });
 $('#hSide').onchange = e => { heat.side = e.target.value; refresh(true); };
@@ -3293,7 +3518,7 @@ $('#vFull').onclick = () => setFull(!mapbox.classList.contains('fs'));
 for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!(document.fullscreenElement || document.webkitFullscreenElement) && mapbox.classList.contains('fs')) setFull(false); });
 function pickAt(e) {
   const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = null, bd = 14;
-  round.players.forEach((p,i) => { const q = playerAt(i,t); if (!q.alive) return; const [px,py] = toC(q.x,q.y); const d = Math.hypot(px-mx,py-my); if (d<bd){bd=d;best=i;} });
+  round.players.forEach((p,i) => { const q = playerAt(i,t); if (!q.alive) return; const [px,py] = round._spread?.get(i) || toC(q.x,q.y); const d = Math.hypot(px-mx,py-my); if (d<bd){bd=d;best=i;} });   // (where he is drawn: spreadOut)
   sel = best; if (best!==null) { tab = teamOf(best, t) === 1 ? 1 : 0; $('#tab0').classList.toggle('on', tab===0); $('#tab1').classList.toggle('on', tab===1); }
   else { $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; }
   refresh(true);
@@ -4236,15 +4461,29 @@ function engWarm(R) {
   setTimeout(run, 200);
 }
 // card: who the followed soldier has in his field of view, and which enemies on foot have him in theirs
+// a seat's view in words, with the switch between its first- and third-person camera
+function seatViewText(V) {
+  const s = V.seat, turret = V.gun && V.role === 'driver';
+  const what = V.role === 'driver' ? (turret ? 'driver: his sight on the turret, along the gun' : 'driver: straight ahead, where he drives') : V.role === 'pilot' ? 'pilot: straight ahead, along the nose'
+    : V.role === 'port' ? 'firing port: along its gun' : 'gunner: along his gun';
+  let where = '';
+  if (V.third && s?.c3) { const v = playerAt(s.vi, t), back = Math.hypot(s.c3.x - v.x, s.c3.y - v.y), up = s.c3.eye != null && v.h != null ? s.c3.eye - v.h : null; where = `the camera behind him, ${Math.round(back)} m back${up != null ? ', ' + Math.round(up * 10) / 10 + ' m up' : ''}`; }
+  else if (s) { const v = playerAt(s.vi, t), up = s.eye != null && v.h != null ? s.eye - v.h : null; where = `from his seat${up != null ? ', ' + Math.round(up * 10) / 10 + ' m over the vehicle\'s middle' : ''}`; }
+  const sw = s?.c3 ? ` <span class="vcam" role="group" aria-label="Camera"><button class="btn sm${V.third ? '' : ' on'}" data-cam="1" type="button" title="The seat's own camera (what he sees in first person)">1st person</button><button class="btn sm${V.third ? ' on' : ''}" data-cam="3" type="button" title="The game's camera behind and above the vehicle (C key), where the server allows it: it sees over walls and round corners">3rd person</button></span>` : '';
+  return `${what}${V.ahead ? ' <span class="w">(a guess: where a driver or pilot turns his head is not in the demo)</span>' : ''}${where ? ` <span class="w">· ${where}</span>` : ''}${sw}`;
+}
 function viewRows(i, p) {
-  if (p.vehicle) return '';
-  const tm = teamOf(i, t), alive = playerAt(i, t).alive;
+  const V = viewOf(i, t);
+  if (p.vehicle && !V) return '';
+  const who = V?.who ?? i, tm = teamOf(who, t), alive = playerAt(who, t).alive;
   const nm = o => `<span class="t${teamOf(o.i, t)}">${esc(round.players[o.i].name)}</span> ${Math.round(o.d)} m`;
   const list = (L, max) => L.slice(0, max).map(nm).join(', ') + (L.length > max ? ` <span class="w">+${L.length - max}</span>` : '');
   const iv = inViewOf(i, t), walls = !!losData();
   const how = walls ? 'with nothing in between (walls and hills from the game\'s files, vehicles, smoke; trees and bushes not counted)' : 'walls and hills are not known for this map';
-  const q0 = playerAt(i, t), lk = looking(i, t);
+  const q0 = playerAt(who, t), lk = looking(who, t);
   let h = '';
+  if (V && V.role !== 'foot') h += `<dt title="Where the field of view on the map is seen from: the seat's own camera in the game's files. Whether he played in first or third person is not in the demo - pick either">View</dt><dd>${p.vehicle ? `<span class="t${tm}">${esc(round.players[who].name)}</span>, ` : ''}${seatViewText(V)}</dd>`;
+  if (p.vehicle) i = who;
   if (lk && lk.pitch != null) {
     // (what his aim line on the map meets: somebody, a vehicle, a wall or roof, the ground or the sea)
     const al = aimLine(i, t), ad = al ? al.l : 0, dz = al ? al.h - eyeOf(i, q0, t) : 0;
@@ -7316,8 +7555,49 @@ $('#vLink').onclick = async () => { const u = linkHere(); if (!u) return; try { 
 // for every 2 minutes and whenever the tab comes back into view; when there is one, a bar offers to reload - into the
 // same round, moment and soldier
 let verTimer = 0, verShown = null;
+// After a site update with a new decoder the server decodes every round again (newest first): how far it is, in a tag in
+// the header on every page - from data/reprocess.json (ingest.mjs v99: a small file, read every 30 s while it lasts) or,
+// from an older server, rounds.json: its rounds made by the decoder now in use, of those that still have their demo
+// (read again every 5 minutes; how long is left from how fast that grows)
+let reproc = null, reprocTimer = 0, reprocIdxAt = 0;
+const reprocHist = [];
+function reprocGuess() {
+  const d = serverData; if (!d || !Array.isArray(d.rounds) || !(Date.now() - Date.parse(d.updated) < 20 * 60e3)) return null;
+  if (d.reprocess?.total) return { ...d.reprocess, updated: d.updated, guess: true };   // (v98)
+  if (!d.decoder) return null;
+  const L = d.rounds.filter(r => r.demo || r.decoder === d.decoder), done = L.filter(r => r.decoder === d.decoder).length;
+  if (!L.length || done >= L.length) return null;
+  reprocHist.push([Date.now(), done]); while (reprocHist.length > 2 && reprocHist[0][0] < Date.now() - 30 * 60e3) reprocHist.shift();
+  const [t0, d0] = reprocHist[0], rate = reprocHist.length > 1 && done > d0 ? (done - d0) / ((Date.now() - t0) / 1000) : 0;
+  return { total: L.length, done, left: rate ? Math.round((L.length - done) / rate) : null, guess: true };
+}
+function reprocShow() {
+  const P = reproc; let el = $('#rProc');
+  if (!P || !P.total) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('span'); el.id = 'rProc'; el.className = 'rproc'; el.setAttribute('role', 'status'); document.querySelector('.brand').appendChild(el); }
+  const pct = P.end ? 100 : Math.min(99, Math.floor(100 * P.done / P.total)), L = P.left;
+  const left = L ? (L >= 3600 ? Math.floor(L / 3600) + ' h ' + Math.round(L % 3600 / 60) + ' min' : Math.max(1, Math.round(L / 60)) + ' min') : '';
+  el.style.setProperty('--p', pct + '%');
+  el.innerHTML = `<i aria-hidden="true"></i>${P.end ? 'Rounds updated' : `Updating rounds ${pct}%${left ? ' · ~' + left : ''}`}`;
+  el.title = P.end ? `All ${P.total} rounds are decoded with the site's new version.` : `After a site update every round is decoded again on the server with the new version, newest first: ${P.done} of ${P.total} done${P.jobs > 1 ? `, ${P.jobs} at once` : ''}. Rounds not done yet open as before, without what the new version adds.`;
+}
+async function reprocRefresh() {
+  if (!session || !session.server) return;
+  clearTimeout(reprocTimer);
+  let P = null;
+  try { const res = await fetch('data/reprocess.json', { cache: 'no-cache' }); if (res.ok) P = await res.json(); } catch (e) {}
+  const fresh = (x, min) => !!x && Date.now() - Date.parse(x) < min * 60e3;
+  if (P && !(P.end ? fresh(P.end, 10) : fresh(P.updated, 15))) P = null;
+  if (!P) {   // (an older server: rounds.json, again every 5 minutes while the tag is up)
+    if (reproc?.guess && Date.now() - reprocIdxAt > 5 * 60e3) { try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) { const d = await res.json(); serverData.rounds = d.rounds; serverData.decoder = d.decoder; serverData.updated = d.updated; serverData.reprocess = d.reprocess || null; } } catch (e) {} reprocIdxAt = Date.now(); }
+    P = reprocGuess();
+  }
+  reproc = P; reprocShow();
+  if (P && !P.end) reprocTimer = setTimeout(reprocRefresh, 30000);
+}
 async function versionCheck() {
   if (!session || !session.server || document.hidden) return;
+  reprocRefresh();
   let v = null; try { const res = await fetch(siteBase() + 'version.json', { cache: 'no-cache' }); if (res.ok) v = (await res.json()).v; } catch (e) { return; }
   const num = x => +String(x || '').replace(/\D/g, '') || 0;
   if (!v || num(v) <= num(APP_VERSION) || verShown === v) return;
@@ -7347,7 +7627,7 @@ async function serverBoot() {
   // links with previews only when the web server serves them (its config may not have /r/ and /p/ yet)
   const r0 = d.share && d.rounds.find(x => !x.empty);
   if (r0) fetch(siteBase() + 'r/' + encodeURIComponent(linkId(r0.name)), { method: 'HEAD', cache: 'no-cache' }).then(res => { serverData.shareOk = res.ok && /html/.test(res.headers.get('content-type') || ''); }).catch(() => {});
-  document.body.classList.add('site'); $('#moreBtn').hidden = false; versionWatch();
+  document.body.classList.add('site'); $('#moreBtn').hidden = false; versionWatch(); reprocIdxAt = Date.now(); setTimeout(reprocRefresh, 0);
   session = { server: true, done: true, showEmpty: false, sort: 'score', dir: -1, job: null, rounds: d.rounds.map(x => ({ name: x.name, status: x.empty ? 'empty' : 'done', sum: x.sum, srv: x, file: null })) };
   $('#vLink').hidden = false;
   renderSession();

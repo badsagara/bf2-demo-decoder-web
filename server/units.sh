@@ -35,6 +35,11 @@ if ! cmp -s "$HERE/update.sh" "$LIB/update.sh"; then
   install -m 755 "$HERE/update.sh" "$LIB/update.sh.new" && mv -f "$LIB/update.sh.new" "$LIB/update.sh"; echo "update.sh updated"
 fi
 
+# the status command: bf2replay-status (the site's version, how far decoding again is, the services, the last log lines)
+if ! cmp -s "$HERE/status.sh" /usr/local/bin/bf2replay-status 2>/dev/null; then
+  install -m 755 "$HERE/status.sh" /usr/local/bin/bf2replay-status; echo "bf2replay-status updated"
+fi
+
 # the site's Caddy config (only where install.sh set Caddy up): Caddyfile.in with the domain from /etc/bf2replay.conf;
 # a new one that doesn't validate is not used
 CF=/etc/caddy/bf2replay.caddy
