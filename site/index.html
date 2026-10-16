@@ -104,7 +104,9 @@ input[type=file] { display: none; }
 @media (max-width: 900px) { .main { grid-template-columns: minmax(0,1fr); } }
 
 .stage { display: grid; gap: 12px; min-width: 0; align-content: start; }
-.mapbox { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; width: min(100%, max(420px, calc(100vh - 150px))); justify-self: center; }
+/* the map as high as the window leaves under what is above it (--maptop: measured, fitMap), so a laptop's screen shows
+   all of it with its controls; Bigger map: nearly the window's height */
+.mapbox { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; width: min(100%, max(360px, calc(100vh - var(--maptop, 150px) - 14px))); justify-self: center; }
 .mapbox.big { width: min(100%, max(420px, calc(100vh - 24px))); }
 /* playback bar on the map (also in full screen): play / pause, speed, round time. Sized up 1.5x for easy use */
 .mapplay { position: absolute; left: 10px; bottom: 10px; right: 10px; display: flex; align-items: center; gap: 10px; }
@@ -138,12 +140,12 @@ input[type=file] { display: none; }
 .ptime .pt2 { font: 400 11px/1 var(--font-data); color: var(--muted); }
 .ptime .pt2:empty { display: none; }
 /* sliders 1.5x the browser's: 8 px track filled up to the knob (--p), 22 px knob */
-.mapplay input[type=range], .mbar input[type=range] { -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; background-color: transparent; --p: 0%; }
-.mapplay input[type=range]::-webkit-slider-runnable-track, .mbar input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--fg) 26%, transparent) var(--p)); }
-.mapplay input[type=range]::-webkit-slider-thumb, .mbar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
-.mapplay input[type=range]::-moz-range-track, .mbar input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--fg) 26%, transparent); }
-.mapplay input[type=range]::-moz-range-progress, .mbar input[type=range]::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--accent); }
-.mapplay input[type=range]::-moz-range-thumb, .mbar input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.mapplay input[type=range], .mbar input[type=range], .mapside input[type=range] { -webkit-appearance: none; appearance: none; margin: 0; cursor: pointer; background-color: transparent; --p: 0%; }
+.mapplay input[type=range]::-webkit-slider-runnable-track, .mbar input[type=range]::-webkit-slider-runnable-track, .mapside input[type=range]::-webkit-slider-runnable-track { height: 8px; border-radius: 4px; background: linear-gradient(to right, var(--accent) var(--p), color-mix(in srgb, var(--fg) 26%, transparent) var(--p)); }
+.mapplay input[type=range]::-webkit-slider-thumb, .mbar input[type=range]::-webkit-slider-thumb, .mapside input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -7px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
+.mapplay input[type=range]::-moz-range-track, .mbar input[type=range]::-moz-range-track, .mapside input[type=range]::-moz-range-track { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--fg) 26%, transparent); }
+.mapplay input[type=range]::-moz-range-progress, .mbar input[type=range]::-moz-range-progress, .mapside input[type=range]::-moz-range-progress { height: 8px; border-radius: 4px; background: var(--accent); }
+.mapplay input[type=range]::-moz-range-thumb, .mbar input[type=range]::-moz-range-thumb, .mapside input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 /* full screen: the map fills the screen (also without the Fullscreen API, e.g. inside a frame), with a small feed */
 .mapbox.fs { position: fixed; inset: 0; width: auto; max-width: none; border: 0; border-radius: 0; z-index: 50; }
 .mapbox.fs canvas { width: 100%; height: 100%; aspect-ratio: auto; }
@@ -187,6 +189,24 @@ input[type=file] { display: none; }
 .mapctl .qwall { gap: 6px; }
 .mapctl .qwall svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 .mapctl .qwall[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapctl .vside svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.mapctl .vside { gap: 6px; }
+/* Controls left: the buttons, speed and zoom in a column down the map's left side; play and the round time stay at the
+   bottom in one row - the bottom of the map stays free (not on a phone: there the bar is under the map anyway) */
+.mapside { display: none; }
+.mapbox.side .mapside { position: absolute; left: 10px; top: 46px; bottom: 62px; width: 158px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; scrollbar-width: none; }
+.mapbox.side .mapside::-webkit-scrollbar { display: none; }
+.mapside .spd { flex: none; height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); cursor: pointer; }
+.mapside .spd input[type=range] { flex: 1; min-width: 0; width: auto; }
+.mapside .spd b { font: 600 13px var(--font-data); min-width: 4.6ch; text-align: right; font-variant-numeric: tabular-nums; }
+.mapside .zm .mg { width: 14px; height: 14px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; color: var(--muted); }
+.mapside .mapctl { position: static; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 6px; }
+.mapside .mapctl .btn { justify-content: center; }
+.mapside .qlay { flex-direction: column; margin: 0; }
+.mapside .qseg .sg { flex: 1; }
+.mapbox.side .mapplay { flex-wrap: nowrap; }
+.mapbox.side:not(.fs) .mapplay .seekw { order: 0; flex-basis: auto; }
+.mapbox.side .maptoast, .mapbox.side:not(.fs) .maptoast { bottom: 64px; }
 .mapctl .qwall[aria-pressed="false"], .mapplay .qwall[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .mapplay .qlay { display: none; }   /* (a phone: under the map, in its play bar - below) */
 .mapplay .qwall { gap: 6px; } .mapplay .qwall svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
@@ -442,6 +462,7 @@ details.schema p { max-width: 70ch; }
 .dropping .mapbox { outline: 2px dashed var(--accent); outline-offset: 4px; }
 @media (max-width: 640px) {
   .mapctl { left: 10px; bottom: 164px; }
+  .mapctl .vside { display: none; }
   /* phone: play and speed on one row, the round time slider full width under them; outside full screen the bar sits
      under the map so it covers none of it */
   .mapplay { flex-wrap: wrap; gap: 8px; }
@@ -689,8 +710,9 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
+      <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button></div>
+      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -862,7 +884,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v107';
+const APP_VERSION = 'v108';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1367,9 +1389,12 @@ function viewFit() {
   xs.sort(); ys.sort();
   const q = (a, p) => a[Math.min(a.length - 1, Math.max(0, Math.floor(a.length * p)))];
   const x1 = q(xs, .01), x2 = q(xs, .99), y1 = q(ys, .01), y2 = q(ys, .99);
-  const span = Math.min(W * Math.max(1, size / sizeH), Math.max(120, Math.max(x2 - x1, (y2 - y1) * size / sizeH) * 1.15));
-  viewAt((x1 + x2) / 2, (y1 + y2) / 2, span);
+  // (with the controls in a column on the left, the action is fitted into the part of the map right of it)
+  const inset = sideInset(), k = size / Math.max(1, size - inset);
+  const span = Math.min(W * Math.max(1, size / sizeH) * k, Math.max(120, Math.max((x2 - x1) * k, (y2 - y1) * size / sizeH) * 1.15));
+  viewAt((x1 + x2) / 2 - inset / 2 * span / size, (y1 + y2) / 2, span);
 }
+const sideInset = () => $('#mapbox').classList.contains('side') ? Math.min(size * 0.45, 172) : 0;
 const toC = (x,y) => [ (x - view.x0)/view.span*size, (view.y0 - y)/view.span*size ];
 const toW = (px,py) => [ view.x0 + px/size*view.span, view.y0 - py/size*view.span ];
 // soldier figures for the three stances in a 12 x 12 box centred on (0, 0), feet on y = 5: [head x, head y, head r, body]
@@ -3683,6 +3708,33 @@ function setBigMap(on) {
 $('#vBig').onclick = () => { setBigMap(!$('#mapbox').classList.contains('big')); if ($('#mapbox').classList.contains('big')) $('#mapbox').scrollIntoView({ block: 'nearest' }); };
 try { if (localStorage.getItem('bf2rr.bigmap') === '1') setTimeout(() => setBigMap(true), 0); } catch (e) {}
 $('#vAll').onclick = () => { viewWhole(); draw(); };
+// Controls left (v108): the map's buttons, the speed and the zoom moved into a column on the left of the map (and back);
+// remembered in this browser. Not on a phone (the bar sits under the map there).
+const PHONE = window.matchMedia('(max-width: 640px)');
+let sideWanted = false;
+function setSideCtl(on) {
+  sideWanted = !!on;
+  const mb = $('#mapbox'), col = $('#mapSide'), spd = $('#speedR').closest('label'), zm = $('#zoomR').closest('label'), ctl = mb.querySelector('.mapctl') || col.querySelector('.mapctl');
+  const use = sideWanted && !PHONE.matches, was = mb.classList.contains('side');
+  // (the map moves over by half the column, so what was in the middle stays in the middle of what shows)
+  if (use !== was && typeof size === 'number' && size > 0) { const d = Math.min(size * 0.45, 172) / 2 * view.span / size; view.x0 += use ? -d : d; }
+  mb.classList.toggle('side', use);
+  if (use) col.append(spd, zm, ctl);
+  else { $('#play2').after(spd); spd.after(zm); col.before(ctl); }
+  $('#vSide').setAttribute('aria-pressed', String(sideWanted)); $('#vSide').querySelector('span').textContent = use ? 'Controls below' : 'Controls left';
+  $('#vSide').title = use ? 'Put the buttons, the speed and the zoom back at the bottom of the map' : 'Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free';
+}
+$('#vSide').onclick = () => { setSideCtl(!$('#mapbox').classList.contains('side')); try { localStorage.setItem('bf2rr.side', sideWanted ? '1' : '0'); } catch (e) {} draw(); };
+PHONE.addEventListener('change', () => setSideCtl(sideWanted));
+try { if (localStorage.getItem('bf2rr.side') === '1') setSideCtl(true); } catch (e) {}
+// the map's height: what the window leaves under the header, the notice and the round bar (they change as rounds load)
+function fitMap() {
+  const mb = $('#mapbox'); if (mb.classList.contains('fs')) return;
+  const top = Math.round(mb.getBoundingClientRect().top + window.scrollY);
+  if (top > 0 && Math.abs(top - (fitMap.top || 0)) > 1) { fitMap.top = top; document.documentElement.style.setProperty('--maptop', top + 'px'); }
+}
+{ const ro = new ResizeObserver(() => requestAnimationFrame(fitMap)); for (const el of [document.querySelector('header'), $('#notice'), $('#session'), $('#pPage')]) if (el) ro.observe(el); }
+fitMap();
 // full screen: the browser's full screen when the page may use it, otherwise the map just covers the page
 const mapbox = $('#mapbox');
 async function setFull(on) {
