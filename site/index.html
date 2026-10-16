@@ -50,6 +50,8 @@
   --hit-head: #c98500; --hit-body: #199e70; --hit-limb: #9085e9;
   /* houses, walls and other things nobody walks through (Buildings layer): a dark fill and a light outline */
   --bld-fill: rgba(10, 12, 10, .5); --bld-line: rgba(236, 240, 228, .8); --bld-roof: rgba(10, 12, 10, .3);
+  /* trees and bushes (Buildings layer): crowns and trunks */
+  --veg-fill: rgba(64, 140, 56, .32); --veg-line: rgba(150, 215, 120, .65);
   color-scheme: dark;
 }
 /* dark for everyone; light colours only when picked with the sun button in the header (remembered in the browser) */
@@ -59,7 +61,7 @@
   --mec: #d8401f; --us: #1f6fd6; --neutral: #6c7468; --veh-empty: #858a83; --wreck: #3d2f27; --stance-ink: #ffffff; --blast: #c9581a; --spot: #e0281c; --warn-bg: rgba(168,122,12,.12);
   --medic: #1f8a46; --hp-low: #c62828; --seen: #c0189a; --aim: #ffd21f;
   --hit-head: #eda100; --hit-body: #1baf7a; --hit-limb: #4a3aa7;
-  --bld-fill: rgba(40, 44, 38, .32); --bld-line: rgba(18, 22, 16, .85); --bld-roof: rgba(40, 44, 38, .16);
+  --bld-fill: rgba(40, 44, 38, .32); --bld-line: rgba(18, 22, 16, .85); --bld-roof: rgba(40, 44, 38, .16); --veg-fill: rgba(40, 120, 40, .24); --veg-line: rgba(30, 95, 30, .6);
   color-scheme: light;
 }
 /* a round where the first team is the USMC (a timeline from another tool, the sample round) keeps US blue */
@@ -658,11 +660,11 @@ body.mbar-on { padding-bottom: 72px; }
         <span class="tag" id="mapTag">Map</span>
         <span class="tag sim" id="simTag">Simulated</span>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button></div>
+      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -680,7 +682,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn" id="tHeat" title="Where soldiers died or the killers stood, as a heatmap: by side, weapon, soldier, this round or all rounds on the map">Heatmap</button>
-          <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs">Buildings</button>
+          <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom">Buildings</button>
           </span></span>
           <span class="spacer"></span>
           <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
@@ -819,7 +821,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v100';
+const APP_VERSION = 'v104';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1461,7 +1463,7 @@ function seenBy(i, tt) {
 // ---------- walls and hills (sight lines) ----------
 // Where the game's files gave them (export-los-files.bat): the terrain heights (Levels/<map>/HeightmapPrimary.raw) and,
 // on a 25 cm grid, the heights the placed objects' collision shapes take up in each cell (houses, walls, containers,
-// rocks: their projectile meshes; glass, wire, foliage and trees left out), as spans [lo, hi]. A sight line is blocked
+// rocks: their projectile meshes; glass, wire and plants left out - trees and bushes: vegHit), as spans [lo, hi]. A sight line is blocked
 // where it runs below the ground or through a span. Stored in tiles of 16 x 16 cells, only where there are objects.
 // Loaded per map from assets/los/<map>.js (gzip in base64, so it loads from disk too). =FL= Karkand: in 88-94% of the
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
@@ -1477,6 +1479,7 @@ function losData() {
     } else LOS.set(k, null);
     return null;
   }
+  vegData();   // (the map's trees come with them)
   return v && v !== 'loading' ? v : null;
 }
 async function decodeLos(b64) {
@@ -1661,6 +1664,7 @@ function smokeRay(ax, ay, ux, uy, tt) {
   return best;
 }
 // can soldier i see soldier j? true / false; null where the map's walls and hills are not known (and no smoke between them).
+// Walls, hills, vehicles, trees and bushes (vegBlocks) stand in the way.
 // From his eye (sightOf: in a vehicle his seat's camera), or from V (a view: viewOf, which may be the third-person camera)
 function canSee(i, j, tt, V) {
   const q = V || sightOf(i, tt), o = playerAt(j, tt);
@@ -1669,7 +1673,7 @@ function canSee(i, j, tt, V) {
   if (q.h == null || o.h == null) return null;
   const eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
   if (eye == null) return null;
-  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh)) return true;
+  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
   return false;
 }
 // ---------- what a soldier sees ----------
@@ -1712,6 +1716,108 @@ function vehBlocks(ax, ay, ah, bx, by, bh, tt, skip1, skip2) {
     if (Math.max(h0, h1) >= b.h0 && Math.min(h0, h1) <= b.h1) return true;
   }
   return false;
+}
+// ---------- trees and bushes ----------
+// Where they stand and how big: assets/los/<map>.veg.js, from the map's Overgrowth/OvergrowthCollision.con and
+// StaticObjects.con, the shapes from the game's own models of each plant (Objects_client.zip vegitation/*.staticmesh):
+// upright columns - trunks (a cluster of trees has several) and crowns (from the model's leaf cards, in three bands of
+// height, each with its own radius: a pine narrows to the top, an oak spreads; a bush is all crown). A crown hides like
+// smoke: a sight line that runs through VEG_THICK of it (a small bush: its radius) is blocked there - a soldier lying in
+// a bush is hidden, one standing behind it shows from the chest up. Bullets go through leaves: a line of fire (fire)
+// stops at trunks only. Leaves within VEG_EYE of the eye don't count (he looks out of the bush he is in). Indexed in
+// cells of VEG_G m.
+const VEG = new Map(), VEG_THICK = 1.0, VEG_EYE = 0.6, VEG_G = 8;
+window.__bf2veg = (k, b64) => {
+  try { VEG.set(k, vegIndex(b64)); } catch (e) { console.warn('Trees for ' + k + ':', e); VEG.set(k, null); return; }
+  if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._vsC = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); }
+};
+let VEG_OFF = false;   // (for comparing with and without)
+function vegData() {
+  if (VEG_OFF) return null;
+  const k = mapKey(), v = VEG.get(k);
+  if (v === undefined) {
+    if (!k) return null; VEG.set(k, 'loading');
+    const sc = document.createElement('script'); sc.src = 'assets/los/' + k + '.veg.js'; sc.onerror = () => VEG.set(k, null); document.head.appendChild(sc);
+    return null;
+  }
+  return v && v !== 'loading' ? v : null;
+}
+// -> { n, P (Float32 x 8 per column: x, y, kind (0 trunk, 1 crown), radius of the lower, middle and upper third, bottom,
+// top - m), cells of VEG_G m: gx0, gy0, gw, gh, cs (start of each cell's list in ids), ids }
+function vegIndex(b64) {
+  const bin = atob(b64), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  const A = new Int16Array(u8.buffer), n = A.length / 8, P = new Float32Array(n * 8), R = new Float32Array(n);
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (let k = 0, o = 0; k < n; k++, o += 8) {
+    P[o] = A[o] / 10; P[o + 1] = A[o + 1] / 10; P[o + 2] = A[o + 2]; P[o + 3] = A[o + 3] / 100; P[o + 4] = A[o + 4] / 100; P[o + 5] = A[o + 5] / 100; P[o + 6] = A[o + 6] / 10; P[o + 7] = A[o + 7] / 10;
+    const r = R[k] = Math.max(P[o + 3], P[o + 4], P[o + 5]); x0 = Math.min(x0, P[o] - r); y0 = Math.min(y0, P[o + 1] - r); x1 = Math.max(x1, P[o] + r); y1 = Math.max(y1, P[o + 1] + r);
+  }
+  const G = VEG_G, gx0 = x0 - 1, gy0 = y0 - 1, gw = Math.max(1, Math.ceil((x1 - gx0 + 1) / G)), gh = Math.max(1, Math.ceil((y1 - gy0 + 1) / G));
+  const span = (k, f) => { const o = k * 8, r = R[k], c0 = Math.floor((P[o] - r - gx0) / G), c1 = Math.floor((P[o] + r - gx0) / G), r0 = Math.floor((P[o + 1] - r - gy0) / G), r1 = Math.floor((P[o + 1] + r - gy0) / G);
+    for (let rr = r0; rr <= r1; rr++) for (let cc = c0; cc <= c1; cc++) f(rr * gw + cc); };
+  const cs = new Uint32Array(gw * gh + 1); for (let k = 0; k < n; k++) span(k, c => { cs[c + 1]++; });
+  for (let c = 0; c < gw * gh; c++) cs[c + 1] += cs[c];
+  const ids = new Uint32Array(cs[gw * gh]), fill = cs.slice(0, gw * gh); for (let k = 0; k < n; k++) span(k, c => { ids[fill[c]++] = k; });
+  return { n, P, R, gx0, gy0, gw, gh, cs, ids, stamp: new Uint32Array(n), st: 0 };
+}
+// a column's parts as [radius, bottom, top] (a crown: its three bands; one of radius 0 left out)
+function vegParts(P, o) {
+  if (!P[o + 2]) return [[P[o + 3], P[o + 6], P[o + 7]]];
+  const z0 = P[o + 6], h = (P[o + 7] - z0) / 3, out = [];
+  for (let b = 0; b < 3; b++) if (P[o + 3 + b] > 0) out.push([P[o + 3 + b], z0 + h * b, z0 + h * (b + 1)]);
+  return out;
+}
+// the stretch [u0, u1] (shares of the way) of the line from a to b inside the upright column round (cx, cy), radius r,
+// heights z0..z1 - or null
+function colSpan(ax, ay, ah, dx, dy, dh, cx, cy, r, z0, z1) {
+  const fx = ax - cx, fy = ay - cy, A = dx * dx + dy * dy, B = 2 * (fx * dx + fy * dy), C = fx * fx + fy * fy - r * r;
+  let u0, u1;
+  if (A < 1e-12) { if (C > 0) return null; u0 = 0; u1 = 1; }
+  else { const disc = B * B - 4 * A * C; if (disc <= 0) return null; const sq = Math.sqrt(disc); u0 = (-B - sq) / (2 * A); u1 = (-B + sq) / (2 * A); }
+  if (Math.abs(dh) < 1e-9) { if (ah < z0 || ah > z1) return null; }
+  else { let a = (z0 - ah) / dh, b = (z1 - ah) / dh; if (a > b) [a, b] = [b, a]; u0 = Math.max(u0, a); u1 = Math.min(u1, b); }
+  u0 = Math.max(u0, 0); u1 = Math.min(u1, 1); return u0 < u1 ? [u0, u1] : null;
+}
+// where the line from a (an eye) to b first runs into a trunk or has run through enough of a crown (fire: trunks only), as
+// a share 0-1 of the way; null when clear (or no trees known for the map)
+function vegHit(ax, ay, ah, bx, by, bh, fire) {
+  const V = vegData(); if (!V) return null;
+  const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy), L3 = Math.hypot(dx, dy, dh); if (L < 1e-3) return null;
+  const e0 = Math.min(1, VEG_EYE / L), P = V.P, G = VEG_G, st = ++V.st; let best = null;
+  const gx = (ax - V.gx0) / G, gy = (ay - V.gy0) / G, gdx = dx / G, gdy = dy / G;
+  let cx_ = Math.floor(gx), cy_ = Math.floor(gy); const sx = gdx > 0 ? 1 : -1, sy = gdy > 0 ? 1 : -1;
+  const tdx = gdx ? Math.abs(1 / gdx) : Infinity, tdy = gdy ? Math.abs(1 / gdy) : Infinity;
+  let tmx = gdx ? (gdx > 0 ? cx_ + 1 - gx : gx - cx_) * tdx : Infinity, tmy = gdy ? (gdy > 0 ? cy_ + 1 - gy : gy - cy_) * tdy : Infinity, tt = 0;
+  for (let guard = 0; tt <= 1 && guard < 4096; guard++) {
+    if (best !== null && best <= tt) break;
+    if (cx_ >= 0 && cy_ >= 0 && cx_ < V.gw && cy_ < V.gh) {
+      const c = cy_ * V.gw + cx_;
+      for (let m = V.cs[c]; m < V.cs[c + 1]; m++) {
+        const k = V.ids[m]; if (V.stamp[k] === st) continue; V.stamp[k] = st; const o = k * 8;
+        if (!P[o + 2]) { const r = colSpan(ax, ay, ah, dx, dy, dh, P[o], P[o + 1], P[o + 3], P[o + 6], P[o + 7]); if (r && r[1] > e0) { const u = Math.max(r[0], e0); if (best === null || u < best) best = u; } continue; }
+        if (fire) continue;
+        // (a crown: how much of the line lies in its bands, from where it first enters)
+        let inside = 0, first = Infinity, rmax = 0;
+        for (const [rb, z0, z1] of vegParts(P, o)) { rmax = Math.max(rmax, rb); const r = colSpan(ax, ay, ah, dx, dy, dh, P[o], P[o + 1], rb, z0, z1); if (!r || r[1] <= e0) continue; const u0 = Math.max(r[0], e0); inside += r[1] - u0; first = Math.min(first, u0); }
+        const need = Math.min(VEG_THICK, rmax) / L3;
+        if (inside >= need - 1e-9) { const u = first + need; if (best === null || u < best) best = u; }
+      }
+    }
+    const tn = Math.min(tmx, tmy); if (tn > 1) break; tt = tn;
+    if (tmx < tmy) { cx_ += sx; tmx += tdx; } else { cy_ += sy; tmy += tdy; }
+  }
+  return best;
+}
+const vegBlocks = (ax, ay, ah, bx, by, bh, fire) => vegHit(ax, ay, ah, bx, by, bh, fire) !== null;
+// trees and bushes on the map (Buildings layer): crowns as soft green discs, trunks as dots; Path2D in metres per map
+const VEGP = new Map();
+function vegPaths() {
+  const k = mapKey(); if (VEGP.has(k)) return VEGP.get(k);
+  const V = vegData(); if (!V) return null;
+  const crowns = new Path2D(), trunks = new Path2D(), P = V.P;
+  for (let i = 0; i < V.n; i++) { const o = i * 8, r = P[o + 2] ? V.R[i] : Math.max(0.25, P[o + 3]), path = P[o + 2] ? crowns : trunks;
+    if (r > 0) { path.moveTo(P[o] + r, P[o + 1]); path.arc(P[o], P[o + 1], r, 0, Math.PI * 2); } }
+  const r = { crowns, trunks }; VEGP.set(k, r); return r;
 }
 // ---------- where a soldier in a vehicle sees from ----------
 // His seat's own first-person camera (Objects/Vehicles/*/*.con + .tweak: the Camera under the seat's PlayerControlObject,
@@ -1808,6 +1914,14 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
   const lo = pt == null ? -9 : pt - VIEW_VHALF, hi = pt == null ? 9 : pt + VIEW_VHALF;
   const vLo = lo <= -1.5707 ? -Infinity : Math.tan(lo), vHi = hi >= 1.5707 ? Infinity : Math.tan(hi);
   const boxes = vehBoxes(tt).filter(b => b.name !== q.veh && Math.hypot(b.x - q.x, b.y - q.y) < R + 8);
+  // trees and bushes in his field of view: [x, y, r, bottom, top, how far into it it hides (0 a trunk)]
+  const VG = vegData(), vegs = [];
+  if (VG) { const P = VG.P;
+    for (let k = 0; k < VG.n; k++) {
+      const o = k * 8, rm = VG.R[k], dx = P[o] - q.x, dy = P[o + 1] - q.y, d = Math.hypot(dx, dy);
+      if (d - rm > R || (d > rm && angOff(Math.atan2(dx, dy), q.yaw) > VIEW_HALF + Math.asin(Math.min(1, rm / d)) + 0.02)) continue;
+      for (const [r, z0, z1] of vegParts(P, o)) vegs.push([P[o], P[o + 1], r, z0, z1, P[o + 2] ? Math.min(VEG_THICK, rm) : 0]);
+    } }
   const S = D.gStep, T = D.T, tW = D.tW, W = D.gW, Hh = D.gH, tile = D.tile, cs = D.cs, sp = D.sp, TT = T * T;
   const gx0 = (q.x - D.gX0) / S, gy0 = (q.y - D.gY0) / S, out = [];
   // the angles blocked so far along the ray, as slopes (height over distance): IV[2k], IV[2k + 1] sorted and apart, nI
@@ -1828,6 +1942,10 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
     const Rk = Math.min(R, Math.max(SMOKE_NEAR, smokeRay(q.x, q.y, ux, uy, tt)));
     const vb = [];
     for (const b of boxes) { const r = boxCross(b, q.x, q.y, ux, uy); if (r && r[1] > LOS_END && r[0] < Rk) vb.push([Math.max(r[0], LOS_END), r[1], b.h0, b.h1]); }
+    for (const v of vegs) {   // (a crown hides once the ray is that far into it)
+      const fx = q.x - v[0], fy = q.y - v[1], b = fx * ux + fy * uy, disc = b * b - (fx * fx + fy * fy - v[2] * v[2]); if (disc <= 0) continue;
+      const sq = Math.sqrt(disc), a = Math.max(-b - sq, VEG_EYE) + v[5], e = -b + sq; if (a <= e && a < Rk) vb.push([a, e, v[3], v[4]]);
+    }
     if (vb.length > 1) vb.sort((x, y) => x[0] - y[0]);
     H = -Infinity; nI = 0;
     const runs = []; let lvl = -1, from = 0, vi = 0;
@@ -1888,7 +2006,7 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
 // the line from the killer's eye to the victim's chest passes a median 1.7° from his view - the records come every
 // 0.1-0.2 s, the bullets spread): somebody he has in clear sight within AIM_TOL° of the line (to his body column) counts
 // as the one he aims at - the nearest to the line, even past a wall the exact line just touches.
-// -> { x, y, h, d (m along the ground), l (m along the line), kind: 'soldier' | 'vehicle' | 'wall' | 'ground' | 'water'
+// -> { x, y, h, d (m along the ground), l (m along the line), kind: 'soldier' | 'vehicle' | 'wall' | 'tree' | 'ground' | 'water'
 //    | 'sky', j (who or which vehicle, index), off (° from the line, somebody), from (where he is) } or null (dead, or
 //    where he looks is not known)
 const AIM_TOL = 3;
@@ -1941,6 +2059,8 @@ function aimLine(i, tt, tol = AIM_TOL) {
       for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1]) { hit = true; break; }
       if (hit) { best = { l, kind: 'wall', j: null }; break; }
     }
+    const u = vegHit(q.x, q.y, e0, q.x + ux * best.l, q.y + uy * best.l, e0 + uh * best.l, true);   // (a tree trunk)
+    if (u !== null && u * best.l >= 0.6) best = { l: u * best.l, kind: 'tree', j: null };
   }
   // nobody on the line itself: the one in clear sight nearest to it, within tol°
   if (best.kind !== 'soldier' && best.kind !== 'vehicle' && tol > 0) {
@@ -1953,7 +2073,7 @@ function aimLine(i, tt, tol = AIM_TOL) {
       if (!flat && o.h != null && q.pitch != null) { const [z0, z1] = bodyCol(j, o, tt), a0 = Math.atan2(z0 - e0, dd), a1 = Math.atan2(z1 - e0, dd); offV = (pt < a0 ? a0 - pt : pt > a1 ? pt - a1 : 0) * 180 / Math.PI; zt = Math.min(z1, Math.max(z0, e0 + Math.tan(pt) * dd)); }
       const off = Math.hypot(offH, offV); if (off > tol || (pick && off >= pick.off)) return;
       if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return;
-      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, tt) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !losBlocked(D, q.x, q.y, e0, o.x, o.y, z) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null))) return; }
+      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, tt) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !losBlocked(D, q.x, q.y, e0, o.x, o.y, z) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
       pick = { j, off, l: Math.hypot(dd, (zt - e0)), x: o.x, y: o.y, h: zt, d: dd };
     });
     if (pick) return { x: pick.x, y: pick.y, h: pick.h, l: pick.l, d: pick.d, kind: 'soldier', j: pick.j, off: pick.off, from: q };
@@ -2151,7 +2271,7 @@ function seesVeh(i, j, tt) {
   const eye = eyeOf(i, q, tt);
   if (q.h != null && o.h != null && !inVBand(q.pitch, eye, hd, o.h - 1.0, o.h + 1.5)) return false;
   const D = losData(); if (!D || q.h == null || o.h == null) return true;
-  for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
   return false;
 }
 // An attack looked at from both sides over the 8 s before it (before the rocket left the launcher, or the first hit), as
@@ -2298,7 +2418,7 @@ function spotterOf(e) {
 function bodyLines(D, q, eye, j, o, tt) {
   const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) if (!losBlocked(D, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th)) n++;
+  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) if (!losBlocked(D, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th) && !vegBlocks(q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true)) n++;
   return [n, 9];
 }
 // where the straight line from a to b first runs into the ground or a wall (as a share 0-1 of the way), the first and last
@@ -2643,6 +2763,14 @@ function draw() {
       cx.strokeStyle = css('--bld-line'); for (const C of vis) cx.stroke(C.walls);
       cx.restore();
     }
+  } }
+  // trees and bushes (Buildings layer too): crowns as soft green discs (edged when zoomed in), trunks as dots
+  if (opts.walls) { const VP = vegPaths(); if (VP) {
+    const k = size / view.span; cx.save(); cx.transform(k, 0, 0, -k, -view.x0 * k, view.y0 * k);
+    cx.fillStyle = css('--veg-fill'); cx.fill(VP.crowns);
+    if (k > 1.2) { cx.lineWidth = 1 / k; cx.strokeStyle = css('--veg-line'); cx.stroke(VP.crowns); }
+    if (k > 2) { cx.fillStyle = css('--veg-line'); cx.fill(VP.trunks); }
+    cx.restore();
   } }
 
   // flags
@@ -4410,10 +4538,21 @@ function drawSide() {
   g2.globalAlpha = 1; g2.beginPath(); g2.moveTo(X(s0), H);
   for (const [sd, g] of cols) g2.lineTo(X(sd), Y(g));
   g2.lineTo(X(s1), H); g2.closePath(); g2.fillStyle = css('--line'); g2.fill(); g2.strokeStyle = css('--muted'); g2.lineWidth = 1; g2.stroke();
+  // trees and bushes the line runs through or by (within 1 m): crowns green, trunks dark
+  { const VG = vegData(); if (VG) { const P = VG.P;
+    for (let m = 0; m < VG.n; m++) { const o2 = m * 8, crown = !!P[o2 + 2];
+      for (const [r, z0, z1] of vegParts(P, o2)) {
+        const fx = P[o2] - q.x, fy = P[o2 + 1] - q.y, along = fx * ux + fy * uy, off = Math.abs(fx * uy - fy * ux);
+        if (off > r + 1 || along < s0 - r || along > s1 + r) continue;
+        const half = Math.sqrt(Math.max(0.04, r * r - Math.min(off, r) ** 2)), xa = X(Math.max(s0, along - half)), xb = X(Math.min(s1, along + half)), zt = Math.min(z1, top);
+        if (zt <= z0) continue;
+        g2.fillStyle = crown ? css('--veg-fill') : css('--veg-line'); g2.globalAlpha = crown ? (off > r ? 0.5 : 1) : 0.9;
+        g2.fillRect(xa, Y(zt), Math.max(1.5, xb - xa), (zt - z0) * k); g2.globalAlpha = 1;
+      } } } }
   // lines of sight from his eye to the victim's head and chest
-  const ok = css('--medic'), bad = css('--hp-low'), hits = [];
+  const ok = css('--medic'), bad = css('--hp-low'), hits = [], leafy = [];
   for (const th of [vHead, vChest]) {
-    const u = D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th) : null; hits.push(u);
+    const uw = D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u); leafy.push(u != null && u === uv);
     const ax = X(0), ay = Y(kEye), bx = X(hd), by = Y(th), mx = u == null ? bx : ax + (bx - ax) * u, my = u == null ? by : ay + (by - ay) * u;
     g2.lineWidth = 1.5; g2.strokeStyle = ok; g2.setLineDash([]); g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(mx, my); g2.stroke();
     if (u != null) { g2.strokeStyle = bad; g2.setLineDash([4, 3]); g2.beginPath(); g2.moveTo(mx, my); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); g2.lineWidth = 2; g2.beginPath(); g2.moveTo(mx - 4, my - 4); g2.lineTo(mx + 4, my + 4); g2.moveTo(mx + 4, my - 4); g2.lineTo(mx - 4, my + 4); g2.stroke(); }
@@ -4449,7 +4588,7 @@ function drawSide() {
   L.push(`${pn(ki)} → ${pn(vi)} <span class="w">· ${esc(killWpn(e)) || 'no weapon'} · ${Math.round(d3)} m${Math.abs(dh) >= 1 ? ` · ${Math.round(Math.abs(dh) * 10) / 10} m ${dh > 0 ? 'above' : 'below'} him` : ' · on one level'}${e.hit === 'head' ? ' · headshot' : ''}</span>`);
   if (D) {
     const [n] = bodyLines(D, q, kEye, vi, o, tt);
-    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)' : ''}</span>`);
+    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)' : ''}</span>`);
   } else L.push('<span class="w">Walls and hills are not known for this map: the ground is drawn straight between them.</span>');
   if (kFoot && q.pitch != null) L.push(`<span class="w">He looked</span> ${pitchText(q.pitch)}<span class="w">; the victim's chest was ${pitchText(need)} from his eyes${kFace >= Math.PI / 3 ? ` · he faced ${Math.round(kFace * 180 / Math.PI)}° to the side` : ''}</span>`);
   else if (!kFoot) L.push('<span class="w">Fired from a vehicle: where its gun pointed is not in the demo.</span>');
@@ -4500,7 +4639,7 @@ function viewRows(i, p) {
     const al = aimLine(i, t), ad = al ? al.l : 0, dz = al ? al.h - eyeOf(i, q0, t) : 0;
     let at = '';
     if (al && (al.kind === 'soldier' || al.kind === 'vehicle')) { const o = round.players[al.j]; at = `on <span class="t${o.vehicle ? '' : teamOf(al.j, t)}">${esc(o.name)}</span> ${Math.round(ad)} m away`; }
-    else if (al && al.kind !== 'sky') at = `at ${al.kind === 'ground' ? 'the ground' : al.kind === 'water' ? 'the water' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the gun' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}`;
+    else if (al && al.kind !== 'sky') at = `at ${al.kind === 'ground' ? 'the ground' : al.kind === 'water' ? 'the water' : al.kind === 'tree' ? 'a tree trunk' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the gun' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}`;
     else if (al) at = 'nothing in the way, out to the fog';
     h += (lk.gun ? `<dt title="Where his gun points up or down from level (the gun's elevation and the vehicle's tilt), from the demo; the line on the map runs along it to what it meets">Gun</dt>`
       : `<dt title="Up or down from level, from the demo; the line on the map is his aim: along his crosshair to the first soldier, vehicle, wall or ground it meets">Looking</dt>`)
