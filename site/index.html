@@ -807,7 +807,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v96';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1364,6 +1364,37 @@ const scoreNow = (p, tt) => {
 };
 const scoreParts = (p, tt) => { const m = new Map(); for (const [ts, v, why] of p.pts || []) { if (ts > tt) break; const o = m.get(why) || [0, 0]; o[0]++; o[1] += v; m.set(why, o); } return m; };
 const kitNow = (p, tt) => { let k = null; for (const [ts, name] of p.kits || []) { if (ts > tt + 0.05) break; k = name; } return k; };
+// ---------- the weapon in his hands ----------
+// The demo says which of his kit's slots he holds (decoded: p.items, the kits' itemIndex 1-6); the kit says what is in
+// it (Objects/Kits/<side>/<side>_<kit>.con, no unlocks: [knife, pistol, rifle, grenade / launcher, kit item, tool] as
+// weapon templates). An unlocked weapon replaces the rifle (or the grenade launcher): one he killed with in this life,
+// in the same slot (WPN_SLOT: each hand-held weapon's itemIndex), stands in for it.
+const KIT_ITEMS = {
+  Us: { 'Assault': [5406, 5462, 5476, 5466, 5404, 0], 'Anti-tank': [5406, 5462, 5482, 5455, 0, 0], 'Engineer': [5406, 5462, 5483, 5456, 5359, 5493], 'Medic': [5406, 5462, 5474, 5456, 5408, 5386],
+    'Sniper': [5406, 5464, 5478, 5456, 5460, 0], 'Special ops': [5406, 5464, 5480, 5456, 5367, 5453], 'Support': [5406, 5462, 5458, 5456, 5357, 0] },
+  Mec: { 'Assault': [5406, 5417, 5435, 5423, 5404, 0], 'Anti-tank': [5406, 5417, 5429, 5369, 0, 0], 'Engineer': [5406, 5417, 5439, 5456, 5359, 5493], 'Medic': [5406, 5417, 5425, 5456, 5408, 5386],
+    'Sniper': [5406, 5419, 5431, 5456, 5460, 0], 'Special ops': [5406, 5419, 5437, 5456, 5367, 5453], 'Support': [5406, 5417, 5415, 5456, 5357, 0] },
+  Ch: { 'Assault': [5406, 5372, 5433, 5421, 5404, 0], 'Anti-tank': [5406, 5372, 5376, 5369, 0, 0], 'Engineer': [5406, 5372, 5380, 5456, 5359, 5493], 'Medic': [5406, 5372, 5427, 5456, 5408, 5386],
+    'Sniper': [5406, 5374, 5384, 5456, 5460, 0], 'Special ops': [5406, 5374, 5378, 5456, 5367, 5453], 'Support': [5406, 5372, 5370, 5456, 5357, 0] } };
+const WPN_SLOT = {"5357":5,"5359":5,"5367":5,"5369":4,"5370":3,"5372":2,"5374":2,"5376":3,"5378":3,"5380":3,"5382":3,"5384":3,"5386":6,"5388":3,"5390":3,"5392":3,"5394":3,"5396":4,"5398":3,"5400":3,"5402":3,"5404":5,"5406":1,"5408":5,"5410":5,"5413":3,"5415":3,"5417":2,"5419":2,"5421":4,"5423":4,"5425":3,"5427":3,"5429":3,"5431":3,"5433":3,"5435":3,"5437":3,"5439":3,"5441":4,"5444":3,"5446":3,"5448":3,"5450":3,"5453":6,"5455":4,"5456":4,"5458":3,"5460":5,"5462":2,"5464":2,"5466":4,"5468":3,"5470":3,"5472":3,"5474":3,"5476":3,"5478":3,"5480":3,"5482":3,"5483":3,"5485":3,"5487":3,"5489":3,"5491":3,"5493":6};
+const SLOT_NAME = [null, 'Knife', 'Pistol', 'Rifle', 'Grenade / launcher', 'Kit item', 'Tool'];
+// what soldier i holds at tt: { slot, wid (weapon template, 0 not known), name } or null (not known, in a vehicle, dead)
+function inHands(i, tt) {
+  const p = round.players[i]; if (p.vehicle || !p.items) return null;
+  const q = playerAt(i, tt); if (!q.alive || q.veh) return null;
+  let slot = null; for (const [ts, v] of p.items) { if (ts > tt) break; slot = v; } if (slot == null) return null;
+  const kit = kitNow(p, tt); let wid = (kit && KIT_ITEMS[factionKey(teamOf(i, tt))]?.[kit]?.[slot - 1]) || 0;
+  // (this life: from his last spawn to the next)
+  let a = -Infinity, b = Infinity; for (const [ts] of p.kits || []) { if (ts <= tt + 0.05) a = ts; else { b = ts; break; } }
+  let best = null;
+  for (const e of round.events) {
+    if (e.t < a) continue; if (e.t >= b) break;
+    if (e.type !== 'kill' || e.killer !== p.id || e.kv || !e.wid || WPN_SLOT[e.wid] !== slot) continue;
+    if (!best || (e.t <= tt && (best.t > tt || e.t > best.t))) best = e;
+  }
+  if (best) wid = best.wid;
+  return { slot, wid, name: (wid && WEAPONS[wid]) || SLOT_NAME[slot] };
+}
 const teamColor = tm => tm===0 ? css('--team0') : tm===1 ? css('--team1') : css('--neutral');
 const rgbaOf = (col, a) => { const h = String(col).trim().replace('#', ''); if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(h)) return null; const v = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`; };
 // ---------- field of view ----------
@@ -1757,22 +1788,82 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
   }
   return { R, n, da, a0, runs: out };
 }
-// where soldier i's line of sight (his view direction, up or down) first meets the ground or a wall, up to the fog limit:
-// { x, y, h, d (m from his eye) }, or null (nothing in the way, or walls and hills not known for the map)
-function aimPoint(i, q, tt) {
-  const D = losData(); if (!D || q.h == null || q.pitch == null) return null;
-  const eye = eyeOf(i, q, tt), cp = Math.cos(q.pitch), ux = Math.sin(q.yaw) * cp, uy = Math.cos(q.yaw) * cp, uh = Math.sin(q.pitch);
-  const S = D.gStep, T = D.T, step = 0.2, maxL = Math.min(fogRange(), 400) / Math.max(cp, 0.02);
-  for (let l = 0.6; l <= maxL; l += step) {
-    const x = q.x + ux * l, y = q.y + uy * l, h = eye + uh * l;
-    if (h < Math.max(groundAt(D, x, y), WATER[mapKey()] ?? -1e9)) return { x, y, h, d: l };
-    const cx_ = Math.floor((x - D.gX0) / S), cy_ = Math.floor((y - D.gY0) / S);
-    if (cx_ < 0 || cy_ < 0 || cx_ >= D.gW || cy_ >= D.gH) continue;
-    const k = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (k < 0) continue;
-    const c = k * T * T + (cy_ % T) * T + (cx_ % T), h10 = h * 10;
-    for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1]) return { x, y, h, d: l };
+// ---------- where he aims ----------
+// The line his crosshair runs along - on foot his view, at a gun its barrel (a vehicle followed: its main gun), yaw and
+// pitch from the demo - from his eye until it meets somebody (a soldier as an upright column 0.35 m round, from his
+// feet to the top of his head as he stands, crouches or lies), a vehicle (its box from the model; others a column 1.3 m
+// round, aircraft 2 m), a wall or roof (the 25 cm grid), the ground or the sea; looking into the sky or past all of it,
+// it ends at the fog limit. Soldiers riding in a vehicle count as the vehicle. The demo's aim is not that sharp (kills:
+// the line from the killer's eye to the victim's chest passes a median 1.7° from his view - the records come every
+// 0.1-0.2 s, the bullets spread): somebody he has in clear sight within AIM_TOL° of the line (to his body column) counts
+// as the one he aims at - the nearest to the line, even past a wall the exact line just touches.
+// -> { x, y, h, d (m along the ground), l (m along the line), kind: 'soldier' | 'vehicle' | 'wall' | 'ground' | 'water'
+//    | 'sky', j (who or which vehicle, index), off (° from the line, somebody), from (where he is) } or null (dead, or
+//    where he looks is not known)
+const AIM_TOL = 3;
+function aimLine(i, tt, tol = AIM_TOL) {
+  const p = round.players[i]; let q, eye;
+  if (p.vehicle) { const o = playerAt(i, tt); if (!o.alive || o.aim == null || !Number.isFinite(o.x)) return null; q = { ...o, yaw: o.aim }; eye = o.h != null ? o.h + 1.5 : null; }
+  else { q = looking(i, tt); if (!q || !Number.isFinite(q.x)) return null; eye = q.h != null ? eyeOf(i, q, tt) : null; }
+  const flat = eye == null, pt = flat ? 0 : q.pitch ?? 0, cp = Math.cos(pt), ux = Math.sin(q.yaw) * cp, uy = Math.cos(q.yaw) * cp, uh = Math.sin(pt);
+  const e0 = flat ? 0 : eye, maxL = fogRange() / Math.max(cp, 0.05), own = p.vehicle ? p.name : q.veh;
+  let best = { l: maxL, kind: 'sky', j: null };
+  // the part of the line (from l) inside heights z0..z1: [from, to] or null
+  const inZ = (z0, z1) => { if (flat) return [-Infinity, Infinity]; if (Math.abs(uh) < 1e-9) return e0 >= z0 && e0 <= z1 ? [-Infinity, Infinity] : null; let a = (z0 - e0) / uh, b = (z1 - e0) / uh; return a < b ? [a, b] : [b, a]; };
+  const column = (cx_, cy_, r, z0, z1) => {
+    const A = ux * ux + uy * uy, fx = q.x - cx_, fy = q.y - cy_, B = 2 * (ux * fx + uy * fy), C = fx * fx + fy * fy - r * r;
+    let l0, l1; if (A < 1e-9) { if (C > 0) return null; l0 = -Infinity; l1 = Infinity; } else { const D = B * B - 4 * A * C; if (D < 0) return null; const sq = Math.sqrt(D); l0 = (-B - sq) / (2 * A); l1 = (-B + sq) / (2 * A); }
+    const z = inZ(z0, z1); if (!z) return null; const a = Math.max(l0, z[0], 0.5), b = Math.min(l1, z[1]); return a <= b ? a : null;
+  };
+  round.players.forEach((pl, j) => {
+    if (j === i) return; const o = playerAt(j, tt); if (!o.alive || !Number.isFinite(o.x)) return;
+    let l = null;
+    if (pl.vehicle) {
+      if (pl.name === own) return;
+      const wk = (round.wreckOf.get(pl.id) || []).find(w => w[0] <= tt && tt < w[1]); if (wk && tt >= wk[2]) return;
+      const k = typeof pl.tpl === 'string' ? pl.tpl.toLowerCase() : TPL_NAME[pl.tpl], B = VEH_BOX[k], h = o.h ?? e0;
+      if (B) {
+        const r = boxCross({ x: o.x, y: o.y, c: Math.cos(o.yaw), s: Math.sin(o.yaw), x0: B[0], x1: B[1], z0: B[2], z1: B[3] }, q.x, q.y, ux, uy), z = r && inZ(h + B[4], h + B[5]);
+        if (r && z) { const a = Math.max(r[0], z[0], 0.5), b = Math.min(r[1], z[1]); if (a <= b) l = a; }
+      } else { const air = airNames().has(pl.name); l = column(o.x, o.y, air ? 2 : 1.3, h - (air ? 1.5 : 1.0), h + (air ? 1.5 : 1.2)); }
+    } else {
+      if (o.veh) return;
+      const [z0, z1] = o.h != null ? bodyCol(j, o, tt) : [e0 - 2, e0 + 2]; l = column(o.x, o.y, 0.35, z0, z1);
+    }
+    if (l != null && l < best.l) best = { l, kind: pl.vehicle ? 'vehicle' : 'soldier', j };
+  });
+  // the ground, the sea, walls and roofs nearer than that
+  const D = losData();
+  if (D && !flat) {
+    const S = D.gStep, T = D.T, wl = WATER[mapKey()] ?? -1e9;
+    for (let l = 0.6; l < best.l; l += 0.2) {
+      const x = q.x + ux * l, y = q.y + uy * l, h = e0 + uh * l, g = groundAt(D, x, y);
+      if (h < g || h < wl) { best = { l, kind: g >= wl ? 'ground' : 'water', j: null }; break; }
+      const cx_ = Math.floor((x - D.gX0) / S), cy_ = Math.floor((y - D.gY0) / S);
+      if (cx_ < 0 || cy_ < 0 || cx_ >= D.gW || cy_ >= D.gH) continue;
+      const k = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (k < 0) continue;
+      const c = k * T * T + (cy_ % T) * T + (cx_ % T), h10 = h * 10; let hit = false;
+      for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1]) { hit = true; break; }
+      if (hit) { best = { l, kind: 'wall', j: null }; break; }
+    }
   }
-  return null;
+  // nobody on the line itself: the one in clear sight nearest to it, within tol°
+  if (best.kind !== 'soldier' && best.kind !== 'vehicle' && tol > 0) {
+    let pick = null;
+    round.players.forEach((pl, j) => {
+      if (j === i || pl.vehicle) return; const o = playerAt(j, tt); if (!o.alive || o.veh || !Number.isFinite(o.x)) return;
+      const dx = o.x - q.x, dy = o.y - q.y, dd = Math.hypot(dx, dy); if (dd < 1 || dd > fogRange()) return;
+      const offH = Math.max(0, angOff(Math.atan2(dx, dy), q.yaw) - Math.atan2(0.35, dd)) * 180 / Math.PI; if (offH > tol) return;
+      let offV = 0, zt = e0;
+      if (!flat && o.h != null && q.pitch != null) { const [z0, z1] = bodyCol(j, o, tt), a0 = Math.atan2(z0 - e0, dd), a1 = Math.atan2(z1 - e0, dd); offV = (pt < a0 ? a0 - pt : pt > a1 ? pt - a1 : 0) * 180 / Math.PI; zt = Math.min(z1, Math.max(z0, e0 + Math.tan(pt) * dd)); }
+      const off = Math.hypot(offH, offV); if (off > tol || (pick && off >= pick.off)) return;
+      if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return;
+      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, tt) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !losBlocked(D, q.x, q.y, e0, o.x, o.y, z) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null))) return; }
+      pick = { j, off, l: Math.hypot(dd, (zt - e0)), x: o.x, y: o.y, h: zt, d: dd };
+    });
+    if (pick) return { x: pick.x, y: pick.y, h: pick.h, l: pick.l, d: pick.d, kind: 'soldier', j: pick.j, off: pick.off, from: q };
+  }
+  const l = best.l; return { x: q.x + ux * l, y: q.y + uy * l, h: e0 + uh * l, l, d: l * cp, kind: best.kind, j: best.j, off: 0, from: q };
 }
 // ---------- who saw whom first ----------
 // i sees j at tt: j (alive) inside i's view (79° across, 63° high where his pitch is known, out to the map's fog limit)
@@ -2500,11 +2591,13 @@ function draw() {
   // (viewShed) filled - the ground he sees strong, where only a standing soldier would be seen light, both fading with
   // distance - inside the sector's dashed outline. Without the map's walls and hills the sector itself, faintly. Who he
   // sees gets a dashed ring, who is in the sector behind cover a dotted grey one
+  // who the followed soldier has in view (any layers): those he sees get a reticle in his colour, those in his field of
+  // view behind cover a dotted grey ring
   let inView = null;
+  if (sel !== null && looking(sel, t)) inView = new Map((inViewOf(sel, t) || []).map(o => [o.i, o.seen]));
   if (opts.view && sel !== null) {
     const q = looking(sel, t);
     if (q) {
-      inView = new Map((inViewOf(sel, t) || []).map(o => [o.i, o.seen]));
       const [px, py] = toC(q.x, q.y), m2px = size / view.span, a0 = q.yaw - Math.PI / 2, col = teamColor(teamOf(sel, t));
       // (only as far as the screen reaches; rays a few pixels apart out there, points about as far apart along them)
       const [wx0, wy0] = toW(0, 0), [wx1, wy1] = toW(size, sizeH);
@@ -2531,14 +2624,6 @@ function draw() {
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - VIEW_HALF, a0 + VIEW_HALF); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
       cx.strokeStyle = col; cx.globalAlpha = vs ? 0.45 : 0.6; cx.lineWidth = 1; cx.setLineDash([5, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
-      // where he looks (up or down): a cross where his line of sight meets the ground or a wall, a dotted line to it
-      const ap = aimPoint(sel, q, t);
-      if (ap) {
-        const [ax, ay] = toC(ap.x, ap.y), k = Math.max(4, Math.min(7, size / view.span * 1.2));
-        cx.strokeStyle = col; cx.lineWidth = 1.2; cx.globalAlpha = 0.8; cx.setLineDash([2, 3]); cx.beginPath(); cx.moveTo(px, py); cx.lineTo(ax, ay); cx.stroke(); cx.setLineDash([]);
-        cx.globalAlpha = 1; cx.lineWidth = 3.5; cx.strokeStyle = css('--bg'); cx.beginPath(); cx.moveTo(ax - k, ay); cx.lineTo(ax + k, ay); cx.moveTo(ax, ay - k); cx.lineTo(ax, ay + k); cx.stroke();
-        cx.lineWidth = 1.6; cx.strokeStyle = col; cx.stroke();
-      }
     }
   }
   // smoke (Explosions layer): a launcher's or a soldier's smoke grenade in flight, then its cloud - soft grey puffs that
@@ -2640,11 +2725,27 @@ function draw() {
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
     }
     const vr = vehRad.get(p.name);
-    if (sel===i) { cx.strokeStyle = css('--accent'); cx.lineWidth = 2; cx.beginPath(); cx.arc(px,py,p.vehicle ? Math.max(14, (vr || 0) + 3) : 17,0,Math.PI*2); cx.stroke(); }
+    if (sel===i) {
+      cx.strokeStyle = css('--accent'); cx.lineWidth = 2; cx.beginPath(); cx.arc(px,py,p.vehicle ? Math.max(14, (vr || 0) + 3) : 17,0,Math.PI*2); cx.stroke();
+      // what he holds: its picture under him (the kill icon, on a dark plate), or its slot's name
+      const w = !p.vehicle ? inHands(i, t) : null;
+      if (w) {
+        const key = w.wid && GAME.icons['w' + w.wid] ? 'w' + w.wid : null, yb = py + 30;
+        if (key) { const ic = GAME.icons[key], hgt = 13, wd = ic[2] / ic[3] * hgt; cx.fillStyle = 'rgba(12,14,12,.72)'; cx.beginPath(); cx.roundRect ? cx.roundRect(px - wd / 2 - 4, yb - hgt / 2 - 2, wd + 8, hgt + 4, 3) : cx.rect(px - wd / 2 - 4, yb - hgt / 2 - 2, wd + 8, hgt + 4); cx.fill(); drawIcon(key, px, yb, wd, '#ffffff'); }
+        else { cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(w.name, px, yb + 3); cx.fillStyle = css('--fg'); cx.fillText(w.name, px, yb + 3); cx.textAlign = 'start'; }
+      }
+    }
     else if (inView && inView.has(i)) {
-      const hid = inView.get(i) === false;
-      cx.strokeStyle = hid ? css('--muted') : css('--fg'); cx.globalAlpha = hid ? 0.7 : 1; cx.lineWidth = 1.5; cx.setLineDash(hid ? [1.5, 3] : [3, 3]);
-      cx.beginPath(); cx.arc(px, py, Math.max(16, (vr || 0) + 3), 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      const hid = inView.get(i) === false, r = Math.max(16, (vr || 0) + 3);
+      if (hid) {   // in his field of view, behind cover
+        cx.strokeStyle = css('--muted'); cx.globalAlpha = 0.7; cx.lineWidth = 1.5; cx.setLineDash([1.5, 3]);
+        cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      } else {   // he sees him: a reticle in the followed soldier's colour - a ring with four ticks
+        const sc = teamColor(teamOf(sel, t)), bg = css('--bg'), tk = 5;
+        const path = () => { cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2, c = Math.cos(a), s2 = Math.sin(a); cx.moveTo(px + c * (r - tk * 0.6), py + s2 * (r - tk * 0.6)); cx.lineTo(px + c * (r + tk), py + s2 * (r + tk)); } };
+        cx.lineCap = 'round'; path(); cx.strokeStyle = bg; cx.lineWidth = 4.5; cx.globalAlpha = 0.75; cx.stroke();
+        cx.globalAlpha = 1; cx.strokeStyle = sc; cx.lineWidth = 2.2; cx.stroke(); cx.lineCap = 'butt';
+      }
     }
     // health bar under a hurt soldier or a damaged vehicle
     if (opts.medic && !q.veh && q.hp !== null && q.hp < 99.5 && !wreck) {
@@ -2665,6 +2766,39 @@ function draw() {
       }
     }
   });
+  // the followed soldier's aim (any layers): a line from him along his crosshair to what it meets - somebody (a ring on
+  // him, his name), a vehicle, a wall or the ground (a cross) - with how far; into the sky / past the fog it fades out
+  if (sel !== null) {
+    const al = aimLine(sel, t);
+    if (al) {
+      const [px, py] = toC(al.from.x, al.from.y), [ax, ay] = toC(al.x, al.y), col = teamColor(teamOf(sel, t)), bg = css('--bg');
+      const hitP = al.kind === 'soldier' || al.kind === 'vehicle', far = al.kind === 'sky';
+      let stroke = col;
+      if (far) { const g = cx.createLinearGradient(px, py, ax, ay), c0 = rgbaOf(col, 0.95), c1 = rgbaOf(col, 0); if (c0) { g.addColorStop(0, c0); g.addColorStop(0.6, rgbaOf(col, 0.6)); g.addColorStop(1, c1); stroke = g; } }
+      // (from the edge of his marker, not across it)
+      const Lc = Math.hypot(ax - px, ay - py), sx0 = Lc > 12 ? px + (ax - px) / Lc * 10 : px, sy0 = Lc > 12 ? py + (ay - py) / Lc * 10 : py;
+      cx.lineCap = 'round';
+      cx.globalAlpha = far ? 0.35 : 0.7; cx.strokeStyle = bg; cx.lineWidth = 3.6; cx.beginPath(); cx.moveTo(sx0, sy0); cx.lineTo(ax, ay); cx.stroke();
+      cx.globalAlpha = 1; cx.strokeStyle = stroke; cx.lineWidth = 1.7; cx.beginPath(); cx.moveTo(sx0, sy0); cx.lineTo(ax, ay); cx.stroke(); cx.lineCap = 'butt';
+      let lab = null, lx = ax, ly = ay;
+      if (hitP) {   // whom it is on: a ring round him in his side's colour
+        const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t)), [tx, ty] = toC(playerAt(al.j, t).x, playerAt(al.j, t).y);
+        const r = o.vehicle ? Math.max(14, (vehRad.get(o.name) || 12) * 0.9) : 12;
+        cx.strokeStyle = bg; cx.lineWidth = 4.5; cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); cx.stroke();
+        cx.strokeStyle = tc; cx.lineWidth = 2.2; cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); cx.stroke();
+        lab = (opts.names ? '' : o.name + ' · ') + Math.round(al.l) + ' m'; lx = tx; ly = ty - r - 6;   // (his name is next to him already)
+      } else if (!far) {   // a wall, roof, the ground or the sea: a cross
+        const k = Math.max(4, Math.min(7, size / view.span * 1.2));
+        cx.lineWidth = 3.5; cx.strokeStyle = bg; cx.beginPath(); cx.moveTo(ax - k, ay); cx.lineTo(ax + k, ay); cx.moveTo(ax, ay - k); cx.lineTo(ax, ay + k); cx.stroke();
+        cx.lineWidth = 1.6; cx.strokeStyle = col; cx.stroke();
+        lab = Math.round(al.l) + ' m'; ly = ay - k - 5;
+      }
+      if (lab && al.l >= 2) {
+        cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.strokeStyle = bg; cx.lineWidth = 3; cx.lineJoin = 'round';
+        cx.strokeText(lab, lx, ly); cx.fillStyle = css('--fg'); cx.fillText(lab, lx, ly); cx.textAlign = 'start'; cx.lineJoin = 'miter';
+      }
+    }
+  }
   // explosives: a grenade / rocket in flight, its blast radius when it goes off (2 s), placed C4 / claymores / mines with theirs
   if (opts.blasts) {
     const pm = m => m / view.span * size, colOf = by => { const i = by == null ? undefined : round.pidx.get(by); return i === undefined ? css('--accent') : teamColor(teamOf(i, t)); };
@@ -3073,7 +3207,7 @@ function panels(force) {
     const crewNow = p.vehicle ? round.players.map((q, i) => i).filter(i => !round.players[i].vehicle && playerAt(i, t).alive && playerAt(i, t).veh === p.name) : [];
     const tmNow = p.vehicle ? (crewNow.length ? teamOf(crewNow[0], t) : -1) : teamOf(sel, t), switched = (p.teams || []).length > 1 ? ` <span class="w">(changed sides: ${p.teams.map(([ts, tm]) => fmt(ts) + ' ' + esc(round.teams[tm]?.name || '')).join(', ')})</span>` : '';
     $('#selInfo').innerHTML = `<dl class="meta"><dt>Name</dt><dd class="t${tmNow}">${esc(p.name)}</dd><dt>Team</dt><dd>${esc(round.teams[tmNow]?.name||'') || (p.vehicle ? '<span class="w">nobody in it</span>' : '')}${switched}</dd>
-      <dt>Status</dt><dd>${status}</dd>${!p.vehicle && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${figSvg(stanceNow(p, t), figFace(stanceNow(p, t), q.yaw))} ${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t)) ? `<dt title="From the velocity the demo sends with his position">Moving</dt><dd>${moveIcon(stanceNow(p, t), q)}${moveText(q, stanceNow(p, t))}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
+      <dt>Status</dt><dd>${status}</dd>${!p.vehicle && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${(() => { const w = inHands(sel, t); return w ? `<dt title="Which of his kit's slots he holds is in the demo; the kit (and a weapon he killed with in this life, for unlocked ones) says what is in it">In hands</dt><dd>${weaponIcon(w.wid, w.name) || ''} ${esc(w.name)}</dd>` : ''; })()}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${figSvg(stanceNow(p, t), figFace(stanceNow(p, t), q.yaw))} ${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t)) ? `<dt title="From the velocity the demo sends with his position">Moving</dt><dd>${moveIcon(stanceNow(p, t), q)}${moveText(q, stanceNow(p, t))}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
       ${viewRows(sel, p)}${vehTxt}${p.vehicle ? '' : `<dt>Kills / deaths</dt><dd>${K.get(p.id)||0} K / ${Dd.get(p.id)||0} D${HS.get(p.id) ? ` · ${HS.get(p.id)} headshot${HS.get(p.id) > 1 ? 's' : ''} (${Math.round(HS.get(p.id) / K.get(p.id) * 100)}%)` : ''}</dd>${medicTxt}${repTxt}
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
@@ -4104,15 +4238,19 @@ function viewRows(i, p) {
   const nm = o => `<span class="t${teamOf(o.i, t)}">${esc(round.players[o.i].name)}</span> ${Math.round(o.d)} m`;
   const list = (L, max) => L.slice(0, max).map(nm).join(', ') + (L.length > max ? ` <span class="w">+${L.length - max}</span>` : '');
   const iv = inViewOf(i, t), walls = !!losData();
-  const how = walls ? 'with nothing in between (walls and hills from the game\'s files; trees, bushes, smoke and vehicles not counted)' : 'walls and hills are not known for this map';
+  const how = walls ? 'with nothing in between (walls and hills from the game\'s files, vehicles, smoke; trees and bushes not counted)' : 'walls and hills are not known for this map';
   const q0 = playerAt(i, t), lk = looking(i, t);
   let h = '';
   if (lk && lk.pitch != null) {
-    const ap = aimPoint(i, lk, t), gd = ap ? groundAt(losData(), ap.x, ap.y) : null;
-    const ad = ap ? Math.hypot(ap.x - q0.x, ap.y - q0.y) : 0, dz = ap ? ap.h - eyeOf(i, q0, t) : 0;
-    h += (lk.gun ? `<dt title="Where his gun points up or down from level (the gun's elevation and the vehicle's tilt), from the demo; the cross on the map is where its line meets the ground or a wall">Gun</dt>`
-      : `<dt title="Up or down from level, from the demo; the cross on the map is where his line of sight meets the ground or a wall">Looking</dt>`)
-      + `<dd>${pitchText(lk.pitch)}${ap ? ` <span class="w">· at ${ap.h - gd < 0.3 ? 'the ground' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the gun' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}</span>` : ''}</dd>`;
+    // (what his aim line on the map meets: somebody, a vehicle, a wall or roof, the ground or the sea)
+    const al = aimLine(i, t), ad = al ? al.l : 0, dz = al ? al.h - eyeOf(i, q0, t) : 0;
+    let at = '';
+    if (al && (al.kind === 'soldier' || al.kind === 'vehicle')) { const o = round.players[al.j]; at = `on <span class="t${o.vehicle ? '' : teamOf(al.j, t)}">${esc(o.name)}</span> ${Math.round(ad)} m away`; }
+    else if (al && al.kind !== 'sky') at = `at ${al.kind === 'ground' ? 'the ground' : al.kind === 'water' ? 'the water' : 'a wall or roof'} ${ad < 1.5 ? (lk.gun ? 'right by the gun' : 'at his feet') : Math.round(ad) + ' m away'}${Math.abs(dz) >= 2 ? ', ' + Math.round(Math.abs(dz)) + ' m ' + (dz < 0 ? 'below' : 'above') + (lk.gun ? ' the gun' : ' his eyes') : ''}`;
+    else if (al) at = 'nothing in the way, out to the fog';
+    h += (lk.gun ? `<dt title="Where his gun points up or down from level (the gun's elevation and the vehicle's tilt), from the demo; the line on the map runs along it to what it meets">Gun</dt>`
+      : `<dt title="Up or down from level, from the demo; the line on the map is his aim: along his crosshair to the first soldier, vehicle, wall or ground it meets">Looking</dt>`)
+      + `<dd>${pitchText(lk.pitch)}${at ? ` <span class="w">· ${at}</span>` : ''}</dd>`;
   }
   const atGun = !!lk?.gun;
   h += `<dt title="${atGun ? 'Inside the field of view along his gun (where it points is in the demo): about 79° across' : 'Inside his field of view: about 79° across and 63° high (where he looks up or down is in the demo)'}, out to ${viewRange()} m, ${how}">In view</dt><dd>`;
@@ -5301,14 +5439,20 @@ function solObs(B, s, t, st, P = s - 23) {
 // 0 x, y, z and 2 bits; 7 the velocity (36 bits, and 2 more bits further on); 1 - 4 12 bits each (1 the view direction,
 // 4 the view pitch); 15 (while wounded) 7 bits and where his body lies - it falls and slides for 3-5 s after the hit (=FL=
 // 20:37: 1.8 m median, 5 m for one in ten, up to 28 m thrown by a blast), 74 bits more. Further flags: 12 4 bits, 14 5,
-// 16 21, 19 5, 20 4, and 7 bits at the end. (The search before v74 skipped records with flags 5 or 6, and read the view
+// then 7 bits always, then 16 21, 19 5, 20 4. (The search before v74 skipped records with flags 5 or 6, and read the view
 // only with the velocity.)
+// The item in his hands (v96): with flag 12 set (he switched, and in his first record) the 7 always-there bits are
+// 8 x (the item's slot + 1) + 4: knife 2, pistol 3, his rifle 4, grenade / grenade launcher / AT launcher 5, medic bag /
+// ammo bag / C4 / mines / claymore / smoke 6, defibrillator / wrench / SIMRAD 7 - the kits' itemIndex + 1 (game files,
+// Weapons/Handheld/*: knife 1, pistols 2, rifles 3 ...); otherwise 64. Checked against the round logger's
+// PlayerChangeWeapon (tests 9, 12, 13: 1616 switches): the slot in his hands every 0.25 s agrees 96% of the time.
 function solRecord(B, rc, t, st) {
   const P = rc.s + 32, n = B.n, x0 = P + 23 + (B.bit(P + 5) ? 6 : 0) + (B.bit(P + 6) ? 9 : 0);
   // health: 6 bits of flag 6's 9 (63 = full), read with flags 0-7 only (a spawn's first record has it 0); while wounded
   // (flag 15) down
   const f = B.u(P, 21);
   if ((f & 0x20) && st.stance) { const v = B.u(P + 21, 2); if (v < 3) st.stance.push([t, rc.id, v]); }   // stance changed (2 bits after the flags)
+  if ((f & 0x1000) && st.item) { const v = B.u(P + rc.L - 7 - ((f >> 16) & 1) * 21 - ((f >> 19) & 1) * 5 - ((f >> 20) & 1) * 4, 7) >> 3; if (v >= 2 && v <= 7) st.item.push([t, rc.id, v - 1]); }   // the item in his hands
   if (f & 0x8000) st.hp.push([t, rc.id, -1]);
   else if ((f & 0x40) && !(f & ~0xff) && x0 <= n) st.hp.push([t, rc.id, B.u(P + 23, 6) * 100 / 63]);
   if (B.bit(P)) { if (x0 + 98 <= n) solObs(B, x0, t, st, P); return; }
@@ -5416,9 +5560,9 @@ async function decodeDemo(data, progress) {
   const players = PA.players.length ? PA.players : pres.length ? preamblePlayers(pres[0], mapName) : [];
   const info = PA.mode ? { mode: PA.mode, size: PA.size } : pres.length ? preambleInfo(pres[0], mapName) : {};
   const pset = new Set(players.map(p => p.index));
-  const obs = [], evs = [], rot = [], hp = [], vhp = [], stance = [], joins = [], sids = new Set(), created = new Map(), vehTpl = new Map(), cps = new Map(), cpEv = [], tkEv = [], stat = [], live = new Map(), flights = []; let t0 = null, lastTick = 0;
+  const obs = [], evs = [], rot = [], hp = [], vhp = [], stance = [], item = [], joins = [], sids = new Set(), created = new Map(), vehTpl = new Map(), cps = new Map(), cpEv = [], tkEv = [], stat = [], live = new Map(), flights = []; let t0 = null, lastTick = 0;
   const tur = [], cup = [], emp = [], empBase = [], statIds = new Set(); let nBlk = 0, nOld = 0;
-  const st = { obs, rotOut: rot, hp, vhp, stance, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false };
+  const st = { obs, rotOut: rot, hp, vhp, stance, item, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false };
   let lastYield = performance.now();
   for (let i = 0; i < R.recs.length; i++) {
     const [tick, p] = R.recs[i];
@@ -5457,7 +5601,7 @@ async function decodeDemo(data, progress) {
   const duration = t0 === null ? 0 : (lastTick - t0) / 30;
   const cpList = [...cps.keys()].filter(id => created.has(id)).map(id => ({ id, pos: created.get(id), tpl: created.get(id)[3], ...cps.get(id) }));
   progress && progress(0.6, 'build');
-  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, packets: { exact: nBlk, searched: nOld }, tplOf: id => vehTpl.get(id),
+  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, item, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, packets: { exact: nBlk, searched: nOld }, tplOf: id => vehTpl.get(id),
     progress: progress ? f => progress(0.6 + 0.4 * f, 'build') : null });
 }
 async function buildTimeline(r) {
@@ -5930,6 +6074,16 @@ async function buildTimeline(r) {
     for (const [pl, L] of ride) for (const [rt, , rx] of L) { push(stanceOf, pl, [rt, 0]); if (Number.isFinite(rx)) push(stanceOf, pl, [rx, 0]); }
     for (const o of eride) { push(stanceOf, o.pl, [o.t0, 0]); if (Number.isFinite(o.t1)) push(stanceOf, o.pl, [o.t1, 0]); }
   }
+  // the item in his hands per player: [t, slot (the kits' itemIndex: 1 knife, 2 pistol, 3 rifle, 4 grenade / launcher,
+  // 5 kit item, 6 defibrillator / wrench / SIMRAD)], his rifle again at every spawn
+  const itemOf = new Map();
+  for (const [it, sid, v] of r.item || []) { const pl = who(sid, it); if (pl !== null && P.has(pl)) push(itemOf, pl, [it, v]); }
+  if (itemOf.size) for (const e of spawns) push(itemOf, e.player, [e.t - 0.001, 3]);
+  const itemList = pl => {
+    const L = (itemOf.get(pl) || []).slice().sort((a, b) => a[0] - b[0]), out = [];
+    for (const [it, v] of L) if (!out.length || out[out.length - 1][1] !== v) out.push([+it.toFixed(2), v]);
+    return out;
+  };
   const stanceList = pl => {
     const L = (stanceOf.get(pl) || []).slice().sort((a, b) => a[0] - b[0]), out = [];
     for (const [st, v] of L) if (!out.length || out[out.length - 1][1] !== v) out.push([+st.toFixed(2), v]);
@@ -5943,8 +6097,8 @@ async function buildTimeline(r) {
   const ents = vids.map(v => ({ id: 'v' + v, name: vname.get(v), team: -1, vehicle: true, ...(r.tplOf && r.tplOf(v) ? { tpl: r.tplOf(v) } : {}) }))
     .concat(plist.map(i => {
       const kits = []; for (const q of spawns) if (q.player === i && KITS[q.kit]) { const k = KITS[q.kit][0]; if (!kits.length || kits[kits.length - 1][1] !== k || q.t - kits[kits.length - 1][0] > 0) kits.push([+q.t.toFixed(2), k]); }
-      const tl = teamsOf.get(i) || [], stl = stanceList(i);
-      return { id: 'p' + i, name: P.get(i).name, team: P.get(i).team === 1 ? 0 : 1, vehicle: false, ...(kits.length ? { kits } : {}), ...(stl.length ? { stance: stl } : {}), ...(tl.length > 1 ? { teams: tl.map(([ts, tm]) => [+ts.toFixed(2), tm === 1 ? 0 : 1]) } : {}) };
+      const tl = teamsOf.get(i) || [], stl = stanceList(i), itl = itemList(i);
+      return { id: 'p' + i, name: P.get(i).name, team: P.get(i).team === 1 ? 0 : 1, vehicle: false, ...(kits.length ? { kits } : {}), ...(stl.length ? { stance: stl } : {}), ...(itl.length ? { items: itl } : {}), ...(tl.length > 1 ? { teams: tl.map(([ts, tm]) => [+ts.toFixed(2), tm === 1 ? 0 : 1]) } : {}) };
     }));
   // flags: demo team 1/2 -> viewer team 0/1, 0 -> neutral (-1)
   // flag names, main bases, team names and starting tickets come from the level files (GAME.maps): the layout of this
