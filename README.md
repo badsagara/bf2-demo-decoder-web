@@ -61,11 +61,13 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 
 ### Кожна нова версія
 
-Від Claude приходить новий `bf2-round-replay-vNN.zip` (усередині — папка `bf2-round-replay-vNN/`). На Mac:
+Від Claude приходять два архіви: `bf2-round-replay-vNN.zip` (сайт) і `bf2-round-replay-vNN-geo.zip` (точні форми
+колізій мап для підказки "No line of sight", ~10 МБ; з v111). Обидва розпаковуються в ту саму папку
+`bf2-round-replay-vNN/` — потрібні **обидва**, інакше `rsync --delete` прибере `site/assets/geo` з репозиторію. На Mac:
 
 ```bash
-V=v81   # номер версії з назви архіву
-cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q bf2-round-replay-$V.zip
+V=v111   # номер версії з назви архіву
+cd ~/Downloads && rm -rf bf2-round-replay-$V && for z in bf2-round-replay-$V.zip bf2-round-replay-$V-geo.zip; do unzip -q -o "$z"; done
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
 ```
