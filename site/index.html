@@ -161,6 +161,22 @@ input[type=file] { display: none; }
 .maphud { position: absolute; inset: 10px 10px auto 10px; display: flex; justify-content: flex-start; gap: 8px; pointer-events: none; }
 .mapctl { position: absolute; right: 10px; bottom: 62px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .mapctl .btn { padding: 6px 9px; font-size: 12px; white-space: nowrap; background: color-mix(in srgb, var(--bg) 82%, transparent); }
+/* layers at hand on the map: vehicles as icons / models, buildings' outlines on / off (as in Layers ▾) */
+.qlay { display: flex; gap: 6px; margin-right: 6px; }
+.qseg { display: flex; }
+.qseg .sg { font: 600 12px/1 var(--font-body); color: var(--fg); background: color-mix(in srgb, var(--bg) 82%, transparent); border: 1px solid var(--line); padding: 6px 9px; cursor: pointer; white-space: nowrap; }
+.qseg .sg + .sg { border-left: 0; }
+.qseg .sg:first-child { border-radius: 4px 0 0 4px; }
+.qseg .sg:last-child { border-radius: 0 4px 4px 0; }
+.qseg .sg[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
+.qseg .sg:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.mapctl .qwall { gap: 6px; }
+.mapctl .qwall svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mapctl .qwall[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapctl .qwall[aria-pressed="false"], .mapplay .qwall[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.mapplay .qlay { display: none; }   /* (a phone: under the map, in its play bar - below) */
+.mapplay .qwall { gap: 6px; } .mapplay .qwall svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mapplay .qwall[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapbox canvas { touch-action: none; }
 /* decoding a demo: progress over the map (the map stays usable underneath) */
 .decbar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(360px, calc(100% - 32px)); background: color-mix(in srgb, var(--bg) 90%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.35); display: grid; gap: 8px; pointer-events: none; }
@@ -401,7 +417,13 @@ details.schema p { max-width: 70ch; }
   .mapbox:not(.fs) .fsfeed .ts { font-size: 9.5px; }
   .mapbox:not(.fs) .fsfeed li:nth-child(n+4) { display: none; }
   .mapbox:not(.fs) .mapplay { position: static; padding: 8px 10px 10px; }
-  .mapbox:not(.fs) .mapctl { bottom: 168px; }   /* (above the bar's three rows: play and speed, zoom, round time) */
+  .mapbox:not(.fs) .mapctl { bottom: 218px; }   /* (above the bar's four rows: play and speed, zoom, round time, quick layers) */
+  /* the quick layers: a row of the bar under the map, not over it */
+  .mapbox:not(.fs) .mapctl .qlay { display: none; }
+  .mapbox:not(.fs) .mapplay .qlay { display: flex; flex: 1 1 100%; margin: 0; }
+  .mapbox:not(.fs) .mapplay .qseg { flex: 1; } .mapbox:not(.fs) .mapplay .qseg .sg { flex: 1; padding: 9px 8px; }
+  .mapbox:not(.fs) .mapplay .qwall { flex: 1; justify-content: center; font-size: 13px; }
+  .mapbox:not(.fs) .mapplay .qseg .sg { font-size: 13px; }
 }
 /* views under the map: one at a time */
 .ptabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: none; margin-bottom: -4px; }
@@ -624,11 +646,11 @@ body.mbar-on { padding-bottom: 72px; }
         <span class="tag" id="mapTag">Map</span>
         <span class="tag sim" id="simTag">Simulated</span>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button></div>
+      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -644,7 +666,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines; smoke from vehicles' launchers and smoke grenades">Explosions</button>
           <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
-          <button class="btn on" id="tView" title="Field of view of the soldier you follow (about 79°, out to 50 m) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
+          <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn" id="tHeat" title="Where soldiers died or the killers stood, as a heatmap: by side, weapon, soldier, this round or all rounds on the map">Heatmap</button>
           <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs">Buildings</button>
           </span></span>
@@ -657,7 +679,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -785,7 +807,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v94';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1038,7 +1060,7 @@ function normalize(d) {
   const downOf = new Map(); for (const e of events) if (e.type === 'kill' && e.down) { if (!downOf.has(e.victim)) downOf.set(e.victim, []); downOf.get(e.victim).push([e.t, e.down, e]); }
   const wreckOf = new Map(); for (const e of events) if (e.type === 'wreck') { if (!wreckOf.has(e.vehicle)) wreckOf.set(e.vehicle, []); wreckOf.get(e.vehicle).push([e.t, e.until ?? duration, e.gone ?? (e.until ?? duration)]); }
   return { raw:d, meta:d.meta||{}, teams:d.teams||[{id:0,name:'Team 1'},{id:1,name:'Team 2'}], players:d.players, flags:d.flags||[], emplacements: (d.emplacements||[]).slice().sort((a,b)=>a.t-b.t),
-           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf };
+           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, DR: C.DR || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf };
 }
 // frames rows of a timeline file -> columns: per value one typed array, frame after frame, an entry per player (as in
 // d.players); a player without a row in a frame keeps his values from the frame before. VT = index into VTN (vehicle names).
@@ -1084,9 +1106,9 @@ function playerAt(i, t) {
   const speed = round.SP && round.SP[ia] >= 0 ? round.SP[ia] / 100 : null, vup = round.VV && round.VV[ia] !== -32768 ? round.VV[ia] / 100 : null;
   // where his gun points (a vehicle: its main gun, mg its manned roof gun; a soldier: the gun he works in a seat), rad
   const gun = (C, w) => { if (!C) return null; const a = C[ia]; if (a === -32768) return null; const b = C[ib]; if (b === -32768 || !w) return a / 1000; let d = (b - a) / 1000; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a / 1000 + d * w; };
-  if (!alive || !round.L[ib]) return { x:round.X[ia], y:round.Y[ia], h:round.HH[ia], yaw:round.A[ia], alive: !!alive, veh: round.VTN[round.VT[ia]], hp, down, pitch: alive ? pitch : null, speed: alive ? speed : null, vup: alive ? vup : null, aim: alive ? gun(round.GA, 0) : null, mg: alive ? gun(round.GB, 0) : null };
+  if (!alive || !round.L[ib]) return { x:round.X[ia], y:round.Y[ia], h:round.HH[ia], yaw:round.A[ia], alive: !!alive, veh: round.VTN[round.VT[ia]], drv: !!(round.DR && round.DR[ia]), hp, down, pitch: alive ? pitch : null, speed: alive ? speed : null, vup: alive ? vup : null, aim: alive ? gun(round.GA, 0) : null, mg: alive ? gun(round.GB, 0) : null };
   let da = round.A[ib]-round.A[ia]; while (da>Math.PI) da-=2*Math.PI; while (da<-Math.PI) da+=2*Math.PI;
-  return { x: round.X[ia]+(round.X[ib]-round.X[ia])*u, y: round.Y[ia]+(round.Y[ib]-round.Y[ia])*u, h: round.HH[ia]+(round.HH[ib]-round.HH[ia])*u, yaw: round.A[ia]+da*u, alive:true, veh: round.VTN[round.VT[ia]], hp, down, pitch, speed, vup, aim: gun(round.GA, u), mg: gun(round.GB, u) };
+  return { x: round.X[ia]+(round.X[ib]-round.X[ia])*u, y: round.Y[ia]+(round.Y[ib]-round.Y[ia])*u, h: round.HH[ia]+(round.HH[ib]-round.HH[ia])*u, yaw: round.A[ia]+da*u, alive:true, veh: round.VTN[round.VT[ia]], drv: !!(round.DR && round.DR[ia]), hp, down, pitch, speed, vup, aim: gun(round.GA, u), mg: gun(round.GB, u) };
 }
 
 // share of the man-down time still left for a wounded soldier (1 when he falls, 0 when he can no longer be revived);
@@ -1348,9 +1370,9 @@ const rgbaOf = (col, a) => { const h = String(col).trim().replace('#', ''); if (
 // The game's soldier camera (Objects/Soldiers/Common/SoldierCamera.tweak: worldFOV 1.1 rad, vertical) is ~79 deg across on
 // a 4:3 screen (less when aiming down the sights, which the demo doesn't show), and nobody sees past the map's fog limit
 // (Init.con GameLogic.MaximumLevelViewDistance: Karkand 140 m, Mashtuur 200 m, open maps 400-600 m). Walls and hills are
-// not in the demo, so "in view" means inside that sector, not necessarily in sight. The sector shown (and "In view" /
-// "Seen by") reaches 50 m: what a soldier really takes in among the houses; the fog limit only decides a "long shot".
-const VIEW_HALF = Math.atan(Math.tan(0.55) * 4 / 3), VIEW_R = 50;
+// not in the demo, so "in view" means inside that sector, not necessarily in sight (canSee / viewShed: the game's files).
+// The view drawn and "In view" / "Seen by" reach the fog limit (v47-v93: 50 m).
+const VIEW_HALF = Math.atan(Math.tan(0.55) * 4 / 3);
 // up and down: the same camera is 1.1 rad (63 deg) high, so a soldier sees 31.5 deg above and below where he looks (view
 // pitch from the demo, test-checked on kills: median 2 deg off the line from the killer's eye to the victim)
 const VIEW_VHALF = 0.55;
@@ -1360,7 +1382,7 @@ const inVBand = (pt, eye, d, zlo, zhi) => pt == null || (Math.atan2(zhi - eye, d
 // a soldier's body as such a column: from his feet (1.0 m under his position) to the top of his head
 const bodyCol = (j, o, tt) => [o.h - 1.0, o.h + (o.veh ? 1.0 : AIM_H[stanceNow(round.players[j], tt) ?? 0][0] + 0.2)];
 const pitchText = pt => { const g = Math.round(pt * 180 / Math.PI); return Math.abs(g) < 3 ? 'level' : Math.abs(g) + '° ' + (g > 0 ? 'up' : 'down'); };
-const viewRange = () => VIEW_R;
+const viewRange = () => fogRange();
 const fogRange = () => GAME.maps[mapKey()]?.view || 150;
 const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
 // where soldier i looks: on foot his view; in a seat with a gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a
@@ -1599,32 +1621,141 @@ function canSee(i, j, tt) {
   const D = losData(); if (!D) return null;
   if (q.h == null || o.h == null) return null;
   const eye = eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
-  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh)) return true;
   return false;
 }
-// the part of soldier i's field of view he can see: along each of n rays, the first stretch where a standing soldier (1.4 m
-// over the ground: between chest and head) is in his sight and, as he looks up or down, (in part) within his view's height:
-// out = the far ends, out.near = the near ends (when not all at his feet). Without the map's walls and hills, flat ground
-// at his feet and nothing in the way
-function sightShape(i, q, tt, n) {
-  const D = losData(); if (q.h == null || (!D && q.pitch == null)) return null;
-  const eye = eyeOf(i, q, tt), R = viewRange(), out = [], near = [], pt = q.pitch, foot = q.h - 1.0;
-  let anyNear = false;
-  for (let k = 0; k <= n; k++) {
-    const a = q.yaw - VIEW_HALF + 2 * VIEW_HALF * k / n, ux = Math.sin(a), uy = Math.cos(a); let d0 = 0, d = 0, inside = false;
-    const Rk = Math.min(R, Math.max(SMOKE_NEAR, smokeRay(q.x, q.y, ux, uy, tt)));   // (smoke: as far as the cloud)
-    // (the first stretch he sees: on a roof or an upper floor the floor under him hides the street near the house)
-    for (let s = 1; s <= Rk; s++) {
-      const x = q.x + ux * s, y = q.y + uy * s, g = D ? groundAt(D, x, y) : foot;
-      if (!(D && losBlocked(D, q.x, q.y, eye, x, y, g + 1.4)) && inVBand(pt, eye, s, g, g + 1.8)) { if (!inside) { inside = true; d0 = s - 1; } d = s; }
-      else if (inside) break;
-    }
-    if (!inside) d0 = d = 0;
-    if (d0 > 0) anyNear = true;
-    out.push([q.x + ux * d, q.y + uy * d]); near.push([q.x + ux * d0, q.y + uy * d0]);
+// ---------- what a soldier sees ----------
+// Vehicles stand in the way too: tanks, APCs, AA vehicles and closed jeeps as boxes from their 3D models (rest pose, the
+// hull's width and length, from its underside up to the turret's top - at most 2.7 m; x right, z forward, height over
+// the vehicle's position, m). Open buggies and jeeps, boats and aircraft (wings and tail booms: mostly air) are left out.
+const VEH_BOX = {"aav_tunguska":[-1.67,1.67,-4.0,3.94,-1.39,1.31],"aav_type95":[-1.54,1.55,-3.26,3.3,-0.98,1.72],"apc_btr90":[-1.44,1.44,-3.78,4.2,-0.74,1.96],"apc_wz551":[-1.39,1.39,-3.32,3.1,-0.87,1.83],"jep_nanjing":[-0.99,0.98,-2.4,2.61,-1.6,1.1],"jep_vodnik":[-1.26,1.26,-2.82,2.95,-1.37,1.33],"rutnk_t90":[-1.65,1.64,-3.49,3.31,-1.29,1.41],"tnk_type98":[-1.74,1.74,-4.19,3.6,-0.93,1.77],"usaav_m6":[-1.5,1.51,-3.2,3.22,-1.22,1.48],"usapc_lav25":[-1.28,1.26,-3.16,3.03,-0.93,1.77],"usjep_hmmwv":[-1.05,1.08,-2.36,2.31,-0.97,1.02],"ustnk_m1a2":[-1.79,1.78,-3.96,3.93,-0.97,1.73]};
+// the boxes at tt: [{ x, y, c, s (its heading's cos / sin), x0, x1, z0, z1, h0, h1, name }] (kept for one moment)
+function vehBoxes(tt) {
+  if (round._vbx && round._vbx.tt === tt) return round._vbx.L;
+  const L = [];
+  round.players.forEach((p, j) => {
+    if (!p.vehicle) return; const k = typeof p.tpl === 'string' ? p.tpl.toLowerCase() : TPL_NAME[p.tpl], B = VEH_BOX[k]; if (!B) return;
+    const o = playerAt(j, tt); if (!o.alive || o.h == null || !Number.isFinite(o.x)) return;
+    const wk = (round.wreckOf.get(p.id) || []).find(w => w[0] <= tt && tt < w[1]); if (wk && tt >= wk[2]) return;   // (burnt out and gone)
+    L.push({ x: o.x, y: o.y, c: Math.cos(o.yaw), s: Math.sin(o.yaw), x0: B[0], x1: B[1], z0: B[2], z1: B[3], h0: o.h + B[4], h1: o.h + B[5], name: p.name });
+  });
+  round._vbx = { tt, L }; return L;
+}
+// along the line from (ax, ay) the way (dx, dy), the stretch inside box b, as shares of (dx, dy): [u0, u1] or null
+function boxCross(b, ax, ay, dx, dy) {
+  const rx = ax - b.x, ry = ay - b.y, lx = rx * b.c - ry * b.s, lz = rx * b.s + ry * b.c, ex = dx * b.c - dy * b.s, ez = dx * b.s + dy * b.c;
+  let u0 = -Infinity, u1 = Infinity;
+  for (const [p, d, lo, hi] of [[lx, ex, b.x0, b.x1], [lz, ez, b.z0, b.z1]]) {
+    if (Math.abs(d) < 1e-9) { if (p < lo || p > hi) return null; continue; }
+    let t0 = (lo - p) / d, t1 = (hi - p) / d; if (t0 > t1) [t0, t1] = [t1, t0];
+    if (t0 > u0) u0 = t0; if (t1 < u1) u1 = t1; if (u0 > u1) return null;
   }
-  if (anyNear) out.near = near;
-  return out;
+  return [u0, u1];
+}
+// does a vehicle (not skip1 / skip2: the ones the two are in) stand between (ax, ay, ah) and (bx, by, bh) at tt?
+function vehBlocks(ax, ay, ah, bx, by, bh, tt, skip1, skip2) {
+  const dx = bx - ax, dy = by - ay, L = Math.hypot(dx, dy); if (L < 2 * LOS_END) return false;
+  const e0 = LOS_END / L, e1 = 1 - e0;
+  for (const b of vehBoxes(tt)) {
+    if (b.name === skip1 || b.name === skip2) continue;
+    const r = boxCross(b, ax, ay, dx, dy); if (!r) continue;
+    const u0 = Math.max(r[0], e0), u1 = Math.min(r[1], e1); if (u0 > u1) continue;
+    const h0 = ah + (bh - ah) * u0, h1 = ah + (bh - ah) * u1;
+    if (Math.max(h0, h1) >= b.h0 && Math.min(h0, h1) <= b.h1) return true;
+  }
+  return false;
+}
+// What soldier i sees of the ground in his field of view (the view drawn on the map): rays every few pixels across his
+// 79°, each walked out to the fog limit (or the edge of the screen) through every 25 cm cell of the object grid - so a
+// thin wall far off is never stepped over - and the terrain. A point is seen when the line from his eye to it passes
+// over the hills and through none of the houses, walls, rocks, vehicles (boxes) or smoke nearer to him, and lies within
+// his view's height (31.5° over and under where he looks): a "horizon" of what blocks each angle up or down is kept
+// along the ray (the steepest hill so far, and the angles houses and vehicles take up), so each point costs one look.
+// Two levels: 2 the ground itself (a soldier lying there would be seen), 1 only a standing soldier (from the chest up:
+// behind a low wall, a hump or a car). Where he can stand: the ground, and on top of houses and walls (roofs, upper
+// floors) - the best of them. Every stretch along a ray, not only the first: across a street, over a wall, the far hill.
+// Not known to the demo: trees and bushes, aiming through a scope (narrower), a vehicle's crew looking around.
+// -> { R (m), n rays, da (rad between them), a0 (the first ray's angle), runs: per ray [s0, s1, level, ...] } or null
+// the sea's level on each map (Levels/<map>/server/Heightdata.con heightmapcluster.setSeaWaterLevel, m): its surface is
+// what one sees there, not the sea bed
+const WATER = {"dalian_plant":141.4,"daqing_oilfields":130.0,"dragon_valley":52.0,"fushe_pass":61.6,"greatwall":100.0,"gulf_of_oman":24.0,"highway_tampa":25.0,"kubra_dam":46.1,"mashtuur_city":32.5,"midnight_sun":77.0,"operation_blue_pearl":22.1,"operation_clean_sweep":29.0,"operationharvest":20.0,"operationroadrage":44.0,"operationsmokescreen":88.0,"road_to_jalalabad":36.0,"sharqi_peninsula":70.0,"songhua_stalemate":167.0,"strike_at_karkand":146.0,"taraba_quarry":98.0,"wake_island_2007":83.0,"zatar_wetlands":33.0};
+function viewShed(i, q, tt, Rmax, n, minStep) {
+  const D = losData(); if (!D || q.h == null) return null;
+  const wl = WATER[mapKey()] ?? -1e9;
+  const eh = eyeOf(i, q, tt), pt = q.pitch, R = Math.min(fogRange(), Rmax), da = 2 * VIEW_HALF / n, a0 = q.yaw - VIEW_HALF + da / 2;
+  const lo = pt == null ? -9 : pt - VIEW_VHALF, hi = pt == null ? 9 : pt + VIEW_VHALF;
+  const vLo = lo <= -1.5707 ? -Infinity : Math.tan(lo), vHi = hi >= 1.5707 ? Infinity : Math.tan(hi);
+  const boxes = vehBoxes(tt).filter(b => b.name !== q.veh && Math.hypot(b.x - q.x, b.y - q.y) < R + 8);
+  const S = D.gStep, T = D.T, tW = D.tW, W = D.gW, Hh = D.gH, tile = D.tile, cs = D.cs, sp = D.sp, TT = T * T;
+  const gx0 = (q.x - D.gX0) / S, gy0 = (q.y - D.gY0) / S, out = [];
+  // the angles blocked so far along the ray, as slopes (height over distance): IV[2k], IV[2k + 1] sorted and apart, nI
+  // of them; H the steepest of the ground so far (what lies lower is hidden)
+  let IV = new Float64Array(64), nI = 0, H = -Infinity;
+  const block = (l, h) => {
+    if (h <= H) return; if (l < H) l = H;
+    let k = 0; while (k < nI && IV[2 * k + 1] < l) k++;
+    let e = k; while (e < nI && IV[2 * e] <= h) { if (IV[2 * e] < l) l = IV[2 * e]; if (IV[2 * e + 1] > h) h = IV[2 * e + 1]; e++; }
+    const d = 1 - (e - k);   // (intervals k..e-1 become one)
+    if (d > 0) { if (2 * (nI + 1) > IV.length) { const B = new Float64Array(IV.length * 2); B.set(IV); IV = B; } IV.copyWithin(2 * (k + 1), 2 * k, 2 * nI); }
+    else if (d < 0) IV.copyWithin(2 * (k + 1), 2 * e, 2 * nI);
+    nI += d; IV[2 * k] = l; IV[2 * k + 1] = h;
+  };
+  const seen = v => { if (v <= H) return false; for (let k = 0; k < nI; k++) { if (v < IV[2 * k]) return true; if (v <= IV[2 * k + 1]) return false; } return true; };
+  for (let k = 0; k < n; k++) {
+    const a = a0 + da * k, ux = Math.sin(a), uy = Math.cos(a);
+    const Rk = Math.min(R, Math.max(SMOKE_NEAR, smokeRay(q.x, q.y, ux, uy, tt)));
+    const vb = [];
+    for (const b of boxes) { const r = boxCross(b, q.x, q.y, ux, uy); if (r && r[1] > LOS_END && r[0] < Rk) vb.push([Math.max(r[0], LOS_END), r[1], b.h0, b.h1]); }
+    if (vb.length > 1) vb.sort((x, y) => x[0] - y[0]);
+    H = -Infinity; nI = 0;
+    const runs = []; let lvl = -1, from = 0, vi = 0;
+    let cx_ = Math.floor(gx0), cy_ = Math.floor(gy0);
+    const sx = ux > 0 ? 1 : -1, sy = uy > 0 ? 1 : -1, tdx = Math.abs(ux) > 1e-9 ? Math.abs(S / ux) : Infinity, tdy = Math.abs(uy) > 1e-9 ? Math.abs(S / uy) : Infinity;
+    let tmx = tdx < Infinity ? (ux > 0 ? cx_ + 1 - gx0 : gx0 - cx_) * tdx : Infinity, tmy = tdy < Infinity ? (uy > 0 ? cy_ + 1 - gy0 : gy0 - cy_) * tdy : Infinity;
+    let s0 = 0, sNext = 0.6;
+    for (let guard = 0; guard < 400000 && s0 < Rk; guard++) {
+      let ca = 0, cb = 0, kk = -1;
+      const inGrid = cx_ >= 0 && cy_ >= 0 && cx_ < W && cy_ < Hh;
+      if (inGrid) { kk = tile[((cy_ / T) | 0) * tW + ((cx_ / T) | 0)]; if (kk >= 0) { const c = kk * TT + (cy_ % T) * T + (cx_ % T); ca = cs[c]; cb = cs[c + 1]; } }
+      // (a tile with no objects at all: on to where the ray leaves it in one go)
+      let s1, skip = false;
+      if (inGrid && kk < 0) {
+        const tx = ((cx_ / T) | 0) * T, ty = ((cy_ / T) | 0) * T;
+        const ex = ux > 1e-9 ? (tx + T - gx0) * S / ux : ux < -1e-9 ? (tx - gx0) * S / ux : Infinity, ey = uy > 1e-9 ? (ty + T - gy0) * S / uy : uy < -1e-9 ? (ty - gy0) * S / uy : Infinity;
+        s1 = Math.min(ex, ey, Rk); skip = true;
+      } else s1 = Math.min(tmx, tmy, Rk);
+      // the points in this stretch, against what lies nearer
+      while (sNext < s1) {
+        const s = sNext, g = Math.max(wl, groundAt(D, q.x + ux * s, q.y + uy * s)); let L = 0;
+        // where one could stand here: the ground, and the top of each span (roof, upper floor, wall) with room above it
+        for (let m = ca - 1; m < cb && L < 2; m++) {
+          const base = m < ca ? g : sp[2 * m + 1] / 10; if (m >= ca && base <= g + 0.2) continue;
+          let room = true; for (let o = ca; o < cb; o++) if (sp[2 * o] / 10 < base + 1.5 && sp[2 * o + 1] / 10 > base + 0.3) { room = false; break; }
+          if (!room) continue;
+          const v2 = (base + 0.3 - eh) / s, v1 = (base + 1.5 - eh) / s;
+          if (v2 >= vLo && v2 <= vHi && seen(v2)) L = 2;
+          else if (L < 1 && v1 >= vLo && (base - eh) / s <= vHi && seen(v1)) L = 1;
+        }
+        if (L !== lvl) { if (lvl > 0) runs.push(from, s, lvl); lvl = L; from = s; }
+        const gs = (g - eh) / s;
+        if (gs > H) { H = gs; let k2 = 0; while (k2 < nI && IV[2 * k2 + 1] <= H) k2++; if (k2) { IV.copyWithin(0, 2 * k2, 2 * nI); nI -= k2; } }
+        sNext = s + Math.max(minStep, Math.min(2, s * da * 1.5));
+      }
+      // then what is here hides what lies beyond (not within arm's length; the floor he stands on still counts)
+      if (s1 > LOS_END && cb > ca) { const sa = Math.max(s0, LOS_END); for (let m = ca; m < cb; m++) { const zl = sp[2 * m] / 10 - eh, zh = sp[2 * m + 1] / 10 - eh; block(Math.min(zl / sa, zl / s1), Math.max(zh / sa, zh / s1)); } }
+      while (vi < vb.length && vb[vi][0] <= s1) { const v = vb[vi++], l = v[2] - eh, h = v[3] - eh; block(Math.min(l / v[0], l / v[1]), Math.max(h / v[0], h / v[1])); }
+      if (s1 >= Rk) break;
+      if (skip) {   // (the first cell past the tile)
+        s0 = s1; const fx = gx0 + ux * s1 / S + sx * 1e-6, fy = gy0 + uy * s1 / S + sy * 1e-6;
+        cx_ = Math.floor(fx); cy_ = Math.floor(fy);
+        tmx = tdx < Infinity ? s1 + (ux > 0 ? cx_ + 1 - fx : fx - cx_) * tdx : Infinity; tmy = tdy < Infinity ? s1 + (uy > 0 ? cy_ + 1 - fy : fy - cy_) * tdy : Infinity;
+      }
+      else if (tmx < tmy) { cx_ += sx; s0 = tmx; tmx += tdx; } else { cy_ += sy; s0 = tmy; tmy += tdy; }
+    }
+    if (lvl > 0) runs.push(from, Math.min(sNext, Rk), lvl);
+    out.push(runs);
+  }
+  return { R, n, da, a0, runs: out };
 }
 // where soldier i's line of sight (his view direction, up or down) first meets the ground or a wall, up to the fog limit:
 // { x, y, h, d (m from his eye) }, or null (nothing in the way, or walls and hills not known for the map)
@@ -1634,7 +1765,7 @@ function aimPoint(i, q, tt) {
   const S = D.gStep, T = D.T, step = 0.2, maxL = Math.min(fogRange(), 400) / Math.max(cp, 0.02);
   for (let l = 0.6; l <= maxL; l += step) {
     const x = q.x + ux * l, y = q.y + uy * l, h = eye + uh * l;
-    if (h < groundAt(D, x, y)) return { x, y, h, d: l };
+    if (h < Math.max(groundAt(D, x, y), WATER[mapKey()] ?? -1e9)) return { x, y, h, d: l };
     const cx_ = Math.floor((x - D.gX0) / S), cy_ = Math.floor((y - D.gY0) / S);
     if (cx_ < 0 || cy_ < 0 || cx_ >= D.gW || cy_ >= D.gH) continue;
     const k = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (k < 0) continue;
@@ -1888,7 +2019,8 @@ function vehDuels() {
 // wall) - not who spotted: in test 7 the spot message comes alone in its packet, and nothing else in the demo names him.
 // The game takes what is nearest the crosshair, within a cone: in test 7 the user's view passed 0.3-0.9° from the bot he
 // spotted on foot, but 19-25° from the tank the bot drove. So the spotter is worked out from the views of that side's
-// soldiers alive within view distance of it (on foot or at a gun; a jeep's driver or passenger: where he looks is not known):
+// soldiers alive within view distance of it (on foot, at a gun, or flying: a pilot looks along the nose - his mouse flies
+// it; a jeep's or boat's driver, a passenger, a helicopter's gunner: where he looks is not known):
 // - his miss: how far his line of sight passed from it, to the side and (where his pitch is known) up or down - a soldier
 //   from his feet to his head, a vehicle from 1 m under its position to 2 m over, a point from the ground up to 12 m (a
 //   wall) - less 0.6 m to the side (a vehicle 2.5 m, a point 0.5 m) and 2° up or down, plus 4° for each second away from
@@ -1910,7 +2042,11 @@ function vehDuels() {
 const SPOT_SHOW = 5, SPOT_LABEL = 3;
 const SPOT_BACK = 1.5, SPOT_AFTER = 0.5, SPOT_CONE = 30, SPOT_LAG = 4, SPOT_VTOL = 2, SPOT_K = 22.5, SPOT_TAIL = 0.25, SPOT_BLIND = 0.3, SPOT_ELSE = 0.1, DEG = 180 / Math.PI;
 // by what was spotted: [m to the side that count as on it, band under and over its position (m), spread of the miss (°)]
-const SPOT_KIND = { sold: [0.6, -1.0, 0.8, 1.5], veh: [2.5, -1.0, 2.0, 4], point: [0.5, -0.3, 12, 1.5] };
+// (a point: from the ground up into the sky - looking up at the sky, with nothing under the crosshair, the game still
+// gives a point, under where he looked: Wake / Dalian, soldiers spotting at aircraft overhead)
+const SPOT_KIND = { sold: [0.6, -1.0, 0.8, 1.5], veh: [2.5, -1.0, 2.0, 4], point: [0.5, -0.3, 5000, 1.5] };
+// the round's aircraft (by name): template 4200-4767 (helicopters, jets), or by the template's name (logger rounds)
+const airNames = () => round._airN || (round._airN = new Set(round.players.filter(p => p.vehicle && (typeof p.tpl === 'number' ? p.tpl >= 4200 && p.tpl < 4768 : /^(ahe|air|chthe|usthe|the|ruair|usair)_/i.test(String(p.tpl || '')))).map(p => p.name)));
 // everyone of the side who could have spotted it: { kind, known: [{ i, miss, off (° to the side), d, tt }] (least miss
 // first; hid: the walls hide the soldier spotted from him), blind: [i] (where he looks is not known) }
 function spotCands(e) {
@@ -1927,7 +2063,7 @@ function spotCands(e) {
       if (ti !== undefined) { const o = playerAt(ti, tt); if (!o.alive) continue; px = o.x; py = o.y; ph = o.h; }
       if (px == null) continue;
       const dx = px - q.x, dy = py - q.y, d = Math.hypot(dx, dy); if (d < 1 || d > fogRange() + 30) continue;
-      const lk = looking(i, tt);
+      const lk = looking(i, tt) || (q.drv && airNames().has(q.veh) ? { yaw: q.yaw, gun: true } : null);   // (a pilot: the nose)
       if (!lk) { could = true; continue; }   // (in a seat with no gun: where he looks is not known)
       const off = Math.max(0, angOff(Math.atan2(dx, dy), lk.yaw) - Math.atan2(side, d)) * DEG;
       let up = 0;
@@ -2062,18 +2198,19 @@ function drawRoofGun(px, py, vs, a, col) {
 // (assets/models/models.js, made by models/py/build_models.py from the .bundledmesh files and the vehicles' object
 // templates): the hull, the turret and the roof gun apart, so the turret turns where the main gun points and the roof
 // gun where its gunner aims; a destroyed vehicle is its charred wreck model. To scale (the game's metres), but never
-// smaller than about the icon. A halo in the colour of the team in it (grey: empty). A helicopter's rotor is drawn
-// over it: a blurred disc and its blades while somebody is in it, still blades when empty.
+// smaller than about the icon. A halo in the colour of the team in it (grey: empty). A helicopter's rotors are models
+// of their own: its blades standing still while it is empty; once somebody gets in they speed up into the game's own
+// blur disc (turning slowly, as in the game), and after the last one gets out they run down to a stop again.
 // The file is loaded the first time a vehicle is drawn this way; until then (or without it) the icons are drawn.
 const MODELS = { st: null, m: null, raf: 0 };   // st: null (not asked yet), 'loading', 'ok', 'fail'
 const modelsIn = () => { if (!MODELS.raf) MODELS.raf = requestAnimationFrame(() => { MODELS.raf = 0; if (round) refresh(true); }); };   // (once for many pictures)
 window.__bf2models = d => {
   const m = {};
   for (const [k, r] of Object.entries(d && d.m || {})) {
-    const o = { ppm: r.ppm, rotor: r.rotor || null };
-    for (const ly of ['hull', 'turret', 'mg', 'wreck']) if (r[ly]) {
+    const o = { ppm: r.ppm };
+    for (const ly of ['hull', 'turret', 'mg', 'wreck', 'rotor', 'blur', 'tail', 'tailblur']) if (r[ly] && r[ly].src) {
       const img = new Image(); img.onload = modelsIn; img.src = r[ly].src;
-      o[ly] = { ax: r[ly].ax, ay: r[ly].ay, w: r[ly].w, h: r[ly].h, px: r[ly].px || 0, pz: r[ly].pz || 0, rest: r[ly].rest || 0, on: r[ly].on || 'hull', img };
+      o[ly] = { ax: r[ly].ax, ay: r[ly].ay, w: r[ly].w, h: r[ly].h, px: r[ly].px || 0, pz: r[ly].pz || 0, rest: r[ly].rest || 0, on: r[ly].on || 'hull', spin: r[ly].spin || 0, img };
     }
     if (o.hull) { o.len = Math.max(o.hull.w, o.hull.h) / o.ppm; m[k] = o; }
   }
@@ -2095,7 +2232,7 @@ function vehModel(p) {
   return o && o.hull.img.complete && o.hull.img.naturalWidth ? o : null;
 }
 // draw it at (px, py): yaw the hull's heading, aim / mg where the main gun / the roof gun point (world, rad; null: at
-// rest), col the team's colour, spin: the rotor turns. Returns its radius on the canvas (px)
+// rest), col the team's colour, spin: how its rotors turn ({ w, th }: rotorState). Returns its radius on the canvas (px)
 function drawModel(o, px, py, yaw, aim, mg, col, wreck, spin, tt) {
   const s0 = size / view.span, minL = Math.min(56, Math.max(26, o.len * 3.6)), k = Math.max(s0, minL / o.len), sc = k / o.ppm;
   const L = wreck ? o.wreck || o.hull : o.hull, ok = l => l.img.complete && l.img.naturalWidth;
@@ -2117,22 +2254,50 @@ function drawModel(o, px, py, yaw, aim, mg, col, wreck, spin, tt) {
   if (T) { cx.save(); cx.translate(T.px * k, -T.pz * k); cx.rotate(tw - yaw); part(T); if (G && G.on === 'turret') gun(tw); cx.restore(); }
   if (G && G.on !== 'turret') gun(yaw);
   let R = o.len * k / 2;
-  if (o.rotor) {   // [radius, blades, hub x, hub z, tail rotor x, z, radius] (m)
-    const [rr, n, hx, hz, tx, tz, tr] = o.rotor, r = rr * k, a0 = spin ? tt * 9 : Math.PI / 4;
-    cx.save(); cx.translate(hx * k, -hz * k);
-    if (spin) {
-      const g = cx.createRadialGradient(0, 0, r * 0.1, 0, 0, r); g.addColorStop(0, 'rgba(24,26,24,.06)'); g.addColorStop(0.85, 'rgba(24,26,24,.2)'); g.addColorStop(1, 'rgba(24,26,24,.05)');
-      cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.fill();
-    }
-    cx.strokeStyle = spin ? 'rgba(20,22,20,.32)' : 'rgba(20,22,20,.85)'; cx.lineWidth = Math.max(1.2, 0.32 * k); cx.lineCap = 'round';
-    cx.beginPath(); for (let b = 0; b < n; b++) { const a = a0 + b * 2 * Math.PI / n; cx.moveTo(0, 0); cx.lineTo(Math.sin(a) * r, -Math.cos(a) * r); } cx.stroke();
-    cx.fillStyle = 'rgba(20,22,20,.9)'; cx.beginPath(); cx.arc(0, 0, Math.max(1.5, 0.35 * k), 0, Math.PI * 2); cx.fill();
-    cx.restore();
-    // the tail rotor turns in a vertical plane: from above a short bar beside the tail
-    cx.strokeStyle = spin ? 'rgba(20,22,20,.45)' : 'rgba(20,22,20,.8)'; cx.lineWidth = Math.max(1, 0.2 * k);
-    cx.beginPath(); cx.moveTo(tx * k, -(tz - tr) * k); cx.lineTo(tx * k, -(tz + tr) * k); cx.stroke(); cx.lineCap = 'butt';
+  if (o.rotor) {
+    // the blades (turned th, the way the game turns them) give way to the blur disc between 30 % and 70 % of full speed;
+    // the tail rotor (turning in a vertical plane: from above a thin bar) to its blades averaged over a turn
+    const w = spin ? spin.w : 0, fb = Math.min(1, Math.max(0, (w - 0.3) / 0.4)), dir = o.blur && o.blur.spin < 0 ? -1 : 1;
+    const at = (l, a, al) => { if (!l || al < 0.02) return; cx.save(); cx.globalAlpha = al; cx.translate(l.px * k, -l.pz * k); if (a) cx.rotate(a); img(l); cx.restore(); };
+    at(o.tail, 0, 1 - fb); at(o.tailblur, 0, fb);
+    at(o.rotor, spin ? dir * spin.th : 0, 1 - fb); at(o.blur, o.blur ? (o.blur.spin * tt) % (2 * Math.PI) : 0, fb);
   }
   cx.restore(); return R;
+}
+// how a helicopter's rotors turn at tt: w their speed (0 still .. 1 full), th how far the blades have turned (rad). They
+// speed up evenly to full in ROTOR_UP s from when somebody is in it (getting back in while they still turn: from there)
+// and run down evenly from full in ROTOR_DOWN s after the last one is out
+const ROTOR_UP = 6, ROTOR_DOWN = 10, ROTOR_W = 12;   // (ROTOR_W: rad/s at full speed, as far as blades are drawn)
+function rotorState(name, tt) {
+  if (!round.manned || round.mannedN !== round.times.length) {   // when each vehicle had somebody alive in it, from the frames: name -> [[from, until, w, th, w', th']]
+    const M = new Map(), cur = new Map(), { times, n, L, VT, VTN } = round, foot = round.players.map(p => !p.vehicle);
+    for (let f = 0; f < times.length; f++) {
+      const on = new Set();
+      for (let i = 0; i < n; i++) { const j = f * n + i; if (foot[i] && L[j] && VT[j]) on.add(VT[j]); }
+      const next = times[Math.min(f + 1, times.length - 1)];
+      for (const v of on) { let a = cur.get(v); if (!a) { a = [times[f], next]; cur.set(v, a); const nm = VTN[v]; if (!M.has(nm)) M.set(nm, []); M.get(nm).push(a); } a[1] = next; }
+      for (const v of [...cur.keys()]) if (!on.has(v)) cur.delete(v);
+    }
+    for (const iv of M.values()) {
+      let w = 0, th = 0, end = -Infinity;
+      for (const a of iv) {
+        const d = rotorRun(w, th, a[0] - end, false); a.push(d[0], d[1]);
+        const u = rotorRun(d[0], d[1], a[1] - a[0], true); a.push(u[0], u[1]); [w, th, end] = [u[0], u[1], a[1]];
+      }
+    }
+    round.manned = M; round.mannedN = round.times.length;   // (again when frames come in: live)
+  }
+  const iv = round.manned.get(name); if (!iv) return { w: 0, th: 0 };
+  let k = -1; for (let j = 0; j < iv.length && iv[j][0] <= tt; j++) k = j;
+  if (k < 0) return { w: 0, th: 0 };
+  const a = iv[k], r = tt < a[1] ? rotorRun(a[2], a[3], tt - a[0], true) : rotorRun(a[4], a[5], tt - a[1], false);
+  return { w: r[0], th: r[1] };
+}
+// from speed w and turn th, s seconds of speeding up (up) or running down: [w, th]
+function rotorRun(w, th, s, up) {
+  if (!(s > 0)) return [w, th];
+  if (up) { const s1 = Math.min(s, (1 - w) * ROTOR_UP); return [Math.min(1, w + s / ROTOR_UP), th + ROTOR_W * (w * s1 + s1 * s1 / (2 * ROTOR_UP) + (s - s1))]; }
+  const s1 = Math.min(s, w * ROTOR_DOWN); return [Math.max(0, w - s / ROTOR_DOWN), th + ROTOR_W * (w * s1 - s1 * s1 / (2 * ROTOR_DOWN))];
 }
 // draw an atlas icon centred on (x, y), its longer side `size` px, optionally tinted and rotated
 function drawIcon(key, x, y, size, color, rot, mode) {
@@ -2331,33 +2496,41 @@ function draw() {
     }
   }
 
-  // field of view of the followed soldier (at a vehicle's gun: along the gun): a sector out to 50 m, fading with distance;
-  // where the map's walls and hills are known only the part he can see is filled (the rest of the sector stays a dashed
-  // outline). Who he sees gets a dashed ring, who is in the sector behind a wall a dotted grey one
+  // field of view of the followed soldier (at a vehicle's gun: along the gun) out to the fog limit: what he sees of it
+  // (viewShed) filled - the ground he sees strong, where only a standing soldier would be seen light, both fading with
+  // distance - inside the sector's dashed outline. Without the map's walls and hills the sector itself, faintly. Who he
+  // sees gets a dashed ring, who is in the sector behind cover a dotted grey one
   let inView = null;
   if (opts.view && sel !== null) {
     const q = looking(sel, t);
     if (q) {
       inView = new Map((inViewOf(sel, t) || []).map(o => [o.i, o.seen]));
-      const [px, py] = toC(q.x, q.y), R = viewRange() / view.span * size, a0 = q.yaw - Math.PI / 2, col = teamColor(teamOf(sel, t));
-      const g = cx.createRadialGradient(px, py, 0, px, py, R), c0 = rgbaOf(col, 0.3), c1 = rgbaOf(col, 0.04);
-      if (c0) { g.addColorStop(0, c0); g.addColorStop(1, c1); cx.fillStyle = g; } else { cx.fillStyle = col; cx.globalAlpha = 0.15; }
-      const shape = sightShape(sel, q, t, 48), fillA = c0 ? 1 : 0.15;
-      if (shape) {
-        // (each run of rays that see something: from him, or from the near ends when he looks up or down)
-        const near = shape.near, runs = []; let run = null;
-        shape.forEach((f, k) => { const nr = near ? near[k] : [q.x, q.y]; if (f[0] !== nr[0] || f[1] !== nr[1]) { if (!run) runs.push(run = []); run.push([toC(f[0], f[1]), toC(nr[0], nr[1])]); } else run = null; });
-        cx.beginPath();
-        for (const rn of runs) {
-          if (near) { if (rn.length < 2) continue; cx.moveTo(...rn[0][0]); for (const [f] of rn) cx.lineTo(...f); for (let k = rn.length - 1; k >= 0; k--) cx.lineTo(...rn[k][1]); }
-          else { cx.moveTo(px, py); for (const [f] of rn) cx.lineTo(...f); }
-          cx.closePath();
-        }
-        cx.globalAlpha = fillA; cx.fill(); cx.globalAlpha = 0.75; cx.strokeStyle = col; cx.lineWidth = 1.2; cx.stroke();
+      const [px, py] = toC(q.x, q.y), m2px = size / view.span, a0 = q.yaw - Math.PI / 2, col = teamColor(teamOf(sel, t));
+      // (only as far as the screen reaches; rays a few pixels apart out there, points about as far apart along them)
+      const [wx0, wy0] = toW(0, 0), [wx1, wy1] = toW(size, sizeH);
+      const far = Math.max(...[[wx0, wy0], [wx1, wy0], [wx0, wy1], [wx1, wy1]].map(([x, y]) => Math.hypot(x - q.x, y - q.y)));
+      const Rv = Math.min(fogRange(), far), R = Rv * m2px, nr = Math.max(40, Math.min(240, Math.ceil(R * 2 * VIEW_HALF / 4)));
+      const key = sel + '|' + t + '|' + view.x0 + '|' + view.y0 + '|' + view.span + '|' + size + '|' + sizeH + '|' + !!losData();
+      let vs = round._vsC && round._vsC.key === key ? round._vsC.vs : undefined;
+      if (vs === undefined) { vs = viewShed(sel, q, t, Rv, nr, Math.max(0.25, 2 / m2px)); round._vsC = { key, vs }; }
+      const grad = (al0, al1) => { const g = cx.createRadialGradient(px, py, 0, px, py, Math.max(1, fogRange() * m2px)), c0 = rgbaOf(col, al0), c1 = rgbaOf(col, al1); if (!c0) return col; g.addColorStop(0, c0); g.addColorStop(1, c1); return g; };
+      if (vs) {
+        const P = [null, new Path2D(), new Path2D()];
+        vs.runs.forEach((rn, k) => {
+          const aL = vs.a0 + vs.da * (k - 0.5), aR = aL + vs.da, sL = Math.sin(aL), cL = Math.cos(aL), sR = Math.sin(aR), cR = Math.cos(aR);
+          for (let m = 0; m < rn.length; m += 3) {
+            const s0 = rn[m], s1 = rn[m + 1], path = P[rn[m + 2]];
+            path.moveTo(px + sL * s0 * m2px, py - cL * s0 * m2px); path.lineTo(px + sL * s1 * m2px, py - cL * s1 * m2px);
+            path.lineTo(px + sR * s1 * m2px, py - cR * s1 * m2px); path.lineTo(px + sR * s0 * m2px, py - cR * s0 * m2px); path.closePath();
+          }
+        });
+        const plain = !rgbaOf(col, 0.3);
+        cx.globalAlpha = plain ? 0.12 : 1; cx.fillStyle = grad(0.16, 0.03); cx.fill(P[1]);
+        cx.globalAlpha = plain ? 0.3 : 1; cx.fillStyle = grad(0.42, 0.08); cx.fill(P[2]); cx.globalAlpha = 1;
       }
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - VIEW_HALF, a0 + VIEW_HALF); cx.closePath();
-      if (!shape) { cx.globalAlpha = fillA; cx.fill(); }
-      cx.strokeStyle = col; cx.globalAlpha = shape ? 0.4 : 0.6; cx.lineWidth = 1; cx.setLineDash([5, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
+      cx.strokeStyle = col; cx.globalAlpha = vs ? 0.45 : 0.6; cx.lineWidth = 1; cx.setLineDash([5, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
       // where he looks (up or down): a cross where his line of sight meets the ground or a wall, a dotted line to it
       const ap = aimPoint(sel, q, t);
       if (ap) {
@@ -2433,7 +2606,7 @@ function draw() {
     const inIcon = !p.vehicle && q.veh && iconVeh.has(q.veh);
     const mdl = p.vehicle ? vehModel(p) : null;
     if (mdl) {   // (Layers > Vehicles: Models)
-      const r = drawModel(mdl, px, py, q.yaw, q.aim, q.mg, col, wreck, riders.has(p.name), t);
+      const r = drawModel(mdl, px, py, q.yaw, q.aim, q.mg, col, wreck, mdl.rotor && !wreck ? rotorState(p.name, t) : null, t);
       if (wreck) drawFire(px, py, Math.min(48, Math.max(20, r * 1.5)), wk ? t - wk[0] : 0);
       iconVeh.add(p.name); vehRad.set(p.name, r);
     }
@@ -4500,6 +4673,7 @@ Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] 
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 function layCount() {
   let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
+  document.querySelectorAll('.qwall').forEach(b => b.setAttribute('aria-pressed', String(!!opts.walls)));
   $('#layN').textContent = n + '/' + Object.keys(toggles).length;
 }
 const popToggle = (btn, box, on) => { box.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
@@ -4512,11 +4686,15 @@ layCount();
 function setVehView(models) {
   opts.models = !!models;
   $('#vwIcons').setAttribute('aria-checked', String(!opts.models)); $('#vwModels').setAttribute('aria-checked', String(opts.models));
+  document.querySelectorAll('.qI').forEach(b => b.setAttribute('aria-checked', String(!opts.models))); document.querySelectorAll('.qM').forEach(b => b.setAttribute('aria-checked', String(opts.models)));
   try { localStorage.setItem('bf2rr.vehicles', opts.models ? 'models' : 'icons'); } catch (e) {}
   if (round) refresh(true);
 }
 $('#vwIcons').onclick = () => setVehView(false); $('#vwModels').onclick = () => setVehView(true);
-$('.vwseg').addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); $(opts.models ? '#vwModels' : '#vwIcons').focus(); } });
+document.querySelectorAll('.qI').forEach(b => b.onclick = () => setVehView(false)); document.querySelectorAll('.qM').forEach(b => b.onclick = () => setVehView(true));
+for (const seg of document.querySelectorAll('.vwseg, .qseg')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
+// buildings' outlines from the map's own button (or B), the same as Layers ▾ > Buildings
+document.querySelectorAll('.qwall').forEach(b => b.onclick = () => $('#tWalls').click());
 setVehView(opts.models);
 // Round stats / Weapons: the long lists show their top 8 until "Show all"
 const stMore = { wpn: false, hit: false };
@@ -4546,6 +4724,7 @@ document.addEventListener('keydown', e => {
   if ((e.code==='KeyN' || e.code==='KeyP') && !e.ctrlKey && !e.metaKey && !e.altKey) stepMoment(e.code==='KeyN' ? 1 : -1);
   if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round) clipMark(e.code==='KeyI' ? 'a' : 'b');
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
+  if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
 });
 $('#mapSize').addEventListener('change', e => { const v = Math.max(256, Math.min(8192, +e.target.value||2048)); if (source === 'sim') { loadSim(simSeed, v, round?.meta?.map); } else { W = v; viewFit(); refresh(true); } });
 
@@ -5936,6 +6115,7 @@ async function buildTimeline(r) {
   // where the gun points (mrad, 0 = north, clockwise; -32768 = no gun or not known): a vehicle's main gun, a soldier's in a
   // seat with a gun (the driver of a tank, APC or AA vehicle, a roof gunner); GB: a vehicle's roof machine gun while manned
   const cGA = new Int16Array(n * NE).fill(-32768), cGB = new Int16Array(n * NE).fill(-32768);
+  const cDR = new Uint8Array(n * NE);   // 1: he drives / flies the vehicle he is in (its seat 0)
   const cFO = new Int8Array(n * nfl).fill(-1), cFC = new Float32Array(n * nfl), cTK = new Float32Array(n * 2), times = new Array(n);
   const vtNames = [''], vtIdx = new Map([['', 0]]);
   const vtOf = nm => { if (!nm) return 0; let k = vtIdx.get(nm); if (k === undefined) { k = vtNames.length; vtNames.push(nm); vtIdx.set(nm, k); } return k; };
@@ -6000,7 +6180,8 @@ async function buildTimeline(r) {
       if (al && veh && rd) {
         const v = rd[1], vj = vIdx.get(v), c = seatOf(v, rd[3]);
         // (the driver: seat 0; bots enter one id up, so seat 1 with no gun seat there is a bot driving)
-        if ((rd[3] === 0 || (rd[3] === 1 && c === null)) && vj !== undefined && VS[vj].gun) { cGA[e] = cGA[b + vj]; cPT[e] = cPT[b + vj]; }
+        const drv = rd[3] === 0 || (rd[3] === 1 && c === null); if (drv) cDR[e] = 1;
+        if (drv && vj !== undefined && VS[vj].gun) { cGA[e] = cGA[b + vj]; cPT[e] = cPT[b + vj]; }
         else if (c !== null && vj !== undefined) {
           const V = VS[vj], g = SG.get(c), sg = seatGun.get(c), re = lastRe(v, t);
           const [gy, ge] = gunWorld(vyaw.get(v) || 0, V.fy, V.ry, sg.mount + A12(valNow(g.y, t, re)), -A12(valNow(g.p, t, re)));
@@ -6024,7 +6205,7 @@ async function buildTimeline(r) {
     for (const [id, owner, ctrl] of applyFlags(t)) { const k = flagIdx.get(id); if (k === undefined) continue; cFO[f * nfl + k] = owner; cFC[f * nfl + k] = ctrl ?? (owner === 0 ? 1 : owner === 1 ? -1 : 0); }
     if (hasTk) { const tk = applyTickets(t); cTK[f * 2] = tk[0] ?? 0; cTK[f * 2 + 1] = tk[1] ?? 0; }
   }
-  const cols = { times, n: NE, nf: nfl, X: cX, Y: cY, A: cA, L: cL, HH: cHH, VT: cVT, VTN: vtNames, HP: cHP, DN: cDN, PT: cPT, SP: cSP, VV: cVV, GA: cGA, GB: cGB, FO: cFO, FC: cFC, TK: cTK };
+  const cols = { times, n: NE, nf: nfl, X: cX, Y: cY, A: cA, L: cL, HH: cHH, VT: cVT, VTN: vtNames, HP: cHP, DN: cDN, PT: cPT, SP: cSP, VV: cVV, GA: cGA, GB: cGB, DR: cDR, FO: cFO, FC: cFC, TK: cTK };
   const vset0 = new Set(vids);
   // the vehicle a kill was made from: the killer's ride at that moment, when the weapon is a vehicle's gun (and not
   // another vehicle type's), a mounted machine gun, or none (run over); a grenade or claymore he threw or set before he got
@@ -6187,7 +6368,7 @@ function workerMain() {
     try {
       const tl = await decodeDemo(ev.data.data, (f, stage) => { const now = Date.now(); if (now - last > 100) { last = now; self.postMessage({ type: 'progress', f, stage }); } });
       // the timeline's columns are handed over, not copied
-      const bufs = tl && tl.cols ? ['X', 'Y', 'A', 'L', 'HH', 'VT', 'HP', 'DN', 'PT', 'SP', 'VV', 'GA', 'GB', 'FO', 'FC', 'TK'].map(k => tl.cols[k].buffer) : [];
+      const bufs = tl && tl.cols ? ['X', 'Y', 'A', 'L', 'HH', 'VT', 'HP', 'DN', 'PT', 'SP', 'VV', 'GA', 'GB', 'DR', 'FO', 'FC', 'TK'].map(k => tl.cols[k].buffer) : [];
       self.postMessage({ type: 'done', tl }, bufs);
     } catch (e) { self.postMessage({ type: 'error', message: String(e && e.stack || e) }); }
   };
