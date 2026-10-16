@@ -232,7 +232,12 @@ input[type=file] { display: none; }
 svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentColor; stroke: currentColor; }
 .feed .cap { color: var(--accent); }
 .feed .ico { margin: 0 2px; opacity: .9; }
-.feed[hidden], #hlBox[hidden] { display: none; }
+.feed[hidden], #hlBox[hidden], #admBox[hidden] { display: none; }
+.hk-wall, .hk-snap { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }
+.hk-hs { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.hk-tk { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }
+.admwarn { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.admtop { font-size: 12px; margin: 0 0 8px; }
 /* highlights */
 .hlchips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .hlchips .btn { padding: 5px 8px; font-size: 12px; }
@@ -271,7 +276,7 @@ table.lb th.n { text-align: right; }
 table.lb tr { cursor: pointer; }
 table.lb tr.sel td { background: var(--panel-2); }
 .lbwrap { max-height: 340px; overflow-y: auto; }
-.tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .tabs .btn { padding: 6px 10px; font-size: 12px; }
 
 .timeline { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; display: grid; gap: 8px; }
@@ -314,9 +319,30 @@ input[type=number] { width: 84px; font: 500 13px var(--font-data); background: v
 .svhead .spacer { flex: 1; }
 #svCv { display: block; width: 100%; border-radius: 3px; }
 .svinfo { font-size: 12.5px; line-height: 1.5; display: grid; gap: 3px; overflow-wrap: anywhere; }
-.feed li.kl { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.feed li.kl { grid-template-columns: 44px minmax(0, 1fr) auto auto; }
+.feed li.kl .kcb { margin-left: -6px; }
 .svb { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 3px; color: var(--muted); cursor: pointer; align-self: start; vertical-align: middle; }
 .svb svg { width: 14px; height: 14px; }
+/* killcam 3D */
+.kc { position: fixed; inset: 0; z-index: 60; background: rgba(6,9,7,.72); display: grid; place-items: center; padding: 16px; }
+.kc[hidden] { display: none; }
+.kcbox { width: min(1200px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; box-sizing: border-box; }
+.kchead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.kchead .spacer { flex: 1; }
+.kcstage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: calc(100vh - 200px); min-height: 220px; background: #9fb0ba; border-radius: 4px; overflow: hidden; }
+.kcstage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#kcCv { touch-action: none; cursor: grab; }
+#kcHud { pointer-events: none; }
+.kcmsg { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #f0f2ec; background: rgba(10,14,11,.55); font-size: 14px; text-align: center; padding: 20px; }
+.kcmsg[hidden] { display: none; }
+.kcbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.kcbar input[type=range] { flex: 1 1 180px; accent-color: var(--accent); }
+.kctime { font: 600 12px var(--font-data); min-width: 4.6em; }
+.kcseg { display: flex; gap: 2px; flex-wrap: wrap; }
+.kcseg .btn { padding: 5px 8px; font-size: 12px; }
+.kcnote { margin: 0; font-size: 12px; color: var(--muted); }
+body.kcopen { overflow: hidden; }
+@media (max-width: 640px) { .kc { padding: 0; } .kcbox { border-radius: 0; height: 100%; } .kcstage { aspect-ratio: auto; flex: 1; max-height: none; } }
 .svb:hover { color: var(--accent); background: var(--panel-2); }
 .svb:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cliprow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
@@ -736,9 +762,23 @@ body.mbar-on { padding-bottom: 72px; }
           </div>
         </div>
         <div class="sideview" id="sideView" aria-label="Side view of a kill" hidden>
-          <div class="svhead"><b id="svTitle">Side view</b><span class="w" id="svSub"></span><span class="spacer"></span><button class="btn" id="svGo" title="Back to the moment of this kill">Go to the kill</button><button class="btn" id="svX">Close</button></div>
+          <div class="svhead"><b id="svTitle">Side view</b><span class="w" id="svSub"></span><span class="spacer"></span><button class="btn" id="svKc" title="Watch the last seconds of this kill in 3D, through the killer's eyes">Killcam 3D</button><button class="btn" id="svGo" title="Back to the moment of this kill">Go to the kill</button><button class="btn" id="svX">Close</button></div>
           <canvas id="svCv" role="img" aria-label="Side view: the ground and walls along the line from the killer to the victim"></canvas>
           <div class="svinfo" id="svInfo"></div>
+        </div>
+        <div class="kc" id="kc" role="dialog" aria-modal="true" aria-labelledby="kcTitle" hidden>
+          <div class="kcbox">
+            <div class="kchead"><b id="kcTitle">Killcam 3D</b><span id="kcSub"></span><span class="spacer"></span><button class="btn" id="kcX">Close</button></div>
+            <div class="kcstage" id="kcStage"><canvas id="kcCv" aria-label="The kill in 3D"></canvas><canvas id="kcHud" aria-hidden="true"></canvas><p class="kcmsg" id="kcMsg" hidden></p></div>
+            <div class="kcbar">
+              <button class="btn" id="kcPlay">Pause</button>
+              <input type="range" id="kcT" min="0" max="650" step="1" value="0" aria-label="Time around the kill">
+              <span class="kctime" id="kcTime">−5.0 s</span>
+              <div class="kcseg" id="kcSpeed" role="group" aria-label="Speed"><button class="btn" data-s="0.25">0.25×</button><button class="btn" data-s="0.5">0.5×</button><button class="btn on" data-s="1">1×</button></div>
+              <div class="kcseg" id="kcViews" role="group" aria-label="Camera"><button class="btn on" data-v="eyes">Killer's eyes</button><button class="btn" data-v="behind">Behind him</button><button class="btn" data-v="victim">Victim's eyes</button><button class="btn" data-v="free">Free</button></div>
+            </div>
+            <p class="kcnote">Drag or scroll to look round freely · Space play / pause · ← → step · 1-4 cameras · Esc close. Houses and walls are the game's collision shapes as blocks, so they are rougher than in the game.</p>
+          </div>
         </div>
         <p class="maphint" id="mapHint" hidden></p>
         <canvas id="tl" aria-label="Round timeline"></canvas>
@@ -765,9 +805,10 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="flagrow" id="flagrow"></div>
       </section>
       <section class="card">
-        <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button></div>
+        <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" title="Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills">For admins</button></div>
         <ul class="feed" id="feed"></ul>
         <div id="hlBox" hidden></div>
+        <div id="admBox" hidden></div>
       </section>
       <section class="card">
         <div class="tabs">
@@ -821,7 +862,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v104';
+const APP_VERSION = 'v107';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1469,7 +1510,7 @@ function seenBy(i, tt) {
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
 // and wagons (bullets go through some), peeking round corners; BF2 destroys no cover but bridges and red barrels)
 const LOS = new Map();   // map key -> data, 'loading', or null (none for this map / failed)
-window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
+window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
 function losData() {
   const k = mapKey(), v = LOS.get(k);
   if (v === undefined) {
@@ -1729,7 +1770,7 @@ function vehBlocks(ax, ay, ah, bx, by, bh, tt, skip1, skip2) {
 const VEG = new Map(), VEG_THICK = 1.0, VEG_EYE = 0.6, VEG_G = 8;
 window.__bf2veg = (k, b64) => {
   try { VEG.set(k, vegIndex(b64)); } catch (e) { console.warn('Trees for ' + k + ':', e); VEG.set(k, null); return; }
-  if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._vsC = null; renderHighlights(); refresh(true); if (sideKill) drawSide(); }
+  if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; round._vsC = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); }
 };
 let VEG_OFF = false;   // (for comparing with and without)
 function vegData() {
@@ -3526,7 +3567,7 @@ function panels(force) {
     ei++;
     if (e.t > t) break;
     evT = e.t;
-    if (e.type==='kill') { const rv = e.revived && e.revived <= t, hs = e.hit === 'head'; K.set(e.killer,(K.get(e.killer)||0)+1); if (hs) HS.set(e.killer,(HS.get(e.killer)||0)+1); if (!rv) Dd.set(e.victim,(Dd.get(e.victim)||0)+1); const wi = weaponIcon(e.wid, e.weapon); feed.push(`<li${e.killer !== e.victim ? ' class="kl"' : ''}><span class="ts">${fmt(e.t)}</span><span>${pn(e.killer)} ${wi || '→'}${hs ? HS_SVG : ''} ${pn(e.victim)} <span class="w">${esc(killWpn(e))}${e.dist !== undefined ? `${killWpn(e) ? ' · ' : ''}${e.dist} m` : ''}${hs ? ' · headshot' : ''}${rv ? ' · revived' : ''}${e.wnamed ? ` · the demo says ${esc(e.wnamed)}` : ''}</span></span>${e.killer !== e.victim ? `<button class="svb" data-k="${ei}" title="Side view: the ground, walls and line of sight between them, and who saw whom first">${SIDE_SVG}</button>` : ''}</li>`); }
+    if (e.type==='kill') { const rv = e.revived && e.revived <= t, hs = e.hit === 'head'; K.set(e.killer,(K.get(e.killer)||0)+1); if (hs) HS.set(e.killer,(HS.get(e.killer)||0)+1); if (!rv) Dd.set(e.victim,(Dd.get(e.victim)||0)+1); const wi = weaponIcon(e.wid, e.weapon); feed.push(`<li${e.killer !== e.victim ? ' class="kl"' : ''}><span class="ts">${fmt(e.t)}</span><span>${pn(e.killer)} ${wi || '→'}${hs ? HS_SVG : ''} ${pn(e.victim)} <span class="w">${esc(killWpn(e))}${e.dist !== undefined ? `${killWpn(e) ? ' · ' : ''}${e.dist} m` : ''}${hs ? ' · headshot' : ''}${rv ? ' · revived' : ''}${e.wnamed ? ` · the demo says ${esc(e.wnamed)}` : ''}</span></span>${e.killer !== e.victim ? `<button class="svb" data-k="${ei}" title="Side view: the ground, walls and line of sight between them, and who saw whom first">${SIDE_SVG}</button><button class="svb kcb" data-k="${ei}" title="Killcam 3D: the last seconds through the killer's eyes">${CUBE_SVG}</button>` : ''}</li>`); }
     else if (e.type==='revive') { RV.set(e.medic,(RV.get(e.medic)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.medic==null ? pn(e.player) + ' <span class="w">was revived</span>' : pn(e.medic) + ' <span class="w">revived</span> ' + pn(e.player)}</span></li>`); }
     else if (e.type==='repair') { RP.set(e.by,(RP.get(e.by)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.by==null ? pn(e.vehicle) + ' <span class="w">was repaired' : pn(e.by) + (e.from ? ' <span class="w">in</span> ' + pn(e.from) : '') + ' <span class="w">repaired</span> ' + pn(e.vehicle) + ' <span class="w">'}${e.gain ? ' +' + e.gain + '%' : ''}</span></span></li>`); }
     else if (e.type==='heal') { HL.set(e.medic,(HL.get(e.medic)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.medic==null || e.medic===e.player ? pn(e.player) + ' <span class="w">healed' : pn(e.medic) + ' <span class="w">healed</span> ' + pn(e.player) + ' <span class="w">'}${e.gain ? ' +' + e.gain : ''}</span></span></li>`); }
@@ -3545,7 +3586,7 @@ function panels(force) {
     const nf = mapbox.classList.contains('fs') ? 7 : 6, rows = [];
     for (let k = feed.length - 1; k >= Math.max(0, feed.length - nf); k--) {
       const old = t - feedT[k] > 30;
-      rows.push(feed[k].replace(/<button class="svb"[\s\S]*?<\/button>/, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
+      rows.push(feed[k].replace(/<button class="svb[^"]*"[\s\S]*?<\/button>/g, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
     }
     fo.innerHTML = `<div class="fstk">${[0,1].map(tm => `<span class="t${tm}">${flagChip(tm, false, 12)} ${esc(round.teams[tm]?.name || '')} ${start[tm] ? Math.round(tm ? tk1 : tk0) : ''}</span>`).join('')}</div>${rows.length ? `<ul>${rows.join('')}</ul>` : ''}`;
   }
@@ -3585,7 +3626,7 @@ ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
   pcardSync(); statsCursor();
 }
 $('#lb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; sel = +tr.dataset.i; refresh(true); });
-[$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.svb'); if (b && round) openSide(round.events[+b.dataset.k]); }));
+[$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.svb'); if (b && round) (b.classList.contains('kcb') ? kcOpen : openSide)(round.events[+b.dataset.k]); }));
 $('#selInfo').addEventListener('click', ev => { const b = ev.target.closest('[data-cam]'); if (!b) return; opts.cam3 = b.dataset.cam === '3'; try { localStorage.setItem('bf2rr.vcam', opts.cam3 ? '3' : '1'); } catch (e) {} refresh(true); });
 $('#svX').onclick = closeSide;
 document.querySelectorAll('#heatBar [data-hm]').forEach(b => b.onclick = () => { heat.mode = b.dataset.hm; fillHeat(); refresh(true); });
@@ -3595,6 +3636,7 @@ $('#hWho').onchange = e => { heat.who = e.target.value; refresh(true); };
 $('#hTime').onchange = e => { heat.time = e.target.value; refresh(true); };
 $('#hScope').onchange = e => { heat.scope = e.target.value; fillHeat(); refresh(true); };
 $('#svGo').onclick = () => { if (sideKill) openSide(sideKill); };
+$('#svKc').onclick = () => { if (sideKill) kcOpen(sideKill); };
 new ResizeObserver(() => { if (sideKill) drawSide(); }).observe($('#sideView'));
 [0,1].forEach(i => $('#tab'+i).addEventListener('click', () => { tab = i; $('#tab0').classList.toggle('on', i===0); $('#tab1').classList.toggle('on', i===1); refresh(true); }));
 
@@ -4164,12 +4206,13 @@ function renderHighlights() {
   $('#fTab1').innerHTML = `Highlights <span class="w">${H.length}</span>`;
   const L = H.map((h, i) => [h, i]).filter(([h]) => hlFilter === 'all' || h.kind === hlFilter);
   box.innerHTML = `<div class="hlchips">${[['all', 'All', H.length], ...HL_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${hlFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
-    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = hlDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${HL_KILL.has(h.kind) ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : '<li class="empty">No highlights in this round.</li>'}</ul>
+    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = hlDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${HL_KILL.has(h.kind) ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button><button class="hlclip hl3d" data-i="${i}" title="Killcam 3D: this kill through the killer's eyes">${CUBE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : '<li class="empty">No highlights in this round.</li>'}</ul>
     <p class="stnote">Click to jump there. N / P: next / previous moment of the soldier you follow, or the next highlight.</p>`;
   box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { hlFilter = b.dataset.f; renderHighlights(); });
   box.querySelectorAll('.hli').forEach(b => b.onclick = () => jumpTo(H[+b.dataset.i]));
   box.querySelectorAll('.hlclip:not(.hlside)').forEach(b => b.onclick = () => clipAround(H[+b.dataset.i]));
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(H[+b.dataset.i].kill));
+  box.querySelectorAll('.hl3d').forEach(b => b.onclick = () => kcOpen(H[+b.dataset.i].kill));
   hlShown = -2; markHighlights();
 }
 // the latest highlight up to now is marked in the list
@@ -4185,8 +4228,97 @@ function jumpTo(h, keepSel) {
   // next N would go through that soldier's moments instead)
   if (!keepSel && h.actor != null && round.pidx.get(h.actor) !== undefined) sel = round.pidx.get(h.actor);
   if (h.x != null && h.y != null) viewAt(h.x, h.y, Math.min(view.span, 360));
-  toast(fmt(h.t) + ' · ' + hlDescribe(h)[2]);
+  toast(fmt(h.t) + ' · ' + (h.adm ? admDescribe(h) : hlDescribe(h))[2]);
   refresh(true);
+}
+// ---------- for admins ----------
+// Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
+// Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
+// - no line of sight: none of the 9 lines from the killer's eye to the victim's head, chest and hips clear (the map's
+//   walls and hills, tree trunks: bodyLines) at the kill and over the 0.6 s before it; how long the victim had been out
+//   of his sight (up to 5 s). =FL= 19:52 / 20:37 / 21:23: 5 / 4 / 3 of ~140 small-arms kills a round.
+// - aim snap: in one step of the timeline (0.1 s) his view swung from 30 deg or more off the line to the victim to within
+//   5 deg of it, 5 m or more away, in the 1.5 s before the kill. The same rounds: 0-2 a round (the fastest 75 and 119 deg);
+//   the bots of test 13 none at range.
+// - headshots: 6 or more kills with the hit part known (sniper rifles left out), and so many of them headshots that the
+//   rate of everyone else in this round (with a 20% prior worth 10 kills) would give that many less than once in 100.
+//   None in the three rounds (the highest 5 of 8, 11 of 27).
+// - team kills: every kill of a team mate, in a vehicle too (run over, a cannon, a charge).
+const ADM_KINDS = [['wall', 'No line of sight'], ['snap', 'Aim snaps'], ['hs', 'Headshots'], ['tk', 'Team kills']];
+const SNIPER_W = /^(M24|SVD|L96A1|M95|Type 88|SV-?98)\b|sniper/i;
+let admFilter = 'all';
+// chance of k or more of n with rate p
+const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
+function adminHints() {
+  if (round._adm) return round._adm;
+  const R = round, pid = id => R.pidx.get(id), D = losData(), out = [], DEG = Math.PI / 180, hs = new Map();
+  for (const e of R.events) {
+    if (e.type !== 'kill' || e.killer === e.victim) continue;
+    const ki = pid(e.killer), vi = pid(e.victim); if (ki === undefined || vi === undefined || R.players[ki].vehicle) continue;
+    const tt = e.t - 0.05, q = playerAt(ki, tt), o = playerAt(vi, tt);
+    if (teamOf(ki, e.t) === teamOf(vi, e.t)) { out.push({ t: e.t, kind: 'tk', adm: true, actor: e.killer, kill: e, veh: q.veh || '', x: e.x, y: e.y }); continue; }
+    if (q.veh || killCause(e, false) !== 'small' || /knife|defib/i.test(e.weapon || '')) continue;
+    if (e.hit && !SNIPER_W.test(e.weapon || '')) {
+      let h = hs.get(ki); if (!h) hs.set(ki, h = { n: 0, head: 0, first: null, w: new Map() });
+      h.n++; h.w.set(e.weapon, (h.w.get(e.weapon) || 0) + 1); if (e.hit === 'head') { h.head++; if (!h.first) h.first = e; }
+    }
+    if (!q.alive || !o.alive) continue;
+    if (D && q.h != null && o.h != null) {
+      let k = 0, clear = false;
+      for (; k <= 50; k++) {
+        const tq = tt - k * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
+        if (bodyLines(D, a, eyeOf(ki, a, tq), vi, b, tq)[0] > 0) { clear = true; break; }
+      }
+      if (k >= 7) out.push({ t: e.t, kind: 'wall', adm: true, actor: e.killer, kill: e, hidden: clear ? k * 0.1 : null, x: e.x, y: e.y });
+    }
+    let best = null;
+    for (let k = 0; k <= 15; k++) {
+      const t1 = e.t - k * 0.1, t0 = t1 - 0.1, a1 = playerAt(ki, t1), a0 = playerAt(ki, t0), b1 = playerAt(vi, t1), b0 = playerAt(vi, t0);
+      if (!a0.alive || !b0.alive || !a1.alive || !b1.alive) break;
+      const d1 = Math.hypot(b1.x - a1.x, b1.y - a1.y); if (d1 < 5) continue;
+      const off1 = angOff(Math.atan2(b1.x - a1.x, b1.y - a1.y), a1.yaw) / DEG, off0 = angOff(Math.atan2(b0.x - a0.x, b0.y - a0.y), a0.yaw) / DEG;
+      if (off0 >= 30 && off1 <= 5 && (!best || off0 - off1 > best.from - best.to)) best = { from: off0, to: off1, turn: angOff(a1.yaw, a0.yaw) / DEG, before: k * 0.1, dist: d1 };
+    }
+    if (best) out.push({ t: e.t - best.before, kind: 'snap', adm: true, actor: e.killer, kill: e, ...best, x: e.x, y: e.y });
+  }
+  let N = 0, H = 0; for (const h of hs.values()) { N += h.n; H += h.head; }
+  for (const [ki, h] of hs) {
+    if (h.n < 6 || !h.first) continue;
+    const p = (H - h.head + 2) / (N - h.n + 10);
+    if (binTail(h.head, h.n, p) < 0.01) out.push({ t: h.first.t, kind: 'hs', adm: true, actor: R.players[ki].id, head: h.head, n: h.n, others: p, w: [...h.w].sort((a, b) => b[1] - a[1]), x: h.first.x, y: h.first.y });
+  }
+  out.sort((a, b) => a.t - b.t);
+  out.noLos = !D;
+  return (round._adm = out);
+}
+// [badge, html line, plain text] of an admin hint
+function admDescribe(h) {
+  const pn = id => { const i = round.pidx.get(id); return i === undefined ? '' : `<span class="t${teamOf(i, h.t)}">${esc(round.players[i].name)}</span>`; };
+  const pt = id => hlName(id, h.t) || '', e = h.kill;
+  if (h.kind === 'hs') return [h.head + '/' + h.n, `<b>Headshots</b> ${pn(h.actor)} <span class="w">${h.head} of ${h.n} kills (the others in this round ${Math.round(h.others * 100)}%) · ${h.w.slice(0, 3).map(([w, c]) => esc(w || 'no weapon') + ' ' + c).join(', ')}</span>`, `Headshots: ${pt(h.actor)}, ${h.head} of ${h.n} kills`];
+  const tail = `${esc(killWpn(e) || e.weapon || 'no weapon')}${e.dist !== undefined ? ' · ' + e.dist + ' m' : ''}${e.hit === 'head' ? ' · headshot' : ''}`;
+  if (h.kind === 'wall') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>No line of sight</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill · ${tail}</span>`, `No line of sight: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
+  if (h.kind === 'snap') return [Math.round(h.from) + '°', `<b>Aim snap</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">his view swung onto him from ${Math.round(h.from)}° off to ${h.to.toFixed(1)}° in 0.1 s, ${Math.round(h.dist)} m away${h.before >= 0.05 ? ' · ' + h.before.toFixed(1) + ' s before the kill' : ' · at the kill'} · ${tail}</span>`, `Aim snap: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.from)}° in 0.1 s`];
+  return ['TK', `<b>Team kill</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${h.veh ? 'from ' + esc(h.veh) + (e.weapon ? ' · ' + esc(killWpn(e) || e.weapon) : '') : tail}</span>`, `Team kill: ${pt(e.killer)} → ${pt(e.victim)}`];
+}
+function renderAdmin() {
+  const box = $('#admBox'); if (!box || !round) return;
+  const A = adminHints(), cnt = k => A.filter(h => h.kind === k).length;
+  $('#fTab2').innerHTML = `For admins <span class="w">${A.length}</span>`;
+  const L = A.map((h, i) => [h, i]).filter(([h]) => admFilter === 'all' || h.kind === admFilter);
+  const per = new Map(); for (const h of A) if (h.kind !== 'tk') per.set(h.actor, (per.get(h.actor) || 0) + 1);
+  const top = [...per].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]);
+  const pn = id => { const i = round.pidx.get(id); return i === undefined ? '' : `<span class="t${teamOf(i, round.duration)}">${esc(round.players[i].name)}</span>`; };
+  box.innerHTML = `<p class="admwarn">Hints for a closer look, not proof. Walls are the map's collision shapes, and some fences, thin walls and boards let bullets through; views and positions are known 10 times a second; good players turn fast too. Watch the moment (and its side view) before you judge.</p>
+    ${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => pn(id) + ' <span class="w">' + c + '</span>').join(', ')}</p>` : ''}
+    <div class="hlchips">${[['all', 'All', A.length], ...ADM_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${admFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
+    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = admDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button><button class="hlclip hl3d" data-i="${i}" title="Killcam 3D: this kill through the killer's eyes">${CUBE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : '<li class="empty">Nothing to look at in this round.</li>'}</ul>
+    <p class="stnote">${A.noLos ? 'No wall data for this map: "No line of sight" is not checked. ' : ''}Click to jump there.</p>`;
+  box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { admFilter = b.dataset.f; renderAdmin(); });
+  box.querySelectorAll('.hli').forEach(b => b.onclick = () => jumpTo(A[+b.dataset.i]));
+  box.querySelectorAll('.hlclip:not(.hlside)').forEach(b => b.onclick = () => clipAround(A[+b.dataset.i]));
+  box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
+  box.querySelectorAll('.hl3d').forEach(b => b.onclick = () => kcOpen(A[+b.dataset.i].kill));
 }
 // the followed soldier's moments: his kills and deaths, revives he gave or got, and his highlights
 function momentsOf(i) {
@@ -4488,6 +4620,460 @@ function sightRows(p) {
 // down, and below it who had whom in sight first.
 let sideKill = null;
 const SIDE_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 14h14M2.5 14v-4h3v4M10 14V6.5h3.5V14" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 8.6l7.6-4.2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-dasharray="1.6 1.4"/></svg>';
+// ---------- killcam in 3D (v107) ----------
+// The last seconds before a kill in 3D, through the killer's eyes (or from behind him, through the victim's eyes, or
+// freely round it): the map's terrain (the heightmap, the map picture laid on it, shaded by its slopes), the houses and
+// walls (the sight-line spans as blocks: 0.5 m squares near the two, 1 m further off; roofs coloured from the map
+// picture), trees and bushes (their trunks and three-band crowns), water, smoke, the soldiers (figures by team and
+// stance, the victim marked) and the vehicles (VEH_BOX boxes, or the game's models where assets/models/models3d.js has
+// them). The camera is the soldier's view as the map draws it (viewOf: on foot his eyes, in a seat its camera); the
+// game's field of view, 63 deg high. Light is baked into the colours (no lighting pass), so it runs on modest machines
+// too. three.js r149 (MIT) loads from assets/three/three.min.js the first time.
+const KC_BEFORE = 5, KC_AFTER = 1.5, KC_FOV = 63, KC_SUN = [-0.45, 0.8, 0.4];
+const KC = { open: false, e: null, ki: -1, vi: -1, t: -KC_BEFORE, play: true, speed: 1, view: 'eyes', ren: null, scene: null, cam: null,
+  dyn: new Map(), smoke: [], raf: 0, last: 0, orbit: { az: 0, el: 0.45, dist: 40, tx: 0, ty: 0, tz: 0 }, loading: null, built: false, info: '' };
+const CUBE_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6l5.6 3.1v6.6L8 14.4l-5.6-3.1V4.7z M2.4 4.7L8 7.8l5.6-3.1 M8 7.8v6.6" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+function loadThree() {
+  if (window.THREE) return Promise.resolve(window.THREE);
+  if (KC.loading) return KC.loading;
+  return (KC.loading = new Promise((ok, no) => {
+    const sc = document.createElement('script'); sc.src = 'assets/three/three.min.js';
+    sc.onload = () => window.THREE ? ok(window.THREE) : no(new Error('three.js'));
+    sc.onerror = () => { KC.loading = null; no(new Error('assets/three/three.min.js did not load')); };
+    document.head.appendChild(sc);
+  }));
+}
+const kcSleep = ms => new Promise(r => setTimeout(r, ms));
+function kcMsg(s) { const m = $('#kcMsg'); m.textContent = s || ''; m.hidden = !s; }
+// world (x east, y north, h up) -> three.js (x, h, -y)
+const kcV = (T, x, y, h) => new T.Vector3(x, h, -y);
+async function kcOpen(e) {
+  if (!e || !round) return;
+  const ki = round.pidx.get(e.killer), vi = round.pidx.get(e.victim);
+  if (ki === undefined || vi === undefined || ki === vi) { toast('This kill has no positions'); return; }
+  setPlaying(false); kcClose(true);
+  Object.assign(KC, { open: true, e, ki, vi, t: -KC_BEFORE, play: true, built: false });
+  $('#kc').hidden = false; document.body.classList.add('kcopen');
+  const pn = i => `<span class="t${teamOf(i, e.t)}">${esc(round.players[i].name)}</span>`;
+  $('#kcSub').innerHTML = `${pn(ki)} → ${pn(vi)} <span class="w">· ${esc(killWpn(e) || e.weapon || 'no weapon')}${e.dist !== undefined ? ' · ' + e.dist + ' m' : ''} · ${fmt(e.t)}</span>`;
+  kcViewButtons(); kcMsg('Loading 3D…'); $('#kcX').focus();
+  let T; try { T = await loadThree(); } catch (err) { kcMsg('The 3D view needs assets/three/three.min.js next to the page (the site and the offline copy have it).'); return; }
+  if (KC.e !== e) return;
+  // the map's walls and trees may still be on their way
+  losData(); vegData();
+  for (let k = 0; k < 80 && (LOS.get(mapKey()) === 'loading' || VEG.get(mapKey()) === 'loading'); k++) { await kcSleep(100); if (KC.e !== e) return; }
+  kcMsg('Building the scene…'); await kcSleep(30); if (KC.e !== e) return;
+  try { kcSetup(T); } catch (err) { console.error(err); kcMsg('The 3D view could not start: ' + err.message); return; }
+  kcMsg(''); KC.built = true; KC.dirty = true; KC.last = performance.now(); kcLoop();
+}
+function kcClose(keep) {
+  cancelAnimationFrame(KC.raf); KC.raf = 0;
+  if (KC.scene) { KC.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); } }); KC.scene = null; }
+  KC.dyn.clear(); KC.smoke = []; KC.built = false; KC.tracer = null; if (KC.vmod) KC.vmod.clear();
+  if (keep) return;
+  KC.open = false; KC.e = null; $('#kc').hidden = true; document.body.classList.remove('kcopen');
+}
+function kcViewButtons() { document.querySelectorAll('#kcViews .btn').forEach(b => { const on = b.dataset.v === KC.view; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }); }
+// the map picture: a texture and its colours (null: no picture, or one the browser won't let the page read)
+function kcPicture(T) {
+  const src = minimap && (minimap instanceof HTMLCanvasElement || (minimap.complete && minimap.naturalWidth)) ? minimap : null; if (!src) return null;
+  const tex = new T.Texture(src); tex.needsUpdate = true; tex.anisotropy = KC.ren.capabilities.getMaxAnisotropy();
+  let px = null; const N = 512;
+  try { const c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'); g.drawImage(src, 0, 0, N, N); px = g.getImageData(0, 0, N, N).data; } catch (err) { px = null; }
+  const sample = (x, y) => { if (!px) return null; const u = Math.max(0, Math.min(N - 1, Math.floor((x + W / 2) / W * N))), v = Math.max(0, Math.min(N - 1, Math.floor((W / 2 - y) / W * N))), i = (v * N + u) * 4; return [px[i] / 255, px[i + 1] / 255, px[i + 2] / 255]; };
+  return { tex, sample };
+}
+const kcShade = (nx, ny, nz) => { const s = KC_SUN, l = Math.hypot(...s); return 0.58 + 0.42 * Math.max(0, (nx * s[0] + ny * s[1] + nz * s[2]) / l); };   // (n in three.js axes)
+// terrain over [x0, x1] x [y0, y1] every step m, dz m lower (the coarse outer one sits under the fine one)
+function kcTerrain(T, D, x0, y0, x1, y1, step, pic, dz) {
+  const nx = Math.max(2, Math.round((x1 - x0) / step) + 1), ny = Math.max(2, Math.round((y1 - y0) / step) + 1);
+  const pos = new Float32Array(nx * ny * 3), uv = new Float32Array(nx * ny * 2), col = new Uint8Array(nx * ny * 3), idx = new Uint32Array((nx - 1) * (ny - 1) * 6);
+  const gh = (x, y) => { const g = D ? groundAt(D, x, y) : 0; return g > -1e8 ? g : 0; };
+  for (let j = 0, v = 0; j < ny; j++) for (let i = 0; i < nx; i++, v++) {
+    const x = x0 + i * step, y = y0 + j * step, h = gh(x, y) - dz;
+    pos[v * 3] = x; pos[v * 3 + 1] = h; pos[v * 3 + 2] = -y; uv[v * 2] = (x + W / 2) / W; uv[v * 2 + 1] = (y + W / 2) / W;
+    const e = 2, dx = (gh(x + e, y) - gh(x - e, y)) / (2 * e), dy = (gh(x, y + e) - gh(x, y - e)) / (2 * e), L = Math.hypot(dx, dy, 1);
+    let s = kcShade(-dx / L, 1 / L, dy / L);
+    const base = pic ? [1, 1, 1] : [0.62, 0.6, 0.47];
+    for (let k = 0; k < 3; k++) col[v * 3 + k] = Math.min(255, base[k] * s * 255);
+  }
+  for (let j = 0, k = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) { const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1; idx[k++] = a; idx[k++] = b; idx[k++] = c; idx[k++] = b; idx[k++] = d; idx[k++] = c; }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('uv', new T.BufferAttribute(uv, 2)); g.setAttribute('uv2', new T.BufferAttribute(uv, 2)); g.setAttribute('color', new T.BufferAttribute(col, 3, true)); g.setIndex(new T.BufferAttribute(idx, 1));
+  const m = new T.MeshBasicMaterial({ map: pic ? pic.tex : null, vertexColors: true, side: T.DoubleSide, aoMap: kcDetail(T), aoMapIntensity: 0.5 });
+  if (pic) m.color.setRGB(1.32, 1.27, 1.2);   // (the map picture is drawn dark, with its own shadows)
+  return new T.Mesh(g, m);
+}
+// a grey pattern (one tile every 6 m) that gives the blurry map picture some grain close up
+function kcDetail(T) {
+  if (KC.detail) return KC.detail;
+  const N = 128, c = document.createElement('canvas'); c.width = c.height = N; const g = c.getContext('2d'), im = g.createImageData(N, N);
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const L = new Float32Array(N * N); for (let k = 0; k < 4; k++) { const f = 4 << k, a = 0.5 / (k + 1), G = new Float32Array((f + 1) * (f + 1)).map(rnd); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const u = x / N * f, v = y / N * f, i = u | 0, j = v | 0, du = u - i, dv = v - j, at = (a2, b2) => G[(b2 % f) * (f + 1) + (a2 % f)]; L[y * N + x] += a * ((at(i, j) * (1 - du) + at(i + 1, j) * du) * (1 - dv) + (at(i, j + 1) * (1 - du) + at(i + 1, j + 1) * du) * dv); } }
+  for (let i = 0; i < N * N; i++) { const v = Math.max(0, Math.min(255, 255 * (0.62 + L[i] * 0.42))); im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0);
+  const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(W / 6, W / 6);
+  return (KC.detail = t);
+}
+// houses and walls: the sight-line spans merged to res x res cells of 25 cm, clipped to the ground; skip(x, y) leaves a
+// cell out (the fine inner part is drawn apart). -> { W, H, S, x0, y0, off, lo, hi } (lo / hi in 0.1 m)
+function kcCells(D, x0, y0, x1, y1, res, skip) {
+  const S = D.gStep * res, Wc = Math.ceil((x1 - x0) / S), Hc = Math.ceil((y1 - y0) / S), T = D.T;
+  const off = new Uint32Array(Wc * Hc + 1), lo = [], hi = [], tmp = [], cx0 = Math.round((x0 - D.gX0) / D.gStep), cy0 = Math.round((y0 - D.gY0) / D.gStep);
+  for (let cy = 0; cy < Hc; cy++) for (let cx = 0; cx < Wc; cx++) {
+    off[cy * Wc + cx] = lo.length; tmp.length = 0;
+    const mx = x0 + (cx + 0.5) * S, my = y0 + (cy + 0.5) * S; if (skip && skip(mx, my)) continue;
+    for (let sy = 0; sy < res; sy++) for (let sx = 0; sx < res; sx++) {
+      const gx = cx0 + cx * res + sx, gy = cy0 + cy * res + sy; if (gx < 0 || gy < 0 || gx >= D.gW || gy >= D.gH) continue;
+      const tk = D.tile[((gy / T) | 0) * D.tW + ((gx / T) | 0)]; if (tk < 0) continue;
+      const c = tk * T * T + (gy % T) * T + (gx % T);
+      for (let m = D.cs[c]; m < D.cs[c + 1]; m++) tmp.push(D.sp[2 * m], D.sp[2 * m + 1]);
+    }
+    if (!tmp.length) continue;
+    const g = Math.round(groundAt(D, mx, my) * 10), pr = [];
+    for (let k = 0; k < tmp.length; k += 2) pr.push([tmp[k], tmp[k + 1]]);
+    pr.sort((a, b) => a[0] - b[0]);
+    let a = null;
+    for (const [l, h] of pr) { if (h < g + 2) continue; const l2 = Math.max(l, g - 5); if (a && l2 <= a[1] + 2) a[1] = Math.max(a[1], h); else { if (a) { lo.push(a[0]); hi.push(a[1]); } a = [l2, h]; } }
+    if (a) { lo.push(a[0]); hi.push(a[1]); }
+  }
+  off[Wc * Hc] = lo.length;
+  return { W: Wc, H: Hc, S, x0, y0, off, lo: Int16Array.from(lo), hi: Int16Array.from(hi) };
+}
+// the faces of the blocks (tops and undersides merged along x by height, sides along the edge by the same stretch),
+// written into Q: x, y, h of 4 corners + the face's kind (0 top, 1 underside, 2-5 east, west, north, south)
+function kcFaces(D, C, Q) {
+  const { W: Wc, H: Hc, S, x0, y0, off, lo, hi } = C;
+  const quad = (k, a, b, c, d) => { Q.push(...a, ...b, ...c, ...d, k); };
+  const flat = (k, h, cx0, cx1, cy) => { const X0 = x0 + cx0 * S, X1 = x0 + (cx1 + 1) * S, Y0 = y0 + cy * S, Y1 = Y0 + S, z = h / 10; quad(k, [X0, Y0, z], [X1, Y0, z], [X1, Y1, z], [X0, Y1, z]); };
+  for (const under of [false, true]) for (let cy = 0; cy < Hc; cy++) {
+    const runs = new Map();
+    for (let cx = 0; cx < Wc; cx++) {
+      const i = cy * Wc + cx, here = new Set(); let g = null;
+      for (let m = off[i]; m < off[i + 1]; m++) {
+        let z;
+        if (under) { if (g === null) g = groundAt(D, x0 + (cx + 0.5) * S, y0 + (cy + 0.5) * S) * 10; if (lo[m] <= g + 3) continue; z = lo[m]; } else z = hi[m];
+        here.add(z); const r = runs.get(z); if (r && r[1] === cx - 1) r[1] = cx; else { if (r) flat(under ? 1 : 0, z, r[0], r[1], cy); runs.set(z, [cx, cx]); }
+      }
+      for (const [z, r] of runs) if (!here.has(z)) { flat(under ? 1 : 0, z, r[0], r[1], cy); runs.delete(z); }
+    }
+    for (const [z, r] of runs) flat(under ? 1 : 0, z, r[0], r[1], cy);
+  }
+  const span = (cx, cy) => cx < 0 || cy < 0 || cx >= Wc || cy >= Hc ? null : [off[cy * Wc + cx], off[cy * Wc + cx + 1]];
+  [[1, 0, 2], [-1, 0, 3], [0, 1, 4], [0, -1, 5]].forEach(([dx, dy, kind]) => {
+    const NA = dx ? Wc : Hc, NB = dx ? Hc : Wc;
+    for (let a = 0; a < NA; a++) {
+      const runs = new Map();
+      const emit = (key, r) => {
+        const l = (key >> 16) / 10, h = (key & 0xffff) / 10;
+        if (dx) { const xe = x0 + (a + (dx > 0 ? 1 : 0)) * S, ya = y0 + r[0] * S, yb = y0 + (r[1] + 1) * S; quad(kind, [xe, ya, l], [xe, yb, l], [xe, yb, h], [xe, ya, h]); }
+        else { const ye = y0 + (a + (dy > 0 ? 1 : 0)) * S, xa = x0 + r[0] * S, xb = x0 + (r[1] + 1) * S; quad(kind, [xa, ye, l], [xb, ye, l], [xb, ye, h], [xa, ye, h]); }
+      };
+      for (let b = 0; b < NB; b++) {
+        const cx = dx ? a : b, cy = dx ? b : a, i = cy * Wc + cx, here = new Set(), nb = span(cx + dx, cy + dy);
+        for (let m = off[i]; m < off[i + 1]; m++) {
+          let segs = [[lo[m], hi[m]]];
+          if (nb) for (let k = nb[0]; k < nb[1]; k++) { const L2 = lo[k], H2 = hi[k], ns = []; for (const [p, q] of segs) { if (H2 <= p || L2 >= q) ns.push([p, q]); else { if (L2 > p) ns.push([p, L2]); if (H2 < q) ns.push([H2, q]); } } segs = ns; }
+          for (const [p, q] of segs) { if (q - p < 1) continue; const key = (p + 1000) * 65536 + q; here.add(key); const r = runs.get(key); if (r && r[1] === b - 1) r[1] = b; else { if (r) emit(key - 1000 * 65536, r); runs.set(key, [b, b]); } }
+        }
+        for (const [k, r] of runs) if (!here.has(k)) { emit(k - 1000 * 65536, r); runs.delete(k); }
+      }
+      for (const [k, r] of runs) emit(k - 1000 * 65536, r);
+    }
+  });
+}
+function kcBuildings(T, D, x0, y0, x1, y1, ib, pic) {
+  const Q = [];
+  kcFaces(D, kcCells(D, ib[0], ib[1], ib[2], ib[3], 2, null), Q);
+  kcFaces(D, kcCells(D, x0, y0, x1, y1, 4, (x, y) => x >= ib[0] && x < ib[2] && y >= ib[1] && y < ib[3]), Q);
+  const nq = Q.length / 13, pos = new Float32Array(nq * 12), col = new Uint8Array(nq * 12), idx = new Uint32Array(nq * 6);
+  // light per face kind (top, underside, east, west, north, south) - n in three.js axes
+  const NRM = [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, -1], [0, 0, 1]], SH = NRM.map(n => kcShade(...n));
+  const wall = [0.79, 0.75, 0.67];
+  for (let q = 0; q < nq; q++) {
+    const o = q * 13, kind = Q[o + 12];
+    let cx = 0, cy = 0; for (let k = 0; k < 4; k++) { pos[q * 12 + k * 3] = Q[o + k * 3]; pos[q * 12 + k * 3 + 1] = Q[o + k * 3 + 2]; pos[q * 12 + k * 3 + 2] = -Q[o + k * 3 + 1]; cx += Q[o + k * 3] / 4; cy += Q[o + k * 3 + 1] / 4; }
+    const pc = pic && pic.sample(cx, cy);
+    let c = kind === 0 ? (pc ? pc.map(v => Math.min(1, v * 1.08 + 0.04)) : [0.72, 0.68, 0.6]) : kind === 1 ? [0.42, 0.4, 0.37] : (pc ? wall.map((w, k) => w * 0.6 + pc[k] * 0.4) : wall);
+    const s = kind === 1 ? 1 : SH[kind];
+    for (let k = 0; k < 4; k++) { const f = kind >= 2 && k < 2 ? 0.8 : 1; for (let j = 0; j < 3; j++) col[q * 12 + k * 3 + j] = Math.min(255, c[j] * s * f * 255); }
+    const b = q * 4; idx.set([b, b + 1, b + 2, b, b + 2, b + 3], q * 6);
+  }
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('color', new T.BufferAttribute(col, 3, true)); g.setIndex(new T.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  return new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, side: T.DoubleSide }));
+}
+// trees and bushes in [x0, x1] x [y0, y1]: a trunk as a 6-sided column, a crown turned from its three bands
+function kcTrees(T, x0, y0, x1, y1) {
+  const V = vegData(); if (!V) return null;
+  const P = V.P, pos = [], col = [], idx = [], SEG = 7;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const lathe = (x, y, prof, c) => {
+    const base = pos.length / 3;
+    for (let p = 0; p < prof.length; p++) for (let s = 0; s < SEG; s++) {
+      const a = s / SEG * Math.PI * 2, r = prof[p][0], nx = Math.cos(a), nz = Math.sin(a);
+      pos.push(x + r * nx, prof[p][1], -(y + r * nz));
+      const up = p === prof.length - 1 ? 0.6 : p === 0 ? -0.5 : 0, sh = kcShade(nx * (1 - Math.abs(up)), up, -nz * (1 - Math.abs(up)));
+      col.push(Math.min(255, c[0] * sh * 255), Math.min(255, c[1] * sh * 255), Math.min(255, c[2] * sh * 255));
+    }
+    for (let p = 0; p < prof.length - 1; p++) for (let s = 0; s < SEG; s++) { const a = base + p * SEG + s, b = base + p * SEG + (s + 1) % SEG, c2 = a + SEG, d = b + SEG; idx.push(a, b, c2, b, d, c2); }
+  };
+  for (let k = 0, o = 0; k < V.n; k++, o += 8) {
+    const x = P[o], y = P[o + 1]; if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+    const z0 = P[o + 6], z1 = P[o + 7];
+    if (!P[o + 2]) { const r = Math.max(0.08, P[o + 3]); lathe(x, y, [[r, z0 - 0.3], [r * 0.8, z1]], [0.36, 0.29, 0.22]); continue; }
+    const h = (z1 - z0) / 3, r1 = P[o + 3], r2 = P[o + 4], r3 = P[o + 5], v = 0.85 + rnd() * 0.3;
+    lathe(x, y, [[0, z0], [r1 * 0.75, z0 + h * 0.2], [r1, z0 + h * 0.5], [r2, z0 + h * 1.5], [r3, z0 + h * 2.5], [Math.min(r3, 0.3) * 0.5, z1]], [0.27 * v, 0.37 * v, 0.19 * v]);
+  }
+  if (!idx.length) return null;
+  const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(new Float32Array(pos), 3)); g.setAttribute('color', new T.BufferAttribute(new Uint8Array(col), 3, true)); g.setIndex(new T.BufferAttribute(new Uint32Array(idx), 1));
+  return new T.Mesh(g, new T.MeshBasicMaterial({ vertexColors: true, side: T.DoubleSide }));
+}
+function kcSetup(T) {
+  if (!KC.ren) {
+    try { KC.ren = new T.WebGLRenderer({ canvas: $('#kcCv'), antialias: true, powerPreference: 'high-performance' }); }
+    catch (err) { throw new Error('this browser has no WebGL'); }
+    KC.ren.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  }
+  const e = KC.e, D = losData(), tt = e.t - 0.05, q = playerAt(KC.ki, tt), o = playerAt(KC.vi, tt);
+  const fog = fogRange(), R = Math.min(450, Math.max(160, fog * 1.05)), cx = (q.x + o.x) / 2, cy = (q.y + o.y) / 2;
+  const sky = new T.Color(document.documentElement.dataset.theme === 'light' ? '#c8d3db' : '#aebbc4');
+  const S = KC.scene = new T.Scene(); S.background = sky; S.fog = new T.Fog(sky, fog * 0.3, fog);
+  S.add(new T.HemisphereLight(0xe8eef5, 0x8a7d62, 0.8)); const sun = new T.DirectionalLight(0xffffff, 0.55); sun.position.set(...KC_SUN); S.add(sun);
+  const x0 = cx - R, x1 = cx + R, y0 = cy - R, y1 = cy + R;
+  const pad = 110, ib = [Math.max(x0, Math.min(q.x, o.x) - pad), Math.max(y0, Math.min(q.y, o.y) - pad), Math.min(x1, Math.max(q.x, o.x) + pad), Math.min(y1, Math.max(q.y, o.y) + pad)];
+  // (the fine part of the ground and walls on a 2 m / 50 cm grid: snapped to the grid so they meet the coarse part)
+  for (let k = 0; k < 4; k++) ib[k] = Math.round(ib[k] / 2) * 2;
+  const pic = kcPicture(T);
+  S.add(kcTerrain(T, D, x0, y0, x1, y1, 6, pic, 0.25));
+  S.add(kcTerrain(T, D, ib[0], ib[1], ib[2], ib[3], D ? Math.max(1, D.hmStep) : 2, pic, 0));
+  if (D) S.add(kcBuildings(T, D, x0, y0, x1, y1, ib, pic));
+  const tr = kcTrees(T, x0, y0, x1, y1); if (tr) S.add(tr);
+  const wl = WATER[mapKey()];
+  if (wl != null) { const w = new T.Mesh(new T.PlaneGeometry(2 * R + 200, 2 * R + 200), new T.MeshBasicMaterial({ color: 0x43708c, transparent: true, opacity: 0.82 })); w.rotation.x = -Math.PI / 2; w.position.set(cx, wl, -cy); S.add(w); }
+  KC.cam = new T.PerspectiveCamera(KC_FOV, 1, 0.08, fog * 1.05);
+  // (free camera: on the killer's side of the victim, from above the roofs)
+  const dk = Math.hypot(q.x - o.x, q.y - o.y) || 1;
+  KC.orbit = { az: Math.atan2((q.x - o.x) / dk, -(q.y - o.y) / dk), el: 0.62, dist: Math.max(28, dk * 1.1), tx: o.x, ty: o.y, tz: (o.h ?? 0) };
+  KC.info = D ? '' : 'No terrain or walls for this map: the ground is drawn flat.';
+  kcResize();
+}
+// a soldier: feet at the origin, facing -z; the pose turns lying down for prone
+function kcSoldier(T, color) {
+  const outer = new T.Group(), pose = new T.Group(); outer.add(pose);
+  const m = new T.MeshLambertMaterial({ color }), dark = new T.MeshLambertMaterial({ color: 0x2b2e2a }), skin = new T.MeshLambertMaterial({ color: 0x8c6d55 });
+  const box = (w, h, d, x, y, z, mat) => { const b = new T.Mesh(new T.BoxGeometry(w, h, d), mat); b.position.set(x, y, z); pose.add(b); return b; };
+  box(0.15, 0.82, 0.18, -0.1, 0.41, 0, m); box(0.15, 0.82, 0.18, 0.1, 0.41, 0, m);
+  box(0.44, 0.62, 0.26, 0, 1.13, 0, m);
+  const head = new T.Mesh(new T.SphereGeometry(0.13, 10, 8), skin); head.position.set(0, 1.58, 0); pose.add(head);
+  const helm = new T.Mesh(new T.SphereGeometry(0.145, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), dark); helm.position.set(0, 1.6, 0); pose.add(helm);
+  const arms = new T.Group(); arms.position.set(0, 1.38, 0); pose.add(arms);
+  const gun = new T.Mesh(new T.BoxGeometry(0.06, 0.08, 0.8), dark); gun.position.set(0.14, -0.05, -0.38); arms.add(gun);
+  const arm = new T.Mesh(new T.BoxGeometry(0.1, 0.1, 0.42), m); arm.position.set(0.2, -0.1, -0.16); arms.add(arm);
+  const arm2 = new T.Mesh(new T.BoxGeometry(0.1, 0.1, 0.5), m); arm2.position.set(-0.05, -0.1, -0.24); arm2.rotation.y = -0.35; arms.add(arm2);
+  outer.userData = { pose, arms, mats: [m] };
+  return outer;
+}
+// a vehicle: a box (VEH_BOX) until its game model has loaded (assets/models/3d/<template>.js, one file per vehicle)
+function kcVehicle(T, key, color) {
+  const g = new T.Group(), B = VEH_BOX[key] || [-1.4, 1.4, -3, 3, -0.8, 1.2];
+  const m = new T.MeshLambertMaterial({ color }), b = new T.Mesh(new T.BoxGeometry(B[1] - B[0], B[5] - B[4], B[3] - B[2]), m);
+  b.position.set((B[0] + B[1]) / 2, (B[4] + B[5]) / 2, -(B[2] + B[3]) / 2); g.add(b);
+  g.userData = { mats: [m], key, box: b, model: null };
+  return g;
+}
+const KC_MOD = new Map();   // template -> its model's record, 'loading' or null
+window.__bf2model3d = (k, rec) => {
+  // (the geometry comes gzipped: unpacked here before the record counts as loaded)
+  const bin = atob(rec.geo), z = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) z[i] = bin.charCodeAt(i);
+  new Response(new Blob([z]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer().then(buf => {
+    const u8 = new Uint8Array(buf); let o = 0;
+    // a stream of len 16-bit values: low bytes, then high bytes, each value the difference from the one before
+    // (each column - x, y, z or u, v - starts again from 0)
+    const stream = (len, col) => { const out = new Int32Array(len); let v = 0; for (let i = 0; i < len; i++) { if (i % col === 0) v = 0; v = (v + (u8[o + i] | (u8[o + len + i] << 8))) & 0xffff; out[i] = v; } o += 2 * len; return out; };
+    for (const L of Object.values(rec.layers)) {
+      const P = stream(L.n * 3, L.n), U = stream(L.n * 2, L.n), I = stream(L.m, L.m), pos = new Float32Array(L.n * 3), uv = new Float32Array(L.n * 2), s16 = v => v > 32767 ? v - 65536 : v;
+      for (let i = 0; i < L.n; i++) { pos[i * 3] = s16(P[i]) / 1000; pos[i * 3 + 1] = s16(P[L.n + i]) / 1000; pos[i * 3 + 2] = -s16(P[2 * L.n + i]) / 1000; uv[i * 2] = s16(U[i]) / 2048; uv[i * 2 + 1] = s16(U[L.n + i]) / 2048; }
+      L.posF = pos; L.uvF = uv; L.idxU = Uint16Array.from(I);
+    }
+    KC_MOD.set(k, rec); KC.dirty = true;
+  }).catch(err => { console.warn('Model ' + k + ':', err); KC_MOD.set(k, null); });
+};
+function kcModelRec(k) {
+  if (!k) return null;
+  const v = KC_MOD.get(k);
+  if (v === undefined) { KC_MOD.set(k, 'loading'); const sc = document.createElement('script'); sc.src = 'assets/models/3d/' + k + '.js'; sc.onerror = () => KC_MOD.set(k, null); document.head.appendChild(sc); return null; }
+  return v && v !== 'loading' ? v : null;
+}
+// the model's layers as three.js meshes (geometry and materials shared by all copies in this scene): BF2's z forward
+// becomes -z; the winding was turned round when it was built
+function kcModelParts(T, k) {
+  KC.vmod = KC.vmod || new Map(); if (KC.vmod.has(k)) return KC.vmod.get(k);
+  const rec = kcModelRec(k); if (!rec) return null;
+  const tex = rec.tex.map(url => { const im = new Image(), t = new T.Texture(im); im.onload = () => { t.needsUpdate = true; }; im.src = url; t.flipY = false; t.wrapS = t.wrapT = T.RepeatWrapping; return t; });
+  const parts = {};
+  for (const [name, L] of Object.entries(rec.layers)) {
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(L.posF, 3)); g.setAttribute('uv', new T.BufferAttribute(L.uvF, 2)); g.setIndex(new T.BufferAttribute(L.idxU, 1)); g.computeVertexNormals();
+    const mats = L.mats.map(([ti, start, count, mode], mi) => { g.addGroup(start, count, mi); return new T.MeshLambertMaterial({ map: ti >= 0 ? tex[ti] : null, color: ti >= 0 ? 0xffffff : 0x6d6f60, side: T.DoubleSide, transparent: mode === 1, opacity: mode === 1 ? 0.45 : 1, depthWrite: mode !== 1, alphaTest: mode === 2 ? 0.5 : 0 }); });
+    parts[name] = { g, mats, L };
+  }
+  KC.vmod.set(k, parts); return parts;
+}
+function kcModelGroup(T, parts) {
+  const mk = name => { const p = parts[name]; if (!p) return null; const o = new T.Group(); o.add(new T.Mesh(p.g, p.mats)); if (p.L.px !== undefined) o.position.set(p.L.px, p.L.py, -p.L.pz); return o; };
+  const root = new T.Group(), hull = mk('hull'); root.add(hull);
+  const tur = mk('turret'); if (tur) { tur.rotation.y = -(parts.turret.L.rest || 0); hull.add(tur); }
+  const mg = mk('mg'); if (mg) { mg.rotation.y = -(parts.mg.L.rest || 0); (parts.mg.L.on === 'turret' && tur ? tur : hull).add(mg); }
+  const rot = []; for (const n of ['rotor', 'tail']) { const r = mk(n); if (r) { hull.add(r); const a = parts[n].L.axis || [0, 1, 0]; rot.push({ o: r, axis: new T.Vector3(a[0], a[1], -a[2]).normalize(), spin: parts[n].L.spin || 2 }); } }
+  root.userData = { tur, mg, rot, turRest: parts.turret?.L.rest || 0, mgRest: parts.mg?.L.rest || 0, mgOn: parts.mg?.L.on };
+  return root;
+}
+// everyone where they are at the killcam's time
+function kcUpdate(T) {
+  const e = KC.e, tt = e.t + KC.t, S = KC.scene, seen = new Set(), tc = k => css(k === 0 ? '--team0' : k === 1 ? '--team1' : '--veh-empty') || '#888';
+  const kVeh = playerAt(KC.ki, tt).veh, vVeh = playerAt(KC.vi, Math.min(tt, e.t - 0.05)).veh;   // (the seat he looks from: not drawn round the camera)
+  const crewTeam = new Map(); round.players.forEach((p, j) => { if (p.vehicle) return; const o = playerAt(j, tt); if (o.alive && o.veh && !crewTeam.has(o.veh)) crewTeam.set(o.veh, teamOf(j, tt)); });
+  round.players.forEach((p, j) => {
+    const o = playerAt(j, tt); let dead = false;
+    if (j === KC.vi && KC.t >= 0 && KC.t < KC_AFTER + 0.1) { const b = playerAt(j, e.t - 0.05); Object.assign(o, { x: b.x, y: b.y, h: b.h, yaw: b.yaw, veh: b.veh, alive: true }); dead = true; }
+    if (!o.alive || o.h == null || !Number.isFinite(o.x)) return;
+    if (!p.vehicle && o.veh) return;   // (in a vehicle: the vehicle is drawn)
+    const key = (p.vehicle ? 'v' : 's') + j; seen.add(key);
+    let ob = KC.dyn.get(key);
+    const team = p.vehicle ? crewTeam.get(p.name) ?? -1 : teamOf(j, tt);
+    if (!ob) { ob = p.vehicle ? kcVehicle(T, typeof p.tpl === 'string' ? p.tpl.toLowerCase() : TPL_NAME[p.tpl], tc(-1)) : kcSoldier(T, tc(team)); ob.userData.team = team; S.add(ob); KC.dyn.set(key, ob); }
+    if (ob.userData.team !== team || ob.userData.dead !== dead) { ob.userData.team = team; ob.userData.dead = dead; const c = dead ? '#b8261b' : p.vehicle && team >= 0 ? kcMix(tc(team), '#6d6f60', 0.55) : tc(p.vehicle ? -1 : team); ob.userData.mats.forEach(m => m.color.set(c)); }
+    ob.visible = !(j === KC.ki && KC.view === 'eyes') && !(j === KC.vi && KC.view === 'victim' && !dead);
+    if (p.vehicle) {
+      ob.position.set(o.x, o.h, -o.y); ob.rotation.set(0, -o.yaw, 0);
+      ob.visible = !(KC.view === 'eyes' && kVeh === p.name) && !(KC.view === 'victim' && vVeh === p.name);
+      const ud = ob.userData;
+      if (!ud.model) { const parts = kcModelParts(T, ud.key); if (parts) { ud.model = kcModelGroup(T, parts); ob.add(ud.model); ud.box.visible = false; } }
+      if (ud.model) {
+        const M = ud.model.userData;
+        if (M.tur) M.tur.rotation.y = o.aim != null ? -(o.aim - o.yaw) : -M.turRest;
+        if (M.mg) { const base = M.mgOn === 'turret' && M.tur ? (o.aim != null ? o.aim : o.yaw + M.turRest) : o.yaw; M.mg.rotation.y = o.mg != null ? -(o.mg - base) : -M.mgRest; }
+        for (const r of M.rot) r.o.quaternion.setFromAxisAngle(r.axis, (tt * r.spin) % (Math.PI * 2));
+      }
+      return;
+    }
+    const st = dead ? 2 : stanceNow(p, tt) ?? 0, ud = ob.userData;
+    ob.position.set(o.x, o.h - 1.0, -o.y); ob.rotation.set(0, -o.yaw, 0);
+    ud.pose.rotation.x = st === 2 ? -Math.PI / 2 : 0; ud.pose.position.y = st === 2 ? 0.18 : 0; ud.pose.scale.set(1, st === 1 ? 0.68 : 1, 1);
+    ud.arms.rotation.x = st === 2 ? 0 : Math.max(-1.2, Math.min(1.2, o.pitch ?? 0));
+  });
+  for (const [k, ob] of KC.dyn) if (!seen.has(k)) ob.visible = false;
+  // smoke
+  const sm = smokeNow(tt) || []; const D = losData();
+  while (KC.smoke.length < sm.length) { const s = new T.Mesh(new T.SphereGeometry(1, 14, 10), new T.MeshLambertMaterial({ color: 0xdedcd6, transparent: true, opacity: 0.55, depthWrite: false })); S.add(s); KC.smoke.push(s); }
+  KC.smoke.forEach((s, k) => { const c = sm[k]; s.visible = !!c; if (!c) return; const g = D ? groundAt(D, c[0], c[1]) : 0; s.position.set(c[0], (g > -1e8 ? g : 0) + c[2] * 0.45, -c[1]); s.scale.set(c[2], c[2] * 0.75, c[2]); });
+  // the shot
+  if (!KC.tracer) { KC.tracer = new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(), new T.Vector3()]), new T.LineBasicMaterial({ color: 0xffd23a })); S.add(KC.tracer); }
+  const show = KC.t >= -0.06 && KC.t < 0.3; KC.tracer.visible = show;
+  if (show) { const a = viewOf(KC.ki, e.t - 0.05), b = playerAt(KC.vi, e.t - 0.05), st = stanceNow(round.players[KC.vi], e.t - 0.05) ?? 0; if (a && b.h != null) { const P = KC.tracer.geometry.attributes.position, fx = Math.sin(a.yaw), fy = Math.cos(a.yaw); P.setXYZ(0, a.x + fx * 1.2 + fy * 0.18, (a.eye ?? b.h) - 0.2, -(a.y + fy * 1.2 - fx * 0.18)); P.setXYZ(1, b.x, b.h + (b.veh ? 0.6 : AIM_H[st][1]), -b.y); P.needsUpdate = true; } }
+}
+function kcMix(a, b, u) { const A = new THREE.Color(a), B = new THREE.Color(b); return '#' + A.lerp(B, u).getHexString(); }
+// where the camera is and looks
+function kcCamera() {
+  const e = KC.e, tt = e.t + KC.t, cam = KC.cam;
+  const eyesOf = (i, t2) => { const V = viewOf(i, t2); if (V && V.eye != null && Number.isFinite(V.x)) return V; return null; };
+  let V = null;
+  if (KC.view === 'victim') V = eyesOf(KC.vi, Math.min(tt, e.t - 0.05)) || eyesOf(KC.ki, tt);
+  else if (KC.view !== 'free') V = eyesOf(KC.ki, tt) || eyesOf(KC.ki, e.t - 0.05);
+  if (KC.view === 'free' || !V) {
+    const O = KC.orbit, c = Math.cos(O.el);
+    cam.position.set(O.tx + Math.sin(O.az) * c * O.dist, O.tz + Math.sin(O.el) * O.dist, -(O.ty - Math.cos(O.az) * c * O.dist));
+    cam.lookAt(O.tx, O.tz + 1, -O.ty); return null;
+  }
+  const yaw = V.yaw, pt = V.pitch ?? 0, fx = Math.sin(yaw) * Math.cos(pt), fy = Math.cos(yaw) * Math.cos(pt), fz = Math.sin(pt);
+  let x = V.x, y = V.y, z = V.eye;
+  if (KC.view === 'behind') {   // (over his shoulder; in a vehicle behind it - further back for an aircraft)
+    const kv = playerAt(KC.ki, tt).veh, air = kv && airNames().has(kv), back = !kv ? 3.8 : air ? 24 : 10, side = !kv ? 0.6 : 0, up = !kv ? 1.1 : air ? 5 : 3.2;
+    x -= Math.sin(yaw) * back - Math.cos(yaw) * side; y -= Math.cos(yaw) * back + Math.sin(yaw) * side; z += up;
+  }
+  cam.position.set(x, z, -y); cam.lookAt(x + fx * 30, z + fz * 30, -(y + fy * 30));
+  return V;
+}
+function kcResize() {
+  if (!KC.ren || !KC.cam) return;
+  const st = $('#kcStage'), w = Math.max(200, st.clientWidth), h = Math.max(150, st.clientHeight);
+  KC.ren.setSize(w, h, false); KC.cam.aspect = w / h; KC.cam.updateProjectionMatrix();
+  const hud = $('#kcHud'), dpr = window.devicePixelRatio || 1; hud.width = w * dpr; hud.height = h * dpr; hud.style.width = w + 'px'; hud.style.height = h + 'px';
+}
+// names over heads, the victim marked, a cross in the middle in his eyes, the time and the kill
+function kcHud(T, V) {
+  const hud = $('#kcHud'), g = hud.getContext('2d'), dpr = window.devicePixelRatio || 1, w = hud.width / dpr, h = hud.height / dpr, e = KC.e, tt = e.t + KC.t, cam = KC.cam;
+  g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const font = css('--font-data') || 'monospace', v3 = new T.Vector3();
+  g.font = '600 12px ' + font; g.textAlign = 'center'; g.textBaseline = 'bottom';
+  const tags = [];
+  round.players.forEach((p, j) => {
+    if (p.vehicle || (j === KC.ki && KC.view !== 'free' && KC.view !== 'victim')) return;
+    const o = playerAt(j, j === KC.vi && KC.t >= 0 ? e.t - 0.05 : tt); if (!o.alive || o.h == null || o.veh && j !== KC.vi) return;
+    if (j === KC.vi && KC.view === 'victim' && KC.t < 0) return;
+    const d = cam.position.distanceTo(v3.set(o.x, o.h, -o.y)); if (d > 220 && j !== KC.vi) return;
+    v3.set(o.x, o.h + 1.05, -o.y).project(cam); if (v3.z > 1 || v3.z < -1) return;
+    const sx = (v3.x + 1) / 2 * w, sy = (1 - v3.y) / 2 * h - 4; if (sx < -50 || sx > w + 50 || sy < -20 || sy > h + 20) return;
+    const vic = j === KC.vi, txt = vic ? `${p.name} · ${Math.round(d)} m` : p.name;
+    tags.push({ j, vic, d, sx, sy, txt, tw: g.measureText(txt).width + 10 });
+  });
+  tags.sort((a, b) => (b.vic - a.vic) || a.d - b.d);
+  const put = [];
+  for (const L of tags) {
+    let y = L.sy; for (let k = 0; k < 6; k++) { const hit = put.find(r => Math.abs(r.x - L.sx) < (r.w + L.tw) / 2 && Math.abs(r.y - y) < 17); if (!hit) break; y = hit.y - 18; }
+    put.push({ x: L.sx, y, w: L.tw });
+    g.globalAlpha = L.vic ? 1 : Math.max(0.45, 1 - L.d / 260);
+    g.fillStyle = 'rgba(12,16,13,.72)'; g.fillRect(L.sx - L.tw / 2, y - 17, L.tw, 17);
+    g.fillStyle = L.vic ? '#ff5a4a' : css(teamOf(L.j, tt) === 0 ? '--team0' : '--team1'); g.fillText(L.txt, L.sx, y - 2);
+    if (y !== L.sy) { g.strokeStyle = 'rgba(12,16,13,.6)'; g.lineWidth = 1; g.beginPath(); g.moveTo(L.sx, y); g.lineTo(L.sx, L.sy); g.stroke(); }
+    if (L.vic) { g.strokeStyle = '#ff5a4a'; g.lineWidth = 2; g.beginPath(); g.moveTo(L.sx - 6, L.sy + 2); g.lineTo(L.sx, L.sy + 9); g.lineTo(L.sx + 6, L.sy + 2); g.stroke(); }
+    g.globalAlpha = 1;
+  }
+  if (V && KC.view === 'eyes') { g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 1.5; const c = [w / 2, h / 2]; g.beginPath(); for (const [a, b, c2, d] of [[-14, 0, -5, 0], [5, 0, 14, 0], [0, -14, 0, -5], [0, 5, 0, 14]]) { g.moveTo(c[0] + a, c[1] + b); g.lineTo(c[0] + c2, c[1] + d); } g.stroke(); }
+  g.textAlign = 'left'; g.textBaseline = 'top'; g.font = '600 13px ' + font;
+  const narrow = w < 560, lab = narrow ? { eyes: "Killer's eyes", behind: 'Behind him', victim: "Victim's eyes", free: 'Free' }[KC.view] : KC.view === 'eyes' ? "Through the killer's eyes" : KC.view === 'behind' ? 'Behind the killer' : KC.view === 'victim' ? (KC.t < 0 ? "Through the victim's eyes" : "The victim's last view") : 'Free camera';
+  if (narrow) g.font = '600 11px ' + font;
+  const pill = (txt, x, y, col) => { const tw = g.measureText(txt).width + 12; g.fillStyle = 'rgba(12,16,13,.72)'; g.fillRect(x, y, tw, 20); g.fillStyle = col || '#e8ece4'; g.fillText(txt, x + 6, y + 3); return tw; };
+  pill(lab + (narrow ? '' : KC.t < 0 ? ` · ${(-KC.t).toFixed(1)} s before the kill` : KC.t < 0.05 ? ' · the kill' : ` · ${KC.t.toFixed(1)} s after`), 10, 10);
+  if (KC.t >= 0) { const k = round.players[KC.ki].name, v = round.players[KC.vi].name; pill(`${k}  [${killWpn(e) || e.weapon || '?'}]  ${v}${e.hit === 'head' ? '  · headshot' : ''}`, 10, 36, '#ffd23a'); }
+  if (KC.info) pill(KC.info, 10, h - 30, '#c8cec4');
+}
+function kcLoop() {
+  if (!KC.open || !KC.built) return;
+  const now = performance.now(), dt = Math.min(0.1, (now - KC.last) / 1000); KC.last = now;
+  if (KC.play) { KC.t += dt * KC.speed; if (KC.t >= KC_AFTER) { KC.t = KC_AFTER; KC.play = false; } KC.dirty = true; }
+  if (!KC.dirty && now - (KC.drawn || 0) < 400) { KC.raf = requestAnimationFrame(kcLoop); return; }
+  KC.dirty = false; KC.drawn = now;
+  const T = window.THREE;
+  kcUpdate(T); const V = kcCamera(); KC.ren.render(KC.scene, KC.cam); kcHud(T, V);
+  const sl = $('#kcT'); sl.value = String(Math.round((KC.t + KC_BEFORE) * 100)); $('#kcTime').textContent = (KC.t < 0 ? '−' : '+') + Math.abs(KC.t).toFixed(1) + ' s';
+  $('#kcPlay').textContent = KC.play ? 'Pause' : KC.t >= KC_AFTER ? 'Replay' : 'Play';
+  KC.raf = requestAnimationFrame(kcLoop);
+}
+// controls
+$('#kcX').onclick = () => kcClose();
+$('#kcPlay').onclick = () => { if (KC.t >= KC_AFTER) KC.t = -KC_BEFORE; KC.play = !KC.play; KC.last = performance.now(); KC.dirty = true; };
+$('#kcT').max = String((KC_BEFORE + KC_AFTER) * 100);
+$('#kcT').oninput = ev => { KC.t = +ev.target.value / 100 - KC_BEFORE; KC.play = false; KC.dirty = true; };
+document.querySelectorAll('#kcSpeed .btn').forEach(b => b.onclick = () => { KC.speed = +b.dataset.s; KC.dirty = true; document.querySelectorAll('#kcSpeed .btn').forEach(c => c.classList.toggle('on', c === b)); });
+document.querySelectorAll('#kcViews .btn').forEach(b => b.onclick = () => { KC.view = b.dataset.v; kcViewButtons(); KC.dirty = true; });
+{ // free camera: drag to turn round, wheel / pinch to come closer
+  const cv = $('#kcCv'); let drag = null;
+  const toFree = () => { if (KC.view === 'free' || !KC.cam) return; const O = KC.orbit, c = KC.cam.position, dx = c.x - O.tx, dy = -c.z - O.ty, dz = c.y - O.tz; O.dist = Math.max(4, Math.hypot(dx, dy, dz)); O.az = Math.atan2(dx, -dy); O.el = Math.max(-0.2, Math.min(1.45, Math.asin(Math.max(-1, Math.min(1, dz / O.dist))))); KC.view = 'free'; kcViewButtons(); };
+  cv.addEventListener('pointerdown', ev => { drag = { x: ev.clientX, y: ev.clientY }; cv.setPointerCapture(ev.pointerId); });
+  cv.addEventListener('pointermove', ev => { if (!drag) return; const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y; if (Math.hypot(dx, dy) < 3 && KC.view !== 'free') return; toFree(); drag = { x: ev.clientX, y: ev.clientY }; const O = KC.orbit; O.az += dx * 0.006; O.el = Math.max(-0.2, Math.min(1.45, O.el + dy * 0.005)); KC.dirty = true; });
+  cv.addEventListener('pointerup', () => { drag = null; });
+  cv.addEventListener('wheel', ev => { ev.preventDefault(); toFree(); KC.orbit.dist = Math.max(3, Math.min(600, KC.orbit.dist * Math.exp(ev.deltaY * 0.0012))); KC.dirty = true; }, { passive: false });
+}
+new ResizeObserver(() => { if (KC.open) { kcResize(); KC.dirty = true; } }).observe($('#kcStage'));
+document.addEventListener('keydown', ev => {
+  if (!KC.open) return;
+  if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); kcClose(); return; }
+  if (ev.target.matches('input[type=text],select,textarea')) return;
+  if (ev.code === 'Space') { ev.preventDefault(); $('#kcPlay').click(); }
+  if (ev.code === 'ArrowLeft' || ev.code === 'ArrowRight') { ev.preventDefault(); KC.play = false; KC.dirty = true; KC.t = Math.max(-KC_BEFORE, Math.min(KC_AFTER, KC.t + (ev.code === 'ArrowRight' ? 0.1 : -0.1))); }
+  if (ev.key >= '1' && ev.key <= '4') { KC.view = ['eyes', 'behind', 'victim', 'free'][+ev.key - 1]; kcViewButtons(); }
+  KC.dirty = true;
+}, true);
 function openSide(e) {
   if (!e || !round) return;
   sideKill = e; $('#sideView').hidden = false;
@@ -5244,6 +5830,7 @@ $('#mBack').onclick = () => { t = Math.max(0, t - 10); refresh(true); };
 $('#mseek').addEventListener('input', e => { t = Math.max(0, Math.min(round.duration, +e.target.value)); refresh(true); });
 $('#mMap').onclick = () => $('#mapbox').scrollIntoView({ block: 'start', behavior: 'smooth' });
 document.addEventListener('keydown', e => {
+  if (KC.open) return;
   if (e.target.matches('input,select,textarea')) return;
   if (e.code==='Space') { e.preventDefault(); setPlaying(!playing); }
   if (e.key==='+' || e.key==='=' || e.code==='NumpadAdd') setSpeed(SPEEDS[Math.min(SPEEDS.length - 1, speedIdx(speed) + 1)]);
@@ -5281,13 +5868,14 @@ function setRound(data, src) {
   refresh(true);
   try { renderStats(); } catch (e) { console.error(e); $('#stats').innerHTML = ''; }
   try { renderHighlights(); } catch (e) { console.error(e); $('#hlBox').innerHTML = ''; }
+  try { renderAdmin(); } catch (e) { console.error(e); $('#admBox').innerHTML = ''; }
   engWarm(round);
   if (opts.heat) fillHeat();
 }
 // kill feed / highlights tabs
-[0, 1].forEach(k => $('#fTab' + k).addEventListener('click', () => {
-  feedTab = k; [0, 1].forEach(j => { $('#fTab' + j).classList.toggle('on', j === k); $('#fTab' + j).setAttribute('aria-selected', String(j === k)); });
-  $('#feed').hidden = k !== 0; $('#hlBox').hidden = k !== 1; hlShown = -2; markHighlights();
+[0, 1, 2].forEach(k => $('#fTab' + k).addEventListener('click', () => {
+  feedTab = k; [0, 1, 2].forEach(j => { $('#fTab' + j).classList.toggle('on', j === k); $('#fTab' + j).setAttribute('aria-selected', String(j === k)); });
+  $('#feed').hidden = k !== 0; $('#hlBox').hidden = k !== 1; $('#admBox').hidden = k !== 2; hlShown = -2; markHighlights();
 }));
 // the stats charts are drawn at their width: again when the page gets wider or narrower
 { let w0 = 0, tm = null; new ResizeObserver(es => { const w = Math.round(es[0].contentRect.width); if (Math.abs(w - w0) < 16) return; w0 = w; clearTimeout(tm); tm = setTimeout(() => { if (round) try { renderStats(); } catch (e) { console.error(e); } }, 150); }).observe($('#stats')); }
@@ -5471,23 +6059,18 @@ function scanJoin(B, out, t) {
 // Health (test 9): header bit 25 with bits 6-8, 13 and 19 set -> 6 bits right after the 42-bit header, 63 = full health.
 // A wounded soldier waiting for a medic sends header '9 10 12 13 25 34' every tick until revived or dead.
 const DOWN_LO = 13824, DOWN_HI = 8208;   // header bits 0-20 and 21-41 of that pattern
-// Vehicle health (test 10): header bit 23 set -> 10-bit value v, hit points = 4 v - 1000 (1000 = new, 0 = destroyed,
-// then it burns down to -1000). Where v sits depends on the other header bits 13-39 (only these layouts are known):
-// none (bits 38/39 may be set) -> +40; 13 19 20 22 -> +221; 14 19 20 22 -> +222; 13 20 22 -> +58.
-// Checked against the round logger's vehicle health in three tests (04:07, 07:23, 22:04): +40 and +221 match exactly.
-// At +222 only 8 bits are the hit points, in steps of 8: hp = 8 u - 1000 (the next two bits are something else, and
-// read as part of the value they made a LAV on =FL= flip between ~1000 and ~0 while it drove on); 98% within one
-// step of the logger. +58 never matches: kept only for finding burn-downs (a wreck), not for the hit points shown.
-const VF23 = 1 << 10, VF_ONLY = VF23 | (1 << 25) | (1 << 26);
-const VH_AT = new Map([[1 | 64 | 128 | 512 | VF23, 221], [2 | 64 | 128 | 512 | VF23, 222], [1 | 128 | 512 | VF23, 58]]);
+// Vehicle health (test 10): own flag 4 (vehOwn) - 11 bits, hit points + 1000 (1000 = new, 0 = destroyed, then it burns
+// down to -1000). Until v104 read at fixed places for a few header layouts, 10 bits from the third (4 v - 1000: the two
+// lowest bits were taken for something else, and two layouts were off by a bit or more). v105: walked to exactly
+// (vehOwn), the value to the hit point - tests 10-13 against the round logger's vehicle health: 91-99% within 1 hp at the
+// logger's time (the rest: burning down 100-300 hp a second, a fraction of a second apart).
 // Where a tank's or APC's main gun, a roof machine gun and a firing port point (test 13: the turret turned full circles while
 // the tank stood still; checked against the round logger's shell and bullet tracks, and on =FL= rounds: 165 cannon kills,
 // the gun a median 2 deg off the line to the victim (93% within 10 deg; the hull alone 20-39 deg) and 1.2-1.6 deg in
 // height, 60 roof machine-gun kills 1-3 deg and 0.6-1.3 deg).
 // An object record carries its own length: '1' + id12 + 6 zero bits + L (9 bits) + 4 bits + L bits. (The "header bits"
 // above are counted from the 6 zero bits: L is bits 6-14, the payload starts at bit 19.) A vehicle's payload: 19 flags
-// of its own, then their data - flag 1 position (x, y, z), flag 0 rotation (as in vehicleYaw), flag 3 a 2-bit mode (+25
-// bits when no position comes with it), flag 4 health (11 bits); others are not known - then one block per rotating part:
+// of its own, then their data (vehOwn: mode, position and velocity, rotation, hit points ...) - then one block per rotating part:
 // 7 flags (0 yaw, 1 pitch, 2 roll, 3-5 their speeds) and 12 bits for each flag set. The first part is the turret: yaw
 // relative to the hull, 2048 = straight ahead, 4096 a full turn clockwise; the second carries the gun's pitch (2048 level,
 // more = down). A roof machine gun is an object of its own (the gunner's seat: vehicle id + 2): 4 flags of its own (clear),
@@ -5501,19 +6084,35 @@ function recEnd(B, d) {
   if (B.u(d + 15, 4) !== 0 || e > B.n || (e < B.n - 20 && !(B.bit(e) && B.u(e + 14, 5) === 0))) return -1;
   return e;
 }
+// A vehicle's own data, in this order (v105: walked to the end of the own data in every record of tests 10-13 and =FL=
+// 13 Oct 21:14): flag 3 a 2-bit mode - 0 moving (a position comes with it), 2 and 3 at rest (then 25 bits / 1 bit more;
+// 3 = settled); flag 1 x, y, z and the velocity (a 3-bit code and 24, 30 or 0 bits after it: QUAT_AT - it comes with the
+// position, not the rotation: until v104 the turret was read 27 bits early in records with a position but no rotation,
+// 3% of a moving tank's); flag 0 the rotation (4 x 14 bits); flag 7 one bit (1 when the vehicle settles, with mode 3; 0
+// when it starts moving again); flag 4 the hit points (11 bits); flag 16 17 bits (tanks and APCs, a few dozen times a
+// round, in pairs - the lowest bit 0, then 1 0.1-5 s later; the next 7 bits always the same; not a shot, smoke, a weapon
+// switch or a seat change: not known). Flags 10, 15 and 18 come only in a creation record (not read). After the own data:
+// the rotating parts (rotBlock) and, on jeeps, other parts - all zero bits at rest (jeep and tank 29, APC 54), not read.
+// vehOwn: { f, p (the bit after the own data), h (the hit points' bit, or -1) }, or null when it can't be walked
+function vehOwn(B, d) {
+  const P = d + 19, f = B.u(P, 19); if (f & ~(1 | 2 | 8 | 16 | 128 | 65536)) return null;
+  let p = P + 19;
+  if (f & 8) { const m = B.u(p, 2); p += 2; if (m === 2) p += 25; else if (m === 3) p += 1; else if (m === 1 || !(f & 2)) return null; }
+  if (f & 2) { const o = QUAT_AT[B.u(p + 96, 3)]; if (o === undefined) return null; p += 96 + o; }
+  if (f & 1) p += 56;
+  if (f & 128) p += 1;
+  const h = f & 16 ? p : -1; if (f & 16) p += 11;
+  if (f & 65536) p += 17;
+  return { f, p, h };
+}
 // a rotating part's block at p: { fl, v (the 12-bit values by flag), next }
 function rotBlock(B, p) { const fl = B.u(p, 7), v = []; p += 7; for (let j = 0; j < 7; j++) if (fl & (1 << j)) { v[j] = B.u(p, 12); p += 12; } return { fl, v, next: p }; }
 // the turret's yaw (first block) and the gun's pitch (second block, its pitch flag; 2048 level, more = down: =FL= cannon
 // kills with the hull's tilt, 1.2-1.5 deg median off the line to the victim): [yaw, pitch], either null
 function turretAim(B, d) {
   const e = recEnd(B, d); if (e < 0) return null;
-  const P = d + 19, f = B.u(P, 19); if (f & ~27) return null;   // (flags 0, 1, 3 and 4 only)
-  let p = P + 19;
-  if (f & 8) { const m = B.u(p, 2); p += 2; if (!(f & 2)) { if (m !== 1) return null; p += 25; } else if (m) return null; }
-  if (f & 2) p += 96;
-  if (f & 1) { const o = QUAT_AT[B.u(p, 3)]; if (o === undefined) return null; p += o + 56; }
-  if (f & 16) p += 11;
-  if (p + 14 > e) return null;
+  const w = vehOwn(B, d); if (!w) return null;
+  const p = w.p; if (p + 14 > e) return null;
   const b1 = rotBlock(B, p), b2 = b1.next + 7 <= e ? rotBlock(B, b1.next) : null;
   if (b1.next > e || (b2 && b2.next > e)) return null;
   const y = b1.v[0] ?? null, pt = b2 ? b2.v[1] ?? null : null;
@@ -5593,9 +6192,9 @@ function rotRecord(B, s, t, st, exact) {
     if (!B.bit(d + 13) && !B.bit(d + 19) && B.bit(d + 20) && B.bit(d + 21) && B.bit(d + 22) && B.bit(d + 26)) out.push([t, id, B.u(d + 73, 16) / 65536 * 2 * Math.PI, B.bit(d + 23) && !B.bit(d + 24) && !B.bit(d + 25) && d + 126 <= B.n ? (2048 - B.u(d + 114, 12)) / 2048 * Math.PI / 2 : null]);
     else if (B.bit(d + 25) && s + 61 <= B.n) rotHealth(B, s, d, t, id, hp);
   } else if (vids.has(id)) {
-    if (full && B.bit(d + 23)) {
-      const f = B.u(d + 13, 27), o = (f & ~VF_ONLY) === 0 ? 40 : VH_AT.get(f);
-      if (o && d + o + 10 <= B.n) vhp.push([t, id, o === 222 ? B.u(d + o, 8) * 8 - 1000 : B.u(d + o, 10) * 4 - 1000, o === 58 ? 0 : 1]);
+    if (B.bit(d + 23) && (exact || full)) {   // (own flag 4: the hit points)
+      const w = vehOwn(B, d), e = d + 19 + B.u(d + 6, 9);
+      if (w && w.h >= 0 && w.p <= e && e <= B.n && (exact || recEnd(B, d) >= 0)) vhp.push([t, id, B.u(w.h, 11) - 1000, 1]);
     }
     if (st.tur && TURRET_VEH.has(vids.get(id))) { const a = turretAim(B, d); if (a) st.tur.push([t, id, a[0], a[1]]); }
   } else if (st.tur && (st.gsN === vids.size ? st.gs : gunSeats(st)).has(id)) {
@@ -5841,13 +6440,14 @@ function solObs(B, s, t, st, P = s - 23) {
 // PlayerChangeWeapon (tests 9, 12, 13: 1616 switches): the slot in his hands every 0.25 s agrees 96% of the time.
 function solRecord(B, rc, t, st) {
   const P = rc.s + 32, n = B.n, x0 = P + 23 + (B.bit(P + 5) ? 6 : 0) + (B.bit(P + 6) ? 9 : 0);
-  // health: 6 bits of flag 6's 9 (63 = full), read with flags 0-7 only (a spawn's first record has it 0); while wounded
-  // (flag 15) down
+  // health: 6 bits of flag 6's 9 (63 = full), read with flags 0-7 and 14 only (a spawn's first record has it 0); while
+  // wounded (flag 15) down. Flag 14 (v105): on the =FL= server it is in four records of five, and the health in those
+  // was dropped - test 9: 95.3% of the logger's health samples within 5 points before, 99.9% after, no missed damage
   const f = B.u(P, 21);
   if ((f & 0x20) && st.stance) { const v = B.u(P + 21, 2); if (v < 3) st.stance.push([t, rc.id, v]); }   // stance changed (2 bits after the flags)
   if ((f & 0x1000) && st.item) { const v = B.u(P + rc.L - 7 - ((f >> 16) & 1) * 21 - ((f >> 19) & 1) * 5 - ((f >> 20) & 1) * 4, 7) >> 3; if (v >= 2 && v <= 7) st.item.push([t, rc.id, v - 1]); }   // the item in his hands
   if (f & 0x8000) st.hp.push([t, rc.id, -1]);
-  else if ((f & 0x40) && !(f & ~0xff) && x0 <= n) st.hp.push([t, rc.id, B.u(P + 23, 6) * 100 / 63]);
+  else if ((f & 0x40) && !(f & ~(0xff | 0x4000)) && x0 <= n) st.hp.push([t, rc.id, B.u(P + 23, 6) * 100 / 63]);
   if (B.bit(P)) { if (x0 + 98 <= n) solObs(B, x0, t, st, P); return; }
   if (B.bit(P + 1) && !(f & ~0xfe)) {   // the view without a position (flags 1-7 only)
     const q = x0 + (B.bit(P + 7) ? 36 : 0), pq = q + 12 * (1 + B.bit(P + 2) + B.bit(P + 3));
@@ -6154,7 +6754,6 @@ async function buildTimeline(r) {
     const k = kills.find(q => q.victim === o.pl && q.t > o.t0);
     o.t1 = Math.min(o.t1, own ? own[0] : Infinity, k ? k.t : Infinity, r.duration);
   }
-  const onEmp = (pl, tt) => eride.some(o => o.pl === pl && o.t0 <= tt && tt < o.t1);
   // A soldier who turns up 25 m or more away after 1.5 s or more without positions of his own, with no ride, emplacement or
   // spawn in between, rode something whose enter message was missed: the one vehicle that was within 10 m of him when his
   // positions stopped and within 10 m of where they start again carried him (=FL= 20:37 / 21:23 / 19:52: 4 such jumps in
@@ -6177,10 +6776,10 @@ async function buildTimeline(r) {
   const lone = deaths.filter(e => !explained(e));
   for (const e of lone) push(life, e.player, ['die', e.t]);
   // ---- health, waiting for a medic, revives, heals, dropped bags (test 9) ----
-  // in a vehicle (or on an emplacement) the soldier's record carries its health instead (test 10: rising while the T-90
-  // was repaired)
+  // in a vehicle the soldier's record carries its health instead (test 10: rising while the T-90 was repaired); on an
+  // emplacement it stays his own (v105: test 9, sitting on a TOW, matched the logger)
   const riding = (pl, tt) => { const o = lastPos(track.get(pl), tt); return (ride.get(pl) || []).some(([rt, , rx]) => rt <= tt && tt < rx && (!o || rt >= o[0] - 0.5)); };
-  const hpTr = new Map(); for (const [ht, sid, v] of r.hp || []) { const pl = who(sid, ht); if (pl !== null && P.has(pl) && !(v >= 0 && (riding(pl, ht) || onEmp(pl, ht)))) push(hpTr, pl, [ht, v]); }
+  const hpTr = new Map(); for (const [ht, sid, v] of r.hp || []) { const pl = who(sid, ht); if (pl !== null && P.has(pl) && !(v >= 0 && riding(pl, ht))) push(hpTr, pl, [ht, v]); }
   for (const v of hpTr.values()) v.sort((a, b) => a[0] - b[0]);
   const hasHp = hpTr.size > 0;
   const projs = []; for (const e of evs.filter(e => e.kind === 'proj').sort((a, b) => a.t - b.t)) if (!projs.some(q => q.tpl === e.tpl && q.id === e.id && e.t - q.t < 0.5)) projs.push(e);
