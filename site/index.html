@@ -837,7 +837,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v122';
+const APP_VERSION = 'v124';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -3822,7 +3822,8 @@ function draw() {
       cx.globalAlpha = 1;
     }
   }
-  // medic layer: revive pulse (4 s), heal cross over the patient while the health rises, dropped ammo / medic bags (10 s)
+  // medic layer: revive pulse (4 s), heal cross over the patient while the health rises, ammo / medic bags (flying, then
+  // where they lie: v124)
   if (opts.medic) {
     const mc = css('--medic');
     for (const e of round.events) {
@@ -3846,8 +3847,13 @@ function draw() {
         const fi = e.from ? round.pidx.get(e.from) : undefined;
         if (fi !== undefined) { const f = playerAt(fi, t); if (f.alive) { const [fx, fy] = toC(f.x, f.y); cx.strokeStyle = css('--accent'); cx.globalAlpha = 0.8; cx.lineWidth = 1.5; cx.setLineDash([4, 4]); cx.beginPath(); cx.moveTo(fx, fy); cx.lineTo(px, py); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; } }
         if (!drawIcon('mrepair', px - 17, py - 6 - bob, 13)) { cx.font = '700 13px ' + css('--font-data'); cx.fillStyle = css('--accent'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText('+', px - 16, py - 2 - bob); cx.fillText('+', px - 16, py - 2 - bob); }
-      } else if (e.type === 'bag' && age <= 10 && e.x !== undefined) {
-        const [px, py] = toC(e.x, e.y); cx.globalAlpha = 1 - age / 12;
+      } else if (e.type === 'bag' && e.x !== undefined) {
+        // in flight along its path, then where it lies until its id went to a new object (BAG_SHOW s at most); rounds
+        // decoded before v124: 10 s where it was thrown
+        const end = e.tl !== undefined ? Math.min(e.gone ?? Infinity, e.tl + BAG_SHOW) : e.t + 10; if (t > end) continue;
+        let bx = e.x, bz = e.y;
+        if (e.path && t < e.tl) { const P = e.path; let k = 1; while (k < P.length - 1 && P[k][0] < t) k++; const a = P[k - 1], b = P[k], u = b[0] > a[0] ? Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0]))) : 1; bx = a[1] + (b[1] - a[1]) * u; bz = a[2] + (b[2] - a[2]) * u; }
+        const [px, py] = toC(bx, bz); cx.globalAlpha = Math.max(0.15, Math.min(1, (end - t) / 6));
         if (!drawIcon(e.kind === 'ammo' ? 'mammo' : 'mmedic', px, py, 13)) {
           cx.fillStyle = css('--bg'); cx.fillRect(px - 5, py - 5, 10, 10);
           cx.strokeStyle = e.kind === 'ammo' ? css('--accent') : mc; cx.lineWidth = 1.5; cx.strokeRect(px - 5, py - 5, 10, 10);
@@ -4804,6 +4810,72 @@ const MELEE_REACH = { 5406: ['knife', 2.0], 5386: ['defibrillator', 2.8] }, MELE
 const LAUNCH_MIN = { Grenade: 0.7, SRAW: 4.0, Eryx: 4.2, Claymore: 0.6, 'LAV-25 TOW': 10, 'BTR-90 missile': 10, 'WZ551 missile': 10, TOW: 5, 'HJ-8': 5 };
 const SHOT_MIN = { 5038: 1.5, 5222: 1.5, 5073: 1.5, 5400: 1.0, 5478: 1.0, 5491: 1.0, 5483: 0.6, 5380: 0.6 };
 const KIT_HOLDS = { Grenade: 4, SRAW: 6, Eryx: 6, Claymore: 2, C4: 5, 'AT mine': 5 }, AMMO_X = 2;
+// Kit pick-ups (v123, Sagara: "is a kit picked up nearby counted?"): a dead soldier's kit drops where he fell (not when
+// he is revived) and anyone can take it - a full one, loaded. The demo doesn't say so (only the kit each man spawned
+// with). 6 rounds: 69 of 1199 launches of kit-only items (SRAW / Eryx, claymores, C4, AT mines) came from a kit the man
+// had not spawned with; in 28 of 33 such lives he had walked within 2 m of where a soldier carrying it died, 1-63 s
+// after (a few 220-250 s: kits lie there for minutes). Which kits carry what: Kits/*/*.con (AT: no grenades). So a
+// possible pick-up of an item is the moment a soldier on foot comes within PICK_R of where one carrying it died (his
+// spawn kit's items and what he launched in that life) in the PICK_T s before; Ammo then allows one more kit for each
+// such place, and Fire rate leaves out two SRAW / Eryx launches with one between them (a loaded launcher: no reload;
+// grenades and claymores are held up by the throw itself, not by a reload).
+const KIT_CARRY = { Grenade: ['Assault', 'Engineer', 'Medic', 'Sniper', 'Special ops', 'Support'], SRAW: ['Anti-tank'], Eryx: ['Anti-tank'], Claymore: ['Sniper'], C4: ['Special ops'], 'AT mine': ['Engineer'] }, PICK_R = 2.5, PICK_T = 300;
+// where kits lay: { t (he died), i, items (Set), pts (where he fell, and his body 1 / 3 / 6 s on) }
+function kitSpots(R) {
+  if (R._kitSpots) return R._kitSpots;
+  const pid = id => R.pidx.get(id), out = [], launched = new Map();
+  for (const e of R.events) if (e.type === 'throw' && e.by && KIT_CARRY[e.kind]) { const i = pid(e.by); if (i === undefined) continue; if (!launched.has(i)) launched.set(i, []); launched.get(i).push([e.t, e.kind]); }
+  for (const e of R.events) {
+    const who = e.type === 'kill' && !e.revived ? e.victim : e.type === 'death' ? e.player : null; if (who == null) continue;
+    const i = pid(who); if (i === undefined || R.players[i].vehicle || out.some(o => o.i === i && Math.abs(o.t - e.t) < 2)) continue;
+    const q = playerAt(i, e.t - 0.1); if (!q.alive || q.veh || !Number.isFinite(q.x)) continue;
+    const p = R.players[i], kit = kitNow(p, e.t); let s0 = 0; for (const [ts] of p.kits || []) { if (ts > e.t + 0.05) break; s0 = ts; }
+    const items = new Set(Object.keys(KIT_CARRY).filter(k => KIT_CARRY[k].includes(kit)));
+    for (const [lt, k] of launched.get(i) || []) if (lt >= s0 && lt <= e.t) items.add(k);
+    if (!items.size) continue;
+    const pts = [[q.x, q.y]]; for (const dt of [1, 3, 6]) { const b = playerAt(i, e.t + dt); if (Number.isFinite(b.x)) pts.push([b.x, b.y]); }
+    out.push({ t: e.t, i, items, pts });
+  }
+  return (R._kitSpots = out);
+}
+// Ammo from others (v124): an ammo bag fills him up when he comes within 1 m of where it lies (the game's trigger radius;
+// BAG_R with the 10-a-second positions) - from when it lay still until its object id went to a new one, BAG_TTL s at
+// most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
+// ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
+// Supply crates (the commander's) are not in the demo.
+const BAG_R = 2, BAG_TTL = 600, SUP_R = 4, BAG_SHOW = 60;
+function ammoBags(R, i, t0, t1) {
+  let n = 0;
+  for (const b of R.events) {
+    if (b.type !== 'bag' || b.kind !== 'ammo' || b.t > t1) continue;
+    const old = b.tl === undefined, a = Math.max(t0, old ? b.t : b.tl), e = Math.min(t1, b.gone ?? Infinity, (old ? b.t : b.tl) + BAG_TTL), r = old ? 15 : BAG_R; if (a > e) continue;
+    for (let tt = a; tt <= e; tt += 0.2) { const q = playerAt(i, tt); if (q.alive && !q.veh && Number.isFinite(q.x) && Math.hypot(q.x - b.x, q.y - b.y) < r) { n++; break; } }
+  }
+  return n;
+}
+const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
+function supportNear(R, i, t0, t1) {
+  const sup = R.players.map((p, j) => j).filter(j => j !== i && !R.players[j].vehicle && (R.players[j].kits || []).some(k => k[1] === 'Support'));
+  let n = 0, last = -Infinity;
+  for (let tt = t0; tt <= t1; tt += 0.5) {
+    const q = playerAt(i, tt); if (!q.alive || q.veh || !Number.isFinite(q.x)) continue;
+    const near = sup.some(j => { const p = R.players[j]; if (kitNow(p, tt) !== 'Support' || slotAt(p, tt) !== 5) return false; const o = playerAt(j, tt); return o.alive && !o.veh && Math.hypot(o.x - q.x, o.y - q.y) < SUP_R; });
+    if (near) { if (tt - last > 10) n++; last = tt; }
+  }
+  return n;
+}
+// how many places soldier i may have picked up a kit carrying item between t0 and t1
+function kitPicks(R, i, item, t0, t1) {
+  let n = 0;
+  for (const s of kitSpots(R)) {
+    if (!s.items.has(item) || s.t > t1 || s.t + PICK_T < t0) continue;
+    for (let tt = Math.max(t0, s.t + 0.2), b = Math.min(t1, s.t + PICK_T); tt <= b; tt += 0.2) {
+      const q = playerAt(i, tt); if (!q.alive || q.veh || !Number.isFinite(q.x)) continue;
+      if (s.pts.some(([x, y]) => Math.hypot(q.x - x, q.y - y) < PICK_R)) { n++; break; }
+    }
+  }
+  return n;
+}
 function cheatHints(R) {
   const out = [], pid = id => R.pidx.get(id), ev = R.events, fog = fogRange(), DEG = Math.PI / 180;
   // melee reach
@@ -4820,14 +4892,15 @@ function cheatHints(R) {
     if (e.type === 'throw' && e.by) {
       const nm = e.name || e.kind, lim = LAUNCH_MIN[nm]; if (lim == null) continue;
       const k = nm + '|' + e.by, p = lastL.get(k); lastL.set(k, e.t);
-      if (p != null && e.t - p < lim && e.t - p > 0.02) { const q = e.path?.[0]; out.push({ t: e.t, kind: 'rate', adm: true, actor: e.by, what: nm, gap: e.t - p, lim, launch: true, x: q ? q[1] : null, y: q ? q[2] : null }); }
+      if (p != null && e.t - p < lim && e.t - p > 0.02 && !(lim >= 2 && KIT_CARRY[e.kind] && pid(e.by) !== undefined && kitPicks(R, pid(e.by), e.kind, p - 0.5, e.t))) { const q = e.path?.[0]; out.push({ t: e.t, kind: 'rate', adm: true, actor: e.by, what: nm, gap: e.t - p, lim, launch: true, x: q ? q[1] : null, y: q ? q[2] : null }); }
     } else if (e.type === 'kill' && SHOT_MIN[e.wid] && e.killer !== e.victim) {
       const k = e.wid + '|' + e.killer, p = lastK.get(k); lastK.set(k, e.t);
       if (p != null && e.t - p > 0.3 && e.t - p < SHOT_MIN[e.wid]) out.push({ t: e.t, kind: 'rate', adm: true, actor: e.killer, kill: e, what: e.weapon, gap: e.t - p, lim: SHOT_MIN[e.wid], x: e.x, y: e.y });
     }
   }
-  // ammo: launches in one life against the kit, no ammo bag near him
-  const bags = ev.filter(e => e.type === 'bag' && e.kind === 'ammo'), lives = new Map();
+  // ammo: launches in one life against what he had: his kit, the kits he may have picked up, the ammo bags he walked
+  // over and the supports with their bag out he came near (v124: ammoBags, supportNear - each counted as a full kit)
+  const lives = new Map();
   const lifeOf = (i, tt) => { let s = 0; for (const [ts] of R.players[i].kits || []) { if (ts > tt + 0.05) break; s = ts; } return s; };
   for (const e of ev) {
     if (e.type !== 'throw' || !e.by || KIT_HOLDS[e.kind] == null) continue; const i = pid(e.by); if (i === undefined) continue;
@@ -4835,8 +4908,11 @@ function cheatHints(R) {
   }
   for (const L of lives.values()) {
     if (L.n <= KIT_HOLDS[L.kind] * AMMO_X) continue;
-    const fed = bags.some(b => b.t >= L.t0 && b.t <= L.last && (() => { const q = playerAt(L.i, b.t); return Number.isFinite(q.x) && Math.hypot(q.x - b.x, q.y - b.y) < 15; })());
-    if (!fed) { const q = playerAt(L.i, L.last); out.push({ t: L.first, kind: 'ammo', adm: true, actor: L.by, what: L.kind, n: L.n, holds: KIT_HOLDS[L.kind], span: L.last - L.first, x: q.x, y: q.y }); }
+    // (kits: his own if it carries it, and one for each place he may have picked one up)
+    const own = KIT_CARRY[L.kind].includes(kitNow(R.players[L.i], L.t0)) ? 1 : 0, picks = kitPicks(R, L.i, L.kind, L.t0, L.last);
+    const bagsN = ammoBags(R, L.i, L.t0, L.last), sup = supportNear(R, L.i, L.t0, L.last), kits = Math.max(1, own + picks + bagsN + sup);
+    if (L.n <= KIT_HOLDS[L.kind] * AMMO_X * kits) continue;
+    const q = playerAt(L.i, L.last); out.push({ t: L.first, kind: 'ammo', adm: true, actor: L.by, what: L.kind, n: L.n, holds: KIT_HOLDS[L.kind], kits, picks, bags: bagsN, sup, span: L.last - L.first, x: q.x, y: q.y });
   }
   // through smoke / beyond the fog: small-arms kills
   for (const e of ev) {
@@ -5252,7 +5328,7 @@ function admDescribe(h) {
   if (h.kind === 'hs') return [h.head + '/' + h.n, `<b>Headshots</b> ${pn(h.actor)} <span class="w">${h.head} of ${h.n} kills (the others in this round ${Math.round(h.others * 100)}%) · ${h.w.slice(0, 3).map(([w, c]) => esc(w || 'no weapon') + ' ' + c).join(', ')}</span>`, `Headshots: ${pt(h.actor)}, ${h.head} of ${h.n} kills`];
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
-  if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; the kit holds ${h.holds}), no ammo bag dropped near him</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
+  if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag or support near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
   if (h.kind === 'speed') return [h.v.toFixed(0) + ' m/s', `<b>Speed</b> ${pn(h.actor)} <span class="w">on foot at up to ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s${h.n > 1 ? ' in ' + h.n + ' stretches over ' + Math.round(h.span) + ' s' : ''} (${Math.round(h.dist)} m, ${h.vavg.toFixed(1)} m/s on average) · the game's sprint is ${SPEED_RUN} m/s</span>`, `Speed: ${pt(h.actor)} ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s`];
   if (h.kind === 'react') return [h.q + '/' + h.n, `<b>Reaction</b> ${pn(h.actor)} <span class="w">${h.q} of ${h.n} kills within ${REACT_Q} s of first seeing the victim (the others in this round ${Math.round(h.others * 100)}%; his middle ${h.med.toFixed(1)} s) · a man needs about 0.2 s just to react</span>`, `Reaction: ${pt(h.actor)}, ${h.q} of ${h.n} kills within ${REACT_Q} s`];
@@ -6611,7 +6687,13 @@ const EXPLOSIVES = { 5457: ['Grenade', 9, 40, 3.2], 5461: ['Claymore', 15, 25, 5
 // the launcher fires at 12 m/s, the grenade is thrown at 20 m/s and goes off after 4 s; the smoke's particles live
 // 9 ± 1 s (vehicle) and 10 ± 2 s (grenade) and grow to 12 m and 8 m. (=FL= 13 Oct 21:14: 113 from vehicles, 2 grenades)
 const SMOKES = { 5335: ['Vehicle smoke', 9, 40, 20, 11], 5405: ['Smoke grenade', 8, 30, 4.5, 13] };
-const FLYING = { ...EXPLOSIVES, ...SMOKES };
+// Ammo and medic bags (v124): thrown like grenades, followed the same way - their records (x at bit 7 of the payload,
+// every ~0.03 s) run until the bag lies still, 2-15 s (=FL= 20:37: 263 bags), so the last one is where it lies. The game
+// (Weapons/Handheld/ammokit, medikit): it lies until a soldier comes within 1 m (ReplenishDetonationComp triggerRadius 1:
+// full ammo / health, the bag is used up; timeToLive 9999 s); when that happens is not in the demo - at the latest when
+// its object id goes to a new object.
+const BAGS = { 5358: ['Ammo bag', 0, 25, 20], 5409: ['Medic bag', 0, 25, 20] };   // (name, -, speed m/s, followed up to s)
+const FLYING = { ...EXPLOSIVES, ...SMOKES, ...BAGS };
 // Where the killing shot hit (=FL= rounds 19:52, 20:37, 21:23): the 17-bit field of the kill message is material * 2 + 1
 // (all ones = no hit point: splash damage). The soldier templates give each collision bone a material: head 25, chest
 // and upper legs 24 (23 on the heavy, body-armoured soldier templates), arms and lower legs 77. Material 23 only ever
@@ -7365,7 +7447,21 @@ async function buildTimeline(r) {
     h.medic = medic; h.x = o ? o[1] : null; h.z = o ? o[3] : null;
   }
   // dropped ammo bags (5358) and medic bags (5409): thrown from where the soldier stands
-  const bags = projs.filter(e => e.tpl === 5358 || e.tpl === 5409).map(e => ({ t: e.t, kind: e.tpl === 5358 ? 'ammo' : 'medic', by: nearest(e.t, e.x, e.z, 4, null), x: e.x, z: e.z }));
+  // A flight's records end where the object leaves the world: the game then parks it near the map's centre, as it does
+  // vehicles (=FL= 20:37: a TOW's last record 2 s after the one before and 135 m/s away from it, at 9,0 - the map drew
+  // it flying on into the harbour and went off there). Missiles fly at most ~50 m/s (maxSpeed 45, timeToLive 10 s:
+  // ~480 m) and send a record every tick: the flight ends before the first step faster than 90 m/s or a gap of 0.6 s.
+  const trimFlight = recs => { let k = 1; for (; k < recs.length; k++) { const p = recs[k - 1], q = recs[k], dt = q[0] - p[0]; if (dt > 0.6 || Math.hypot(q[1] - p[1], q[3] - p[3]) > 90 * Math.max(dt, 0.05)) break; } return recs.slice(0, k); };
+  // (v124: and where it came to lie - its flight's last record - and when its object id went to a new object)
+  const objIds = new Map(); for (const q of evs) if ((q.kind === 'proj' || q.kind === 'spawn' || q.kind === 'vcreate') && q.id != null) { if (!objIds.has(q.id)) objIds.set(q.id, []); objIds.get(q.id).push(q.t); }
+  const bags = projs.filter(e => BAGS[e.tpl]).map(e => {
+    const fl = (r.flights || []).find(f => f.id === e.id && f.tpl === e.tpl && Math.abs(f.t0 - e.t) < 0.6), R0 = fl ? trimFlight(fl.recs) : null, L = R0 && R0[R0.length - 1];
+    // (it lay still from the first record within 0.1 m of where it ended up)
+    let k = R0 ? R0.length - 1 : 0; while (k > 0 && Math.hypot(R0[k - 1][1] - L[1], R0[k - 1][3] - L[3]) < 0.1) k--; const R = R0 && R0.slice(0, k + 1);
+    const tl = L ? R[R.length - 1][0] : e.t, gone = (objIds.get(e.id) || []).find(tt => tt > tl + 0.5) ?? null;
+    return { t: e.t, kind: e.tpl === 5358 ? 'ammo' : 'medic', by: nearest(e.t, e.x, e.z, 4, null), x0: e.x, z0: e.z, x: L ? L[1] : e.x, z: L ? L[3] : e.z, tl, gone,
+      path: R && R.length > 1 ? (() => { const K = [R[0]]; for (let i = 1; i < R.length; i++) { const o = R[i], l = K[K.length - 1]; if (i === R.length - 1 || Math.hypot(o[1] - l[1], o[3] - l[3]) >= 0.4) K.push(o); } return K.map(o => [+o[0].toFixed(2), +o[1].toFixed(1), +o[3].toFixed(1)]); })() : null };
+  });
   // ---- explosives: a grenade or rocket goes off at the end of its flight; a placed C4 / claymore / mine shows where it lies,
   // and its explosion only when a kill with it gives the moment (nothing else in the demo says when a charge went off) ----
   const throws = [], charges = [], placed = [], smokes = [], usedKills = new Set();
@@ -7378,11 +7474,6 @@ async function buildTimeline(r) {
     return vo || o;
   };
   const projById = new Map(); for (const q of evs) if (q.kind === 'proj') push(projById, q.id, q);
-  // A flight's records end where the object leaves the world: the game then parks it near the map's centre, as it does
-  // vehicles (=FL= 20:37: a TOW's last record 2 s after the one before and 135 m/s away from it, at 9,0 - the map drew
-  // it flying on into the harbour and went off there). Missiles fly at most ~50 m/s (maxSpeed 45, timeToLive 10 s:
-  // ~480 m) and send a record every tick: the flight ends before the first step faster than 90 m/s or a gap of 0.6 s.
-  const trimFlight = recs => { let k = 1; for (; k < recs.length; k++) { const p = recs[k - 1], q = recs[k], dt = q[0] - p[0]; if (dt > 0.6 || Math.hypot(q[1] - p[1], q[3] - p[3]) > 90 * Math.max(dt, 0.05)) break; } return recs.slice(0, k); };
   // a missile with nobody on foot where it started was fired from a vehicle (an APC's TOW: =FL= 20:37, 31 of 39 such
   // missiles started within 10 m of a LAV-25 or BTR-90) or an emplacement: the shooter is who sat in the nearest one
   // within 10 m then (the driver first: in an APC he works the cannon and the TOW)
@@ -7415,6 +7506,7 @@ async function buildTimeline(r) {
   const lastAt = (tt, x, z) => { let best = null, bd = 3.5; for (const pl of P.keys()) { const o = lastPos(track.get(pl), tt); if (!o || tt - o[0] > 60 || !alive(pl, tt) || lastStart(pl, tt) > o[0]) continue; const d = Math.hypot(o[1] - x, o[3] - z); if (d < bd) { bd = d; best = pl; } } return best; };
   const empNameAt = (tt, x, z) => { let best = null; for (const e of r.stat || []) if (e.t <= tt + 0.5 && Math.hypot(e.x - x, e.z - z) < 10 && (!best || e.t >= best.t)) best = e; const st = best && GAME.statics[best.tpl]; return st ? st[2].replace(/ launcher$/, '') : null; };
   for (const f0 of r.flights || []) {
+    if (BAGS[f0.tpl]) continue;   // (bags: above)
     const f = { ...f0, recs: trimFlight(f0.recs) };
     if (SMOKES[f.tpl]) {   // smoke: who (the vehicle's driver / the nearest soldier), its flight, the cloud where it stopped
       const [nm, rr, , , last] = SMOKES[f.tpl], a = f.recs[0], b = f.recs[f.recs.length - 1];
@@ -7873,7 +7965,7 @@ async function buildTimeline(r) {
   const events = kills.map(e => { const pv = posAt(e.victim, e.t + 0.1), hit = hitOf(e.w), kr = kvOf(e); return { t: +e.t.toFixed(2), type: 'kill', killer: 'p' + e.killer, victim: 'p' + e.victim, weapon: weaponName(e.wid), wid: e.wid, ...(kr ? { kv: 'v' + kr[1], seat: kr[3] } : {}), ...(hit ? { hit } : {}), ...(e.revived ? { revived: +e.revived.toFixed(2) } : {}), ...(e.downTo ? { down: +e.downTo.toFixed(2) } : {}), ...(e.outright ? { outright: true } : {}), ...(pv ? { x: pv[1], y: pv[3] } : {}), ...(e.charge ? { cx: +e.charge.b[1].toFixed(1), cy: +e.charge.b[3].toFixed(1) } : {}), ...(e.wNamed ? { wnamed: weaponName(e.wNamed) } : {}) }; });
   for (const rv of revives) events.push({ t: +rv.t.toFixed(2), type: 'revive', player: 'p' + rv.pl, medic: rv.medic === null ? null : 'p' + rv.medic, x: +rv.x.toFixed(1), y: +rv.z.toFixed(1) });
   for (const h of heals) events.push({ t: +h.t0.toFixed(2), type: 'heal', player: 'p' + h.pl, medic: h.medic === null ? null : 'p' + h.medic, gain: Math.round(h.gain), until: +h.t1.toFixed(2), ...(h.x !== null ? { x: +h.x.toFixed(1), y: +h.z.toFixed(1) } : {}) });
-  for (const b of bags) events.push({ t: +b.t.toFixed(2), type: 'bag', kind: b.kind, by: b.by === null ? null : 'p' + b.by, x: +b.x.toFixed(1), y: +b.z.toFixed(1) });
+  for (const b of bags) events.push({ t: +b.t.toFixed(2), type: 'bag', kind: b.kind, by: b.by === null ? null : 'p' + b.by, x: +b.x.toFixed(1), y: +b.z.toFixed(1), x0: +b.x0.toFixed(1), y0: +b.z0.toFixed(1), tl: +b.tl.toFixed(2), ...(b.gone !== null ? { gone: +b.gone.toFixed(2) } : {}), ...(b.path ? { path: b.path } : {}) });
   // explosives: 'throw' (flight path, ends at t1) + 'blast' where it went off; 'charge' = placed C4 / claymore / mine
   const pid = v => v === null || v === undefined ? null : 'p' + v;
   for (const w of throws) {
