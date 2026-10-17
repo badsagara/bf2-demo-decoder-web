@@ -184,6 +184,9 @@ input[type=file] { display: none; }
 /* layers at hand on the map: vehicles as icons / models, buildings' outlines on / off (as in Layers ▾) */
 .qlay { display: flex; gap: 6px; margin-right: 6px; }
 .qseg { display: flex; }
+.qseg[hidden] { display: none !important; }
+.mapctl .qcam { margin-right: 6px; }
+.mapside .qcam { margin: 0; } .mapside .qcam .sg { flex: 1; }
 .qseg .sg { font: 600 12px/1 var(--font-body); color: var(--fg); background: color-mix(in srgb, var(--bg) 82%, transparent); border: 1px solid var(--line); padding: 6px 9px; cursor: pointer; white-space: nowrap; }
 .qseg .sg + .sg { border-left: 0; }
 .qseg .sg:first-child { border-radius: 4px 0 0 4px; }
@@ -689,7 +692,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -707,6 +710,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
           <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height. Following a soldier: the ground higher than his eyes hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). The pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
+          <button class="btn" id="tAhead" title="While paused: where everyone goes in the next 20 s - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where somebody comes back in (spawn). Vehicles that move too. Not while playing, not in clips">Next 20 s</button>
           <button class="btn" id="tFront" title="Which side holds which part of the map, from where its soldiers are and were over the last 30 s (aircraft left out) and the flags it owns: the ground tinted in its colour, and a dashed line where the two sides meet. A rough picture of who stands where, not the game's own control of ground">Front line</button>
           </span></span>
           <span class="lwrap"><button class="btn" id="namBtn" aria-expanded="false" aria-controls="namMenu" title="Which names and labels the map shows">Names <b id="namN"></b> ▾</button>
@@ -720,7 +724,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 20 s (Layers ▾ Next 20 s)</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -837,7 +841,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v124';
+const APP_VERSION = 'v127';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1161,11 +1165,11 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, ahead:true, lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
-try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; } catch (e) {}
+try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.vehicles') === 'icons') opts.models = false; } catch (e) {}
-// a vehicle seat's view from its third-person camera instead of its own (the card's View row switches it)
+// a vehicle seat's view from its third-person camera instead of its own (the card's View row, the map's 1st / 3rd and the C key switch it)
 try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
 // ---------- map pictures ----------
@@ -1994,7 +1998,7 @@ function brkMarks(cx, D, list, zoom, tt) {
 // sight" hints of 6 Karkand rounds the exact shapes had a clear line (2026-10-17).
 const GEO = new Map();   // map -> geometry | null (none for this map) | 'loading'
 window.__bf2geo = (k, meta, b64) => {
-  decodeGeo(meta, b64).then(G => { GEO.set(k, G); if (round && mapKey() === k) { round._adm = null; renderAdmin(); } })
+  decodeGeo(meta, b64).then(G => { GEO.set(k, G); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); engWarm(round); } })
     .catch(e => { console.warn('Collision shapes for ' + k + ':', e); GEO.set(k, null); if (round && mapKey() === k) { round._adm = null; renderAdmin(); } });
 };
 // the open round's map's shapes: the geometry, null (not there), or undefined (still loading; load: start it)
@@ -2146,7 +2150,10 @@ function smokeRay(ax, ay, ux, uy, tt) {
 }
 // can soldier i see soldier j? true / false; null where the map's walls and hills are not known (and no smoke between them).
 // Walls, hills, vehicles, trees and bushes (vegBlocks) stand in the way.
-// From his eye (sightOf: in a vehicle his seat's camera), or from V (a view: viewOf, which may be the third-person camera)
+// From his eye (sightOf: in a vehicle his seat's camera), or from V (a view: viewOf, which may be the third-person camera).
+// v127 (Sagara: "who sees whom by the exact shapes, as No line of sight"): a line the 25 cm grid finds blocked is looked
+// at again with the map's exact collision shapes (geoData, exactHit: the grid fills whole cells - past a wall's end, over
+// a low wall, out of a window, over a roof's edge); until they are loaded, the grid alone
 function canSee(i, j, tt, V) {
   const q = V || sightOf(i, tt), o = playerAt(j, tt);
   if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return false;
@@ -2154,7 +2161,11 @@ function canSee(i, j, tt, V) {
   if (q.h == null || o.h == null) return null;
   const eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
   if (eye == null) return null;
-  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  const G = geoData(true);
+  for (const th of pts) {
+    if (losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, o.x, o.y, o.h + th, true, tt))) continue;
+    if (!vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  }
   return false;
 }
 // ---------- what a soldier sees ----------
@@ -2373,6 +2384,60 @@ function viewOf(i, tt) {
   const s = seatView(i, tt, q); if (!s) return null;
   const third = !!(opts.cam3 && s.c3);
   return { ...q, x: third ? s.c3.x : s.x, y: third ? s.c3.y : s.y, eye: third ? s.c3.eye : s.eye, yaw: s.yaw, pitch: third ? s.c3.pitch : s.pitch, gun: s.gun, ahead: s.ahead, role: s.role, third, seat: s, who: i };
+}
+// Next 20 s while paused (v126, Sagara: "all moves and deaths 20 s ahead, as fixed marks and dashed lines"): for each
+// soldier on foot and each vehicle that moves, where he goes over the AHEAD_T s after tt (every 0.5 s), broken where
+// he is dead or in a vehicle (the vehicle's own path goes on); where he dies (a kill or a death in that time: where he
+// was 0.05 s before, and his killer then), where he comes back in (a spawn: his path starts there).
+// -> [{ i, veh, team, pts: [[x, y, dt] ...] per stretch (segs), end (a ring where he is at the end, or null), deaths:
+// [{ x, y, dt, by (killer's index), bx, by_, revived }], spawns: [{ x, y, dt }] }]
+const AHEAD_T = 20;
+function aheadPaths(tt) {
+  if (round._ahead && round._ahead.t === tt) return round._ahead.L;
+  const R = round, t1 = Math.min(R.duration, tt + AHEAD_T), out = [];
+  const crewTeam = new Map(); R.players.forEach((p, j) => { if (p.vehicle) return; const q = playerAt(j, tt); if (q.alive && q.veh && !crewTeam.has(q.veh)) crewTeam.set(q.veh, teamOf(j, tt)); });
+  const dies = new Map(); for (const e of R.events) { if (e.t <= tt) continue; if (e.t > t1) break; const who = e.type === 'kill' ? e.victim : e.type === 'death' ? e.player : null; if (who == null) continue; const i = R.pidx.get(who); if (i === undefined) continue; if (!dies.has(i)) dies.set(i, []); dies.get(i).push(e); }
+  R.players.forEach((p, i) => {
+    const segs = [], deaths = [], spawns = []; let cur = null, moved = 0, lastAlive = null;
+    for (let k = 0; k <= AHEAD_T * 2; k++) {
+      const tk = tt + k * 0.5; if (tk > t1 + 1e-6) break; const q = playerAt(i, tk);
+      const ok = q.alive && Number.isFinite(q.x) && (p.vehicle || !q.veh) && !(q.down);
+      if (!ok) { if (cur) { segs.push(cur); cur = null; } continue; }
+      if (!cur) { cur = []; if (!p.vehicle && k > 0 && lastAlive === null) spawns.push({ x: q.x, y: q.y, dt: k * 0.5 }); }
+      else { const l = cur[cur.length - 1]; moved += Math.hypot(q.x - l[0], q.y - l[1]); if (Math.hypot(q.x - l[0], q.y - l[1]) > 60) { segs.push(cur); cur = []; } }
+      cur.push([q.x, q.y, k * 0.5]); lastAlive = tk;
+    }
+    if (cur) segs.push(cur);
+    // (a soldier who spawns later in the window: his path starts with a ring; one alive at tt has none)
+    if (!p.vehicle && playerAt(i, tt).alive) spawns.length = 0;
+    for (const e of dies.get(i) || []) {
+      const q = playerAt(i, e.t - 0.05); if (!Number.isFinite(q.x) || (q.veh && !p.vehicle && false)) continue;
+      const ki = e.killer && e.killer !== e.victim ? R.pidx.get(e.killer) : undefined, kq = ki !== undefined ? playerAt(ki, e.t - 0.05) : null;
+      deaths.push({ x: q.x, y: q.y, dt: e.t - tt, ki, kx: kq && kq.alive ? kq.x : null, ky: kq && kq.alive ? kq.y : null, revived: !!e.revived, inVeh: !!q.veh });
+    }
+    if (!segs.length && !deaths.length) return;
+    if (moved < 1.5 && !deaths.length && !spawns.length) return;   // (standing still: his marker says it)
+    const last = segs.length ? segs[segs.length - 1] : null, endT = last ? last[last.length - 1][2] : -1;
+    const end = last && endT >= t1 - tt - 0.5 && !deaths.some(d => d.dt >= endT - 0.6) ? last[last.length - 1] : null;
+    const team = p.vehicle ? (crewTeam.has(p.name) ? crewTeam.get(p.name) : null) : teamOf(i, tt + 0.1);
+    out.push({ i, veh: !!p.vehicle, team, segs, end, deaths, spawns });
+  });
+  round._ahead = { t: tt, L: out };
+  return out;
+}
+function aheadLab(txt, x, y, col) {
+  cx.font = '700 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.lineJoin = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
+  cx.strokeText(txt, x, y); cx.fillStyle = col; cx.fillText(txt, x, y); cx.textAlign = 'start'; cx.lineJoin = 'miter';
+}
+// every view of vehicle vi's crew (v125, Sagara: the roof machine gun's field of view and aim line too): the driver's or
+// pilot's (along the main gun when he works it) and each gunner's (a roof machine gun, a firing port, a helicopter's
+// gun), the driver first; a driver without a gun (straight ahead, a guess) only when nobody aboard has one
+function crewViews(vi, tt) {
+  const p = round.players[vi]; if (!p || !p.vehicle) return [];
+  const crew = round.players.map((o, j) => j).filter(j => !round.players[j].vehicle && playerAt(j, tt).alive && playerAt(j, tt).veh === p.name);
+  crew.sort((a, b) => (playerAt(b, tt).drv ? 1 : 0) - (playerAt(a, tt).drv ? 1 : 0));
+  const L = []; for (const j of crew) { const V = viewOf(j, tt); if (V) L.push(V); }
+  const guns = L.filter(V => !V.ahead); return guns.length ? guns : L.slice(0, 1);
 }
 // What soldier i sees of the ground in his field of view (the view drawn on the map): rays every few pixels across his
 // 79°, each walked out to the fog limit (or the edge of the screen) through every 25 cm cell of the object grid - so a
@@ -2917,11 +2982,41 @@ function bodyClearExact(D, G, q, eye, j, o, tt) {
 }
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
 // i at q, eye height eye, has a clear line to: [clear, of how many]
-function bodyLines(D, q, eye, j, o, tt) {
+function bodyLines(D, q, eye, j, o, tt, G) {
   const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) if (!losBlocked(D, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, tt) && !vegBlocks(q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true)) n++;
+  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) {
+    const bx = o.x + px * s, by = o.y + py * s, bh = o.h + th;
+    if (losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt))) continue;   // (G: a blocked line looked at again with the exact shapes)
+    if (!vegBlocks(q.x, q.y, eye, bx, by, bh, true)) n++;
+  }
   return [n, 9];
+}
+// The exact shapes in the side view (v127): their cross-section with the upright plane through the line from (ax, ay)
+// along (ux, uy) (unit), between s0 and s1 m along it - each triangle of each object near the line that the plane cuts,
+// as a segment [s, h, s, h] (m along, height). skip: placements left out (broken). Outlines, not filled: a mesh need not
+// be closed (a roof and a floor alone would fill a whole house)
+function geoSection(G, ax, ay, ux, uy, s0, s1, skip) {
+  const bx = ax + ux * s1, by = ay + uy * s1, cx0 = ax + ux * s0, cy0 = ay + uy * s0, C = G.CELL, out = [], seen = new Set(), nx = -uy, ny = ux;
+  for (let cx_ = Math.floor(Math.min(cx0, bx) / C); cx_ <= Math.floor(Math.max(cx0, bx) / C); cx_++) for (let cy_ = Math.floor(Math.min(cy0, by) / C); cy_ <= Math.floor(Math.max(cy0, by) / C); cy_++) {
+    for (const pi of G.cells.get((cx_ + 2048) * 4096 + cy_ + 2048) || []) {
+      if (seen.has(pi) || (skip && skip.has(pi))) continue; seen.add(pi);
+      const Q = G.P[pi];
+      // (its box's corners on both sides of the plane, and within the stretch along the line)
+      let pos = false, neg = false, amin = Infinity, amax = -Infinity;
+      for (let c = 0; c < 4; c++) { const x = c & 1 ? Q.hi[0] : Q.lo[0], y = c & 2 ? Q.hi[1] : Q.lo[1], d = (x - ax) * nx + (y - ay) * ny, a = (x - ax) * ux + (y - ay) * uy; if (d >= 0) pos = true; if (d <= 0) neg = true; amin = Math.min(amin, a); amax = Math.max(amax, a); }
+      if (!pos || !neg || amax < s0 || amin > s1) continue;
+      const R = Q.R, p = Q.p, M = G.meshes[Q.m], V = M.V, I = M.I, nv = V.length / 3, W = new Float32Array(nv * 4);   // (each vertex: along, height, side)
+      for (let v = 0; v < nv; v++) { const x = V[v * 3], y = V[v * 3 + 1], z = V[v * 3 + 2], e = R[0] * x + R[1] * y + R[2] * z + p[0], h = R[3] * x + R[4] * y + R[5] * z + p[1], nn = R[6] * x + R[7] * y + R[8] * z + p[2];
+        W[v * 4] = (e - ax) * ux + (nn - ay) * uy; W[v * 4 + 1] = h; W[v * 4 + 2] = (e - ax) * nx + (nn - ay) * ny; }
+      for (let f = 0; f < I.length; f += 3) {
+        const P3 = [I[f], I[f + 1], I[f + 2]], pts = [];
+        for (let k = 0; k < 3; k++) { const a = P3[k] * 4, b = P3[(k + 1) % 3] * 4, da = W[a + 2], db = W[b + 2]; if ((da > 0) === (db > 0) || da === db) continue; const u = da / (da - db); pts.push([W[a] + (W[b] - W[a]) * u, W[a + 1] + (W[b + 1] - W[a + 1]) * u]); }
+        if (pts.length === 2 && Math.max(pts[0][0], pts[1][0]) >= s0 && Math.min(pts[0][0], pts[1][0]) <= s1) out.push([pts[0][0], pts[0][1], pts[1][0], pts[1][1]]);
+      }
+    }
+  }
+  return out;
 }
 // where the straight line from a to b first runs into the ground or a wall (as a share 0-1 of the way), the first and last
 // 0.9 m left out as in losBlocked; null when clear
@@ -3373,20 +3468,23 @@ function draw() {
   // view it is and from which camera.
   // who the followed soldier has in view (any layers): enemies he sees get a glow, a bold reticle and a sight line,
   // team mates a thin ring, those in his field of view behind cover a dotted grey ring
-  const selView = sel !== null ? viewOf(sel, t) : null;
+  const selViews = sel === null ? [] : round.players[sel].vehicle ? crewViews(sel, t) : [viewOf(sel, t)].filter(Boolean);
+  const selView = sel !== null ? (round.players[sel].vehicle ? viewOf(sel, t) : selViews[0] || null) : null;
   let inView = null;
   if (selView) inView = new Map((inViewOf(sel, t) || []).map(o => [o.i, o.seen]));
-  if (opts.view && selView) {
-    const q = selView, who = q.who ?? sel;
+  const vsCache = round._vsC instanceof Map ? round._vsC : (round._vsC = new Map());
+  camSwitch(selViews);
+  if (opts.view) for (const q of selViews) {
+    const who = q.who ?? sel;
     {
       const [px, py] = toC(q.x, q.y), m2px = size / view.span, a0 = q.yaw - Math.PI / 2, col = teamColor(teamOf(who, t));
       // (only as far as the screen reaches; rays a few pixels apart out there, points about as far apart along them)
       const [wx0, wy0] = toW(0, 0), [wx1, wy1] = toW(size, sizeH);
       const far = Math.max(...[[wx0, wy0], [wx1, wy0], [wx0, wy1], [wx1, wy1]].map(([x, y]) => Math.hypot(x - q.x, y - q.y)));
       const Rv = Math.min(fogRange(), far), R = Rv * m2px, nr = Math.max(40, Math.min(240, Math.ceil(R * 2 * VIEW_HALF / 4)));
-      const key = sel + '|' + t + '|' + (q.third ? 3 : 1) + '|' + view.x0 + '|' + view.y0 + '|' + view.span + '|' + size + '|' + sizeH + '|' + !!losData();
-      let vs = round._vsC && round._vsC.key === key ? round._vsC.vs : undefined;
-      if (vs === undefined) { vs = viewShed(who, q, t, Rv, nr, Math.max(0.25, 2 / m2px)); round._vsC = { key, vs }; }
+      const key = t + '|' + (q.third ? 3 : 1) + '|' + view.x0 + '|' + view.y0 + '|' + view.span + '|' + size + '|' + sizeH + '|' + !!losData();
+      let vs = vsCache.get(who)?.key === key ? vsCache.get(who).vs : undefined;
+      if (vs === undefined) { vs = viewShed(who, q, t, Rv, nr, Math.max(0.25, 2 / m2px)); vsCache.set(who, { key, vs }); if (vsCache.size > 12) vsCache.delete(vsCache.keys().next().value); }
       const grad = (al0, al1) => { const g = cx.createRadialGradient(px, py, 0, px, py, Math.max(1, fogRange() * m2px)), c0 = rgbaOf(col, al0), c1 = rgbaOf(col, al1); if (!c0) return col; g.addColorStop(0, c0); g.addColorStop(1, c1); return g; };
       if (vs) {
         const P = [null, new Path2D(), new Path2D()];
@@ -3418,7 +3516,7 @@ function draw() {
         // whose view and which camera: a tag 40-90 px along it
         const ROLE = { driver: 'driver', pilot: 'pilot', gunner: 'gunner', port: 'firing port' };
         const tag = `${round.players[who].name.trim()} · ${ROLE[q.role] || q.role} · ${q.third ? '3rd' : '1st'} person${q.ahead ? ' · ahead?' : ''}`;
-        const dl = Math.max(40, Math.min(90, R * 0.45)), tx = px + Math.sin(q.yaw) * dl, ty = py - Math.cos(q.yaw) * dl;
+        const dl = Math.max(40, Math.min(90, R * 0.45)) + selViews.indexOf(q) * 22, tx = px + Math.sin(q.yaw) * dl, ty = py - Math.cos(q.yaw) * dl + selViews.indexOf(q) * 13;   // (a second gun's tag further out and lower)
         cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.lineJoin = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3.5;
         cx.strokeText(tag, tx, ty); cx.fillStyle = css('--fg'); cx.fillText(tag, tx, ty); cx.textAlign = 'start'; cx.lineJoin = 'miter';
       }
@@ -3449,6 +3547,42 @@ function draw() {
         cx.fillStyle = g; cx.beginPath(); cx.arc(px, py, rr, 0, Math.PI * 2); cx.fill();
       }
     }
+  }
+  // the next 20 s, while paused (aheadPaths): under the markers - paths dashed in the side's colour on a dark edge (the
+  // followed soldier's bolder), a dot every 5 s, a ring at the end, a cross where one dies with how many seconds on and
+  // a thin line from his killer, a ring where one comes back in
+  if (opts.ahead && !playing && !clip.job && round.meta?.source !== 'sim') {
+    const AP = aheadPaths(t), ink = 'rgba(6,8,6,.55)';
+    const colOf = a => a.team === null ? css('--veh-empty') : teamColor(a.team);
+    cx.lineCap = 'round'; cx.lineJoin = 'round';
+    for (const a of AP) {
+      const col = colOf(a), me = a.i === sel || (round.players[sel]?.vehicle && a.veh && a.i === sel), w = me ? 2.6 : a.veh ? 1.8 : 1.4;
+      for (const sg of a.segs) {
+        if (sg.length < 2) continue;
+        const P = sg.map(o => toC(o[0], o[1]));
+        const path = () => { cx.beginPath(); cx.moveTo(P[0][0], P[0][1]); for (let k = 1; k < P.length; k++) cx.lineTo(P[k][0], P[k][1]); };
+        cx.setLineDash([]); cx.globalAlpha = me ? 0.75 : 0.45; cx.strokeStyle = ink; cx.lineWidth = w + 2.4; path(); cx.stroke();
+        cx.globalAlpha = me ? 1 : 0.8; cx.strokeStyle = col; cx.lineWidth = w; cx.setLineDash(a.veh ? [9, 5] : [5, 4]); path(); cx.stroke(); cx.setLineDash([]);
+        cx.fillStyle = col; for (let k = 1; k < sg.length; k++) if (sg[k][2] % 5 === 0) { cx.beginPath(); cx.arc(P[k][0], P[k][1], me ? 2.8 : 2, 0, Math.PI * 2); cx.fill(); }
+      }
+      cx.globalAlpha = 1;
+      if (a.end) { const [ex, ey] = toC(a.end[0], a.end[1]); cx.lineWidth = 3.4; cx.strokeStyle = ink; cx.beginPath(); cx.arc(ex, ey, me ? 6 : 4.5, 0, Math.PI * 2); cx.stroke(); cx.lineWidth = 1.6; cx.strokeStyle = col; cx.stroke(); }
+      for (const sp of a.spawns) {
+        const [sx, sy] = toC(sp.x, sp.y); cx.lineWidth = 1.6; cx.strokeStyle = col; cx.setLineDash([2, 2]); cx.beginPath(); cx.arc(sx, sy, 7, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]);
+        aheadLab('+' + Math.round(sp.dt) + ' s in', sx, sy - 11, col);
+      }
+      for (const d of a.deaths) {
+        const [dx, dy] = toC(d.x, d.y), k = me ? 7 : 5.5;
+        if (d.kx !== null && d.ki !== undefined) {   // (a thin line from where his killer was)
+          const [kx, ky] = toC(d.kx, d.ky), kc = teamColor(teamOf(d.ki, t + d.dt));
+          cx.globalAlpha = 0.7; cx.strokeStyle = kc; cx.lineWidth = 1; cx.setLineDash([2, 3]); cx.beginPath(); cx.moveTo(kx, ky); cx.lineTo(dx, dy); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+        }
+        const cross = () => { cx.beginPath(); cx.moveTo(dx - k, dy - k); cx.lineTo(dx + k, dy + k); cx.moveTo(dx + k, dy - k); cx.lineTo(dx - k, dy + k); };
+        cx.lineWidth = 5; cx.strokeStyle = ink; cross(); cx.stroke(); cx.lineWidth = 2.2; cx.strokeStyle = d.revived ? css('--medic') : col; cross(); cx.stroke();
+        aheadLab('+' + (d.dt < 10 ? d.dt.toFixed(1) : Math.round(d.dt)) + ' s' + (d.revived ? ' (revived)' : ''), dx, dy - k - 5, col);
+      }
+    }
+    cx.lineCap = 'butt'; cx.lineJoin = 'miter';
   }
   // players (vehicles first in the list, so riders' names draw on top)
   const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map(), vehRad = new Map();   // (vehRad: a model's radius on the canvas)
@@ -3635,9 +3769,9 @@ function draw() {
   // the followed soldier's aim (any layers): a laser-bright line (its own colour, --aim, on a dark edge - not his side's,
   // so it stands out of his field of view) from where he sees along his crosshair to what it meets - somebody (a
   // crosshair ring on him, his name), a vehicle, a wall or the ground (a cross in a ring) - with how far; into the sky /
-  // past the fog it fades out. A vehicle followed: its driver's or gunner's
-  if (sel !== null) {
-    const al = aimLine(selView?.who ?? sel, t);
+  // past the fog it fades out. A vehicle followed: every gun aboard - its driver's (the main gun), the roof machine
+  // gun's, a firing port's (v125)
+  for (const al of sel === null ? [] : (selViews.length ? selViews.map(V => V.who ?? sel) : [sel]).map(w => aimLine(w, t))) {
     if (al) {
       const [px, py] = toC(al.from.x, al.from.y), ac = css('--aim'), ink = 'rgba(6,8,6,.82)', bg = css('--bg');
       const hitP = al.kind === 'soldier' || al.kind === 'vehicle', far = al.kind === 'sky';
@@ -4117,7 +4251,16 @@ ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
 }
 $('#lb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; sel = +tr.dataset.i; refresh(true); });
 [$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.svb'); if (b && round) openSide(round.events[+b.dataset.k]); }));
-$('#selInfo').addEventListener('click', ev => { const b = ev.target.closest('[data-cam]'); if (!b) return; opts.cam3 = b.dataset.cam === '3'; try { localStorage.setItem('bf2rr.vcam', opts.cam3 ? '3' : '1'); } catch (e) {} refresh(true); });
+// first or third person for the view from a vehicle seat: the card's View row, the 1st / 3rd switch on the map (shown
+// while the view of a seat with a third-person camera is drawn), the C key (the game's own camera key)
+function setCam3(v) { opts.cam3 = !!v; try { localStorage.setItem('bf2rr.vcam', opts.cam3 ? '3' : '1'); } catch (e) {} refresh(true); }
+$('#selInfo').addEventListener('click', ev => { const b = ev.target.closest('[data-cam]'); if (!b) return; setCam3(b.dataset.cam === '3'); });
+document.querySelectorAll('.qC1').forEach(b => b.onclick = () => setCam3(false)); document.querySelectorAll('.qC3').forEach(b => b.onclick = () => setCam3(true));
+let camOn = false;
+function camSwitch(views) {
+  const on = !!opts.view && views.some(V => V.seat?.c3); camOn = on;
+  for (const box of document.querySelectorAll('.qcam')) { if (box.hidden === on) box.hidden = !on; box.querySelector('.qC1').setAttribute('aria-checked', String(!opts.cam3)); box.querySelector('.qC3').setAttribute('aria-checked', String(!!opts.cam3)); }
+}
 $('#svX').onclick = closeSide;
 $('#svGo').onclick = () => { if (sideKill) openSide(sideKill); };
 new ResizeObserver(() => { if (sideKill) drawSide(); }).observe($('#sideView'));
@@ -5616,16 +5759,21 @@ function drawSide() {
   const vHead = o.h + (vFoot ? AIM_H[vSt][0] : 1.4), vChest = o.h + (vFoot ? AIM_H[vSt][1] : 0.6);
   const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy) || 0.01, ux = dx / hd, uy = dy / hd;
   const ext = Math.max(4, hd * 0.12), s0 = -ext, s1 = hd + ext, step = D ? D.gStep / 2 : (s1 - s0) / 120, OFF = D ? brkOff(D, tt) : null;
+  // (v127: with the map's exact shapes, the walls are their cross-section along the line and the lines of sight run
+  // against them; without them - or while they load - the 25 cm grid)
+  const G = D ? geoData(true) : null, GOFF = G ? geoOff(D, G, tt) : null, exact = !!G;
   // ground and walls along the line
   const cols = []; let lo = Math.min(kFeet, vFeet), hi = Math.max(kEye, vHead) + 0.6, top = Math.max(kEye, vHead) + 12;
   for (let sd = s0; sd <= s1 + 1e-6; sd += step) {
     const x = q.x + ux * sd, y = q.y + uy * sd, g = D ? groundAt(D, x, y) : kFeet + (vFeet - kFeet) * Math.min(1, Math.max(0, sd / hd)), sp = [];
-    if (D) {
+    if (D && !G) {
       const S = D.gStep, T = D.T, cx_ = Math.floor((x - D.gX0) / S), cy_ = Math.floor((y - D.gY0) / S);
       if (cx_ >= 0 && cy_ >= 0 && cx_ < D.gW && cy_ < D.gH) { const tk = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (tk >= 0) { const c = tk * T * T + (cy_ % T) * T + (cx_ % T); for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (!(OFF && spanOut(OFF, m))) sp.push([D.sp[2 * m] / 10, D.sp[2 * m + 1] / 10]); } }
     }
     cols.push([sd, g, sp]); lo = Math.min(lo, g); for (const [, b] of sp) hi = Math.max(hi, Math.min(b, top));
   }
+  const SEC = G ? geoSection(G, q.x, q.y, ux, uy, s0, s1, GOFF) : null;
+  if (SEC) for (const g of SEC) hi = Math.max(hi, Math.min(Math.max(g[1], g[3]), top));
   lo -= 1.2; hi += 1.2;
   // to scale, as wide as the panel, 160-300 px high
   const dpr = window.devicePixelRatio || 1, W = Math.max(260, Math.floor(cvs.parentElement.clientWidth - 22));
@@ -5641,6 +5789,10 @@ function drawSide() {
   g2.globalAlpha = 1; g2.beginPath(); g2.moveTo(X(s0), H);
   for (const [sd, g] of cols) g2.lineTo(X(sd), Y(g));
   g2.lineTo(X(s1), H); g2.closePath(); g2.fillStyle = css('--line'); g2.fill(); g2.strokeStyle = css('--muted'); g2.lineWidth = 1; g2.stroke();
+  // (the exact shapes: their outlines where the plane cuts them, over the ground)
+  if (SEC) { g2.strokeStyle = css('--fg'); g2.globalAlpha = 0.7; g2.lineWidth = 1.4; g2.lineCap = 'round'; g2.beginPath();
+    for (const [sa, ha, sb, hb] of SEC) { if (Math.min(ha, hb) > top) continue; g2.moveTo(X(sa), Y(Math.min(ha, top))); g2.lineTo(X(sb), Y(Math.min(hb, top))); }
+    g2.stroke(); g2.globalAlpha = 1; g2.lineCap = 'butt'; }
   // trees and bushes the line runs through or by (within 1 m): crowns green, trunks dark
   { const VG = vegData(); if (VG) { const P = VG.P;
     for (let m = 0; m < VG.n; m++) { const o2 = m * 8, crown = !!P[o2 + 2];
@@ -5655,7 +5807,7 @@ function drawSide() {
   // lines of sight from his eye to the victim's head and chest
   const ok = css('--medic'), bad = css('--hp-low'), hits = [], leafy = [];
   for (const th of [vHead, vChest]) {
-    const uw = D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th, tt) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u); leafy.push(u != null && u === uv);
+    const uw = G ? (exactHit(D, G, q.x, q.y, kEye, o.x, o.y, th, false, tt)?.u ?? null) : D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th, tt) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u); leafy.push(u != null && u === uv);
     const ax = X(0), ay = Y(kEye), bx = X(hd), by = Y(th), mx = u == null ? bx : ax + (bx - ax) * u, my = u == null ? by : ay + (by - ay) * u;
     g2.lineWidth = 1.5; g2.strokeStyle = ok; g2.setLineDash([]); g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(mx, my); g2.stroke();
     if (u != null) { g2.strokeStyle = bad; g2.setLineDash([4, 3]); g2.beginPath(); g2.moveTo(mx, my); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); g2.lineWidth = 2; g2.beginPath(); g2.moveTo(mx - 4, my - 4); g2.lineTo(mx + 4, my + 4); g2.moveTo(mx + 4, my - 4); g2.lineTo(mx - 4, my + 4); g2.stroke(); }
@@ -5690,8 +5842,8 @@ function drawSide() {
   const L = [];
   L.push(`${pn(ki)} → ${pn(vi)} <span class="w">· ${esc(killWpn(e)) || 'no weapon'} · ${Math.round(d3)} m${Math.abs(dh) >= 1 ? ` · ${Math.round(Math.abs(dh) * 10) / 10} m ${dh > 0 ? 'above' : 'below'} him` : ' · on one level'}${e.hit === 'head' ? ' · headshot' : ''}</span>`);
   if (D) {
-    const [n] = bodyLines(D, q, kEye, vi, o, tt);
-    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)' : ''}</span>`);
+    const [n] = bodyLines(D, q, kEye, vi, o, tt, G || null);
+    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? (exact ? ' (a shot through a fence, crate, boards or foliage - some let bullets through)' : ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)') : ''} · ${exact ? 'walls: the game\'s exact collision shapes' : 'walls: the 25 cm grid (the exact shapes are not loaded' + (G === undefined ? ' yet)' : ' for this map)')}</span>`);
   } else L.push('<span class="w">Walls and hills are not known for this map: the ground is drawn straight between them.</span>');
   if (kFoot && q.pitch != null) L.push(`<span class="w">He looked</span> ${pitchText(q.pitch)}<span class="w">; the victim's chest was ${pitchText(need)} from his eyes${kFace >= Math.PI / 3 ? ` · he faced ${Math.round(kFace * 180 / Math.PI)}° to the side` : ''}</span>`);
   else if (!kFoot) L.push('<span class="w">Fired from a vehicle: where its gun pointed is not in the demo.</span>');
@@ -5747,6 +5899,14 @@ function viewRows(i, p) {
     h += (lk.gun ? `<dt title="Where his gun points up or down from level (the gun's elevation and the vehicle's tilt), from the demo; the line on the map runs along it to what it meets">Gun</dt>`
       : `<dt title="Up or down from level, from the demo; the line on the map is his aim: along his crosshair to the first soldier, vehicle, wall or ground it meets">Looking</dt>`)
       + `<dd>${pitchText(lk.pitch)}${at ? ` <span class="w">· ${at}</span>` : ''}</dd>`;
+  }
+  // (a vehicle followed: its other guns - the roof machine gun, firing ports - each with where it points and what its
+  // aim line meets, as drawn on the map)
+  if (p.vehicle) for (const W of crewViews(round.players.indexOf(p), t)) {
+    if (W.who === who) continue;
+    const j = W.who, al = aimLine(j, t), o = al && (al.kind === 'soldier' || al.kind === 'vehicle') ? round.players[al.j] : null;
+    const at = !al ? '' : o ? `on <span class="t${o.vehicle ? '' : teamOf(al.j, t)}">${esc(o.name)}</span> ${Math.round(al.l)} m away` : al.kind === 'sky' ? 'nothing in the way, out to the fog' : `at ${al.kind === 'ground' ? 'the ground' : al.kind === 'water' ? 'the water' : al.kind === 'tree' ? 'a tree trunk' : 'a wall or roof'} ${Math.round(al.l)} m away`;
+    h += `<dt title="Another gun aboard: its field of view and aim line are drawn on the map too">${W.role === 'port' ? 'Firing port' : 'Gunner'}</dt><dd><span class="t${teamOf(j, t)}">${esc(round.players[j].name)}</span> <span class="w">${W.pitch != null ? pitchText(W.pitch) : ''}${at ? ' · ' + at : ''}</span></dd>`;
   }
   const atGun = !!lk?.gun;
   h += `<dt title="${atGun ? 'Inside the field of view along his gun (where it points is in the demo): about 79° across' : 'Inside his field of view: about 79° across and 63° high (where he looks up or down is in the demo)'}, out to ${viewRange()} m, ${how}">In view</dt><dd>`;
@@ -6284,6 +6444,7 @@ function setPlaying(v) {
   playing = v; if (v && t >= round.duration) t = 0;
   for (const id of ['#play', '#play2', '#play3']) { $(id).innerHTML = (v ? PAUSE_SVG : PLAY_SVG) + '<span>' + (v ? 'Pause' : 'Play') + '</span>'; $(id).setAttribute('aria-label', v ? 'Pause' : 'Play'); }
   $('#play2').classList.toggle('playing', v);
+  if (!v && round) refresh(true);   // (paused: the next 20 s show)
 }
 $('#play').onclick = () => setPlaying(!playing);
 $('#play2').onclick = () => setPlaying(!playing);
@@ -6302,9 +6463,9 @@ $('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 
 $('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view', tWalls:'walls', tRelief:'relief', tFront:'front' };
-Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } refresh(true); });
-$('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front);
+const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view', tWalls:'walls', tRelief:'relief', tFront:'front', tAhead:'ahead' };
+Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } if (k === 'ahead') { try { localStorage.setItem('bf2rr.ahead', opts.ahead ? '1' : '0'); } catch (e) {} } refresh(true); });
+$('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front); $('#tAhead').classList.toggle('on', opts.ahead);
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 function layCount() {
   let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
@@ -6344,7 +6505,8 @@ function setVehView(models) {
 }
 $('#vwIcons').onclick = () => setVehView(false); $('#vwModels').onclick = () => setVehView(true);
 document.querySelectorAll('.qI').forEach(b => b.onclick = () => setVehView(false)); document.querySelectorAll('.qM').forEach(b => b.onclick = () => setVehView(true));
-for (const seg of document.querySelectorAll('.vwseg, .qseg')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
+for (const seg of document.querySelectorAll('.qcam')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setCam3(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
+for (const seg of document.querySelectorAll('.vwseg, .qseg:not(.qcam)')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
 // buildings' outlines from the map's own button (or B), the same as Layers ▾ > Buildings
 document.querySelectorAll('.qwall').forEach(b => b.onclick = () => $('#tWalls').click());
 document.querySelectorAll('.qrel').forEach(b => b.onclick = () => $('#tRelief').click());
@@ -6379,6 +6541,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
   if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
+  if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
 });
 $('#mapSize').addEventListener('change', e => { const v = Math.max(256, Math.min(8192, +e.target.value||2048)); if (source === 'sim') { loadSim(simSeed, v, round?.meta?.map); } else { W = v; viewFit(); refresh(true); } });
 
