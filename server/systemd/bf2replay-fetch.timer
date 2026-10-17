@@ -1,11 +1,12 @@
 [Unit]
-Description=BF2 Round Replay: download the day's new demos once a day (time: BF2R_FETCH_AT in /etc/bf2replay.conf)
+Description=BF2 Round Replay: look for new demos every 10 minutes (BF2R_FETCH_EVERY; 0 = once a day at BF2R_FETCH_AT)
 
 [Timer]
-# 05:30 by the server's clock (timedatectl); units.sh replaces it with BF2R_FETCH_AT when that is set.
-# Persistent: a run missed while the server was off happens right after it starts.
-OnCalendar=*-*-* 05:30:00
-RandomizedDelaySec=10min
+# every 10 minutes: a round shows up on the site minutes after it ends (fetch.mjs takes a demo once it hasn't changed
+# for 3 minutes; ingest decodes it as soon as it lands). units.sh replaces this with BF2R_FETCH_EVERY / BF2R_FETCH_AT
+# from /etc/bf2replay.conf when they say otherwise. Persistent: a run missed while the server was off happens at start.
+OnCalendar=*:0/10
+RandomizedDelaySec=60
 Persistent=true
 
 [Install]

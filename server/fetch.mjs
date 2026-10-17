@@ -3,7 +3,9 @@
 // For game servers you can't install anything on (e.g. a clan's server that publishes its demos on a web page):
 // every page in BF2R_FETCH_URLS is read, each link to a .bf2demo that wasn't fetched before is downloaded into
 // upload/incoming, and ingest.mjs takes it from there (the same as an uploaded demo): rounds with players are decoded
-// and listed on the site, rounds nobody played are dropped. Run once a day by bf2replay-fetch.timer (BF2R_FETCH_AT).
+// and listed on the site, rounds nobody played are dropped. Run every 10 minutes by bf2replay-fetch.timer
+// (BF2R_FETCH_EVERY; 0 = once a day at BF2R_FETCH_AT): a round is on the site a few minutes after it ends. A run that
+// finds nothing new writes nothing to the log, only data/.fetch-last.json (when it looked, what it found: bf2replay-status).
 //
 //   node fetch.mjs                      download what's new
 //   node fetch.mjs --list               only show what it would download (and how much)
@@ -174,7 +176,7 @@ async function main() {
   const entries = (PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS).flatMap(expand);
   if (!entries.length) { log('no BF2R_FETCH_URLS set: nothing to fetch'); return; }
   if (!PROBE) { fs.mkdirSync(INC, { recursive: true }); fs.mkdirSync(path.dirname(STATE), { recursive: true }); }
-  const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, failed: 0 };
+  const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, failed: 0, listed: 0, pages: 0 };
   const report = () => LIST
     ? log(`would download ${n.would} demos${n.wouldBytes ? ', ~' + mb(n.wouldBytes) : ''}; still being written ${n.busy}; skipped (BF2R_FETCH_SINCE / MIN_BYTES) ${n.skipped}; free on disk ${mb(freeBytes())}`)
     : log(`fetched ${n.got} demos (${mb(n.bytes)}); still being written ${n.busy} (next run); skipped ${n.skipped}` + (n.failed ? `; failed ${n.failed} (tried again next run)` : ''));
@@ -188,7 +190,8 @@ async function main() {
     try { found = await links(src.page, src.dl); } catch (e) { log('could not read', where, '-', e.message); continue; }
     if (PROBE) { const names = [...found.keys()].sort((x, y) => whenKey(x).localeCompare(whenKey(y))); log(where, '-', found.size, 'demos listed', names.length ? `(oldest: ${names[0]}, newest: ${names[names.length - 1]})` : ''); continue; }
     const fresh = [...found].filter(([nm, u]) => !seenAt(nm, u) && !(SINCE && nameDay(nm) && nameDay(nm) < SINCE));
-    log(where, '-', found.size, 'demos listed,', fresh.length, 'new');
+    n.listed += found.size; n.pages++;
+    if (fresh.length || LIST) log(where, '-', found.size, 'demos listed,', fresh.length, 'new');
     for (const [name, url] of fresh) todo.push({ name, url });
   }
   if (PROBE) return;
@@ -207,6 +210,8 @@ async function main() {
       if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
     } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
   }
-  report();
+  if (LIST || n.got || n.busy || n.skipped || n.failed) report();
+  // (when it last looked: for bf2replay-status)
+  if (!LIST) { try { const f = path.join(ROOT, 'data', '.fetch-last.json'); fs.writeFileSync(f + '.tmp', JSON.stringify({ at: new Date().toISOString(), pages: n.pages, listed: n.listed, new: todo.length, got: n.got, busy: n.busy, failed: n.failed })); fs.renameSync(f + '.tmp', f); } catch (e) {} }
 }
 main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });

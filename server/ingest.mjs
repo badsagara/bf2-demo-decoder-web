@@ -10,7 +10,7 @@
 //
 // The decoder is the page's own (the part of site/index.html between "// @worker-begin" and "// @worker-end"), so the
 // server and the browsers always decode the same way. Settings: /etc/bf2replay.conf (BF2R_ROOT, BF2R_KEEP_EMPTY, BF2R_MIN_PLAYERS,
-// BF2R_RAW_KEEP_DAYS, BF2R_JOBS), or the same names in the environment.
+// BF2R_RAW_KEEP_DAYS, BF2R_MIN_FREE_GB, BF2R_RAW_AUTOCLEAN, BF2R_JOBS), or the same names in the environment.
 // Decoding again (--reprocess, --rebuild) runs BF2R_JOBS demos at once in worker threads (default: as many as the CPU
 // cores and the memory allow, ~1.2 GB each, at most 4) and keeps its progress in rounds.json (reprocess: done / total /
 // left, for bf2replay-status and the site), and in the log: "[45/480 9%, ~1 h 10 min left]".
@@ -30,6 +30,7 @@ const KEEP_EMPTY = opt('BF2R_KEEP_EMPTY', '0') === '1';      // keep demos of ro
 const MIN_PLAYERS = Math.max(1, Math.floor(+opt('BF2R_MIN_PLAYERS', '2') || 2));   // fewer players on the field: not listed
 const JOBS = Math.max(1, Math.floor(+opt('BF2R_JOBS', '0')) || Math.min(4, os.cpus().length || 1, Math.max(1, Math.floor(os.totalmem() / (1.2 * 2 ** 30)))));
 const RAW_KEEP_DAYS = +opt('BF2R_RAW_KEEP_DAYS', '0');       // delete the demo itself after so many days (0: never); the decoded round stays
+const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30, RAW_AUTOCLEAN = opt('BF2R_RAW_AUTOCLEAN', '1') !== '0';   // (a nearly full disk: step 4)
 const SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
 const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), logs: path.join(DATA, 'logs'), empty: path.join(DATA, 'empty'), bad: path.join(DATA, 'bad') };
 const INDEX = path.join(DATA, 'rounds.json'), HEAT_DIR = path.join(DATA, 'heat'), SHARE_DIR = path.join(DATA, 'share');
@@ -281,7 +282,7 @@ main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}h1{font:700 28px/1.15
 .sub{color:#8b9a89;margin:0 0 14px}.go{display:inline-block;margin:6px 0 14px;padding:8px 14px;border-radius:4px;background:#e2b547;color:#17130a;font-weight:600}.go:hover{text-decoration:none;filter:brightness(1.08)}
 .wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:6px 10px;border-bottom:1px solid #2b3830;text-align:left;white-space:nowrap}th{color:#8b9a89;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.t0{color:#ff6b4f}.t1{color:#5ea8ff}.mute{color:#8b9a89}.pic{float:right;width:min(220px,38vw);margin:0 0 12px 16px;border-radius:4px;border:1px solid #2b3830}
-.months{display:flex;flex-wrap:wrap;gap:6px 14px}footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:#8b9a89;font-size:13px}`;
+.months{display:flex;flex-wrap:wrap;gap:6px 14px}h3{font-size:14px;margin:16px 0 6px;color:#8b9a89}table.rec tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:#dde4d6;white-space:normal;min-width:170px;vertical-align:top}table.rec td{vertical-align:top;line-height:1.35}footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:#8b9a89;font-size:13px}`;
 function wwwPage({ title, desc, canon, body, abs }) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -291,7 +292,7 @@ ${abs ? `<link rel="canonical" href="${escH(abs + canon.replace(/^\//, ''))}">\n
 <meta property="og:site_name" content="BF2 Round Replay"><meta property="og:title" content="${escH(title)}"><meta property="og:description" content="${escH(desc)}">
 <style>${WWW_CSS}</style>
 </head><body>
-<header><a class="brand" href="/">BF2 <b>Round</b> Replay</a><nav><a href="/rounds/">Rounds</a><a href="/players/">Players</a><a href="/maps/">Maps</a><a href="/rss.xml">RSS</a></nav></header>
+<header><a class="brand" href="/">BF2 <b>Round</b> Replay</a><nav><a href="/rounds/">Rounds</a><a href="/players/">Players</a><a href="/maps/">Maps</a><a href="/records/">Records</a><a href="/rss.xml">RSS</a></nav></header>
 <main>
 ${body}
 </main>
@@ -299,11 +300,12 @@ ${body}
 </body></html>
 `;
 }
-const WWW_VER = 1;   // (raise when the pages change: they are all written again)
+const WWW_VER = 2;   // (raise when the pages change: they are all written again; 2: records)
 function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
-  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, d.rounds.map(r => [r.name, r.decoder, r.added])])).digest('hex'), stampF = path.join(WWW, '.stamp');
+  // (and the day: the records page's week and month move on)
+  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added])])).digest('hex'), stampF = path.join(WWW, '.stamp');
   try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
   const mapName = m => dec.GAME?.maps?.[m]?.name || m;
   const idOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
@@ -394,6 +396,37 @@ ${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n
 </tbody></table></div>
 <h2>Rounds</h2>${roundTable(L, { map: false, server: manySrv })}` }));
   }
+  // records (v120, todo 113): the best in one round over the last 7 days, the last 30 and ever, from each round's summary
+  // (kills, streak, longest kill, headshots, kills from vehicles, revives, repairs, score, K/D with 10 kills or more), and
+  // who did most over each stretch (by score, as the page reckons it)
+  const when = r => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(r.sum.date || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : Date.parse(r.added || '') || 0; };
+  const REC = [['k', 'Most kills', v => v], ['streak', 'Longest streak (kills without dying)', v => v], ['long', 'Longest kill', v => v + ' m'], ['hs', 'Most headshots', v => v],
+    ['kVeh', 'Most kills from vehicles', v => v], ['rev', 'Most revives', v => v], ['rep', 'Most repairs', v => v], ['score', 'Best score (≈)', v => v], ['kd', 'Best K/D (10 kills or more)', v => v.toFixed(2)]];
+  const recVal = (p, key) => key === 'kd' ? (p.k >= 10 ? p.k / Math.max(1, p.d) : 0) : (p[key] || 0);
+  const oneMap = new Set(R.map(r => mapOf(r.sum))).size < 2, shortDay = d => { const m = /^(\d{4})-(\d\d)-(\d\d)(?:\s+(\d\d:\d\d))?/.exec(d || ''); return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) + (m[4] ? ' ' + m[4] : '') : ''; };
+  const rlink = r => `<a href="/rounds/${escH(idOf(r.name))}.html">${escH(shortDay(r.sum.date))}</a>${oneMap ? '' : ` <span class="mute">${escH(mapName(mapOf(r.sum)))}</span>`}`;
+  const today = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
+  const PER = [['week', 'The last 7 days', 7], ['month', 'The last 30 days', 30], ['ever', 'All rounds', Infinity]];
+  const recSection = ([key, title, days]) => {
+    const L = R.filter(r => days === Infinity || when(r) > today - days * 86400e3); if (!L.length) return `<h2>${escH(title)}</h2><p class="mute">No rounds.</p>`;
+    const rows = REC.map(([k, name, fmt]) => {
+      const all = []; for (const r of L) for (const p of r.sum.P || []) { if (/^Player \d+$/.test(nickOf(p.name))) continue; const v = recVal(p, k); if (v > 0) all.push({ v, p, r }); }
+      all.sort((a, b) => b.v - a.v || when(a.r) - when(b.r)); const top = all.slice(0, 3);
+      return top.length ? `<tr><th>${escH(name)}</th>${top.map((x, i) => `<td${i ? ' class="mute"' : ''}><b>${escH(String(fmt(x.v)))}</b> ${plink(x.p.name)}<br>${rlink(x.r)}</td>`).join('')}${'<td></td>'.repeat(3 - top.length)}</tr>` : '';
+    }).join('\n');
+    const tot = new Map(); for (const r of L) for (const p of r.sum.P || []) { const k = nickOf(p.name); if (!P.has(k)) continue; const a = tot.get(k) || { name: p.name, n: 0, k: 0, d: 0, score: 0, rev: 0, wins: 0 }; a.n++; a.k += p.k; a.d += p.d; a.score += p.score || 0; a.rev += p.rev || 0; if (p.win) a.wins++; tot.set(k, a); }
+    const T = [...tot.values()].sort((a, b) => b.score - a.score || b.k - a.k).slice(0, 10);
+    return `<h2 id="${key}">${escH(title)} <span class="mute">${L.length} round${L.length === 1 ? '' : 's'}</span></h2>
+<div class="wrap"><table class="rec"><thead><tr><th>In one round</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody>
+${rows}
+</tbody></table></div>
+<h3>Most over ${escH(days === Infinity ? 'all rounds' : 'these ' + days + ' days')}</h3><div class="wrap"><table><thead><tr><th>Player</th><th class="n">≈ Score</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">Revives</th></tr></thead><tbody>
+${T.map(a => `<tr><td>${plink(a.name)}</td><td class="n">${a.score}</td><td class="n">${a.n}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.rev}</td></tr>`).join('\n')}
+</tbody></table></div>`;
+  };
+  files.set('records/index.html', wwwPage({ abs, canon: '/records/', title: 'Battlefield 2 records', desc: `Records of ${R.length} Battlefield 2 rounds: most kills, longest kill, longest streak, best medic, this week, this month and ever.`,
+    body: `<h1>Records</h1><p class="sub">The best in one round, and who did most: <a href="#week">the last 7 days</a> · <a href="#month">the last 30 days</a> · <a href="#ever">all rounds</a>. Scores as the replay reckons them from the round's events.</p>
+${PER.map(recSection).join('\n')}` }));
   // the feed: the newest 50 rounds
   const rfc = iso => { const t = Date.parse(iso || ''); return Number.isFinite(t) ? new Date(t).toUTCString() : new Date().toUTCString(); };
   const site = abs || '/';
@@ -410,7 +443,7 @@ ${abs ? `<atom:link href="${escH(abs)}rss.xml" rel="self" type="application/rss+
 </channel></rss>
 `);
   if (abs) {
-    const urls = ['', 'rounds/', 'players/', 'maps/', ...[...months.keys()].map(m => `rounds/${m}.html`), ...R.map(r => `rounds/${idOf(r.name)}.html`), ...PL.map(a => `players/${nickSlug(a.nick)}.html`), ...ML.map(([m]) => `maps/${m}.html`)];
+    const urls = ['', 'rounds/', 'players/', 'maps/', 'records/', ...[...months.keys()].map(m => `rounds/${m}.html`), ...R.map(r => `rounds/${idOf(r.name)}.html`), ...PL.map(a => `players/${nickSlug(a.nick)}.html`), ...ML.map(([m]) => `maps/${m}.html`)];
     files.set('sitemap.xml', `<?xml version="1.0" encoding="utf-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `<url><loc>${escH(abs + u)}</loc></url>`).join('\n')}\n</urlset>\n`);
     files.set('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${abs}sitemap.xml\n`);
   }
@@ -421,7 +454,7 @@ ${abs ? `<atom:link href="${escH(abs)}rss.xml" rel="self" type="application/rss+
     let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {}
     if (old !== text) { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); }
   }
-  for (const dir of ['', 'rounds', 'players', 'maps']) {
+  for (const dir of ['', 'rounds', 'players', 'maps', 'records']) {
     let L = []; try { L = fs.readdirSync(path.join(WWW, dir)); } catch (e) {}
     for (const f of L) { const rel = dir ? `${dir}/${f}` : f; if (/\.(html|xml|txt)$/.test(f) && !files.has(rel)) fs.unlinkSync(path.join(WWW, rel)); }
   }
@@ -527,6 +560,20 @@ async function main() {
       const f = path.join(DIRS.demos, r.name);
       if (r.demo && fs.existsSync(f) && fs.statSync(f).mtimeMs < limit) { fs.unlinkSync(f); delete r.demo; changed = true; log('demo removed (kept', RAW_KEEP_DAYS, 'days):', r.name); }
     }
+  }
+  // 4. a nearly full disk (under BF2R_MIN_FREE_GB + 2 GB free): the oldest demos go (their rounds stay and still open, as
+  // with BF2R_RAW_KEEP_DAYS, but can't be decoded again after a site update) until 2 GB more than that are free - so new
+  // rounds keep coming (fetch.mjs stops downloading under BF2R_MIN_FREE_GB). BF2R_RAW_AUTOCLEAN=0: never.
+  const free = () => { try { const st = fs.statfsSync(DATA); return st.bavail * st.bsize; } catch (e) { return Infinity; } };
+  if (RAW_AUTOCLEAN && MIN_FREE > 0 && free() < MIN_FREE + 2 * 2 ** 30) {
+    const old = idx.rounds.filter(r => r.demo && fs.existsSync(path.join(DIRS.demos, r.name))).map(r => [r, fs.statSync(path.join(DIRS.demos, r.name)).mtimeMs]).sort((a, b) => a[1] - b[1]);
+    let n = 0, bytes = 0;
+    for (const [r] of old) {
+      if (free() >= MIN_FREE + 2 * 2 ** 30) break;
+      const f = path.join(DIRS.demos, r.name); try { bytes += fs.statSync(f).size; fs.unlinkSync(f); delete r.demo; changed = true; n++; } catch (e) {}
+    }
+    if (n) log(`disk nearly full: removed the ${n} oldest demos (${(bytes / 2 ** 30).toFixed(1)} GB; their rounds stay), ${(free() / 2 ** 30).toFixed(1)} GB free now`);
+    else if (free() < MIN_FREE) log(`disk nearly full (${(free() / 2 ** 30).toFixed(1)} GB free) and no demos left to remove: new rounds wait (BF2R_MIN_FREE_GB ${MIN_FREE / 2 ** 30})`);
   }
   if (changed || idx.moved || !idx.heat || !fs.existsSync(INDEX)) writeIndex(idx, dec);
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)

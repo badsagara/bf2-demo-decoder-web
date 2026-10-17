@@ -200,7 +200,7 @@ say "Timers"
 # (units.sh puts the units, update.sh and the download time in place; update.sh runs it again every minute)
 bash "$HERE/units.sh"
 systemctl daemon-reload
-systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer
+systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer
 # (both in the background: with many demos waiting, decoding them takes hours, and install.sh must not wait for it)
 systemctl start --no-block bf2replay-ingest.service || true
 systemctl start --no-block bf2replay-fetch.service || true
@@ -209,7 +209,7 @@ say "Done"
 echo "Site:      ${DOMAIN:+https://$DOMAIN/}${DOMAIN:-http://$(hostname -I | awk '{print $1}')/}"
 # shellcheck source=/dev/null
 echo "Demos:     downloaded from: $(. /etc/bf2replay.conf; echo "${BF2R_FETCH_URLS:-(none: set BF2R_FETCH_URLS in /etc/bf2replay.conf)}")"
-echo "           daily at $(. /etc/bf2replay.conf; echo "${BF2R_FETCH_AT:-05:30}") (next: $(systemctl show -P NextElapseUSecRealtime bf2replay-fetch.timer 2>/dev/null)); the first run starts now"
+echo "           every 10 minutes (BF2R_FETCH_EVERY; next: $(systemctl show -P NextElapseUSecRealtime bf2replay-fetch.timer 2>/dev/null)); the first run starts now"
 echo "Uploads:   sftp bf2upload@${DOMAIN:-$(hostname -I | awk '{print $1}')} into incoming/  (add each sender's public key"
 echo "           as a line in /etc/ssh/bf2replay_keys/bf2upload)"
 echo "Logs:      journalctl -u 'bf2replay-*' -f"

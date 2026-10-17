@@ -1,0 +1,10 @@
+[Unit]
+Description=BF2 Round Replay: weekly backup of the round list, logs and settings (backup.sh: BF2R_BACKUP_KEEP, BF2R_BACKUP_ROUNDS)
+
+[Service]
+Type=oneshot
+# (as root: it reads /etc/bf2replay.conf and writes /srv/bf2replay/backup)
+Nice=15
+IOSchedulingClass=idle
+ExecStart=/bin/bash /srv/bf2replay/repo/server/backup.sh
+TimeoutStartSec=1h

@@ -32,7 +32,13 @@ if (P && P.hash === hash) {
   console.log(`Decoding again     ${P.done} / ${P.total} (${Math.floor(100 * P.done / P.total)}%), ${P.jobs || 1} at once, since ${new Date(P.since).toLocaleTimeString()}${rate ? `, ~${rate.toFixed(1)} s a round, ~${hm(rate * (P.total - P.done))} left` : ''}`);
 } else if (done < R.length) console.log(`Decoding again     not running yet (bf2replay-reprocess starts within a minute of the site update)`);
 console.log(`Services           reprocess ${act('bf2replay-reprocess.service')} · update ${act('bf2replay-update.service')} (timer ${act('bf2replay-update.timer')}) · ingest ${act('bf2replay-ingest.service')} · fetch ${act('bf2replay-fetch.service')}`);
-const next = sh('systemctl', ['show', '-P', 'NextElapseUSecRealtime', 'bf2replay-fetch.timer']); if (next) console.log(`Next download      ${next}`);
+const next = sh('systemctl', ['show', '-P', 'NextElapseUSecRealtime', 'bf2replay-fetch.timer']);
+let fl = null; try { fl = JSON.parse(fs.readFileSync(path.join(DATA, '.fetch-last.json'), 'utf8')); } catch (e) {}
+if (fl) console.log(`Demo pages         looked ${hm((Date.now() - Date.parse(fl.at)) / 1000)} ago: ${fl.listed} demos listed, ${fl.new} new${fl.got ? ', ' + fl.got + ' downloaded' : ''}${fl.busy ? ', ' + fl.busy + ' still being written' : ''}${fl.failed ? ', ' + fl.failed + ' failed' : ''}${next ? ' · next ' + next : ''}`);
+else if (next) console.log(`Next download      ${next}`);
+let bk = []; try { bk = fs.readdirSync(path.join(ROOT, 'backup')).filter(f => /^bf2replay-.*\.tar\.gz$/.test(f)).sort(); } catch (e) {}
+let df = ''; try { const st = fs.statfsSync(DATA); df = (st.bavail * st.bsize / 2 ** 30).toFixed(1) + ' GB free'; } catch (e) {}
+console.log(`Disk, backups      ${df || '?'}${bk.length ? ` · last backup ${bk[bk.length - 1]} (${bk.length} kept)` : ' · no backup yet (Sundays 04:40)'}`);
 const log = sh('journalctl', ['-u', 'bf2replay-reprocess', '-u', 'bf2replay-update', '-u', 'bf2replay-ingest', '-n', '4', '--no-pager', '-o', 'cat']);
 if (log) console.log('Last log lines\n  ' + log.split('\n').join('\n  '));
 else console.log('Last log lines     (run with sudo to see them)');
