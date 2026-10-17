@@ -689,7 +689,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
-          <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom">Buildings</button>
+          <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
           </span></span>
           <span class="spacer"></span>
           <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
@@ -817,7 +817,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v113';
+const APP_VERSION = 'v114';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1070,7 +1070,7 @@ function normalize(d) {
   const downOf = new Map(); for (const e of events) if (e.type === 'kill' && e.down) { if (!downOf.has(e.victim)) downOf.set(e.victim, []); downOf.get(e.victim).push([e.t, e.down, e]); }
   const wreckOf = new Map(); for (const e of events) if (e.type === 'wreck') { if (!wreckOf.has(e.vehicle)) wreckOf.set(e.vehicle, []); wreckOf.get(e.vehicle).push([e.t, e.until ?? duration, e.gone ?? (e.until ?? duration)]); }
   return { raw:d, meta:d.meta||{}, teams:d.teams||[{id:0,name:'Team 1'},{id:1,name:'Team 2'}], players:d.players, flags:d.flags||[], emplacements: (d.emplacements||[]).slice().sort((a,b)=>a.t-b.t),
-           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, DR: C.DR || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf };
+           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, DR: C.DR || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf, breaks: d.breaks || [] };
 }
 // frames rows of a timeline file -> columns: per value one typed array, frame after frame, an entry per player (as in
 // d.players); a player without a row in a frame keeps his values from the frame before. VT = index into VTN (vehicle names).
@@ -1468,7 +1468,7 @@ function seenBy(i, tt) {
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
 // and wagons (bullets go through some), peeking round corners; BF2 destroys no cover but bridges and red barrels)
 const LOS = new Map();   // map key -> data, 'loading', or null (none for this map / failed)
-window.__bf2los = (k, b64) => { decodeLos(b64).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
+window.__bf2los = (k, b64, brk) => { decodeLos(b64, brk).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; round._brk = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
 function losData() {
   const k = mapKey(), v = LOS.get(k);
   if (v === undefined) {
@@ -1481,7 +1481,7 @@ function losData() {
   vegData();   // (the map's trees come with them)
   return v && v !== 'loading' ? v : null;
 }
-async function decodeLos(b64) {
+async function decodeLos(b64, brk) {
   const bin = atob(b64), z = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) z[i] = bin.charCodeAt(i);
   const buf = await new Response(new Blob([z]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
   const dv = new DataView(buf), f = o => dv.getFloat32(o, true);
@@ -1496,7 +1496,14 @@ async function decodeLos(b64) {
   const TT = T * T, cnt = new Uint8Array(buf, o, nT * TT); o += nT * TT; o = (o + 1) & ~1;
   const cs = new Uint32Array(nT * TT + 1); let n = 0; for (let c = 0; c < nT * TT; c++) { cs[c] = n; n += cnt[c]; } cs[nT * TT] = n;
   if (n !== nSpans) throw new Error('span count ' + n + ' / ' + nSpans);
-  D.cs = cs; D.sp = new Uint16Array(buf.slice(o, o + nSpans * 4));   // [lo, hi] per span, 0.1 m
+  D.cs = cs; D.sp = new Uint16Array(buf.slice(o, o + nSpans * 4)); D.nSpans = nSpans; o += nSpans * 4;   // [lo, hi] per span, 0.1 m
+  // the breakable objects' spans (v114: 'BRK1', then the span indices - differences from the one before, in 4 byte
+  // planes - and their tags, in 2) and the objects (brkRound)
+  if (o + 8 <= buf.byteLength && dv.getUint32(o, true) === 0x314b5242 && Array.isArray(brk)) {
+    const nb = dv.getUint32(o + 4, true), u8 = new Uint8Array(buf, o + 8, nb * 6); D.bt = new Uint32Array(nb); D.bg = new Uint16Array(nb);
+    for (let k = 0, v = 0; k < nb; k++) { v += (u8[k] | u8[nb + k] << 8 | u8[2 * nb + k] << 16 | u8[3 * nb + k] << 24) >>> 0; D.bt[k] = v; D.bg[k] = u8[4 * nb + k] | u8[5 * nb + k] << 8; }
+    D.brk = brk.map(([name, hp, x, y, yaw, x0, x1, z0, z1, h0, h1, fl]) => ({ name, hp, x, y, c: Math.cos(yaw), s: Math.sin(yaw), x0, x1, z0, z1, h0, h1, wreck: !!(fl & 1), big: !!(fl & 2), r: Math.hypot(Math.max(-x0, x1), Math.max(-z0, z1)) }));
+  }
   return D;
 }
 // terrain height at (x, y): bilinear between the heightmap's samples
@@ -1515,14 +1522,14 @@ const WALLS = new Map(), WALL_CHUNK = 64;
 function wallsPath() {
   const key = mapKey(); if (WALLS.has(key)) return WALLS.get(key);
   const D = losData(); if (!D) return null;
-  const T = D.T, W2 = D.gW >> 1, H2 = D.gH >> 1, M = new Uint8Array(W2 * H2), S = D.gStep;   // (M: 1 wall, 2 under a roof)
+  const T = D.T, W2 = D.gW >> 1, H2 = D.gH >> 1, M = new Uint8Array(W2 * H2), S = D.gStep, WO = brkWallsOff(D);   // (M: 1 wall, 2 under a roof; WO: breakable objects, drawn on their own)
   for (let ty = 0; ty < D.tH; ty++) for (let tx = 0; tx < D.tW; tx++) {
     const k = D.tile[ty * D.tW + tx]; if (k < 0) continue;
     for (let cy = 0; cy < T; cy++) for (let cxx = 0; cxx < T; cxx++) {
       const c = k * T * T + cy * T + cxx, a = D.cs[c], b = D.cs[c + 1]; if (b <= a) continue;
       const gx = tx * T + cxx, gy = ty * T + cy, mi = (gy >> 1) * W2 + (gx >> 1); if (M[mi] === 1) continue;
       const g = groundAt(D, D.gX0 + (gx + 0.5) * S, D.gY0 + (gy + 0.5) * S), lo = (g + 0.6) * 10, hi = (g + 1.6) * 10, roof = (g + 2.2) * 10;
-      for (let m = a; m < b; m++) { if (D.sp[2 * m + 1] >= lo && D.sp[2 * m] <= hi) { M[mi] = 1; break; } if (D.sp[2 * m] >= roof) M[mi] = 2; }
+      for (let m = a; m < b; m++) { if (WO && spanOut(WO, m)) continue; if (D.sp[2 * m + 1] >= lo && D.sp[2 * m] <= hi) { M[mi] = 1; break; } if (D.sp[2 * m] >= roof) M[mi] = 2; }
     }
   }
   // drawn in square chunks of 64 m, only those in view; for the whole map a picture of it all (wallsImage)
@@ -1601,7 +1608,7 @@ function wallsImage(B) {
 // is the straight line from (ax, ay, ah) to (bx, by, bh) blocked? (x east, y north, h height; the first and last 0.9 m
 // are left out: that is where the two soldiers themselves stand, and how far a head can lean past a corner)
 const LOS_END = 0.9;
-function losBlocked(D, ax, ay, ah, bx, by, bh) {
+function losBlocked(D, ax, ay, ah, bx, by, bh, tt) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy);
   if (L < 2 * LOS_END) return false;
   const skip = LOS_END / L, e0 = skip, e1 = 1 - skip;
@@ -1609,23 +1616,148 @@ function losBlocked(D, ax, ay, ah, bx, by, bh) {
   const n = Math.ceil(L / D.hmStep * 2);
   for (let k = 1; k < n; k++) { const u = k / n; if (u < e0 || u > e1) continue; if (ah + dh * u < groundAt(D, ax + dx * u, ay + dy * u) - 0.15) return true; }
   // objects: the grid cells along the line (Amanatides & Woo)
-  const S = D.gStep, gx0 = (ax - D.gX0) / S, gy0 = (ay - D.gY0) / S, gdx = dx / S, gdy = dy / S, W = D.gW, Hh = D.gH, T = D.T, tW = D.tW, tile = D.tile, cs = D.cs, sp = D.sp;
+  const S = D.gStep, gx0 = (ax - D.gX0) / S, gy0 = (ay - D.gY0) / S, gdx = dx / S, gdy = dy / S, W = D.gW, Hh = D.gH, T = D.T, tW = D.tW, tile = D.tile, cs = D.cs, sp = D.sp, OFF = brkOff(D, tt);
   let cx_ = Math.floor(gx0), cy_ = Math.floor(gy0);
   const sx = gdx > 0 ? 1 : -1, sy = gdy > 0 ? 1 : -1;
   const tdx = gdx ? Math.abs(1 / gdx) : Infinity, tdy = gdy ? Math.abs(1 / gdy) : Infinity;
-  let tmx = gdx ? (gdx > 0 ? cx_ + 1 - gx0 : gx0 - cx_) * tdx : Infinity, tmy = gdy ? (gdy > 0 ? cy_ + 1 - gy0 : gy0 - cy_) * tdy : Infinity, tt = 0;
-  for (let guard = 0; tt < 1 && guard < 100000; guard++) {
+  let tmx = gdx ? (gdx > 0 ? cx_ + 1 - gx0 : gx0 - cx_) * tdx : Infinity, tmy = gdy ? (gdy > 0 ? cy_ + 1 - gy0 : gy0 - cy_) * tdy : Infinity, u = 0;
+  for (let guard = 0; u < 1 && guard < 100000; guard++) {
     const tn = Math.min(tmx, tmy, 1);
-    if (tn > e0 && tt < e1 && cx_ >= 0 && cy_ >= 0 && cx_ < W && cy_ < Hh) {
+    if (tn > e0 && u < e1 && cx_ >= 0 && cy_ >= 0 && cx_ < W && cy_ < Hh) {
       const k = tile[((cy_ / T) | 0) * tW + ((cx_ / T) | 0)], c = k < 0 ? -1 : k * T * T + (cy_ % T) * T + (cx_ % T), a = c < 0 ? 0 : cs[c], b = c < 0 ? 0 : cs[c + 1];
       if (b > a) {
-        const t0 = Math.max(tt, e0), t1 = Math.min(tn, e1), h0 = (ah + dh * t0) * 10, h1 = (ah + dh * t1) * 10, lo = Math.min(h0, h1), hi = Math.max(h0, h1);
-        for (let k = a; k < b; k++) if (sp[2 * k + 1] >= lo && sp[2 * k] <= hi) return true;
+        const t0 = Math.max(u, e0), t1 = Math.min(tn, e1), h0 = (ah + dh * t0) * 10, h1 = (ah + dh * t1) * 10, lo = Math.min(h0, h1), hi = Math.max(h0, h1);
+        for (let k = a; k < b; k++) if (sp[2 * k + 1] >= lo && sp[2 * k] <= hi && !(OFF && spanOut(OFF, k))) return true;
       }
     }
-    if (tmx < tmy) { cx_ += sx; tt = tmx; tmx += tdx; } else { cy_ += sy; tt = tmy; tmy += tdy; }
+    if (tmx < tmy) { cx_ += sx; u = tmx; tmx += tdx; } else { cy_ += sy; u = tmy; tmy += tdy; }
   }
   return false;
+}
+// ---------- breakable objects (v114) ----------
+// The map's DestroyableObjects that can be destroyed - traffic lights, signs, parking meters, trestles, barrels, carts,
+// fuel tank wagons, wooden fences, the dam's bridge parts... (los/build/brk.js) - come with the sight grid: their spans
+// tagged (D.bt: span index, D.bg: tag - object k's own shape 2k, its wreck's 2k + 1: a fuel tank wagon's burnt-out
+// tank, a bridge's rubble) and the objects themselves (D.brk: template, hit points, its box). The demo says when one
+// is hit (the decoder's breaks: its hit points then; matched to the object by its place, within BRK_NEAR): one with 1
+// hit point (a sign, a traffic light, a trestle) breaks at its first hit, the others at 0; from then on its own shape
+// is out of the sight lines, the aim line and the exact shapes, and its wreck's in, until the game makes it again;
+// gone from the game (the wreck cleared), neither. The Buildings layer draws them on their own (brkDraw): standing,
+// filled like the walls; broken, a dashed outline and a cross, and what broke it.
+const BRK_NEAR = 1;
+// the open round's states of the map's breakable objects: { D, st (per object: [[t, state]] or null - 0 standing,
+// 1 broken, 2 gone), tr (the moments any changes), off (brkOff's masks by how many changes have been) }
+function brkRound(D) {
+  if (!round || !D || !D.brk) return null;
+  if (round._brk && round._brk.D === D) return round._brk;
+  const L = D.brk, st = L.map(() => null), tr = new Set();
+  for (const b of round.breaks || []) {
+    let best = -1, bd = BRK_NEAR; for (let k = 0; k < L.length; k++) { const d = Math.hypot(L[k].x - b.x, L[k].y - b.y); if (d < bd) { bd = d; best = k; } }
+    if (best < 0 || st[best]) continue;
+    const o = L[best], T = []; let v = 0;
+    for (const [ht, hp] of b.hits) { const nv = hp === -1 ? 0 : hp === -2 ? 2 : v === 0 && (o.hp <= 1 || hp === 0) ? 1 : v; if (nv !== v) { T.push([ht, nv]); tr.add(ht); v = nv; } }
+    if (T.length) st[best] = T;
+  }
+  return (round._brk = { D, st, tr: [...tr].sort((a, b) => a - b), off: new Map(), why: new Map() });
+}
+// object k's state at tt (0 standing, 1 broken, 2 gone); B: brkRound
+function brkAt(B, k, tt) { const T = B && B.st[k]; if (!T || tt == null) return 0; let v = 0; for (const [a, w] of T) { if (a > tt) break; v = w; } return v; }
+// the spans out of the sight lines at tt (a bit per span: a broken object's own shape, a standing one's wreck); null
+// where the map has no breakable objects. tt undefined: all standing
+function brkOff(D, tt) {
+  if (!D.bt) return null;
+  const B = brkRound(D), tr = B ? B.tr : [];
+  let e = 0; if (tt != null) { let lo = 0, hi = tr.length; while (lo < hi) { const m = (lo + hi) >> 1; if (tr[m] <= tt) lo = m + 1; else hi = m; } e = lo; }
+  const C = B ? B.off : (D._off0 || (D._off0 = new Map())); let M = C.get(e); if (M) return M;
+  M = new Uint32Array((D.nSpans + 31) >> 5); const at = e ? tr[e - 1] : null, bt = D.bt, bg = D.bg;
+  for (let i = 0; i < bt.length; i++) { const g = bg[i], v = brkAt(B, g >> 1, at); if (g & 1 ? v !== 1 : v !== 0) M[bt[i] >> 5] |= 1 << (bt[i] & 31); }
+  C.set(e, M); return M;
+}
+const spanOut = (M, m) => ((M[m >> 5] >>> (m & 31)) & 1) === 1;
+// the Buildings layer leaves out the breakable objects' spans (brkDraw draws them) - but for the big ones (bridges)
+function brkWallsOff(D) {
+  if (!D.bt) return null; if (D._woff) return D._woff;
+  const M = new Uint32Array((D.nSpans + 31) >> 5);
+  for (let i = 0; i < D.bt.length; i++) { const g = D.bg[i]; if ((g & 1) || !D.brk[g >> 1].big) M[D.bt[i] >> 5] |= 1 << (D.bt[i] & 31); }
+  return (D._woff = M);
+}
+// what broke object k (its first break): { t, how: 'vehicle' | 'blast' | '', what (the vehicle / explosive), by (driver /
+// thrower: player index) } - a vehicle whose box (or 3 m round it, one without a box) comes within 1 m of the object's
+// box in the 0.4 s up to the break, else an explosion (a blast event within 0.6 s, as far as its radius); else not known
+// (a tank shell, gunfire)
+function brkWhy(B, k) {
+  if (B.why.has(k)) return B.why.get(k);
+  const T = B.st[k], br = T && T.find(x => x[1] > 0); let r = null;
+  if (br) {
+    const o = B.D.brk[k], tb = br[0]; r = { t: tb, how: '', what: '', by: null };
+    let bd = Infinity;
+    round.players.forEach((p, j) => {
+      if (!p.vehicle) return;
+      const kk = typeof p.tpl === 'string' ? p.tpl.toLowerCase() : TPL_NAME[p.tpl], VB = VEH_BOX[kk];
+      for (const dt of [0, 0.2, 0.4]) {
+        const v = playerAt(j, tb - dt); if (!v.alive || !Number.isFinite(v.x)) continue;
+        let d;
+        if (VB) { const rx = o.x - v.x, ry = o.y - v.y, c = Math.cos(v.yaw), s = Math.sin(v.yaw), lx = rx * c - ry * s, lz = rx * s + ry * c;
+          d = Math.hypot(Math.max(VB[0] - lx, 0, lx - VB[1]), Math.max(VB[2] - lz, 0, lz - VB[3])) - o.r; }
+        else d = Math.hypot(o.x - v.x, o.y - v.y) - 3 - o.r;
+        if (d < 1 && d < bd) { bd = d; r.how = 'vehicle'; r.what = p.name; r.vi = j; }
+      }
+    });
+    if (r.how === 'vehicle') { const dj = round.players.findIndex((p, j) => !p.vehicle && playerAt(j, tb).alive && playerAt(j, tb).veh === r.what && playerAt(j, tb).drv); if (dj >= 0) r.by = dj; }
+    else {
+      let bb = Infinity;
+      for (const e of round.events) { if (e.type !== 'blast' || Math.abs(e.t - tb) > 0.6) continue; const d = Math.hypot(e.x - o.x, e.y - o.y) - o.r; if (d <= (e.r || 5) && d < bb) { bb = d; r.how = 'blast'; r.what = e.kind || ''; r.by = e.by != null ? round.pidx.get(e.by) ?? null : null; } }
+    }
+  }
+  B.why.set(k, r); return r;
+}
+// the template's name in words: trafficlight_dest -> traffic light
+const BRK_NAMES = { trafficlight_dest: 'traffic light', parkingmeter_dest: 'parking meter', trestle01_dest: 'trestle', barrel_yellow: 'barrel', cart_dest: 'cart', fueltankwagon: 'fuel tank wagon',
+  fence: 'wooden fence', fence_dest: 'wooden fence', fence_corrugated_3x12m_broken_parts: 'tin fence', train_rail_bar_des: 'rail barrier', roadmarker_dest: 'road marker', cone_dest: 'traffic cone', fishingbox: 'fish crate',
+  chair01_dest: 'chair', cafechair_dest: 'chair', highway_bridge_segment: 'bridge', dam_bridge_part1: 'bridge', dam_bridge_part2: 'bridge', dam_bridge_part3: 'bridge', dam_ironbridge_part1: 'iron bridge', dam_ironbridge_part2: 'iron bridge', dam_ironbridge_part3: 'iron bridge' };
+const brkName = n => BRK_NAMES[n] || (/sign/.test(n) ? 'sign' : /table|salestable/.test(n) ? 'stall' : String(n).replace(/_dest$|_des$|\d+$/g, '').replace(/_/g, ' '));
+// draws the breakable objects at tt into the Buildings layer (cx in map metres, k px a metre); -> the broken ones, for
+// brkMarks (their crosses and labels, in screen pixels)
+function brkDraw(cx, D, tt, k) {
+  const B = brkRound(D), m = 3.5 / k, broken = [], fill = new Path2D(), wreck = new Path2D(), dash = new Path2D();
+  D.brk.forEach((o, i) => {
+    const v = brkAt(B, i, tt); if (v) broken.push(i);
+    if (o.big) return;   // (a bridge: in the walls' drawing)
+    if (v === 0) { const g = groundAt(D, o.x, o.y); if (o.h1 >= g + 0.6 && o.h0 <= g + 1.6) brkRect(fill, o, m); }   // (as the walls: knee to head)
+    else { brkRect(dash, o, m); if (v === 1 && o.wreck) brkRect(wreck, o, m); }
+  });
+  cx.fillStyle = css('--bld-fill'); cx.fill(fill); cx.strokeStyle = css('--bld-line'); cx.stroke(fill);
+  cx.fillStyle = css('--bld-roof'); cx.fill(wreck);
+  cx.save(); cx.setLineDash([3 / k, 2 / k]); cx.globalAlpha = 0.85; cx.stroke(dash); cx.restore();
+  return broken;
+}
+// a rectangle of object o's box (at least m across) into path P
+function brkRect(P, o, m) {
+  const ax = Math.min(o.x0, -m / 2), bx = Math.max(o.x1, m / 2), az = Math.min(o.z0, -m / 2), bz = Math.max(o.z1, m / 2), c = o.c, s = o.s;
+  const W = (lx, lz) => [o.x + c * lx + s * lz, o.y - s * lx + c * lz];
+  const P0 = W(ax, az), P1 = W(bx, az), P2 = W(bx, bz), P3 = W(ax, bz);
+  P.moveTo(P0[0], P0[1]); P.lineTo(P1[0], P1[1]); P.lineTo(P2[0], P2[1]); P.lineTo(P3[0], P3[1]); P.closePath();
+}
+// the crosses and labels of the broken ones (screen pixels): what broke it, for BRK_LABEL s after it broke (zoomed in
+// to 2.2 px a metre or more; any time from 8 px a metre), one label not over another
+const BRK_LABEL = 60;
+function brkMarks(cx, D, list, zoom, tt) {
+  const B = brkRound(D); if (!B || !list.length) return;
+  cx.save(); cx.lineWidth = 1.6; cx.strokeStyle = css('--blast'); cx.font = '500 10px ' + css('--font-data'); cx.lineJoin = 'round';
+  const boxes = [];
+  for (const i of list) {
+    const o = D.brk[i], [px, py] = toC(o.x, o.y), r = 3.5;
+    cx.beginPath(); cx.moveTo(px - r, py - r); cx.lineTo(px + r, py + r); cx.moveTo(px + r, py - r); cx.lineTo(px - r, py + r); cx.stroke();
+    const w = brkWhy(B, i); if (zoom < 2.2 || !w || (zoom < 8 && tt - w.t > BRK_LABEL)) continue;
+    const who = w.by != null && round.players[w.by] ? ' (' + round.players[w.by].name + ')' : '';
+    const lb = brkName(o.name) + (w.how === 'vehicle' ? ' · ' + w.what + who : w.how === 'blast' ? ' · ' + (w.what || 'explosion') + who : '');
+    const tw = cx.measureText(lb).width; let ly = py + 3, ok = false;
+    for (const dy of [0, 12, -12, 24, -24]) { const y = py + 3 + dy; if (!boxes.some(b => px + 7 < b[2] && px + 7 + tw > b[0] && y - 9 < b[3] && y + 2 > b[1])) { ly = y; ok = true; break; } }
+    if (!ok) continue; boxes.push([px + 7, ly - 9, px + 7 + tw, ly + 2]);
+    cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(lb, px + 7, ly); cx.fillStyle = css('--muted'); cx.fillText(lb, px + 7, ly);
+    cx.strokeStyle = css('--blast'); cx.lineWidth = 1.6;
+  }
+  cx.restore();
 }
 // ---------- the map's exact collision shapes (v111) ----------
 // What bullets run into, exactly: every placed object's projectile collision mesh, triangle by triangle (assets/geo/<map>.js,
@@ -1687,13 +1819,13 @@ async function decodeGeo(meta, b64) {
 }
 // the first object the straight line from a to b (east, north, up) runs into between the shares e0 and e1 of the way:
 // { u (share), o (object), mat (material) } or null; any: the first one found, not the nearest
-function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any) {
+function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any, skip) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, C = G.CELL; let best = null;
   const pass = ++G.pass, x0 = Math.floor(Math.min(ax, bx) / C), x1 = Math.floor(Math.max(ax, bx) / C), y0 = Math.floor(Math.min(ay, by) / C), y1 = Math.floor(Math.max(ay, by) / C);
   for (let cx_ = x0; cx_ <= x1; cx_++) for (let cy_ = y0; cy_ <= y1; cy_++) {
     const L = G.cells.get((cx_ + 2048) * 4096 + cy_ + 2048); if (!L) continue;
     for (const pi of L) {
-      if (G.stamp[pi] === pass) continue; G.stamp[pi] = pass;
+      if (G.stamp[pi] === pass) continue; G.stamp[pi] = pass; if (skip && skip.has(pi)) continue;
       const Q = G.P[pi];
       // the line against its box (slabs)
       let t0 = e0, t1 = best ? best.u : e1; const A = [ax, ay, ah], D = [dx, dy, dh]; let out = false;
@@ -1719,15 +1851,25 @@ function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any) {
   }
   return best;
 }
+// the placements of the breakable objects broken at tt (brkRound; a Set of indices into G.P) or null
+function geoOff(D, G, tt) {
+  const B = brkRound(D); if (!B || !B.tr.length || tt == null || tt < B.tr[0]) return null;
+  if (G._bpD !== D) {   // (object k -> its placement: the same template within 0.3 m)
+    G._bpD = D; G._bp = D.brk.map(o => { const L = G.cells.get((Math.floor(o.x / G.CELL) + 2048) * 4096 + Math.floor(o.y / G.CELL) + 2048) || []; let best = -1, bd = 0.3;
+      for (const pi of L) { const Q = G.P[pi], d = Math.hypot(Q.p[0] - o.x, Q.p[2] - o.y); if (d < bd && G.names[Q.nm] === o.name) { bd = d; best = pi; } } return best; });
+  }
+  let S = null; B.st.forEach((T, k) => { if (T && G._bp[k] >= 0 && brkAt(B, k, tt)) (S || (S = new Set())).add(G._bp[k]); }); return S;
+}
 // what the straight line from a to b runs into first, the first and last 0.9 m left out as in losBlocked: { u, what:
-// 'ground' | 'object' | 'tree', o, mat } or null (clear) - with the exact shapes (G), the terrain and tree trunks
-function exactHit(D, G, ax, ay, ah, bx, by, bh, any) {
+// 'ground' | 'object' | 'tree', o, mat } or null (clear) - with the exact shapes (G), the terrain and tree trunks; at tt
+// without the breakable objects broken by then
+function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy); if (L < 2 * LOS_END) return null;
   const e0 = LOS_END / L, e1 = 1 - e0; let best = null;
   const n = Math.ceil(L / D.hmStep * 2);
   for (let k = 1; k < n; k++) { const u = k / n; if (u < e0 || u > e1) continue; if (ah + dh * u < groundAt(D, ax + dx * u, ay + dy * u) - 0.15) { best = { u, what: 'ground' }; break; } }
   if (best && any) return best;
-  const h = geoHit(G, ax, ay, ah, bx, by, bh, e0, best ? best.u : e1, any); if (h) { best = { ...h, what: 'object' }; if (any) return best; }
+  const h = geoHit(G, ax, ay, ah, bx, by, bh, e0, best ? best.u : e1, any, geoOff(D, G, tt)); if (h) { best = { ...h, what: 'object' }; if (any) return best; }
   const v = vegHit(ax, ay, ah, bx, by, bh, true); if (v !== null && v >= e0 && v <= e1 && (!best || v < best.u)) best = { u: v, what: 'tree' };
   return best;
 }
@@ -1785,7 +1927,7 @@ function canSee(i, j, tt, V) {
   if (q.h == null || o.h == null) return null;
   const eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
   if (eye == null) return null;
-  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  for (const th of pts) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
   return false;
 }
 // ---------- what a soldier sees ----------
@@ -2034,7 +2176,7 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
       if (d - rm > R || (d > rm && angOff(Math.atan2(dx, dy), q.yaw) > VIEW_HALF + Math.asin(Math.min(1, rm / d)) + 0.02)) continue;
       for (const [r, z0, z1] of vegParts(P, o)) vegs.push([P[o], P[o + 1], r, z0, z1, P[o + 2] ? Math.min(VEG_THICK, rm) : 0]);
     } }
-  const S = D.gStep, T = D.T, tW = D.tW, W = D.gW, Hh = D.gH, tile = D.tile, cs = D.cs, sp = D.sp, TT = T * T;
+  const S = D.gStep, T = D.T, tW = D.tW, W = D.gW, Hh = D.gH, tile = D.tile, cs = D.cs, sp = D.sp, TT = T * T, OFF = brkOff(D, tt);
   const gx0 = (q.x - D.gX0) / S, gy0 = (q.y - D.gY0) / S, out = [];
   // the angles blocked so far along the ray, as slopes (height over distance): IV[2k], IV[2k + 1] sorted and apart, nI
   // of them; H the steepest of the ground so far (what lies lower is hidden)
@@ -2081,8 +2223,8 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
         const s = sNext, g = Math.max(wl, groundAt(D, q.x + ux * s, q.y + uy * s)); let L = 0;
         // where one could stand here: the ground, and the top of each span (roof, upper floor, wall) with room above it
         for (let m = ca - 1; m < cb && L < 2; m++) {
-          const base = m < ca ? g : sp[2 * m + 1] / 10; if (m >= ca && base <= g + 0.2) continue;
-          let room = true; for (let o = ca; o < cb; o++) if (sp[2 * o] / 10 < base + 1.5 && sp[2 * o + 1] / 10 > base + 0.3) { room = false; break; }
+          const base = m < ca ? g : sp[2 * m + 1] / 10; if (m >= ca && (base <= g + 0.2 || (OFF && spanOut(OFF, m)))) continue;
+          let room = true; for (let o = ca; o < cb; o++) if (sp[2 * o] / 10 < base + 1.5 && sp[2 * o + 1] / 10 > base + 0.3 && !(OFF && spanOut(OFF, o))) { room = false; break; }
           if (!room) continue;
           const v2 = (base + 0.3 - eh) / s, v1 = (base + 1.5 - eh) / s;
           if (v2 >= vLo && v2 <= vHi && seen(v2)) L = 2;
@@ -2094,7 +2236,7 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
         sNext = s + Math.max(minStep, Math.min(2, s * da * 1.5));
       }
       // then what is here hides what lies beyond (not within arm's length; the floor he stands on still counts)
-      if (s1 > LOS_END && cb > ca) { const sa = Math.max(s0, LOS_END); for (let m = ca; m < cb; m++) { const zl = sp[2 * m] / 10 - eh, zh = sp[2 * m + 1] / 10 - eh; block(Math.min(zl / sa, zl / s1), Math.max(zh / sa, zh / s1)); } }
+      if (s1 > LOS_END && cb > ca) { const sa = Math.max(s0, LOS_END); for (let m = ca; m < cb; m++) { if (OFF && spanOut(OFF, m)) continue; const zl = sp[2 * m] / 10 - eh, zh = sp[2 * m + 1] / 10 - eh; block(Math.min(zl / sa, zl / s1), Math.max(zh / sa, zh / s1)); } }
       while (vi < vb.length && vb[vi][0] <= s1) { const v = vb[vi++], l = v[2] - eh, h = v[3] - eh; block(Math.min(l / v[0], l / v[1]), Math.max(h / v[0], h / v[1])); }
       if (s1 >= Rk) break;
       if (skip) {   // (the first cell past the tile)
@@ -2165,7 +2307,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
   // the ground, the sea, walls and roofs nearer than that
   const D = losData();
   if (D && !flat) {
-    const S = D.gStep, T = D.T, wl = WATER[mapKey()] ?? -1e9;
+    const S = D.gStep, T = D.T, wl = WATER[mapKey()] ?? -1e9, OFF = brkOff(D, tt);
     for (let l = 0.6; l < best.l; l += 0.2) {
       const x = q.x + ux * l, y = q.y + uy * l, h = e0 + uh * l, g = groundAt(D, x, y);
       if (h < g || h < wl) { best = { l, kind: g >= wl ? 'ground' : 'water', j: null }; break; }
@@ -2173,7 +2315,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
       if (cx_ < 0 || cy_ < 0 || cx_ >= D.gW || cy_ >= D.gH) continue;
       const k = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (k < 0) continue;
       const c = k * T * T + (cy_ % T) * T + (cx_ % T), h10 = h * 10; let hit = false;
-      for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1]) { hit = true; break; }
+      for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1] && !(OFF && spanOut(OFF, m))) { hit = true; break; }
       if (hit) { best = { l, kind: 'wall', j: null }; break; }
     }
     const u = vegHit(q.x, q.y, e0, q.x + ux * best.l, q.y + uy * best.l, e0 + uh * best.l, true);   // (a tree trunk)
@@ -2191,7 +2333,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
       if (!flat && o.h != null && q.pitch != null) { const [z0, z1] = bodyCol(j, o, ot), a0 = Math.atan2(z0 - e0, dd), a1 = Math.atan2(z1 - e0, dd); offV = (pt < a0 ? a0 - pt : pt > a1 ? pt - a1 : 0) * 180 / Math.PI; zt = Math.min(z1, Math.max(z0, e0 + Math.tan(pt) * dd)); }
       const off = Math.hypot(offH, offV); if (off > tol || (pick && off >= pick.off)) return;
       if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return;
-      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, ot) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !losBlocked(D, q.x, q.y, e0, o.x, o.y, z) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
+      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, ot) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !losBlocked(D, q.x, q.y, e0, o.x, o.y, z, tt) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
       const dn = Math.hypot(n.x - q.x, n.y - q.y); pick = { j, off, l: Math.hypot(dn, (zt - e0)), x: n.x, y: n.y, h: zt, d: dn };
     });
     if (pick) return { x: pick.x, y: pick.y, h: pick.h, l: pick.l, d: pick.d, kind: 'soldier', j: pick.j, off: pick.off, from: q };
@@ -2391,7 +2533,7 @@ function seesVeh(i, j, tt) {
   const eye = eyeOf(i, q, tt);
   if (q.h != null && o.h != null && !inVBand(q.pitch, eye, hd, o.h - 1.0, o.h + 1.5)) return false;
   const D = losData(); if (!D || q.h == null || o.h == null) return true;
-  for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
   return false;
 }
 // An attack looked at from both sides over the 8 s before it (before the rocket left the launcher, or the first hit), as
@@ -2540,7 +2682,7 @@ function spotterOf(e) {
 function bodyClearExact(D, G, q, eye, j, o, tt) {
   const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  for (const th of hs) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true)) return true;
+  for (const th of hs) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true, tt)) return true;
   return false;
 }
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
@@ -2548,14 +2690,14 @@ function bodyClearExact(D, G, q, eye, j, o, tt) {
 function bodyLines(D, q, eye, j, o, tt) {
   const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) if (!losBlocked(D, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th) && !vegBlocks(q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true)) n++;
+  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) if (!losBlocked(D, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, tt) && !vegBlocks(q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true)) n++;
   return [n, 9];
 }
 // where the straight line from a to b first runs into the ground or a wall (as a share 0-1 of the way), the first and last
 // 0.9 m left out as in losBlocked; null when clear
-function segHit(D, ax, ay, ah, bx, by, bh) {
+function segHit(D, ax, ay, ah, bx, by, bh, tt) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy), L3 = Math.hypot(dx, dy, dh); if (L < 2 * LOS_END) return null;
-  const skip = LOS_END / L, n = Math.ceil(L3 / 0.1), S = D.gStep, T = D.T;
+  const skip = LOS_END / L, n = Math.ceil(L3 / 0.1), S = D.gStep, T = D.T, OFF = brkOff(D, tt);
   for (let k = 0; k <= n; k++) {
     const u = k / n; if (u < skip || u > 1 - skip) continue;
     const x = ax + dx * u, y = ay + dy * u, h = ah + dh * u;
@@ -2564,7 +2706,7 @@ function segHit(D, ax, ay, ah, bx, by, bh) {
     if (cx_ < 0 || cy_ < 0 || cx_ >= D.gW || cy_ >= D.gH) continue;
     const tk = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (tk < 0) continue;
     const c = tk * T * T + (cy_ % T) * T + (cx_ % T), h10 = h * 10;
-    for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1]) return u;
+    for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1] && !(OFF && spanOut(OFF, m))) return u;
   }
   return null;
 }
@@ -2898,7 +3040,9 @@ function draw() {
       cx.fillStyle = css('--bld-fill'); for (const C of vis) cx.fill(C.walls, 'evenodd');
       cx.strokeStyle = css('--bld-line'); for (const C of vis) cx.stroke(C.walls);
       drawPosts(cx, vis, k, 4);
+      const bl = B.D.brk ? brkDraw(cx, B.D, t, k) : [];
       cx.restore();
+      if (bl.length) brkMarks(cx, B.D, bl, k, t);
     }
   } }
   // trees and bushes (Buildings layer too): crowns as soft green discs (edged when zoomed in), trunks as dots
@@ -4420,7 +4564,7 @@ function adminHints() {
             if (bodyClearExact(D, G, a, eyeOf(ki, a, tq), vi, b, tq)) { clear2 = true; break; }
           }
           if (k2 >= 7) {
-            const ey = eyeOf(ki, q, tt), sv = o.veh ? 0 : stanceNow(R.players[vi], tt) ?? 0, by = exactHit(D, G, q.x, q.y, ey, o.x, o.y, o.h + (o.veh ? 0.9 : AIM_H[sv][1]), false);
+            const ey = eyeOf(ki, q, tt), sv = o.veh ? 0 : stanceNow(R.players[vi], tt) ?? 0, by = exactHit(D, G, q.x, q.y, ey, o.x, o.y, o.h + (o.veh ? 0.9 : AIM_H[sv][1]), false, tt);
             out.push({ t: e.t, kind: 'wall', adm: true, actor: e.killer, kill: e, hidden: clear2 ? k2 * 0.1 : null, by, x: e.x, y: e.y });
           }
         }
@@ -4734,14 +4878,14 @@ function drawSide() {
   const kEye = kFoot ? q.h + EYE_H[kSt] : q.h + 1.2, kFeet = q.h - 1.0, vFeet = o.h - 1.0, vEye = vFoot ? o.h + EYE_H[vSt] : o.h + 1.2;
   const vHead = o.h + (vFoot ? AIM_H[vSt][0] : 1.4), vChest = o.h + (vFoot ? AIM_H[vSt][1] : 0.6);
   const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy) || 0.01, ux = dx / hd, uy = dy / hd;
-  const ext = Math.max(4, hd * 0.12), s0 = -ext, s1 = hd + ext, step = D ? D.gStep / 2 : (s1 - s0) / 120;
+  const ext = Math.max(4, hd * 0.12), s0 = -ext, s1 = hd + ext, step = D ? D.gStep / 2 : (s1 - s0) / 120, OFF = D ? brkOff(D, tt) : null;
   // ground and walls along the line
   const cols = []; let lo = Math.min(kFeet, vFeet), hi = Math.max(kEye, vHead) + 0.6, top = Math.max(kEye, vHead) + 12;
   for (let sd = s0; sd <= s1 + 1e-6; sd += step) {
     const x = q.x + ux * sd, y = q.y + uy * sd, g = D ? groundAt(D, x, y) : kFeet + (vFeet - kFeet) * Math.min(1, Math.max(0, sd / hd)), sp = [];
     if (D) {
       const S = D.gStep, T = D.T, cx_ = Math.floor((x - D.gX0) / S), cy_ = Math.floor((y - D.gY0) / S);
-      if (cx_ >= 0 && cy_ >= 0 && cx_ < D.gW && cy_ < D.gH) { const tk = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (tk >= 0) { const c = tk * T * T + (cy_ % T) * T + (cx_ % T); for (let m = D.cs[c]; m < D.cs[c + 1]; m++) sp.push([D.sp[2 * m] / 10, D.sp[2 * m + 1] / 10]); } }
+      if (cx_ >= 0 && cy_ >= 0 && cx_ < D.gW && cy_ < D.gH) { const tk = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (tk >= 0) { const c = tk * T * T + (cy_ % T) * T + (cx_ % T); for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (!(OFF && spanOut(OFF, m))) sp.push([D.sp[2 * m] / 10, D.sp[2 * m + 1] / 10]); } }
     }
     cols.push([sd, g, sp]); lo = Math.min(lo, g); for (const [, b] of sp) hi = Math.max(hi, Math.min(b, top));
   }
@@ -4774,7 +4918,7 @@ function drawSide() {
   // lines of sight from his eye to the victim's head and chest
   const ok = css('--medic'), bad = css('--hp-low'), hits = [], leafy = [];
   for (const th of [vHead, vChest]) {
-    const uw = D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u); leafy.push(u != null && u === uv);
+    const uw = D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th, tt) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u); leafy.push(u != null && u === uv);
     const ax = X(0), ay = Y(kEye), bx = X(hd), by = Y(th), mx = u == null ? bx : ax + (bx - ax) * u, my = u == null ? by : ay + (by - ay) * u;
     g2.lineWidth = 1.5; g2.strokeStyle = ok; g2.setLineDash([]); g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(mx, my); g2.stroke();
     if (u != null) { g2.strokeStyle = bad; g2.setLineDash([4, 3]); g2.beginPath(); g2.moveTo(mx, my); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); g2.lineWidth = 2; g2.beginPath(); g2.moveTo(mx - 4, my - 4); g2.lineTo(mx + 4, my + 4); g2.moveTo(mx + 4, my - 4); g2.lineTo(mx - 4, my + 4); g2.stroke(); }
@@ -5910,9 +6054,22 @@ const bitsVal = s => parseInt(s.split('').reverse().join(''), 2);
 const CP_FULL = bitsVal('10000000111100000001111111'), CP_UPD = bitsVal('10000011'), CP_TOP = 26214;
 // Emplacements (machine guns, TOW / HJ-8, Igla / Stinger, artillery) are created in the opening snapshot like any object,
 // with their template (GAME.statics) and position; flag spawners create them again for the new owner after a capture.
-function scanCreates(B, out, veh, stat, t) {   // object creation: id -> position
+// The map's destroyable objects too (fences, traffic lights, signs, trestles, barrels, carts, bridges...: objs, any other
+// template the snapshot creates with that layout, at its place in the level); an id they had made again later is no
+// longer theirs (the same template on the same spot: the object back after a respawn).
+function scanCreates(B, out, veh, stat, t, objs) {   // object creation: id -> position
   for (let s = 16; s < B.n - 155; s++) {
     if (B.u(s, 7) !== 6) continue;
+    if (objs && B.u(s + 50, 9) >= 256) {
+      const tp = B.u(s + 7, 16), id = B.u(s + 38, 12);
+      if (t <= 1 && !GAME.statics[tp] && !VEHICLES[tp] && !objs.has(id)) {
+        const x = B.f(s + 59), y = B.f(s + 91), z = B.f(s + 123);
+        if (okPos(x, y, z) && Math.abs(x) >= 1 && Math.abs(z) >= 1) objs.set(id, { tpl: tp, x, y, z, L: 0, hits: [] });
+      } else if (t > 1 && objs.has(id)) {
+        const o = objs.get(id), x = B.f(s + 59), z = B.f(s + 123);
+        if (okPos(x, B.f(s + 91), z)) { if (tp === o.tpl && Math.hypot(x - o.x, z - o.z) < 1) { o.hits.push([+t.toFixed(2), -1, 0]); o.gone = 0; } else objs.delete(id); }
+      }
+    }
     if (stat && GAME.statics[B.u(s + 7, 16)] && B.u(s + 50, 9) >= 256) {
       const x = B.f(s + 59), y = B.f(s + 91), z = B.f(s + 123);
       if (okPos(x, y, z) && Math.abs(x) >= 1 && Math.abs(z) >= 1) stat.push({ t, id: B.u(s + 38, 12), tpl: B.u(s + 7, 16), x, y, z });
@@ -6188,7 +6345,7 @@ async function decodeDemo(data, progress) {
   const info = PA.mode ? { mode: PA.mode, size: PA.size } : pres.length ? preambleInfo(pres[0], mapName) : {};
   const pset = new Set(players.map(p => p.index));
   const obs = [], evs = [], rot = [], hp = [], vhp = [], stance = [], item = [], joins = [], sids = new Set(), created = new Map(), vehTpl = new Map(), cps = new Map(), cpEv = [], tkEv = [], stat = [], live = new Map(), flights = []; let t0 = null, lastTick = 0;
-  const tur = [], cup = [], emp = [], empBase = [], statIds = new Set(); let nBlk = 0, nOld = 0;
+  const tur = [], cup = [], emp = [], empBase = [], statIds = new Set(), objs = new Map(); let nBlk = 0, nOld = 0;
   const st = { obs, rotOut: rot, hp, vhp, stance, item, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false };
   let lastYield = performance.now();
   for (let i = 0; i < R.recs.length; i++) {
@@ -6203,7 +6360,17 @@ async function decodeDemo(data, progress) {
     if (blk) nBlk++; else if (typ === 2 || typ === 4 || typ === 6) nOld++;
     const BM = blk && typ !== 4 ? msgBits(B, blk.b + 2) : B;
     // (creations first: a vehicle made in this packet is known for its records)
-    if (typ === 2 || typ === 6) { const ns = stat.length; scanCreates(BM, created, vehTpl, stat, t); for (let k = ns; k < stat.length; k++) statIds.add(stat[k].id); }
+    if (typ === 2 || typ === 6) { const ns = stat.length; scanCreates(BM, created, vehTpl, stat, t, objs); for (let k = ns; k < stat.length; k++) statIds.add(stat[k].id); }
+    // a destroyable object's state: its record as long as its first (the snapshot's) - 2 bits, a flag, its hit points
+    // (LSB first, the rest of the head) and the 96-bit direction it was hit from; null when it is gone from the game
+    // (hits: [t, hit points, the flag]; -2 gone, -1 made again)
+    if (blk && objs.size) for (const rc of blk.recs) {
+      const o = objs.get(rc.id); if (!o) continue;
+      if (rc.gone) { if (t > 1 && !o.gone) { o.hits.push([+t.toFixed(2), -2, 0]); o.gone = 1; } continue; }
+      if (o.gone) continue;   // (till it is made again)
+      if (!o.L) { o.L = rc.L; continue; }
+      if (rc.L === o.L && t > 1 && rc.L > 99) o.hits.push([+t.toFixed(2), B.u(rc.s + 35, Math.min(20, rc.L - 99)), B.bit(rc.s + 34) ? 1 : 0]);
+    }
     st.rot = sids.size > 0 || vehTpl.size > 0 || live.size > 0; st.cp = typ === 4 && cps.size > 0;
     if (blk) scanRecs(B, blk.recs, t, st); else if (typ === 2 || typ === 4 || typ === 6) scanRecords(B, t, st);
     // (the flags' full records: in the opening snapshot, a type 4 packet - on 2F4Y.com's Dalian Plant a type 6 one)
@@ -6228,7 +6395,7 @@ async function decodeDemo(data, progress) {
   const duration = t0 === null ? 0 : (lastTick - t0) / 30;
   const cpList = [...cps.keys()].filter(id => created.has(id)).map(id => ({ id, pos: created.get(id), tpl: created.get(id)[3], ...cps.get(id) }));
   progress && progress(0.6, 'build');
-  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, item, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, packets: { exact: nBlk, searched: nOld }, tplOf: id => vehTpl.get(id),
+  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, players, joins, obs, evs, rot, hp, vhp, stance, item, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, objs: [...objs.entries()].filter(([id, o]) => o.hits.length && o.L >= 100 && o.L <= 120 && o.hits.length <= 300 && !sids.has(id) && !vehTpl.has(id) && !statIds.has(id) && !cps.has(id)).map(([, o]) => o), packets: { exact: nBlk, searched: nOld }, tplOf: id => vehTpl.get(id),
     progress: progress ? f => progress(0.6 + 0.4 * f, 'build') : null });
 }
 async function buildTimeline(r) {
@@ -7118,6 +7285,9 @@ async function buildTimeline(r) {
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', scoreEstimate: true, manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: mi ? mi.teams[0] : 'Team 1', tickets: tkStart[0] ?? 0 }, { id: 1, name: mi ? mi.teams[1] : 'Team 2', tickets: tkStart[1] ?? 0 }],
     players: ents, flags, frames: [], cols, events, emplacements,
+    // the map's destroyable objects that were hit: where (x east, y north, h), template, [time, hit points (-1 back after a
+    // respawn, -2 gone), flag]
+    breaks: (r.objs || []).map(o => ({ x: +o.x.toFixed(2), y: +o.z.toFixed(2), h: +o.y.toFixed(2), tpl: o.tpl, hits: o.hits })),
     stats: { emplacements: emplacements.length, throws: throws.length, smokes: smokes.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, emplacementAim: (r.emp || []).length, packets: r.packets, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
 }
 
