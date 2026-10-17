@@ -52,6 +52,8 @@
   --bld-fill: rgba(10, 12, 10, .5); --bld-line: rgba(236, 240, 228, .8); --bld-roof: rgba(10, 12, 10, .3);
   /* trees and bushes (Buildings layer): crowns and trunks */
   --veg-fill: rgba(64, 140, 56, .32); --veg-line: rgba(150, 215, 120, .65);
+  /* relief layer: contour lines (every 5th bold, with its height) and the ground higher than the followed soldier's eyes */
+  --rel-minor: rgba(240, 214, 160, .42); --rel-major: rgba(255, 222, 150, .92); --rel-above: rgba(110, 235, 220, .8);
   color-scheme: dark;
 }
 /* dark for everyone; light colours only when picked with the sun button in the header (remembered in the browser) */
@@ -62,6 +64,7 @@
   --medic: #1f8a46; --hp-low: #c62828; --seen: #c0189a; --aim: #ffd21f;
   --hit-head: #eda100; --hit-body: #1baf7a; --hit-limb: #4a3aa7;
   --bld-fill: rgba(40, 44, 38, .32); --bld-line: rgba(18, 22, 16, .85); --bld-roof: rgba(40, 44, 38, .16); --veg-fill: rgba(40, 120, 40, .24); --veg-line: rgba(30, 95, 30, .6);
+  --rel-minor: rgba(120, 72, 24, .45); --rel-major: rgba(110, 62, 16, .9); --rel-above: rgba(0, 115, 120, .75);
   color-scheme: light;
 }
 /* a round where the first team is the USMC (a timeline from another tool, the sample round) keeps US blue */
@@ -186,9 +189,9 @@ input[type=file] { display: none; }
 .qseg .sg:last-child { border-radius: 0 4px 4px 0; }
 .qseg .sg[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
 .qseg .sg:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.mapctl .qwall { gap: 6px; }
-.mapctl .qwall svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mapctl .qwall[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapctl :is(.qwall, .qrel) { gap: 6px; }
+.mapctl :is(.qwall, .qrel) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mapctl :is(.qwall, .qrel)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapctl .vside svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .mapctl .vside { gap: 6px; }
 /* Controls left: the buttons, speed and zoom in a column down the map's left side; play and the round time stay at the
@@ -207,11 +210,14 @@ input[type=file] { display: none; }
 .mapbox.side .mapplay { flex-wrap: nowrap; }
 .mapbox.side:not(.fs) .mapplay .seekw { order: 0; flex-basis: auto; }
 .mapbox.side .maptoast, .mapbox.side:not(.fs) .maptoast { bottom: 64px; }
-.mapctl .qwall[aria-pressed="false"], .mapplay .qwall[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.mapctl :is(.qwall, .qrel)[aria-pressed="false"], .mapplay :is(.qwall, .qrel)[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .mapplay .qlay { display: none; }   /* (a phone: under the map, in its play bar - below) */
-.mapplay .qwall { gap: 6px; } .mapplay .qwall svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mapplay .qwall[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapplay :is(.qwall, .qrel) { gap: 6px; } .mapplay :is(.qwall, .qrel) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mapplay :is(.qwall, .qrel)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapbox canvas { touch-action: none; }
+/* the ground's height under the pointer (relief layer) */
+.htip { position: absolute; z-index: 4; pointer-events: none; font: 500 11px/1.35 var(--font-data); color: var(--fg); background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; white-space: nowrap; }
+.htip .w { color: var(--muted); }
 /* decoding a demo: progress over the map (the map stays usable underneath) */
 .decbar { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(360px, calc(100% - 32px)); background: color-mix(in srgb, var(--bg) 90%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; box-shadow: 0 6px 24px rgba(0,0,0,.35); display: grid; gap: 8px; pointer-events: none; }
 .decbar[hidden] { display: none; }
@@ -456,7 +462,8 @@ details.schema p { max-width: 70ch; }
   .mapbox:not(.fs) .mapctl .qlay { display: none; }
   .mapbox:not(.fs) .mapplay .qlay { display: flex; flex: 1 1 100%; margin: 0; }
   .mapbox:not(.fs) .mapplay .qseg { flex: 1; } .mapbox:not(.fs) .mapplay .qseg .sg { flex: 1; padding: 9px 8px; }
-  .mapbox:not(.fs) .mapplay .qwall { flex: 1; justify-content: center; font-size: 13px; }
+  .mapbox:not(.fs) .mapplay :is(.qwall, .qrel) { flex: 1; justify-content: center; font-size: 13px; }
+  @media (max-width: 440px) { .mapbox:not(.fs) .mapplay :is(.qwall, .qrel) { padding-left: 6px; padding-right: 6px; } .mapbox:not(.fs) .mapplay :is(.qwall, .qrel) svg { display: none; } }
   .mapbox:not(.fs) .mapplay .qseg .sg { font-size: 13px; }
 }
 /* views under the map: one at a time */
@@ -663,16 +670,17 @@ body.mbar-on { padding-bottom: 72px; }
   <div class="stage">
     <div class="mapbox" id="mapbox">
       <canvas id="map" tabindex="0" aria-label="Tactical map"></canvas>
+      <div class="htip" id="hTip" hidden></div>
       <div class="maphud">
         <span class="tag" id="mapTag">Map</span>
         <span class="tag sim" id="simTag">Simulated</span>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -690,6 +698,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars and dropped ammo / medic bags">Medic</button>
           <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
+          <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height. Following a soldier: the ground higher than his eyes hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). The pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
           </span></span>
           <span class="spacer"></span>
           <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
@@ -700,7 +709,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -817,7 +826,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v114';
+const APP_VERSION = 'v116';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1133,7 +1142,8 @@ let t = 0, playing = false, speed = 10, sel = null, tab = 0;
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', job: null, out: null, drag: null, sel: undefined };
-const opts = { names:true, feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true, cam3:false };
+const opts = { names:true, feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, view:true, walls:true, models:true, cam3:false, relief:false };
+try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.vehicles') === 'icons') opts.models = false; } catch (e) {}
 // a vehicle seat's view from its third-person camera instead of its own (the card's View row switches it)
 try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
@@ -1604,6 +1614,147 @@ function wallsImage(B) {
   drawPosts(g, B.chunks, k, 2.5);
   B.img = { c, x0: D.gX0, y1: D.gY0 + h, w, h, theme: document.documentElement.dataset.theme || '' };
   return B.img;
+}
+// ---------- relief (v116) ----------
+// The lie of the land, Layers ▾ > Relief (H), as on a topographic map - from the sight-line file's heightmap (D.hm, a
+// sample every 2 m): hill shading (ground sloping away from a light in the north-west darker, towards it lighter, flat
+// ground as it is: a picture the heightmap's size, once per map) and contour lines - every 2 m zoomed in (5 px a metre
+// and more: under ~140 m across), 5 m (under ~580 m), 10 m further out; every 5th bold, with its height on it here and there. Nothing under the
+// sea's level (WATER). Following a soldier: the ground higher than his eyes hatched, a line where it rises past them -
+// from there one looks down on him (the terrain only: roofs not counted). The pointer over the map: the ground's height
+// there and how much higher or lower than the followed soldier's feet (hTip). (v116, Sagara: "the heights on the map
+// as a layer of their own - contour lines like a paper map, or something better")
+const REL_CH = 32;   // samples per side of a square of contour lines (64 m), worked out as it comes into view
+function reliefOf(D) {
+  if (D._rel && D._rel.key === mapKey()) return D._rel;
+  const N = D.hmN, H = D.hm, st = D.hmStep, sc = D.hmScale, b0 = D.hmBase, wl = WATER[mapKey()] ?? -1e9, hAt = i => b0 + sc * H[i];
+  // the hill shading: a dark veil on slopes facing away from the light, a light one on those facing it (a picture with
+  // the north up, a pixel a sample)
+  const c = document.createElement('canvas'); c.width = N; c.height = N;
+  const g = c.getContext('2d'), im = g.createImageData(N, N), px = im.data, Lx = -0.5, Ly = 0.5, Lz = Math.SQRT1_2, Z = 1.6;
+  for (let r = 0; r < N; r++) {
+    const rn = Math.min(N - 1, r + 1) * N, rs = Math.max(0, r - 1) * N;
+    for (let q = 0; q < N; q++) {
+      const i = r * N + q; if (hAt(i) < wl) continue;
+      const dx = (H[r * N + Math.min(N - 1, q + 1)] - H[r * N + Math.max(0, q - 1)]) * sc / (2 * st), dy = (H[rn + q] - H[rs + q]) * sc / (2 * st);
+      const sh = (-dx * Lx - dy * Ly + Lz) / Math.sqrt(dx * dx + dy * dy + 1), a = Math.max(-0.5, Math.min(0.75, (Lz - sh) * Z)), o = ((N - 1 - r) * N + q) * 4;
+      if (a > 0) px[o + 3] = a * 0.62 * 255; else { px[o] = px[o + 1] = px[o + 2] = 255; px[o + 3] = -a * 0.5 * 255; }
+    }
+  }
+  g.putImageData(im, 0, 0);
+  return (D._rel = { key: mapKey(), D, N, st, sc, b0, wl, shade: c, ch: new Map(), over: new Map() });
+}
+// the contour lines at every iv m in square (cxk, cyk) (marching squares; a saddle split by its middle's height):
+// { minor, major: Path2D in map metres, lab: [[x, y, angle, height]] - per bold level the piece nearest the square's middle }
+function reliefChunk(R, iv, cxk, cyk) {
+  const key = iv + ':' + cxk + ':' + cyk; let C = R.ch.get(key); if (C) return C;
+  const { N, st, sc, b0, wl, D } = R, H = D.hm, X0 = D.hmX0, Y0 = D.hmY0, minor = new Path2D(), major = new Path2D(), best = new Map();
+  const q0 = cxk * REL_CH, q1 = Math.min(N - 2, q0 + REL_CH - 1), r0 = cyk * REL_CH, r1 = Math.min(N - 2, r0 + REL_CH - 1), mx = X0 + (q0 + REL_CH / 2) * st, my = Y0 + (r0 + REL_CH / 2) * st;
+  const seg = (v, ax, ay, bx, by) => {
+    const big = Math.round(v / iv) % 5 === 0, P = big ? major : minor; P.moveTo(ax, ay); P.lineTo(bx, by);
+    if (big) { const d = Math.hypot((ax + bx) / 2 - mx, (ay + by) / 2 - my), o = best.get(v); if (!o || d < o[0]) best.set(v, [d, (ax + bx) / 2, (ay + by) / 2, Math.atan2(by - ay, bx - ax)]); }
+  };
+  for (let r = r0; r <= r1; r++) for (let q = q0; q <= q1; q++) {
+    const i = r * N + q, h0 = b0 + sc * H[i], h1 = b0 + sc * H[i + 1], h2 = b0 + sc * H[i + N + 1], h3 = b0 + sc * H[i + N];   // (corners: SW, SE, NE, NW)
+    const lo = Math.min(h0, h1, h2, h3), hi = Math.max(h0, h1, h2, h3); if (hi <= lo) continue;
+    const x = X0 + q * st, y = Y0 + r * st;
+    for (let v = Math.ceil(lo / iv) * iv; v < hi; v += iv) {
+      if (v < wl || v <= lo) continue;
+      const k = (h0 > v ? 1 : 0) | (h1 > v ? 2 : 0) | (h2 > v ? 4 : 0) | (h3 > v ? 8 : 0); if (k === 0 || k === 15) continue;
+      const E = [[x + st * (v - h0) / (h1 - h0), y], [x + st, y + st * (v - h1) / (h2 - h1)], [x + st * (v - h3) / (h2 - h3), y + st], [x, y + st * (v - h0) / (h3 - h0)]];   // (edges: S, E, N, W)
+      const on = [(k & 1) !== ((k >> 1) & 1), ((k >> 1) & 1) !== ((k >> 2) & 1), ((k >> 2) & 1) !== ((k >> 3) & 1), ((k >> 3) & 1) !== (k & 1)];
+      if (k === 5 || k === 10) { const mid = (h0 + h1 + h2 + h3) / 4 > v, pairs = (k === 5) === mid ? [[0, 1], [2, 3]] : [[3, 0], [1, 2]]; for (const [a, b] of pairs) seg(v, E[a][0], E[a][1], E[b][0], E[b][1]); continue; }
+      const e = []; for (let m = 0; m < 4; m++) if (on[m]) e.push(E[m]);
+      seg(v, e[0][0], e[0][1], e[1][0], e[1][1]);
+    }
+  }
+  C = { minor, major, lab: [...best].map(([v, o]) => [o[1], o[2], o[3], v]) }; R.ch.set(key, C); return C;
+}
+// the contour lines' interval (m) at this zoom (k: px a metre)
+const reliefIv = k => k >= 5 ? 2 : k >= 1.2 ? 5 : 10;
+// draws the relief layer under everything else (in screen pixels; toC)
+function drawRelief(D) {
+  const R = reliefOf(D), k = size / view.span, st = R.st, N = R.N;
+  // the shading, stretched over the map (a sample's pixel centred on it)
+  { const [ax, ay] = toC(D.hmX0 - st / 2, D.hmY0 + (N - 1) * st + st / 2), w = N * st * k;
+    cx.save(); cx.imageSmoothingEnabled = true; cx.drawImage(R.shade, ax, ay, w, w); cx.restore(); }
+  // the contour lines of the squares in view
+  const iv = reliefIv(k), vx1 = view.x0 + view.span, vy0 = view.y0 - view.span * sizeH / size, cs = REL_CH * st;
+  const i0 = Math.max(0, Math.floor((view.x0 - D.hmX0) / cs)), i1 = Math.min(Math.ceil((N - 1) / REL_CH) - 1, Math.floor((vx1 - D.hmX0) / cs));
+  const j0 = Math.max(0, Math.floor((vy0 - D.hmY0) / cs)), j1 = Math.min(Math.ceil((N - 1) / REL_CH) - 1, Math.floor((view.y0 - D.hmY0) / cs));
+  const L = []; for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) L.push([i, j, reliefChunk(R, iv, i, j)]);
+  cx.save(); cx.transform(k, 0, 0, -k, -view.x0 * k, view.y0 * k); cx.lineCap = 'round';
+  cx.strokeStyle = css('--rel-minor'); cx.lineWidth = 0.75 / k; for (const [, , C] of L) cx.stroke(C.minor);
+  cx.strokeStyle = css('--rel-major'); cx.lineWidth = 1.3 / k; for (const [, , C] of L) cx.stroke(C.major);
+  cx.restore();
+  // heights on the bold lines: in one square of every few (about 220 px apart), along the line, upright
+  const every = Math.max(1, Math.round(220 / (cs * k)));
+  cx.save(); cx.font = '500 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.lineJoin = 'round';
+  const ink = css('--rel-major'), bg = css('--bg');
+  for (const [i, j, C] of L) {
+    if (i % every || j % every) continue;
+    for (const [x, y, a, v] of C.lab) {
+      const [px, py] = toC(x, y); let ang = -a; if (ang > Math.PI / 2) ang -= Math.PI; if (ang < -Math.PI / 2) ang += Math.PI;
+      cx.save(); cx.translate(px, py); cx.rotate(ang); cx.strokeStyle = bg; cx.lineWidth = 3; cx.strokeText(String(v), 0, 0); cx.fillStyle = ink; cx.fillText(String(v), 0, 0); cx.restore();
+    }
+  }
+  cx.restore();
+}
+// following a soldier: the ground higher than his eyes (eye, m over the sea), washed and hatched, and the line where it
+// rises past them - over the part of the heightmap in view (every few samples when zoomed out)
+let relHatch = null;
+function drawAbove(D, eye) {
+  const R = reliefOf(D), st = R.st, N = R.N, H = D.hm, sc = R.sc, b0 = R.b0, k = size / view.span;
+  const vx1 = view.x0 + view.span, vy0 = view.y0 - view.span * sizeH / size;
+  let q0 = Math.max(0, Math.floor((view.x0 - D.hmX0) / st) - 1), q1 = Math.min(N - 1, Math.ceil((vx1 - D.hmX0) / st) + 1), r0 = Math.max(0, Math.floor((vy0 - D.hmY0) / st) - 1), r1 = Math.min(N - 1, Math.ceil((view.y0 - D.hmY0) / st) + 1);
+  if (q1 <= q0 || r1 <= r0) return;
+  const S = Math.max(1, Math.ceil(Math.max(q1 - q0, r1 - r0) / 320)), w = Math.floor((q1 - q0) / S) + 1, h = Math.floor((r1 - r0) / S) + 1, ev = (eye - b0) / sc;
+  const m = document.createElement('canvas'); m.width = w; m.height = h; const g = m.getContext('2d'), im = g.createImageData(w, h);
+  let any = false;
+  for (let b = 0; b < h; b++) for (let a = 0; a < w; a++) { const i = (r0 + b * S) * N + q0 + a * S; if (H[i] > ev) { im.data[((h - 1 - b) * w + a) * 4 + 3] = 255; any = true; } }
+  if (!any) return;
+  g.putImageData(im, 0, 0);
+  // hatch it on a canvas the map's size (the mask stretched, smooth at its edges)
+  const ink = css('--rel-above');
+  if (!relHatch || relHatch.ink !== ink) {   // (a light wash of the colour, and a line across every 9 px)
+    const pc = document.createElement('canvas'); pc.width = pc.height = 9; const pg = pc.getContext('2d'); pg.fillStyle = ink; pg.globalAlpha = 0.2; pg.fillRect(0, 0, 9, 9); pg.globalAlpha = 1;
+    pg.strokeStyle = ink; pg.lineWidth = 1.1; pg.beginPath(); pg.moveTo(-1, 10); pg.lineTo(10, -1); pg.stroke(); relHatch = { ink, pc }; }
+  const o = drawAbove.c || (drawAbove.c = document.createElement('canvas')); if (o.width !== Math.ceil(size * dpr) || o.height !== Math.ceil(sizeH * dpr)) { o.width = Math.ceil(size * dpr); o.height = Math.ceil(sizeH * dpr); }
+  const og = o.getContext('2d'); og.setTransform(1, 0, 0, 1, 0, 0); og.clearRect(0, 0, o.width, o.height); og.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const [ax, ay] = toC(D.hmX0 + q0 * st - S * st / 2, D.hmY0 + (r0 + (h - 1) * S) * st + S * st / 2); og.imageSmoothingEnabled = true; og.drawImage(m, ax, ay, w * S * st * k, h * S * st * k);
+  og.globalCompositeOperation = 'source-in'; og.fillStyle = og.createPattern(relHatch.pc, 'repeat'); og.fillRect(0, 0, size, sizeH); og.globalCompositeOperation = 'source-over';
+  cx.save(); cx.setTransform(1, 0, 0, 1, 0, 0); cx.globalAlpha = 0.85; cx.drawImage(o, 0, 0); cx.restore(); cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // the line at his eyes' height (marching squares over the same samples)
+  const P = new Path2D(), X = a => D.hmX0 + (q0 + a * S) * st, Y = b => D.hmY0 + (r0 + b * S) * st, hv = (a, b) => H[(r0 + b * S) * N + q0 + a * S];
+  for (let b = 0; b < h - 1; b++) for (let a = 0; a < w - 1; a++) {
+    const h0 = hv(a, b), h1 = hv(a + 1, b), h2 = hv(a + 1, b + 1), h3 = hv(a, b + 1), kk = (h0 > ev ? 1 : 0) | (h1 > ev ? 2 : 0) | (h2 > ev ? 4 : 0) | (h3 > ev ? 8 : 0); if (kk === 0 || kk === 15) continue;
+    const x = X(a), y = Y(b), d = S * st, E = [[x + d * (ev - h0) / (h1 - h0), y], [x + d, y + d * (ev - h1) / (h2 - h1)], [x + d * (ev - h3) / (h2 - h3), y + d], [x, y + d * (ev - h0) / (h3 - h0)]];
+    const on = [(kk & 1) !== ((kk >> 1) & 1), ((kk >> 1) & 1) !== ((kk >> 2) & 1), ((kk >> 2) & 1) !== ((kk >> 3) & 1), ((kk >> 3) & 1) !== (kk & 1)];
+    const pr = kk === 5 || kk === 10 ? ((kk === 5) === ((h0 + h1 + h2 + h3) / 4 > ev) ? [[0, 1], [2, 3]] : [[3, 0], [1, 2]]) : [on.flatMap((f, n) => f ? [n] : [])];
+    for (const [e0, e1] of pr) { P.moveTo(E[e0][0], E[e0][1]); P.lineTo(E[e1][0], E[e1][1]); }
+  }
+  cx.save(); cx.transform(k, 0, 0, -k, -view.x0 * k, view.y0 * k); cx.strokeStyle = ink; cx.lineWidth = 1.6 / k; cx.lineCap = 'round'; cx.stroke(P); cx.restore();
+}
+// the followed soldier's eyes and feet (m over the sea) for the relief layer, or null
+function reliefWho(tt) {
+  if (sel === null) return null; const p = round.players[sel], q = playerAt(sel, tt); if (!q.alive || q.h == null || !Number.isFinite(q.x)) return null;
+  const V = viewOf(sel, tt), D = losData(), g = D ? groundAt(D, q.x, q.y) : q.h - 1;
+  const onFoot = !p.vehicle && !q.veh;
+  return { eye: V && V.eye != null ? V.eye : onFoot ? eyeOf(sel, q, tt) : q.h + 1.5, feet: onFoot ? q.h - 1.0 : g, name: p.vehicle ? p.name : p.name };
+}
+// the ground's height under the pointer (relief layer on, a mouse over the map): a tag by the pointer
+function hTipShow() {
+  const el = $('#hTip'); if (!el) return;
+  const D = round && opts.relief && mapHover && !pan ? losData() : null; if (!D) { el.hidden = true; return; }
+  const [mx, my] = mapHover, x = view.x0 + mx / size * view.span, y = view.y0 - my / size * view.span, g = groundAt(D, x, y), wl = WATER[mapKey()] ?? -1e9;
+  if (g < -1e8) { el.hidden = true; return; }
+  let html = g < wl ? `sea · ${Math.round(wl)} m` : `${Math.round(g)} m`;
+  const who = reliefWho(t);
+  if (who && g >= wl) { const d = g - who.feet, a = Math.abs(d); html += ` <span class="w">· ${a < 0.5 ? 'level with' : (a < 10 ? a.toFixed(1) : Math.round(a)) + ' m ' + (d > 0 ? 'above' : 'below')} ${esc(who.name)}</span>`; }
+  if (el._h !== html) { el.innerHTML = html; el._h = html; }
+  el.hidden = false;
+  const W = el.offsetWidth, left = mx + 16 + W > size ? mx - 12 - W : mx + 16, top = Math.max(0, my + 18 > sizeH - 22 ? my - 30 : my + 18);
+  el.style.left = (cv.offsetLeft + left) + 'px'; el.style.top = (cv.offsetTop + top) + 'px';
 }
 // is the straight line from (ax, ay, ah) to (bx, by, bh) blocked? (x east, y north, h height; the first and last 0.9 m
 // are left out: that is where the two soldiers themselves stand, and how far a head can lean past a corner)
@@ -3017,6 +3168,9 @@ function draw() {
     const mmReady = minimap && (minimap instanceof HTMLCanvasElement || (minimap.complete && minimap.naturalWidth));
     if (mmReady) { cx.drawImage(minimap, dx,dy,dw,dw); cx.globalAlpha = 0.28; cx.fillStyle = css('--bg'); cx.fillRect(dx,dy,dw,dw); cx.globalAlpha = 1; }
     else if (terrain) cx.drawImage(terrain,dx,dy,dw,dw); }
+  // relief (Layers > Relief): shading, contour lines, the ground over the followed soldier's eyes
+  if (opts.relief) { const D = losData(); if (D) { drawRelief(D); const who = reliefWho(t); if (who) drawAbove(D, who.eye); } }
+  if (cx === cvCtx) hTipShow();   // (the height under the pointer, as the round plays on)
   // grid A-H x 1-8
   cx.strokeStyle = 'rgba(128,140,128,.28)'; cx.lineWidth = 1;
   cx.fillStyle = 'rgba(200,210,195,.55)'; cx.font = '500 10px ' + css('--font-data');
@@ -3347,7 +3501,7 @@ function draw() {
       cx.fillStyle = css('--bg'); cx.globalAlpha = 0.75 * ca; cx.fillRect(px - w/2 - 1, yb, w + 2, 5); cx.globalAlpha = ca;
       cx.fillStyle = f > 0.5 ? css('--medic') : f > 0.25 ? css('--accent') : css('--hp-low'); cx.fillRect(px - w/2, yb + 1, Math.max(1, w * f), 3); cx.globalAlpha = 1;
     }
-    if ((opts.names || sel===i) && !(p.vehicle && occupied.has(p.name)) && (sel === i || !inCrowd.has(i))) {   // (in a closed crowd: names only when it fans out)
+    if ((opts.names || sel===i) && !(p.vehicle && occupied.has(p.name)) && !(opts.names && inCrowd.has(i))) {   // (in a closed crowd: its names stacked beside it, below)
       // the kit's tool goes after the name at every zoom
       const kit = !p.vehicle ? kitNow(p, t) : null;   // (also in a vehicle: after his line by it, smaller)
       cx.font = '500 10px ' + css('--font-data'); cx.fillStyle = wreck ? css('--muted') : css('--fg'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
@@ -3362,9 +3516,26 @@ function draw() {
       }
     }
   });
-  // closed crowds (spreadOut): how many there are, by side, in a tag over the crowd - two stacked discs, then a dot in each
-  // side's colour with its count; the pointer over it fans the crowd out
+  // closed crowds (spreadOut): their soldiers' names one above another beside the crowd (v115, Sagara: "don't fold the
+  // names up") - top to bottom as they stand on the map, a dot in his side's colour before each, his kit after it; on
+  // the left where the right runs off the map. Names off: a tag with how many there are by side over the crowd - two
+  // stacked discs, then a dot in each side's colour with its count. The pointer over a crowd fans it out
   for (const { m: G, box } of crowds) {
+    if (opts.names) {
+      const L = G.map(i => { const q = playerAt(i, t), [, y] = toC(q.x, q.y); return { i, y, p: round.players[i], kit: kitNow(round.players[i], t) }; }).sort((a2, b2) => a2.y - b2.y || teamOf(a2.i, t) - teamOf(b2.i, t));
+      cx.font = '500 10px ' + css('--font-data'); const LH = 15, KB = 15;
+      const ws = L.map(o => 9 + cx.measureText(o.p.name).width + (o.kit ? 3 + KB : 0)), Wm = Math.max(...ws);
+      let x = box[2] + 13; if (x + Wm > size - 4 && box[0] - 13 - Wm >= 4) x = box[0] - 13 - Wm;
+      const cyM = (box[1] + box[3]) / 2, y0 = Math.max(12, Math.min(sizeH - 4 - (L.length - 1) * LH, cyM - (L.length - 1) * LH / 2 + 3.5));
+      cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
+      L.forEach((o, k) => {
+        const y = y0 + k * LH, tm = teamOf(o.i, t);
+        cx.fillStyle = tm === 0 || tm === 1 ? teamColor(tm) : css('--neutral'); cx.beginPath(); cx.arc(x + 3, y - 3.5, 3.2, 0, Math.PI * 2); cx.stroke(); cx.fill();
+        cx.fillStyle = css('--fg'); cx.strokeText(o.p.name, x + 9, y); cx.fillText(o.p.name, x + 9, y);
+        if (o.kit) { const gx = x + 9 + cx.measureText(o.p.name).width + 3 + KB / 2; if (!drawKitGlyph(o.kit, gx, y - 3.5, KB)) { const lb = ' · ' + (KIT_SHORT[o.kit] || o.kit); cx.strokeText(lb, gx - KB / 2, y); cx.fillText(lb, gx - KB / 2, y); } }
+      });
+      continue;
+    }
     const cnt = [0, 0, 0]; for (const i of G) { const tm = teamOf(i, t); cnt[tm === 0 ? 0 : tm === 1 ? 1 : 2]++; }
     const parts = cnt.map((n, k) => n ? [String(n), k === 2 ? css('--neutral') : teamColor(k)] : null).filter(Boolean);
     const mx = (box[0] + box[2]) / 2, my = box[1], r = 22;
@@ -3889,6 +4060,7 @@ let hoverRaf = 0;
 cv.addEventListener('pointermove', e => {
   if (pan || e.pointerType !== 'mouse' || !round) return;
   const r = cv.getBoundingClientRect(); mapHover = [e.clientX - r.left, e.clientY - r.top];
+  if (opts.relief) hTipShow();
   if (hoverRaf) return;
   hoverRaf = requestAnimationFrame(() => {
     hoverRaf = 0; if (!round || !mapHover) return;
@@ -3898,7 +4070,7 @@ cv.addEventListener('pointermove', e => {
     if (over || (O && !inOpen)) draw();
   });
 });
-cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; const had = round?._crowdOpen; mapHover = null; if (had) draw(); });
+cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; const had = round?._crowdOpen; mapHover = null; hTipShow(); if (had) draw(); });
 cv.addEventListener('wheel', e => {
   e.preventDefault(); const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
   const [wx, wy] = toW(mx, my), k = Math.exp(Math.sign(e.deltaY) * 0.18);
@@ -5565,12 +5737,14 @@ $('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 
 $('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tNames:'names', tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view', tWalls:'walls' };
-Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); refresh(true); });
+const toggles = { tNames:'names', tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tView:'view', tWalls:'walls', tRelief:'relief' };
+Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } refresh(true); });
+$('#tRelief').classList.toggle('on', opts.relief);
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 function layCount() {
   let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
   document.querySelectorAll('.qwall').forEach(b => b.setAttribute('aria-pressed', String(!!opts.walls)));
+  document.querySelectorAll('.qrel').forEach(b => b.setAttribute('aria-pressed', String(!!opts.relief)));
   $('#layN').textContent = n + '/' + Object.keys(toggles).length;
 }
 const popToggle = (btn, box, on) => { box.hidden = !on; btn.setAttribute('aria-expanded', String(on)); };
@@ -5592,6 +5766,7 @@ document.querySelectorAll('.qI').forEach(b => b.onclick = () => setVehView(false
 for (const seg of document.querySelectorAll('.vwseg, .qseg')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
 // buildings' outlines from the map's own button (or B), the same as Layers ▾ > Buildings
 document.querySelectorAll('.qwall').forEach(b => b.onclick = () => $('#tWalls').click());
+document.querySelectorAll('.qrel').forEach(b => b.onclick = () => $('#tRelief').click());
 setVehView(opts.models);
 // Round stats / Weapons: the long lists show their top 8 until "Show all"
 const stMore = { wpn: false, hit: false };
@@ -5622,6 +5797,7 @@ document.addEventListener('keydown', e => {
   if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round) clipMark(e.code==='KeyI' ? 'a' : 'b');
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
   if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
+  if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
 });
 $('#mapSize').addEventListener('change', e => { const v = Math.max(256, Math.min(8192, +e.target.value||2048)); if (source === 'sim') { loadSim(simSeed, v, round?.meta?.map); } else { W = v; viewFit(); refresh(true); } });
 
