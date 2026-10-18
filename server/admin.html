@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:,">
+<title>BF2 Round Replay · Admin</title>
+<style>
+:root { --bg: #0d110e; --panel: #151b16; --panel-2: #1c241d; --line: #2a352b; --fg: #e4e8de; --muted: #8f9a8c; --accent: #e2b84a; --ok: #6fc276; --bad: #e0675a; --warn: #e2a14a; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+header h1 { margin: 0; font-size: 17px; letter-spacing: .02em; } header h1 b { color: var(--accent); }
+header .ver { color: var(--muted); font: 12px ui-monospace, monospace; }
+header .sp { flex: 1; }
+main { max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.big { font: 600 28px/1.1 ui-monospace, monospace; } .big small { font-size: 13px; color: var(--muted); font-weight: 500; }
+.row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; margin: 4px 0; }
+.muted { color: var(--muted); } .ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+.mono { font-family: ui-monospace, monospace; font-size: 12.5px; }
+button, .btn { font: inherit; font-size: 13px; color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 6px 11px; cursor: pointer; white-space: nowrap; }
+button:hover { border-color: var(--accent); } button.primary { background: var(--accent); color: #17140a; border-color: var(--accent); font-weight: 600; }
+button.danger:hover { border-color: var(--bad); color: var(--bad); } button:disabled { opacity: .5; cursor: default; }
+input, select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 9px; min-width: 0; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+table { width: 100%; border-collapse: collapse; } td, th { padding: 6px 6px; border-top: 1px solid var(--line); text-align: left; vertical-align: top; } th { color: var(--muted); font-weight: 500; font-size: 12px; border-top: 0; }
+td.act { text-align: right; white-space: nowrap; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--muted); vertical-align: 1px; }
+.dot.active, .dot.activating { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .dot.failed { background: var(--bad); }
+.bar { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; margin: 6px 0; } .bar i { display: block; height: 100%; background: var(--accent); }
+pre { margin: 8px 0 0; padding: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; max-height: 420px; overflow: auto; font: 12px/1.45 ui-monospace, monospace; white-space: pre-wrap; word-break: break-word; }
+.login { max-width: 360px; margin: 12vh auto; } .login form { display: grid; gap: 10px; }
+.msg { min-height: 1.4em; }
+#toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 9px 14px; max-width: min(640px, 92vw); box-shadow: 0 8px 24px rgba(0,0,0,.5); z-index: 10; }
+#toast.bad { border-color: var(--bad); } #toast.ok { border-color: var(--ok); }
+.src { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); } .src:first-child { border-top: 0; }
+.src .u { flex: 1; min-width: 0; overflow-wrap: anywhere; } .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
+.addsrc { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; } .addsrc input { flex: 1 1 220px; }
+details summary { cursor: pointer; color: var(--muted); }
+[hidden] { display: none !important; }
+td.mono { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  header { padding: 10px 12px; flex-wrap: wrap; gap: 8px 10px; } header h1 { font-size: 15px; } header .ver { order: 5; width: 100%; }
+  main { padding: 12px 10px 50px; grid-template-columns: 1fr; }
+  /* (the services as cards: name and what it does; state and button; last and next run) */
+  #unitsT, #unitsT tbody { display: block; } #unitsT thead { display: none; }
+  #units tr { display: grid; grid-template-columns: 1fr auto; column-gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
+  #units td { border: 0; padding: 2px 0; }
+  #units td:nth-child(1) { grid-column: 1 / -1; }
+  #units td:nth-child(3), #units td:nth-child(4) { grid-column: 1; font-size: 11.5px; color: var(--muted); }
+  #units td:nth-child(3):not(:empty)::before { content: 'last run '; } #units td:nth-child(4):not(:empty)::before { content: 'next '; }
+  #units td.act { grid-column: 2; grid-row: 2 / span 3; align-self: center; }
+  .src { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<section class="card login" id="login" hidden>
+  <h2>BF2 Round Replay · Admin</h2>
+  <form id="loginForm" autocomplete="on">
+    <input type="text" name="username" value="admin" autocomplete="username" hidden>
+    <label for="pw" class="muted">Password</label>
+    <input type="password" id="pw" autocomplete="current-password" required autofocus>
+    <button class="primary" type="submit">Log in</button>
+    <div class="msg bad" id="loginMsg" role="alert"></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+<header>
+  <h1>BF2 Round Replay · <b>Admin</b></h1>
+  <span class="ver" id="ver"></span>
+  <span class="sp"></span>
+  <a class="btn" href="/" target="_blank" rel="noopener">The site ↗</a>
+  <button id="logout">Log out</button>
+</header>
+<main>
+  <section class="card" aria-labelledby="hR">
+    <h2 id="hR">Rounds</h2>
+    <div class="big" id="rTotal">–</div>
+    <div class="row" id="rDec"></div>
+    <div id="rServers" class="mono muted"></div>
+    <div class="row muted" id="rNewest"></div>
+  </section>
+
+  <section class="card" aria-labelledby="hQ">
+    <h2 id="hQ">Being decoded</h2>
+    <div class="row"><span class="big" id="qN">–</span><span class="muted" id="qInfo"></span></div>
+    <div id="rp"></div>
+    <div class="row" id="badRow"></div>
+  </section>
+
+  <section class="card" aria-labelledby="hD">
+    <h2 id="hD">Disk, last download</h2>
+    <div class="row"><span class="big" id="dFree">–</span><span class="muted" id="dTot"></span></div>
+    <div class="bar" id="dBar"><i></i></div>
+    <div class="row muted" id="fLast"></div>
+  </section>
+
+  <section class="card wide" aria-labelledby="hS">
+    <h2 id="hS">Services</h2>
+    <table id="unitsT"><thead><tr><th>Service</th><th>State</th><th>Last run</th><th>Next</th><th></th></tr></thead><tbody id="units"></tbody></table>
+    <div class="muted" id="sysNote" hidden></div>
+  </section>
+
+  <section class="card wide" aria-labelledby="hF">
+    <h2 id="hF">Where demos come from</h2>
+    <div id="srcList"></div>
+    <form class="addsrc" id="srcForm">
+      <input id="srcIn" placeholder="http://1.2.3.4/demos/  or a game server: 1.2.3.4  or 1.2.3.4:29901" aria-label="Demo page or game server" autocomplete="off" spellcheck="false">
+      <button type="button" id="srcProbe">Check</button>
+      <button type="submit" class="primary">Add</button>
+    </form>
+    <div class="row" style="margin-top:10px"><button type="button" id="fetchList">What would be downloaded?</button><span class="muted">reads every page, downloads nothing</span></div>
+    <pre id="srcOut" hidden></pre>
+  </section>
+
+  <section class="card wide" aria-labelledby="hL">
+    <h2 id="hL">Log</h2>
+    <div class="row">
+      <select id="logUnit" aria-label="Which service">
+        <option value="all">all services</option><option value="ingest">ingest (new demos)</option><option value="reprocess">reprocess (old rounds again)</option><option value="rebuild">rebuild (all again)</option><option value="fetch">fetch (downloads)</option><option value="update">update (GitHub)</option><option value="backup">backup</option><option value="admin">admin page</option>
+      </select>
+      <select id="logN" aria-label="How many lines"><option>60</option><option selected>150</option><option>400</option></select>
+      <button type="button" id="logGo">Refresh</button>
+      <label class="muted"><input type="checkbox" id="logAuto" checked> every 10 s</label>
+    </div>
+    <pre id="log">…</pre>
+  </section>
+
+  <section class="card wide" aria-labelledby="hC">
+    <details><summary id="hC">Settings (/etc/bf2replay.conf, read only)</summary><table><tbody id="settings"></tbody></table></details>
+  </section>
+</main>
+</div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mb = b => b >= 2 ** 30 ? (b / 2 ** 30).toFixed(1) + ' GB' : (b / 2 ** 20).toFixed(b >= 10 * 2 ** 20 ? 0 : 1) + ' MB';
+const hm = s => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : s >= 60 ? `${Math.round(s / 60)} min` : `${Math.round(s)} s`;
+const ago = iso => { if (!iso) return ''; const s = (Date.now() - Date.parse(iso)) / 1000; return Number.isFinite(s) ? hm(Math.max(0, s)) + ' ago' : ''; };
+const sdt = s => s && s !== 'n/a' && s !== '0' ? String(s).replace(/^[A-Z][a-z]{2} /, '').replace(/ UTC$/, '') : '';
+async function api(path, body) {
+  const o = body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-BF2R': '1' }, body: JSON.stringify(body) };
+  const r = await fetch('/admin/api/' + path, o); let j = null; try { j = await r.json(); } catch (e) { j = { error: 'no answer (' + r.status + ')' }; }
+  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('log in'); }
+  if (!r.ok && !j.error) j.error = 'error ' + r.status; return j;
+}
+let toastT = 0;
+function toast(msg, ok = true) { const t = $('#toast'); t.textContent = msg; t.className = ok ? 'ok' : 'bad'; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 7000); }
+
+// ---- logging in ----
+function showLogin(msg) { $('#app').hidden = true; $('#login').hidden = false; $('#loginMsg').textContent = msg || ''; $('#pw').focus(); stopPoll(); }
+function showApp() { $('#login').hidden = true; $('#app').hidden = false; refresh(); loadLog(); startPoll(); }
+$('#loginForm').addEventListener('submit', async e => {
+  e.preventDefault(); const b = e.submitter || $('#loginForm button'); b.disabled = true; $('#loginMsg').textContent = '';
+  try { const j = await api('login', { password: $('#pw').value }); if (j.ok) { $('#pw').value = ''; showApp(); } else $('#loginMsg').textContent = j.error || 'could not log in'; }
+  catch (err) { $('#loginMsg').textContent = err.message; } finally { b.disabled = false; }
+});
+$('#logout').onclick = async () => { try { await api('logout', {}); } catch (e) {} showLogin(); };
+
+// ---- the state ----
+let S = null;
+const UNIT_ROWS = [
+  ['ingest', 'Decode waiting demos', 'Decode now', 'new demos in the queue (it also runs by itself as soon as one arrives, and every 2 min)'],
+  ['reprocess', 'Decode old rounds again', 'Start', 'the rounds an older decoder made (it starts by itself after each site update)'],
+  ['rebuild', 'Decode every round again', 'Start', 'every kept demo, from scratch - takes long (hours with many rounds)'],
+  ['fetch', 'Download new demos', 'Fetch now', 'from the demo pages and game servers below'],
+  ['update', 'Update from GitHub', 'Update now', 'the site and the server scripts (it looks every minute by itself)'],
+  ['backup', 'Back up', 'Back up now', 'the round list, logs and settings into /srv/bf2replay/backup (Sundays by itself)'],
+];
+function render() {
+  if (!S) return;
+  $('#ver').textContent = `site ${S.site.version} · decoder ${S.site.decoder}`;
+  const R = S.rounds;
+  $('#rTotal').innerHTML = `${R.total} <small>rounds on the site</small>`;
+  $('#rDec').innerHTML = R.old ? `<span class="warn">${R.old} made by an older decoder</span><span class="muted">· ${R.current} by this one</span>` : `<span class="ok">all made by this decoder</span>`;
+  const sv = Object.entries(R.servers).sort((a, b) => b[1] - a[1]);
+  $('#rServers').innerHTML = sv.length > 1 || (sv[0] && sv[0][0] !== '?') ? sv.map(([s, n]) => `${esc(s)}: ${n}`).join('<br>') : '';
+  $('#rNewest').innerHTML = R.newest ? `newest: <span class="mono">${esc(R.newest.name)}</span> ${R.newest.added ? '· added ' + ago(R.newest.added) : ''}` : '';
+  // the queue and decoding again
+  const Q = S.queue;
+  $('#qN').textContent = Q.demos; $('#qInfo').innerHTML = `demos waiting in upload/incoming${Q.bytes ? ' · ' + mb(Q.bytes) : ''}${Q.parts ? ` · ${Q.parts} still uploading` : ''}${Q.files.length ? `<br><span class="mono">${Q.files.map(esc).join('<br>')}${Q.demos > Q.files.length ? '<br>…' : ''}</span>` : ''}`;
+  const P = S.reprocess;
+  if (P && P.total) {
+    const pc = Math.floor(100 * P.done / P.total), el = (Date.now() - Date.parse(P.since)) / 1000, left = P.left ?? (P.done ? el / P.done * (P.total - P.done) : null);
+    $('#rp').innerHTML = `<div class="row"><b>Decoding again:</b> ${P.done} / ${P.total} (${pc}%)<span class="muted">· ${P.jobs || 1} at once${left != null ? ' · ~' + hm(left) + ' left' : ''}</span></div><div class="bar"><i style="width:${pc}%"></i></div>`;
+  } else {
+    const L = S.lastReprocess; $('#rp').innerHTML = L && L.end ? `<div class="row muted">last decoded again: ${L.total} rounds, finished ${ago(L.end)}</div>` : '';
+  }
+  const B = S.bad;
+  $('#badRow').innerHTML = B.demos ? `<span class="warn">${B.demos} demo${B.demos === 1 ? '' : 's'} could not be decoded</span> (data/bad) <button type="button" id="retryBad">Try them again</button><details style="width:100%"><summary>which</summary><div class="mono">${B.files.map(esc).join('<br>')}${B.demos > B.files.length ? '<br>…' : ''}</div></details>` : '<span class="muted">no failed demos</span>';
+  if ($('#retryBad')) $('#retryBad').onclick = () => act('retry-bad', {}, $('#retryBad'));
+  // disk, last download
+  if (S.disk) { const used = 1 - S.disk.free / S.disk.total; $('#dFree').textContent = mb(S.disk.free); $('#dTot').textContent = `free of ${mb(S.disk.total)}`; $('#dBar i').style.width = (100 * used).toFixed(1) + '%'; $('#dBar i').style.background = S.disk.free < 5 * 2 ** 30 ? 'var(--bad)' : 'var(--accent)'; }
+  const F = S.fetchLast;
+  $('#fLast').innerHTML = F ? `demo pages looked at ${ago(F.at)}: ${F.listed} listed, ${F.new} new${F.got ? ', ' + F.got + ' downloaded' : ''}${F.busy ? ', ' + F.busy + ' still being written' : ''}${F.failed ? `, <span class="bad">${F.failed} failed</span>` : ''}` : 'no download yet';
+  // services
+  const U = S.units || {};
+  $('#units').innerHTML = UNIT_ROWS.map(([k, name, btn, what]) => {
+    const u = U[k + '.service'] || {}, t = U[k + '.timer'] || (k === 'ingest' ? U['ingest.path'] : null);
+    const st = u.loaded === 'not-found' ? 'not installed' : u.state === 'activating' ? 'running' : u.state === 'active' ? 'running' : u.state === 'failed' ? 'failed' : u.state ? 'idle' : '?';
+    const last = sdt(u.ended) || sdt(u.started), next = t && t.next ? sdt(t.next) : '';
+    const busy = u.state === 'activating' || u.state === 'active';
+    return `<tr><td><b>${name}</b><br><span class="muted">${what}</span></td><td><span class="dot ${esc(u.state || '')}"></span>${st}${u.result && u.result !== 'success' && u.state !== 'activating' ? ` <span class="bad">(${esc(u.result)})</span>` : ''}</td><td class="mono">${esc(last)}</td><td class="mono">${esc(next)}</td><td class="act"><button type="button" data-unit="${k}" class="${k === 'rebuild' ? 'danger' : ''}" ${busy || u.loaded === 'not-found' ? 'disabled' : ''}>${btn}</button></td></tr>`;
+  }).join('');
+  for (const b of document.querySelectorAll('#units button[data-unit]')) b.onclick = () => {
+    const u = b.dataset.unit;
+    if (u === 'rebuild' && !confirm(`Decode all ${S.rounds.total} rounds again from their demos? It takes long and new demos wait meanwhile.`)) return;
+    act('start', { unit: u }, b);
+  };
+  $('#sysNote').hidden = S.systemd; $('#sysNote').textContent = 'systemctl gave no answer: the states are unknown.';
+  // sources
+  const fe = S.sources.fetched || {}, host = u => { try { return new URL(/^https?:/.test(u) ? u : 'http://' + u).host; } catch (e) { return u; } };
+  const got = u => { const o = fe[host(u)]; return o ? `<span class="tag">${o.n} demos · ${mb(o.bytes)}${o.last ? ' · last ' + ago(o.last) : ''}</span>` : ''; };
+  const rows = S.sources.env.map(u => `<div class="src"><span class="u mono">${esc(u)}</span>${got(u)}<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS">BF2R_FETCH_URLS</span><button type="button" data-probe="${esc(u)}">Check</button></div>`)
+    .concat(S.sources.added.map(s => `<div class="src"><span class="u mono">${esc(s.url)}</span>${got(s.url)}<span class="tag">added ${ago(s.added)}</span><button type="button" data-probe="${esc(s.url)}">Check</button><button type="button" class="danger" data-remove="${esc(s.url)}">Remove</button></div>`));
+  $('#srcList').innerHTML = rows.length ? rows.join('') : '<div class="muted">no demo pages or game servers yet</div>';
+  for (const b of document.querySelectorAll('#srcList [data-remove]')) b.onclick = () => { if (confirm(`Stop downloading from ${b.dataset.remove}? (Rounds already downloaded stay.)`)) act('source-remove', { url: b.dataset.remove }, b); };
+  for (const b of document.querySelectorAll('#srcList [data-probe]')) b.onclick = () => look('probe', { url: b.dataset.probe }, b);
+  $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
+}
+async function refresh() { try { const j = await api('state'); if (j.error) return; S = j; render(); } catch (e) {} }
+async function act(what, body, btn) {
+  if (btn) btn.disabled = true;
+  let j = null;
+  try { j = await api(what, body); toast(j.msg || j.error || 'done', !!j.ok); } catch (e) { toast(e.message, false); }
+  finally { if (btn) btn.disabled = false; refresh(); setTimeout(refresh, 1500); }
+  return j;
+}
+async function look(what, body, btn) {
+  const o = $('#srcOut'); o.hidden = false; o.textContent = what === 'probe' ? `checking ${body.url}…` : 'reading every demo page…'; if (btn) btn.disabled = true;
+  try { const j = await api(what, body); o.textContent = j.out || j.error || ''; } catch (e) { o.textContent = e.message; } finally { if (btn) btn.disabled = false; }
+}
+$('#srcForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#srcIn').value.trim(); if (!v) return; act('source-add', { url: v }, e.submitter).then(j => { if (j && j.ok) $('#srcIn').value = ''; }); });
+$('#srcProbe').onclick = () => { const v = $('#srcIn').value.trim(); if (!v) { $('#srcIn').focus(); return; } look('probe', { url: v }, $('#srcProbe')); };
+$('#fetchList').onclick = () => look('fetch-list', {}, $('#fetchList'));
+
+// ---- the log ----
+async function loadLog() {
+  const pre = $('#log'), atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 20;
+  try { const j = await api(`log?unit=${encodeURIComponent($('#logUnit').value)}&n=${$('#logN').value}`); pre.textContent = j.noAccess ? 'The admin service may not read the system journal (it runs in the systemd-journal group from the next update on).\n\n' + j.out : (j.out || j.error || ''); }
+  catch (e) { pre.textContent = e.message; }
+  if (atEnd) pre.scrollTop = pre.scrollHeight;
+}
+$('#logGo').onclick = loadLog; $('#logUnit').onchange = loadLog; $('#logN').onchange = loadLog;
+
+// ---- looking again: the state every 5 s, the log every 10 s (only while the page is in view) ----
+let pS = 0, pL = 0;
+function startPoll() { stopPoll(); pS = setInterval(() => { if (!document.hidden) refresh(); }, 5000); pL = setInterval(() => { if (!document.hidden && $('#logAuto').checked) loadLog(); }, 10000); }
+function stopPoll() { clearInterval(pS); clearInterval(pL); }
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) refresh(); });
+
+api('me').then(j => { if (j.in) showApp(); else showLogin(j.password === false ? 'No password set yet. On the VPS: sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' : ''); }).catch(() => showLogin('The admin service does not answer.'));
+})();
+</script>
+</body>
+</html>

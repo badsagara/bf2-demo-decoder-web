@@ -1,0 +1,24 @@
+[Unit]
+Description=BF2 Round Replay: the admin page (https://<site>/admin, behind a password: admin.mjs --set-password)
+After=network.target
+
+[Service]
+Type=simple
+User=bf2replay
+Group=bf2replay
+# (the logs of the bf2replay services, for the page's Log)
+SupplementaryGroups=systemd-journal
+EnvironmentFile=/etc/bf2replay.conf
+ExecStart=/usr/bin/node /srv/bf2replay/repo/server/admin.mjs
+# (it exits when admin.mjs changes after an update: started again at once with the new one)
+Restart=always
+RestartSec=2
+# only on 127.0.0.1 (Caddy sends /admin* to it); writes only data/ (its list of demo sources) and upload/ (failed demos
+# back in the queue); the services are started through sudo, for exactly those (/etc/sudoers.d/bf2replay-admin)
+ProtectSystem=full
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/srv/bf2replay/data /srv/bf2replay/upload
+
+[Install]
+WantedBy=multi-user.target

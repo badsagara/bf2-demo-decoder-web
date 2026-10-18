@@ -13,7 +13,7 @@
 //                                       without addresses: the ones in BF2R_FETCH_URLS
 //
 // Settings (/etc/bf2replay.conf or the environment):
-//   BF2R_FETCH_URLS       where the demos are (space separated), each one either
+//   BF2R_FETCH_URLS       where the demos are (space separated; and those added on the admin page), each one either
 //                         - a page that lists them (http://... or https://...); a plain folder listing works, or
 //                         - a game server: its IP or name, with :port if not the usual (its game port 16567 or its query
 //                           port, 29900 by default) - asked (GameSpy query, UDP) for the demo page its settings name
@@ -38,7 +38,10 @@ const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
 const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
 const ROOT = opt('BF2R_ROOT', '/srv/bf2replay');
-const URLS = opt('BF2R_FETCH_URLS', '').split(/[\s,]+/).filter(Boolean);
+// (v150) and the demo pages / game servers added on the admin page (data/.fetch-sources.json: { sources: [{ url, added }] })
+let ADDED = [];
+try { const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', '.fetch-sources.json'), 'utf8')); ADDED = (j.sources || []).map(s => s && typeof s.url === 'string' ? s.url.trim() : '').filter(Boolean); } catch (e) { /* none added */ }
+const URLS = [...new Set([...opt('BF2R_FETCH_URLS', '').split(/[\s,]+/).filter(Boolean), ...ADDED])];
 const SINCE = opt('BF2R_FETCH_SINCE', '');
 const MAX = Math.max(0, +opt('BF2R_FETCH_MAX', '0') || 0);   // (0: no limit)
 const MIN_BYTES = +opt('BF2R_FETCH_MIN_BYTES', '0') || 0;
@@ -174,7 +177,7 @@ const whenKey = n => { const m = /(20\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\
 
 async function main() {
   const entries = (PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS).flatMap(expand);
-  if (!entries.length) { log('no BF2R_FETCH_URLS set: nothing to fetch'); return; }
+  if (!entries.length) { log('no BF2R_FETCH_URLS set and none added on the admin page: nothing to fetch'); return; }
   if (!PROBE) { fs.mkdirSync(INC, { recursive: true }); fs.mkdirSync(path.dirname(STATE), { recursive: true }); }
   const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, failed: 0, listed: 0, pages: 0 };
   const report = () => LIST

@@ -895,7 +895,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v148';
+const APP_VERSION = 'v150';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -3893,12 +3893,8 @@ function draw() {
       }
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - VIEW_HALF, a0 + VIEW_HALF); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
-      // (its edges: dashed in his colour on a dark line, so they show over any ground - a vehicle seat's view only; a
-      // soldier's view is the shading alone - v147, Sagara: "прибрати пунктирні лінії при кути зору піхотинця")
-      if (q.role !== 'foot') {
-        cx.globalAlpha = 1; cx.strokeStyle = 'rgba(6,8,6,.45)'; cx.lineWidth = 3; cx.stroke();
-        cx.strokeStyle = col; cx.globalAlpha = 0.9; cx.lineWidth = 1.6; cx.setLineDash(q.ahead ? [2, 4] : [7, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
-      }
+      // (no edges: the shading alone - v147 for a soldier, v150 for a vehicle seat too; Sagara: "прибрати пунктирні лінії
+      // при кути зору піхотинця", "Прибрати штрихові лінії по боках поля зору техніки")
       if (q.role && q.role !== 'foot') {
         // third person: the camera behind and above the vehicle, a dashed line to where he sits
         if (q.third && q.seat) {
@@ -5985,12 +5981,16 @@ function cpTimes(R) {
   }
   return (R._cpt = best && best.ok ? R.flags.map(f => f.main ? null : best.L.find(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 6) || null) : null);
 }
+// (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
+// no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
+// "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
+const asCmdr = (R, i, tt) => { const c = seriesAt(R.players[i]?.cmdr, tt); return !!(c && c[1]); };
 function objHints(R) {
   const out = [], { times: T, n, X, Y, L, DN, FC, nf } = R, F = T.length, pid = id => R.pidx.get(id), ev = R.events;
-  // spot spam
+  // spot spam (not the commander's spots)
   if (R.meta.source === 'demo') {
     const per = new Map();
-    for (const e of ev) { if (e.type !== 'spot') continue; const s = spotterOf(e); if (!s || s.alt || s.p < 0.45) continue; if (!per.has(s.i)) per.set(s.i, []); per.get(s.i).push(e); }
+    for (const e of ev) { if (e.type !== 'spot') continue; const s = spotterOf(e); if (!s || s.alt || s.p < 0.45 || asCmdr(R, s.i, e.t)) continue; if (!per.has(s.i)) per.set(s.i, []); per.get(s.i).push(e); }
     for (const [i, a] of per) {
       if (a.length < SPAM_10) continue;
       let w60 = 0, w10 = 0, b60 = 0, b10 = 0, at = null;
@@ -6186,11 +6186,12 @@ function aimHints(R) {
   for (const [ki, o] of trig) { if (o.n < TRIG_N || !o.first) continue; const p = (TQ - o.q + 1) / (TN - o.n + 6); if (binTail(o.q, o.n, p) < TRIG_P) out.push({ t: o.first.t, kind: 'trigger', adm: true, actor: R.players[ki].id, q: o.q, n: o.n, others: p, ...(o.press ? { press: true } : {}), x: o.first.x, y: o.first.y }); }
   for (const [ki, o] of smooth) { if (o.n < SMOOTH_N) continue; const m = med(o.L); if (m <= SMOOTH_ERR) out.push({ t: o.first.t, kind: 'smooth', adm: true, actor: R.players[ki].id, n: o.n, mid: m, x: o.first.x, y: o.first.y }); }
   for (const [ki, o] of pre) { if (o.n < PRE_N || !o.first) continue; const p = (PQ - o.q + 1) / (PN - o.n + 6); if (binTail(o.q, o.n, p) < PRE_P) out.push({ t: o.first.t, kind: 'preaim', adm: true, actor: R.players[ki].id, q: o.q, n: o.n, others: p, x: o.first.x, y: o.first.y }); }
-  // spots of soldiers nobody of his side could see (only for those with BLIND_N or more spots worked out as theirs)
+  // spots of soldiers nobody of his side could see (only for those with BLIND_N or more spots worked out as theirs; not
+  // those he made as commander - v149)
   if (R.meta.source === 'demo' && D) {
     const per = new Map();
     // (v132: a repeat of the same target by him within 3 s is one spot - the demo now has every repeat)
-    for (const e of R.events) { if (e.type !== 'spot' || !e.target || e.target[0] !== 'p') continue; const ti = pid(e.target); if (ti === undefined) continue; const s = spotterOf(e); if (!s || s.alt || s.p < 0.45) continue; if (!per.has(s.i)) per.set(s.i, []); const L = per.get(s.i), last = L.findLast(x => x[1] === ti); if (last && e.t - last[0].t < 3) continue; L.push([e, ti]); }
+    for (const e of R.events) { if (e.type !== 'spot' || !e.target || e.target[0] !== 'p') continue; const ti = pid(e.target); if (ti === undefined) continue; const s = spotterOf(e); if (!s || s.alt || s.p < 0.45 || asCmdr(R, s.i, e.t)) continue; if (!per.has(s.i)) per.set(s.i, []); const L = per.get(s.i), last = L.findLast(x => x[1] === ti); if (last && e.t - last[0].t < 3) continue; L.push([e, ti]); }
     for (const [i, L] of per) {
       if (L.length < BLIND_N) continue;
       let blind = 0, known = 0, first = null;
@@ -6337,11 +6338,11 @@ function admDescribe(h) {
   if (h.kind === 'switch') return [Math.round(h.a) + '°', `<b>Target switch</b> ${pn(e.killer)} <span class="w">killed ${pn(h.prev.victim)} and then ${pn(e.victim)} ${Math.round(h.a)}° to the side of the first ${h.dt.toFixed(2)} s later · honest rounds: 1.5 s at the quickest · ${esc(e.weapon || '')}</span>`, `Target switch: ${pt(e.killer)} ${Math.round(h.a)}° in ${h.dt.toFixed(2)} s`];
   if (h.kind === 'preaim') return [h.q + '/' + h.n, `<b>Pre-aim</b> ${pn(h.actor)} <span class="w">in ${h.q} of ${h.n} kills his aim was already on the enemy when he came out of cover after 1 s or more hidden (the round's others ${Math.round(h.others * 100)}%)</span>`, `Pre-aim: ${pt(h.actor)}, ${h.q} of ${h.n} kills`];
   if (h.kind === 'spread') { const cn = { shotgun: 'shotgun', pistol: 'pistol', smg: 'SMG', rifle: 'rifle' }[h.cls], far = h.reach && h.d > h.reach * 0.98; return [Math.round(h.d) + ' m', `<b>No spread</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${esc(e.weapon || cn)} kill from ${Math.round(h.d)} m · ${far ? 'its bullets fly ' + h.reach + ' m at most' : 'honest ' + cn + ' kills: ' + { shotgun: 14, pistol: 108, smg: 56, rifle: 161 }[h.cls] + ' m at the most'}</span>`, `No spread: ${pt(e.killer)} → ${pt(e.victim)}, ${e.weapon || cn} ${Math.round(h.d)} m`]; }
-  if (h.kind === 'blindspot') return [h.blind + '/' + h.n, `<b>Spots unseen</b> ${pn(h.actor)} <span class="w">${h.blind} of his ${h.n} spots were of soldiers nobody of his side could see · honest players: about 1 in 4, half at the most</span>`, `Spots unseen: ${pt(h.actor)}, ${h.blind} of ${h.n}`];
+  if (h.kind === 'blindspot') return [h.blind + '/' + h.n, `<b>Spots unseen</b> ${pn(h.actor)} <span class="w">${h.blind} of his ${h.n} spots were of soldiers nobody of his side could see (not counting those he made as commander) · honest players: about 1 in 4, half at the most</span>`, `Spots unseen: ${pt(h.actor)}, ${h.blind} of ${h.n}`];
   if (h.kind === 'chute') { const up = h.up >= CHUTE_UP; return [up ? '+' + h.up.toFixed(1) + ' m/s' : h.hs.toFixed(0) + ' m/s', `<b>Parachute</b> ${pn(h.actor)} <span class="w">under his parachute ${up ? `rose ${h.up.toFixed(1)} m in a second` : `${h.hs.toFixed(1)} m/s across`} · honest parachutes: 9-12 m/s across, always coming down 4-7 m/s</span>`, `Parachute: ${pt(h.actor)} ${up ? 'rising ' + h.up.toFixed(1) + ' m/s' : h.hs.toFixed(0) + ' m/s across'}`]; }
   if (h.kind === 'under') return [h.depth.toFixed(1) + ' m', `<b>Under the map</b> ${pn(h.actor)} <span class="w">${h.depth.toFixed(1)} m under the ground for ${h.dur.toFixed(0)} s, alive on foot</span>`, `Under the map: ${pt(h.actor)} ${h.depth.toFixed(1)} m down`];
   if (h.kind === 'guided') { const ws = []; if (h.why.includes('stick')) ws.push(`${h.moving} hits on moving targets, his missile ${h.mid.toFixed(2)}° off the line to the target at the middle (honest gunners: 2-3°)`); if (h.why.includes('rate')) ws.push(`${h.hits} of ${h.n} TV missiles hit (the round's other TV gunners ${Math.round(h.others * 100)}%)`); return [h.why.includes('stick') ? h.mid.toFixed(1) + '°' : h.hits + '/' + h.n, `<b>Guided missiles</b> ${pn(h.actor)} <span class="w">${esc(h.what)}: ${ws.join('; ')}</span>`, `Guided missiles: ${pt(h.actor)}, ${h.why.includes('stick') ? h.mid.toFixed(2) + '° off moving targets' : h.hits + ' of ' + h.n + ' TV missiles hit'}`]; }
-  if (h.kind === 'spotspam') return [h.n60 >= SPAM_60 ? h.n60 + '/min' : h.n10 + '/10 s', `<b>Spot spam</b> ${pn(h.actor)} <span class="w">${h.n60} spots within a minute, ${h.n10} within 10 s (${h.all} in the round) · honest players spot 26 a minute at the most (the hacks send them without the radio voice)</span>`, `Spot spam: ${pt(h.actor)}, ${h.n60} spots in a minute`];
+  if (h.kind === 'spotspam') return [h.n60 >= SPAM_60 ? h.n60 + '/min' : h.n10 + '/10 s', `<b>Spot spam</b> ${pn(h.actor)} <span class="w">${h.n60} spots within a minute, ${h.n10} within 10 s (${h.all} in the round, not counting those he made as commander) · honest players spot 26 a minute at the most (the hacks send them without the radio voice); a commander spots from his screen as many as he likes</span>`, `Spot spam: ${pt(h.actor)}, ${h.n60} spots in a minute`];
   if (h.kind === 'fastcap') { const tn = esc(round.teams[h.side]?.name || ''), mx = h.m >= 10 ? Math.round(h.m) : h.m.toFixed(1); return [mx + '×', `<b>Fast flag</b> <span class="t${h.side}">${tn}</span> ${h.raise ? 'raised' : 'lowered'} ${esc(h.flag)} <span class="w">at ${mx} soldiers' speed for ${(h.t1 - h.t).toFixed(1)} s with ${h.cnt || 'no'} soldier${h.cnt === 1 ? '' : 's'} of that side within 12 m of it${h.other ? ' (and ' + h.other + ' of the other side)' : ''} · the map: ${h.tm} s for one soldier, faster only with more of them there${h.odd ? '; this speed is no whole number of soldiers - a capture time the map does not have' : ''}${h.actor != null ? ' · nearest: ' + pn(h.actor) : ''}</span>`, `Fast flag: ${round.teams[h.side]?.name || ''} ${h.flag} at ${mx}× speed`]; }
   if (h.kind === 'arty') { const tn = h.side != null ? `<span class="t${h.side}">${esc(round.teams[h.side]?.name || '')}</span> ` : '', ws = []; if (h.why.includes('gap')) ws.push(`${Math.round(h.gap)} s after the last strike - the button lights up again a minute later (honest rounds: 63 s at the least)`); if (h.why.includes('burst')) ws.push(`${h.burst} shells from one gun - a strike is 5 a gun`); if (h.why.includes('rof')) ws.push(`one gun's shells ${h.rof.toFixed(1)} s apart - it fires every 2 s`); return [h.why.includes('gap') ? Math.round(h.gap) + ' s' : h.burst + '×', `<b>Artillery</b> ${tn}${esc(h.gun)} <span class="w">${ws.join('; ')} · ${h.shells} shells from ${h.guns} gun${h.guns > 1 ? 's' : ''}${h.actor != null ? ' · called by ' + pn(h.actor) + (h.sure ? '' : ' (probably: the commander of the nearest strike)') : ''}</span>`, `Artillery: ${round.teams[h.side]?.name || ''} ${h.gun}, ${h.why.includes('gap') ? Math.round(h.gap) + ' s after the last strike' : h.why.includes('burst') ? h.burst + ' shells from one gun' : 'shells ' + h.rof.toFixed(1) + ' s apart'}`]; }
   if (h.kind === 'vspeed') return [h.v.toFixed(0) + ' m/s', `<b>Vehicle speed</b> ${pn(h.actor)} <span class="w">${esc(h.veh)} at ${h.v.toFixed(1)} m/s over 3 s (${Math.round(h.dist)} m in ${h.dur.toFixed(0)} s) · in honest rounds it makes ${h.lim} m/s at most</span>`, `Vehicle speed: ${h.veh} ${h.v.toFixed(1)} m/s`];

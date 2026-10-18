@@ -322,3 +322,42 @@ systemctl list-timers 'bf2replay-*'          # bf2replay-fetch: наступни
 `Caddyfile.in` стають самі (`units.sh` при кожному `update.sh`); з nginx — блоки `/rounds|players|maps` і
 `rss.xml / sitemap.xml / robots.txt` з `nginx-example.conf` треба додати руками. Уперше сторінки з'являться після
 першого ж запуску `ingest.mjs` (новий раунд або оновлення сайту: `sudo systemctl start bf2replay-update`).
+
+## 14. Адмін-сторінка: /admin (v150)
+
+`https://домен/admin` — за паролем. Що там є:
+
+- скільки раундів на сайті, скільки зроблено старим декодером;
+- скільки демо чекає розбору в `upload/incoming`, як іде перерозбір (скільки зроблено й скільки лишилось), які демо не
+  розібралися (`data/bad`);
+- служби (стан, коли востаннє і коли наступного разу) з кнопками: розібрати нові демо зараз, перерозібрати старі
+  раунди, перерозібрати все, скачати нові демо зараз, оновитися з GitHub, зробити копію; «Try them again» —
+  повернути демо з `data/bad` у чергу;
+- звідки брати демо: список з `BF2R_FETCH_URLS` (його міняють у `/etc/bf2replay.conf`) і додані тут (поле внизу:
+  сторінка або IP ігрового сервера; «Check» — подивитися, куди веде, нічого не качаючи; «Remove» — більше не брати,
+  скачане лишається); «What would be downloaded?» = `fetch.mjs --list`;
+- журнал служб, місце на диску, налаштування.
+
+Нічого з цього не видаляє ні демо, ні раунди.
+
+**Пароль** задається один раз на VPS (двічі спитає, на екрані не видно):
+
+```bash
+sudo node /srv/bf2replay/repo/server/admin.mjs --set-password
+```
+
+Зберігається лише його хеш (scrypt) у `/etc/bf2replay-admin.json` (root:bf2replay, 640) — не в репозиторії. Змінити —
+та сама команда, нічого перезапускати не треба. Вхід живе 12 год (2 год без заходу на сторінку); 5 неправильних
+паролів з однієї адреси — 15 хв паузи, 30 за годину від усіх — пауза для всіх.
+
+Решта ставиться сама з оновленням (`units.sh`, за хвилину після `git push`): служба `bf2replay-admin` (Node на
+`127.0.0.1:8781`, як `bf2replay`), `bf2replay-rebuild`, правило `/etc/sudoers.d/bf2replay-admin` (дозволяє сторінці
+лише `systemctl start --no-block` цих шести служб), `/admin` у Caddy. Перевірити:
+
+```bash
+systemctl status bf2replay-admin --no-pager     # active (running)
+journalctl -u bf2replay-admin -n 20             # входи, неправильні паролі, що запускали
+```
+
+З nginx — блок `location /admin` з `nginx-example.conf` треба додати руками. Без `sudo` на VPS (`apt install sudo`)
+сторінка все показує, але кнопки служб відповідають «could not start».

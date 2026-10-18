@@ -9,13 +9,27 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 LIB=/usr/local/lib/bf2replay
 reload=0 timers=()
 
+admin=0
 for f in "$HERE"/systemd/bf2replay-*; do
   dst=/etc/systemd/system/$(basename "$f")
   if ! cmp -s "$f" "$dst"; then
     install -m 644 "$f" "$dst"; reload=1; echo "unit updated: $(basename "$f")"
-    case $f in *.timer) timers+=("$(basename "$f")") ;; esac
+    case $f in *.timer) timers+=("$(basename "$f")") ;; *bf2replay-admin.service) admin=1 ;; esac
   fi
 done
+
+# the admin page (bf2replay-admin.service, as bf2replay) may start these services through sudo, nothing else:
+# /etc/sudoers.d/bf2replay-admin (checked with visudo before it is put in place)
+if [ -x /usr/bin/systemctl ]; then SC=/usr/bin/systemctl; else SC=/bin/systemctl; fi
+SU=/etc/sudoers.d/bf2replay-admin
+want=$(printf '# BF2 Round Replay: the admin page (bf2replay-admin.service) may start these services, nothing else (written by units.sh)\nbf2replay ALL=(root) NOPASSWD:'
+  sep=' '; for u in ingest reprocess rebuild fetch update backup; do printf '%s%s start --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; sep=', '; done)
+if [ -d /etc/sudoers.d ] && command -v visudo >/dev/null 2>&1 && [ "$want" != "$(cat "$SU" 2>/dev/null)" ]; then
+  tmp=$(mktemp); printf '%s\n' "$want" > "$tmp"
+  if visudo -cf "$tmp" >/dev/null 2>&1; then install -m 440 -o root -g root "$tmp" "$SU"; echo "admin page: may start the services (sudoers)"
+  else echo "admin page: the sudoers rule did not check out: not put in place"; fi
+  rm -f "$tmp"
+fi
 
 # how often to look for new demos: BF2R_FETCH_EVERY=minutes (empty or 10: the timer's own every 10 minutes; 1-59: every so
 # many minutes; 60: hourly; 0: once a day at BF2R_FETCH_AT=HH:MM, 05:30 when that is empty)
@@ -64,9 +78,11 @@ fi
 
 if [ "$reload" = 1 ]; then
   systemctl daemon-reload
-  systemctl enable --quiet bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer
+  systemctl enable --quiet bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-admin.service
   # (a timer restarted after a change runs on its new schedule; units.sh is called from bf2replay-update.service, so
   # that one is never restarted from here: its new timer is picked up by the daemon-reload)
   for t in $(printf '%s\n' "${timers[@]}" | sort -u); do [ "$t" = bf2replay-update.timer ] || systemctl restart "$t"; done
   systemctl start bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer
+  # (the admin page: started, or restarted when its unit changed; a new admin.mjs restarts itself)
+  if [ "$admin" = 1 ]; then systemctl restart bf2replay-admin.service; else systemctl start bf2replay-admin.service; fi
 fi

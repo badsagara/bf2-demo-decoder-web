@@ -1,0 +1,258 @@
+#!/usr/bin/env node
+// BF2 Round Replay - the admin page (https://<site>/admin): behind a password, it shows where the server stands (rounds,
+// the decoder, the demos waiting to be decoded, decoding again after an update, the services, the disk) and does what
+// otherwise needs a shell on the VPS: decode the waiting demos now, decode old rounds again (or all), try the demos that
+// failed again, fetch new demos now, update from GitHub, back up; add and remove game servers / demo pages to fetch from
+// (and check one first); read the services' logs. Nothing here deletes a demo or a round.
+//
+//   node admin.mjs                  the admin server (bf2replay-admin.service, as bf2replay): http://127.0.0.1:8781,
+//                                   Caddy sends /admin* to it
+//   sudo node admin.mjs --set-password
+//                                   set (or change) the password: asked twice, kept only as a scrypt hash in
+//                                   /etc/bf2replay-admin.json (root:bf2replay, 640); no restart needed
+//
+// The services are started with "sudo -n systemctl start --no-block bf2replay-<x>.service", which units.sh allows the
+// bf2replay user for exactly these services (/etc/sudoers.d/bf2replay-admin); the logs come from journalctl (the service
+// runs in the systemd-journal group). Game servers added here go to data/.fetch-sources.json, which fetch.mjs reads
+// next to BF2R_FETCH_URLS from /etc/bf2replay.conf (those stay as they are: edited there).
+import fs from 'node:fs';
+import path from 'node:path';
+import http from 'node:http';
+import crypto from 'node:crypto';
+import { execFile, spawn } from 'node:child_process';
+
+const conf = {};
+try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
+const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
+const ROOT = opt('BF2R_ROOT', '/srv/bf2replay'), SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
+const BAD = path.join(DATA, 'bad'), SOURCES = path.join(DATA, '.fetch-sources.json');
+const HERE = path.dirname(new URL(import.meta.url).pathname);
+const PASS_FILE = opt('BF2R_ADMIN_PASS_FILE', '/etc/bf2replay-admin.json');
+const PORT = +opt('BF2R_ADMIN_PORT', '8781'), HOST = '127.0.0.1';
+const SYSTEMCTL = opt('BF2R_ADMIN_SYSTEMCTL', fs.existsSync('/usr/bin/systemctl') ? '/usr/bin/systemctl' : '/bin/systemctl');
+const SUDO = opt('BF2R_ADMIN_SUDO', '/usr/bin/sudo'), JOURNALCTL = opt('BF2R_ADMIN_JOURNALCTL', 'journalctl');
+const NODE = process.execPath;
+const UNITS = ['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup'];   // (the ones the page may start)
+const SESSION_H = 12, IDLE_H = 2;   // a login lasts 12 h, or 2 h without a look at the page
+const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
+
+// ---------- the password: scrypt, kept as { salt, hash, N, r, p } ----------
+const KDF = { N: 2 ** 15, r: 8, p: 1, len: 64 };
+const kdf = (pw, salt, k = KDF) => crypto.scryptSync(String(pw).normalize('NFC'), Buffer.from(salt, 'base64'), k.len, { N: k.N, r: k.r, p: k.p, maxmem: 256 * k.N * k.r });
+function readPass() { try { const j = JSON.parse(fs.readFileSync(PASS_FILE, 'utf8')); return j && j.salt && j.hash ? j : null; } catch (e) { return null; } }
+function checkPass(pw) {
+  const j = readPass(); if (!j || typeof pw !== 'string' || pw.length > 200) return false;
+  const want = Buffer.from(j.hash, 'base64'), got = kdf(pw, j.salt, { N: j.N || KDF.N, r: j.r || KDF.r, p: j.p || KDF.p, len: want.length });
+  return want.length === got.length && crypto.timingSafeEqual(want, got);
+}
+async function setPassword() {
+  const ask = async q => {
+    if (!process.stdin.isTTY) { let s = ''; for await (const c of process.stdin) s += c; return s.replace(/\r?\n$/, ''); }
+    process.stdout.write(q); process.stdin.setRawMode(true); let s = '';
+    return await new Promise(ok => { const on = b => { for (const ch of b.toString('utf8')) { if (ch === '\r' || ch === '\n') { process.stdin.setRawMode(false); process.stdin.off('data', on); process.stdin.pause(); process.stdout.write('\n'); ok(s); return; } if (ch === '\u0003') process.exit(1); if (ch === '\u007f') s = s.slice(0, -1); else s += ch; } }; process.stdin.on('data', on); process.stdin.resume(); });
+  };
+  const a = await ask('New admin password: ');
+  if (process.stdin.isTTY) { const b = await ask('Again: '); if (a !== b) { console.error('The two did not match: nothing changed.'); process.exit(1); } }
+  if (a.length < 8) { console.error('At least 8 characters, please: nothing changed.'); process.exit(1); }
+  const salt = crypto.randomBytes(16).toString('base64'), rec = { salt, hash: kdf(a, salt).toString('base64'), N: KDF.N, r: KDF.r, p: KDF.p, set: new Date().toISOString() };
+  const tmp = PASS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(rec) + '\n', { mode: 0o640 }); fs.renameSync(tmp, PASS_FILE);
+  try { const gid = +(await run('id', ['-g', 'bf2replay'])).out.trim(); if (Number.isInteger(gid)) fs.chownSync(PASS_FILE, 0, gid); } catch (e) {}
+  console.log(`Password set (${PASS_FILE}). Log in at https://<your site>/admin`);
+}
+
+// ---------- logins: a random token in an HttpOnly cookie; brute force held off per address and overall ----------
+const sessions = new Map();   // token -> { exp, seen, ip }
+const fails = new Map();      // ip -> [times]
+let allFails = [];
+const FAIL_N = 5, FAIL_WIN = 15 * 60e3, ALL_N = 30, ALL_WIN = 60 * 60e3;
+const clientIp = req => String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
+function blocked(ip) {
+  const now = Date.now(); allFails = allFails.filter(t => now - t < ALL_WIN);
+  const L = (fails.get(ip) || []).filter(t => now - t < FAIL_WIN); fails.set(ip, L);
+  if (L.length >= FAIL_N) return Math.ceil((L[0] + FAIL_WIN - now) / 60e3);
+  if (allFails.length >= ALL_N) return Math.ceil((allFails[0] + ALL_WIN - now) / 60e3);
+  return 0;
+}
+const cookieOf = req => { const m = /(?:^|;\s*)bf2r_admin=([A-Za-z0-9_-]{20,})/.exec(req.headers.cookie || ''); return m ? m[1] : null; };
+function sessionOf(req) {
+  const tok = cookieOf(req), s = tok && sessions.get(tok), now = Date.now();
+  if (!s) return null;
+  if (now > s.exp || now - s.seen > IDLE_H * 3600e3) { sessions.delete(tok); return null; }
+  s.seen = now; return { tok, ...s };
+}
+const secure = req => String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+const setCookie = (req, res, tok, maxAge) => res.setHeader('Set-Cookie', `bf2r_admin=${tok}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure(req) ? '; Secure' : ''}`);
+
+// ---------- helpers ----------
+function run(cmd, args, { timeout = 20e3, cwd } = {}) {
+  return new Promise(ok => execFile(cmd, args, { timeout, cwd, maxBuffer: 4 * 2 ** 20, env: process.env }, (err, out, errOut) => ok({ code: err ? (err.code ?? 1) : 0, out: String(out || ''), err: String(errOut || '') + (err && err.killed ? '\n(stopped: took too long)' : '') })));
+}
+const readJson = (f, d = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } };
+const writeJson = (f, v) => { const tmp = f + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(v, null, 1) + '\n'); fs.renameSync(tmp, f); };
+const listDir = d => { try { return fs.readdirSync(d); } catch (e) { return []; } };
+const demoFiles = d => listDir(d).filter(f => /\.bf2demo(\.gz)?$/i.test(f));
+const sizeOf = f => { try { return fs.statSync(f).size; } catch (e) { return 0; } };
+
+// the site's decoder hash (as ingest.mjs makes it), cached by the page's modification time
+let decCache = { mt: 0, hash: '?', ver: '?' };
+function siteDecoder() {
+  const f = path.join(SITE, 'index.html'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return decCache; }
+  if (mt === decCache.mt) return decCache;
+  let hash = '?', ver = '?';
+  try { ver = readJson(path.join(SITE, 'version.json'), {}).v || '?'; } catch (e) {}
+  try {
+    const html = fs.readFileSync(f, 'utf8'), L = html.split('\n');
+    if (ver === '?') ver = (/const APP_VERSION = '(v\d+)'/.exec(html) || [])[1] || '?';
+    const g = L.find(l => l.startsWith('const GAME = ')), a = L.findIndex(l => l.startsWith('// @worker-begin')), b = L.findIndex(l => l.startsWith('// @worker-end'));
+    const k0 = html.indexOf('function killCause('), k1 = html.indexOf('\n}\n', k0);
+    hash = crypto.createHash('sha1').update(g).update(L.slice(a, b).join('\n')).update(html.slice(k0, k1 + 2)).digest('hex').slice(0, 10);
+  } catch (e) {}
+  return (decCache = { mt, hash, ver });
+}
+// rounds.json, cached by its modification time
+let idxCache = { mt: 0, d: null };
+function index() {
+  const f = path.join(DATA, 'rounds.json'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return { rounds: [] }; }
+  if (mt !== idxCache.mt) idxCache = { mt, d: readJson(f, { rounds: [] }) };
+  return idxCache.d || { rounds: [] };
+}
+// the services: systemctl show (works without root)
+async function units() {
+  const names = UNITS.map(u => `bf2replay-${u}.service`).concat(['bf2replay-fetch.timer', 'bf2replay-backup.timer', 'bf2replay-update.timer', 'bf2replay-ingest.path']);
+  const r = await run(SYSTEMCTL, ['show', '--no-pager', '-p', 'Id,ActiveState,SubState,Result,ExecMainStartTimestamp,ExecMainExitTimestamp,NextElapseUSecRealtime,LastTriggerUSec,LoadState', ...names]);
+  const out = {};
+  for (const block of r.out.split(/\n\s*\n/)) {
+    const o = {}; for (const line of block.split('\n')) { const i = line.indexOf('='); if (i > 0) o[line.slice(0, i)] = line.slice(i + 1); }
+    if (o.Id) out[o.Id.replace(/^bf2replay-/, '')] = { state: o.ActiveState, sub: o.SubState, result: o.Result, loaded: o.LoadState, started: o.ExecMainStartTimestamp || null, ended: o.ExecMainExitTimestamp || null, next: o.NextElapseUSecRealtime || null, last: o.LastTriggerUSec || null };
+  }
+  return { units: out, ok: r.code === 0 || Object.keys(out).length > 0 };
+}
+// the demo sources: BF2R_FETCH_URLS (from /etc/bf2replay.conf) and the ones added here
+const envSources = () => opt('BF2R_FETCH_URLS', '').split(/[\s,]+/).filter(Boolean);
+const addedSources = () => { const j = readJson(SOURCES, null); return Array.isArray(j?.sources) ? j.sources.filter(s => s && typeof s.url === 'string') : []; };
+const SOURCE_RE = /^(https?:\/\/[^\s"'<>]{3,300}|[A-Za-z0-9][A-Za-z0-9.-]{0,252}(:\d{1,5})?)$/;
+// what was fetched from each host (data/.fetched.json)
+function fetchedByHost() {
+  const seen = readJson(path.join(DATA, '.fetched.json'), {}), by = {};
+  for (const [k, v] of Object.entries(seen || {})) {
+    if (!v || v.skipped) continue; let h = ''; try { h = new URL(v.from || k).host; } catch (e) { h = '?'; }
+    const o = by[h] || (by[h] = { n: 0, bytes: 0, last: null }); o.n++; o.bytes += v.bytes || 0; if (v.at && (!o.last || v.at > o.last)) o.last = v.at;
+  }
+  return by;
+}
+
+async function state() {
+  const dec = siteDecoder(), idx = index(), R = idx.rounds || [];
+  const cur = R.filter(r => r.decoder === dec.hash).length, servers = {};
+  for (const r of R) { const s = r.server || r.sum?.server || '?'; servers[s] = (servers[s] || 0) + 1; }
+  const newest = R.reduce((b, r) => !b || (r.added || '') > (b.added || '') ? r : b, null);
+  const inc = listDir(INC), incDemos = inc.filter(f => /\.bf2demo(\.gz)?$/i.test(f)), parts = inc.filter(f => f.endsWith('.part'));
+  const bad = demoFiles(BAD);
+  let disk = null; try { const st = fs.statfsSync(DATA); disk = { free: st.bavail * st.bsize, total: st.blocks * st.bsize }; } catch (e) {}
+  const u = await units();
+  const settings = Object.fromEntries(Object.keys({ ...conf, ...process.env }).filter(k => /^BF2R_/.test(k) && !/PASS/.test(k)).sort().map(k => [k, opt(k, '')]));
+  return {
+    now: new Date().toISOString(), site: { version: dec.ver, decoder: dec.hash },
+    rounds: { total: R.length, current: cur, old: R.length - cur, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null },
+    reprocess: idx.reprocess || null, lastReprocess: readJson(path.join(DATA, 'reprocess.json'), null),
+    queue: { demos: incDemos.length, bytes: incDemos.reduce((s, f) => s + sizeOf(path.join(INC, f)), 0), parts: parts.length, files: incDemos.sort().slice(0, 12) },
+    bad: { demos: bad.length, files: bad.sort().slice(-12) },
+    units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
+    sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
+    settings, password: !!readPass()
+  };
+}
+
+// ---------- actions ----------
+async function startUnit(u) {
+  if (!UNITS.includes(u)) return { ok: false, msg: 'unknown service' };
+  const r = await run(SUDO, ['-n', SYSTEMCTL, 'start', '--no-block', `bf2replay-${u}.service`]);
+  if (r.code === 0) { log('started', `bf2replay-${u}`); return { ok: true, msg: `bf2replay-${u} started` }; }
+  const why = (r.err || r.out).trim().split('\n').pop();
+  return { ok: false, msg: `could not start bf2replay-${u}: ${why || 'error ' + r.code}${/password|sudoers|not allowed/i.test(why) ? ' (the permission comes with units.sh: wait a minute after the update, or run sudo bash /srv/bf2replay/repo/server/units.sh)' : ''}` };
+}
+// the demos that could not be decoded (data/bad) back into the queue: the ingest service's path unit sees them at once
+function retryBad() {
+  let n = 0, skipped = 0;
+  fs.mkdirSync(INC, { recursive: true });
+  for (const f of demoFiles(BAD)) { const dst = path.join(INC, f); if (fs.existsSync(dst)) { skipped++; continue; } try { fs.renameSync(path.join(BAD, f), dst); n++; } catch (e) { skipped++; } }
+  log('failed demos back in the queue:', n);
+  return { ok: true, msg: `${n} demo${n === 1 ? '' : 's'} back in the queue${skipped ? `, ${skipped} skipped (already there)` : ''}` };
+}
+function addSource(url) {
+  url = String(url || '').trim();
+  if (!SOURCE_RE.test(url)) return { ok: false, msg: 'not an address: a page (http://… or https://…) or a game server (IP or name, :port if not the usual)' };
+  const L = addedSources(); if (L.some(s => s.url === url) || envSources().includes(url)) return { ok: false, msg: 'already in the list' };
+  L.push({ url, added: new Date().toISOString() }); writeJson(SOURCES, { sources: L }); log('demo source added:', url);
+  return { ok: true, msg: `added: ${url} (read at the next fetch, or press "Fetch new demos now")` };
+}
+function removeSource(url) {
+  const L = addedSources(), M = L.filter(s => s.url !== url);
+  if (M.length === L.length) return { ok: false, msg: envSources().includes(url) ? 'this one is in /etc/bf2replay.conf (BF2R_FETCH_URLS): remove it there' : 'not in the list' };
+  writeJson(SOURCES, { sources: M }); log('demo source removed:', url); return { ok: true, msg: `removed: ${url} (its demos and rounds stay)` };
+}
+// fetch.mjs --probe / --list: only looks, writes nothing
+async function fetchLook(args, timeout) {
+  const r = await run(NODE, [path.join(HERE, 'fetch.mjs'), ...args], { timeout });
+  return { ok: r.code === 0, out: (r.out + (r.err ? '\n' + r.err : '')).trim().slice(-20000) || '(no answer)' };
+}
+async function journal(u, n) {
+  if (!['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'admin', 'all'].includes(u)) return { ok: false, out: 'unknown service' };
+  const who = u === 'all' ? ['-u', 'bf2replay-*'] : ['-u', `bf2replay-${u}`];
+  const r = await run(JOURNALCTL, [...who, '-n', String(Math.max(10, Math.min(500, n || 120))), '--no-pager', '-o', 'short-iso'], { timeout: 15e3 });
+  const out = (r.out || r.err).trim();
+  return { ok: r.code === 0, out: out || '(nothing)', noAccess: /not seeing messages|No journal files|permission/i.test(out) };
+}
+
+// ---------- the server ----------
+const PAGE = path.join(HERE, 'admin.html');
+function send(res, code, body, type = 'application/json; charset=utf-8') {
+  res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" });
+  res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
+}
+const bodyOf = req => new Promise((ok, no) => { let s = ''; req.on('data', c => { s += c; if (s.length > 1e5) { no(new Error('too big')); req.destroy(); } }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch (e) { no(e); } }); req.on('error', no); });
+// (a POST must come from the page itself: the same host, and the header only a script on the page sends)
+const sameSite = req => { const o = req.headers.origin, h = req.headers['x-forwarded-host'] || req.headers.host; if (req.headers['x-bf2r'] !== '1') return false; if (!o) return true; try { return new URL(o).host === h; } catch (e) { return false; } };
+
+const server = http.createServer(async (req, res) => {
+  try {
+    const url = new URL(req.url, 'http://x'), p = url.pathname.replace(/\/+$/, '') || '/';
+    if (req.method === 'GET' && (p === '/admin' || p === '/admin/index.html')) return send(res, 200, fs.readFileSync(PAGE), 'text/html; charset=utf-8');
+    if (!p.startsWith('/admin/api/')) return send(res, 404, { error: 'not found' });
+    const what = p.slice('/admin/api/'.length), ip = clientIp(req);
+    if (req.method === 'POST' && !sameSite(req)) return send(res, 403, { error: 'not from the admin page' });
+    if (what === 'login' && req.method === 'POST') {
+      const wait = blocked(ip); if (wait) return send(res, 429, { error: `too many wrong passwords: try again in ${wait} min` });
+      if (!readPass()) return send(res, 503, { error: 'no password set yet: on the VPS run  sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' });
+      const b = await bodyOf(req);
+      if (!checkPass(b.password)) { const now = Date.now(); fails.set(ip, [...(fails.get(ip) || []), now]); allFails.push(now); log('wrong admin password from', ip); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: 'wrong password' }); }
+      fails.delete(ip);
+      const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now(); sessions.set(tok, { exp: now + SESSION_H * 3600e3, seen: now, ip });
+      for (const [k, s] of sessions) if (now > s.exp) sessions.delete(k);
+      setCookie(req, res, tok, SESSION_H * 3600); log('admin logged in from', ip); return send(res, 200, { ok: true });
+    }
+    const s = sessionOf(req);
+    if (what === 'me') return send(res, 200, { in: !!s, password: !!readPass() });
+    if (!s) return send(res, 401, { error: 'log in first' });
+    if (what === 'logout' && req.method === 'POST') { sessions.delete(s.tok); setCookie(req, res, 'x'.repeat(20), 0); return send(res, 200, { ok: true }); }
+    if (what === 'state' && req.method === 'GET') return send(res, 200, await state());
+    if (what === 'log' && req.method === 'GET') return send(res, 200, await journal(url.searchParams.get('unit') || 'all', +url.searchParams.get('n')));
+    if (req.method !== 'POST') return send(res, 405, { error: 'method' });
+    const b = await bodyOf(req);
+    if (what === 'start') return send(res, 200, await startUnit(String(b.unit)));
+    if (what === 'retry-bad') return send(res, 200, retryBad());
+    if (what === 'source-add') return send(res, 200, addSource(b.url));
+    if (what === 'source-remove') return send(res, 200, removeSource(String(b.url || '')));
+    if (what === 'probe') { const a = String(b.url || '').trim(); if (a && !SOURCE_RE.test(a)) return send(res, 200, { ok: false, out: 'not an address' }); return send(res, 200, await fetchLook(a ? ['--probe', a] : ['--probe'], 60e3)); }
+    if (what === 'fetch-list') return send(res, 200, await fetchLook(['--list'], 180e3));
+    return send(res, 404, { error: 'not found' });
+  } catch (e) { log('error:', e.stack || e.message); try { send(res, 500, { error: e.message }); } catch (e2) {} }
+});
+
+if (process.argv.includes('--set-password')) await setPassword();
+else {
+  server.listen(PORT, HOST, () => log(`admin page on http://${HOST}:${PORT}/admin${readPass() ? '' : ' (no password set yet: sudo node ' + path.join(HERE, 'admin.mjs') + ' --set-password)'}`));
+  // a new version of this file (after a site update): exit, and systemd starts the new one (Restart=always)
+  const me = new URL(import.meta.url).pathname; let mt = 0; try { mt = fs.statSync(me).mtimeMs; } catch (e) {}
+  setInterval(() => { let m = 0; try { m = fs.statSync(me).mtimeMs; } catch (e) { return; } if (m !== mt) { log('admin.mjs changed: restarting'); process.exit(0); } }, 30e3).unref();
+}

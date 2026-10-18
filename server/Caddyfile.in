@@ -42,6 +42,10 @@ __SITE__ {
 		respond @private 404
 		file_server
 	}
+	# the admin page (server/admin.mjs on 127.0.0.1:8781, behind a password: admin.mjs --set-password)
+	handle /admin* {
+		reverse_proxy 127.0.0.1:8781
+	}
 	# the site (from the repository's site/ folder)
 	handle {
 		root * /srv/bf2replay/site

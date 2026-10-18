@@ -31,7 +31,7 @@ if (P && P.hash === hash) {
   const el = (Date.now() - Date.parse(P.since)) / 1000, rate = P.done ? el / P.done : null;
   console.log(`Decoding again     ${P.done} / ${P.total} (${Math.floor(100 * P.done / P.total)}%), ${P.jobs || 1} at once, since ${new Date(P.since).toLocaleTimeString()}${rate ? `, ~${rate.toFixed(1)} s a round, ~${hm(rate * (P.total - P.done))} left` : ''}`);
 } else if (done < R.length) console.log(`Decoding again     not running yet (bf2replay-reprocess starts within a minute of the site update)`);
-console.log(`Services           reprocess ${act('bf2replay-reprocess.service')} · update ${act('bf2replay-update.service')} (timer ${act('bf2replay-update.timer')}) · ingest ${act('bf2replay-ingest.service')} · fetch ${act('bf2replay-fetch.service')}`);
+console.log(`Services           reprocess ${act('bf2replay-reprocess.service')} · update ${act('bf2replay-update.service')} (timer ${act('bf2replay-update.timer')}) · ingest ${act('bf2replay-ingest.service')} · fetch ${act('bf2replay-fetch.service')} · admin page ${act('bf2replay-admin.service')}`);
 const next = sh('systemctl', ['show', '-P', 'NextElapseUSecRealtime', 'bf2replay-fetch.timer']);
 let fl = null; try { fl = JSON.parse(fs.readFileSync(path.join(DATA, '.fetch-last.json'), 'utf8')); } catch (e) {}
 if (fl) console.log(`Demo pages         looked ${hm((Date.now() - Date.parse(fl.at)) / 1000)} ago: ${fl.listed} demos listed, ${fl.new} new${fl.got ? ', ' + fl.got + ' downloaded' : ''}${fl.busy ? ', ' + fl.busy + ' still being written' : ''}${fl.failed ? ', ' + fl.failed + ' failed' : ''}${next ? ' · next ' + next : ''}`);
