@@ -210,6 +210,11 @@ sudo install -o bf2replay -g bf2replay -m 644 /tmp/auto_….bf2demo /srv/bf2repl
 
 # перерозібрати все з демо (напр. якщо щось пішло не так):
 sudo -u bf2replay flock /srv/bf2replay/data/.ingest.lock node /srv/bf2replay/repo/server/ingest.mjs --rebuild
+
+# почати наново: перекачати все, що ще є на сторінках демо, і розібрати з нуля (v136)
+sudo bash /srv/bf2replay/repo/server/redownload.sh             # 1. лише подивитись: скільки демо, скільки місця, які раунди пропали б
+sudo bash /srv/bf2replay/repo/server/redownload.sh --go        # 2. відсунути старе в data/old-<дата> і качати й розбирати наново
+sudo bash /srv/bf2replay/repo/server/redownload.sh --drop-old  # 3. коли сайт у порядку: видалити data/old-*
 ```
 
 Резервна копія: достатньо `/srv/bf2replay/data/demos` (усе інше відновлюється з демо через `--rebuild`)

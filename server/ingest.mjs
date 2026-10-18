@@ -85,8 +85,17 @@ function summarize(tl, hdr, killCause) {
   const at = (i, tt) => {   // as the page's playerAt: between the frames around tt
     let a = frameAt(tt); if (a < 0) a = 0; const b = Math.min(F - 1, a + 1), u = b > a ? Math.max(0, Math.min(1, (tt - T[a]) / (T[b] - T[a]))) : 0;
     const ia = a * n + i, ib = b * n + i, alive = !!C.L[ia];
-    if (!alive || !C.L[ib]) return { x: C.X[ia], y: C.Y[ia], alive, veh: C.VTN[C.VT[ia]] };
-    return { x: C.X[ia] + (C.X[ib] - C.X[ia]) * u, y: C.Y[ia] + (C.Y[ib] - C.Y[ia]) * u, alive, veh: C.VTN[C.VT[ia]] };
+    if (!alive || !C.L[ib]) return { x: C.X[ia], y: C.Y[ia], alive, veh: C.VTN[C.VT[ia]], yaw: C.A[ia] };
+    return { x: C.X[ia] + (C.X[ib] - C.X[ia]) * u, y: C.Y[ia] + (C.Y[ib] - C.Y[ia]) * u, alive, veh: C.VTN[C.VT[ia]], yaw: C.A[ia] };
+  };
+  // (v136) how the kill came at the victim (as the page's killFacing): [front 0 / side 1 / behind 2, unseen 1 / seen 0]
+  const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
+  const facing = (vi, ki, t) => {
+    const bear = (v, k) => Math.atan2(k.x - v.x, k.y - v.y), ok = (v, k) => v.alive && k.alive && !v.veh && Number.isFinite(v.yaw) && Number.isFinite(k.x) && Math.hypot(k.x - v.x, k.y - v.y) > 0.5;
+    const v0 = at(vi, t - 0.1), k0 = at(ki, t - 0.1); let face = null, seen = null;
+    if (ok(v0, k0)) { const d = angOff(v0.yaw, bear(v0, k0)); face = d < Math.PI / 3 ? 0 : d > Math.PI * 2 / 3 ? 2 : 1; }
+    for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(vi, tt), k = at(ki, tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= Math.atan(Math.tan(0.55) * 4 / 3)) { seen = 1; break; } }   // (the page's VIEW_HALF)
+    return [face, seen === null ? null : seen ? 0 : 1];
   };
   const ev = tl.events.slice().sort((a, b) => a.t - b.t), kills = ev.filter(e => e.type === 'kill');
   // kill distances as the page works them out (normalize): killer to victim in the frame of the kill, from where a grenade
@@ -122,17 +131,18 @@ function summarize(tl, hdr, killCause) {
     return { name: pl.name.trim(), team: tm, win: winner !== null && tm === winner, k: s.k[0] + s.k[1], kVeh: s.k[1], d: s.d[0] + s.d[1], tk: s.tk,
       sui: ev.filter(e => mine(e) && e.victim === id).length, hs: enemy.filter(e => e.hit === 'head').length,
       rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
-      rep: ev.filter(e => e.type === 'repair' && e.by === id).length, score: (pl.pts || []).reduce((a, q) => a + q[1], 0),
+      rep: ev.filter(e => e.type === 'repair' && e.by === id).length, score: pl.sb ? pl.sb[pl.sb.length - 1][1] : (pl.pts || []).reduce((a, q) => a + q[1], 0),   // (v132: the game's own score)
       streak: streak(i), long: Math.max(0, ...enemy.map(e => e.dist || 0)), alive: Math.round(s.foot + s.veh) };
   });
   const top = P.slice().sort((a, b) => b.score - a.score)[0];
-  // the kills for the heatmap of all rounds on the map: [victim x, y, killer x, y, victim's side, killer's side, kind, weapon, killer, victim]
+  // the kills for the heatmap of all rounds on the map: [victim x, y, killer x, y, victim's side, killer's side, kind, weapon, killer, victim,
+  // from the front / side / behind, unseen] (the last two: v136)
   const r1 = v => Math.round(v * 10) / 10;
   const pts = kills.map(e => {
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (vi === undefined || e.killer === e.victim) return null;
-    const kq = ki !== undefined ? at(ki, e.t - 0.05) : null, vq = at(vi, e.t);
+    const kq = ki !== undefined ? at(ki, e.t - 0.05) : null, vq = at(vi, e.t), fc = ki !== undefined ? facing(vi, ki, e.t) : [null, null];
     return [r1(e.x ?? vq.x), r1(e.y ?? vq.y), kq && kq.alive ? r1(kq.x) : null, kq && kq.alive ? r1(kq.y) : null, tl.teams[team(vi, e.t)]?.name || '', ki !== undefined ? tl.teams[team(ki, e.t)]?.name || '' : '',
-      killCause(e, !!(kq && kq.veh)), e.weapon || '', ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim()];
+      killCause(e, !!(kq && kq.veh)), e.weapon || '', ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim(), fc[0], fc[1]];
   }).filter(Boolean);
   const map = hdr ? (hdr.fields[2].split('/').pop() || hdr.fields[2]) : String(tl.meta.map || '');
   return { date: hdr ? hdr.fields[1] : '', map, server: hdr ? hdr.fields[0] : '', duration: dur, empty: !P.length, players: P.length, kills: kills.length,
@@ -254,7 +264,7 @@ function writeShares(d, dec) {
   for (const [nick, a] of P) {
     const day = x => x ? dayOf(x).replace(/^\w+, /, '') : '', top = [...a.maps].sort((x, y) => y[1] - x[1])[0][0];
     const desc = [`${a.rounds} round${a.rounds === 1 ? '' : 's'}${a.first ? a.first === a.last ? ` on ${day(a.last)}` : ` from ${day(a.first)} to ${day(a.last)}` : ''}`,
-      `${a.k} kills, ${a.d} deaths (K/D ${(a.k / Math.max(1, a.d)).toFixed(2)})`, `won ${a.wins}`, `≈ score ${a.score}`].join(' · ');
+      `${a.k} kills, ${a.d} deaths (K/D ${(a.k / Math.max(1, a.d)).toFixed(2)})`, `won ${a.wins}`, `score ${a.score}`].join(' · ');
     const slug = nickSlug(nick);
     want.p.set(slug, sharePage({ title: a.name, desc, image: ogImg(top), url: DOMAIN ? `${base}p/${slug}` : '', go: x => `../#player=${encodeURIComponent(nick)}${x}` }));
   }
@@ -330,7 +340,7 @@ function writeWww(d, dec) {
     const s = r.sum, id = idOf(r.name);
     return `<tr><td><a href="/rounds/${escH(id)}.html">${escH(dayOf(s.date))}</a></td>${cols.map ? `<td><a href="/maps/${escH(mk(s))}.html">${escH(mapName(mapOf(s)))}</a></td>` : ''}${cols.server ? `<td class="mute">${escH(s.server)}</td>` : ''}<td class="n">${mmss(s.duration)}</td><td class="n">${s.players}</td><td class="n">${s.kills}</td><td>${result(s)}</td><td>${s.top ? `${plink(s.top.name)} <span class="mute">${s.top.score}</span>` : ''}</td></tr>`;
   };
-  const roundTable = (list, cols) => `<div class="wrap"><table><thead><tr><th>Started</th>${cols.map ? '<th>Map</th>' : ''}${cols.server ? '<th>Server</th>' : ''}<th class="n">Length</th><th class="n">Players</th><th class="n">Kills</th><th>Result</th><th>Best ≈ score</th></tr></thead><tbody>
+  const roundTable = (list, cols) => `<div class="wrap"><table><thead><tr><th>Started</th>${cols.map ? '<th>Map</th>' : ''}${cols.server ? '<th>Server</th>' : ''}<th class="n">Length</th><th class="n">Players</th><th class="n">Kills</th><th>Result</th><th>Best score</th></tr></thead><tbody>
 ${list.map(r => roundRow(r, cols)).join('\n')}
 </tbody></table></div>`;
   const servers = new Set(R.map(r => r.sum.server)), manySrv = servers.size > 1;
@@ -349,7 +359,7 @@ ${roundTable(R.slice(0, 100), { map: true, server: manySrv })}
     const s = r.sum, id = idOf(r.name), m = mapOf(s), mf = mk(s);
     const sides = [0, 1].map(tm => (s.P || []).filter(p => p.team === tm).sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k));
     const side = (tm, L) => L.length ? `<h2><span class="t${tm}">${escH(s.teams?.[tm] || 'Team ' + (tm + 1))}</span>${s.winner === tm ? ' · won' : ''}${s.tickets ? ` <span class="mute">tickets ${s.tickets[tm][0]} → ${s.tickets[tm][1]}</span>` : ''}</h2>
-<div class="wrap"><table><thead><tr><th>Player</th><th class="n">≈ Score</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">Headshots</th><th class="n">Best streak</th><th class="n">Revives</th></tr></thead><tbody>
+<div class="wrap"><table><thead><tr><th>Player</th><th class="n">Score</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">Headshots</th><th class="n">Best streak</th><th class="n">Revives</th></tr></thead><tbody>
 ${L.map(p => `<tr><td>${plink(p.name)}</td><td class="n">${p.score || 0}</td><td class="n">${p.k}</td><td class="n">${p.d}</td><td class="n">${p.hs || 0}</td><td class="n">${p.streak || '–'}</td><td class="n">${p.rev || 0}</td></tr>`).join('\n')}
 </tbody></table></div>` : '';
     files.set(`rounds/${id}.html`, wwwPage({ abs, canon: `/rounds/${id}.html`, title: `${mapName(m)} · ${dayOf(s.date)}`, desc: `Battlefield 2 on ${mapName(m)}: ${roundDesc(s)}.`,
@@ -362,17 +372,17 @@ ${side(0, sides[0])}${side(1, sides[1])}` }));
   const PL = [...P.values()].sort((a, b) => b.rounds.length - a.rounds.length || b.k - a.k);
   files.set('players/index.html', wwwPage({ abs, canon: '/players/', title: 'Battlefield 2 players', desc: `${PL.length} Battlefield 2 players: rounds, kills, deaths, K/D.`,
     body: `<h1>Players</h1><p class="sub">${PL.length} players over ${R.length} rounds, most rounds first. One player under several clan tags is one row.</p>
-<div class="wrap"><table><thead><tr><th>Player</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">≈ Score</th><th>Last played</th></tr></thead><tbody>
+<div class="wrap"><table><thead><tr><th>Player</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">Score</th><th>Last played</th></tr></thead><tbody>
 ${PL.map(a => `<tr><td><a href="/players/${escH(nickSlug(a.nick))}.html">${escH(a.name)}</a></td><td class="n">${a.rounds.length}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.score}</td><td class="mute">${escH(dayOf(a.rounds[0].r.sum.date).replace(/, \d\d:\d\d$/, ''))}</td></tr>`).join('\n')}
 </tbody></table></div>` }));
   for (const a of PL) {
     const slug = nickSlug(a.nick), maps = new Map(); for (const { r } of a.rounds) maps.set(mk(r.sum), (maps.get(mk(r.sum)) || 0) + 1);
     const aka = [...a.names].filter(x => x !== a.name);
     files.set(`players/${slug}.html`, wwwPage({ abs, canon: `/players/${slug}.html`, title: `${a.name} · Battlefield 2 player`, desc: `${a.name} in Battlefield 2: ${a.rounds.length} rounds, ${a.k} kills, ${a.d} deaths (K/D ${kd(a.k, a.d)}), won ${a.wins}.`,
-      body: `<h1>${escH(a.name)}</h1><p class="sub">${aka.length ? `also as ${aka.map(escH).join(', ')} · ` : ''}${a.rounds.length} rounds · ${a.k} kills · ${a.d} deaths · K/D ${kd(a.k, a.d)} · won ${a.wins} · ≈ score ${a.score}${a.hs ? ` · ${a.hs} headshots` : ''}</p>
+      body: `<h1>${escH(a.name)}</h1><p class="sub">${aka.length ? `also as ${aka.map(escH).join(', ')} · ` : ''}${a.rounds.length} rounds · ${a.k} kills · ${a.d} deaths · K/D ${kd(a.k, a.d)} · won ${a.wins} · score ${a.score}${a.hs ? ` · ${a.hs} headshots` : ''}</p>
 <a class="go" href="/#player=${encodeURIComponent(a.nick)}">▶ His page in the replay</a>
 <h2>Maps</h2><p>${[...maps].sort((x, y) => y[1] - x[1]).map(([m, c]) => `<a href="/maps/${escH(m)}.html">${escH(mapName(m))}</a> <span class="mute">${c}</span>`).join(' · ')}</p>
-<h2>Rounds</h2><div class="wrap"><table><thead><tr><th>Started</th><th>Map</th><th>Side</th><th>Result</th><th class="n">≈ Score</th><th class="n">Kills</th><th class="n">Deaths</th></tr></thead><tbody>
+<h2>Rounds</h2><div class="wrap"><table><thead><tr><th>Started</th><th>Map</th><th>Side</th><th>Result</th><th class="n">Score</th><th class="n">Kills</th><th class="n">Deaths</th></tr></thead><tbody>
 ${a.rounds.map(({ r, p }) => { const s = r.sum; return `<tr><td><a href="/rounds/${escH(idOf(r.name))}.html">${escH(dayOf(s.date))}</a></td><td>${escH(mapName(mapOf(s)))}</td><td><span class="t${p.team}">${escH(s.teams?.[p.team] || '')}</span></td><td>${s.winner == null ? '–' : p.win ? 'Won' : 'Lost'}</td><td class="n">${p.score || 0}</td><td class="n">${p.k}</td><td class="n">${p.d}</td></tr>`; }).join('\n')}
 </tbody></table></div>` }));
   }
@@ -401,7 +411,7 @@ ${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n
   // who did most over each stretch (by score, as the page reckons it)
   const when = r => { const m = /^(\d{4})-(\d\d)-(\d\d)/.exec(r.sum.date || ''); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : Date.parse(r.added || '') || 0; };
   const REC = [['k', 'Most kills', v => v], ['streak', 'Longest streak (kills without dying)', v => v], ['long', 'Longest kill', v => v + ' m'], ['hs', 'Most headshots', v => v],
-    ['kVeh', 'Most kills from vehicles', v => v], ['rev', 'Most revives', v => v], ['rep', 'Most repairs', v => v], ['score', 'Best score (≈)', v => v], ['kd', 'Best K/D (10 kills or more)', v => v.toFixed(2)]];
+    ['kVeh', 'Most kills from vehicles', v => v], ['rev', 'Most revives', v => v], ['rep', 'Most repairs', v => v], ['score', 'Best score', v => v], ['kd', 'Best K/D (10 kills or more)', v => v.toFixed(2)]];
   const recVal = (p, key) => key === 'kd' ? (p.k >= 10 ? p.k / Math.max(1, p.d) : 0) : (p[key] || 0);
   const oneMap = new Set(R.map(r => mapOf(r.sum))).size < 2, shortDay = d => { const m = /^(\d{4})-(\d\d)-(\d\d)(?:\s+(\d\d:\d\d))?/.exec(d || ''); return m ? new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) + (m[4] ? ' ' + m[4] : '') : ''; };
   const rlink = r => `<a href="/rounds/${escH(idOf(r.name))}.html">${escH(shortDay(r.sum.date))}</a>${oneMap ? '' : ` <span class="mute">${escH(mapName(mapOf(r.sum)))}</span>`}`;
@@ -420,7 +430,7 @@ ${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n
 <div class="wrap"><table class="rec"><thead><tr><th>In one round</th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody>
 ${rows}
 </tbody></table></div>
-<h3>Most over ${escH(days === Infinity ? 'all rounds' : 'these ' + days + ' days')}</h3><div class="wrap"><table><thead><tr><th>Player</th><th class="n">≈ Score</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">Revives</th></tr></thead><tbody>
+<h3>Most over ${escH(days === Infinity ? 'all rounds' : 'these ' + days + ' days')}</h3><div class="wrap"><table><thead><tr><th>Player</th><th class="n">Score</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">Revives</th></tr></thead><tbody>
 ${T.map(a => `<tr><td>${plink(a.name)}</td><td class="n">${a.score}</td><td class="n">${a.n}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.rev}</td></tr>`).join('\n')}
 </tbody></table></div>`;
   };

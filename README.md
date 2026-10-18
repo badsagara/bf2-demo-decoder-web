@@ -93,3 +93,43 @@ cd ~/bf2-round-replay/site && python3 -m http.server 8000
 ```
 
 і відкрити http://localhost:8000 — без `data/` сайт працює як звичайний переглядач (кнопка «Open .bf2demo»).
+
+## Подяки та сторонній код
+
+Починаючи з v132 частина декодера (табло гравця з його Player ghost, спотер у повідомленні UnitSpotted, розкладка
+KilledBy, id шаблонів решти авіації: Mi-28, Su-30MKK, MiG-29, Su-34, Mi-17, F-15E) перенесена з
+[Kakarotto22/bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer) — розкладки полів, які автор
+вивчив із бінарників гри. Перевірено на 9 раундах: табло 176 з 176 гравців, kill feed 2319 з 2319, спотери 843 з 843.
+З v133 — розкладки всіх 63 подій гри (кожен пакет читається до кінця: 43154 з 43154), 16-бітні id об'єктів і записів,
+посадка в техніку / на парашут, хто випустив кожен снаряд (MissileInit), реанімації за прапорцем «man down», асисти
+(316 з 316), підібрані кіти, кіки, командири, медалі, назви сквадів.
+З v135 — блок налаштувань сервера (ServerInfo / MapInfo), записи прапорів і груп спавну (ControlPoint, SpawnGroup:
+зміни власника прапорів 845 з 845) і решта полів Player ghost (кнопки вогню, час поза зоною бою, час, коли можна
+відродитись, обрана точка спавну).
+З v136 — нумерація шаблонів на мапах Armored Fury (booster_global), події StickyProjectile, IssueSquadOrder і прапорець
+втрати квитків у ScoreManager.
+Їхня ліцензія:
+
+```
+MIT License
+
+Copyright (c) 2026 Kakarotto
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
