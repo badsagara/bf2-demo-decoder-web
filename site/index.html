@@ -244,6 +244,11 @@ input[type=file] { display: none; }
 .mapctl :is(.qwall, .qrel, .qahd) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 .mapctl :is(.qwall, .qrel, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapctl .vside svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.mapctl .vlock { gap: 6px; }
+.mapctl .vlock svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.mapctl .vlock[aria-pressed="false"] .sh { transform: translate(2.6px, -1.2px) rotate(16deg); transform-origin: 10.7px 7.2px; }   /* (open) */
+.mapctl .vlock[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapctl .vlock.wait { border-style: dashed; }   /* (on, but nobody followed) */
 .mapctl .vside { gap: 6px; }
 /* Controls left: the buttons, speed and zoom in a column down the map's left side; play and the round time stay at the
    bottom in one row - the bottom of the map stays free (not on a phone: there the bar is under the map anyway) */
@@ -563,6 +568,7 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .kpi .kl { display: block; font: 500 11px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .kpi .kv { display: block; font: 700 25px/1.15 var(--font-display); letter-spacing: .02em; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .ks { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi[data-wrap] .ks { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }   /* (v154: who and by whom, on two lines) */
 .card h2 .w { font: 400 11px var(--font-data); letter-spacing: .06em; text-transform: none; margin-left: 6px; }
 /* one table of the soldiers: Main columns always, the other groups when picked */
 .pgroups { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -758,7 +764,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -797,7 +803,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -916,7 +922,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v153';
+const APP_VERSION = 'v154';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1298,6 +1304,7 @@ function spawnedAt(p, tt) {
 }
 // ---------- state ----------
 let t = 0, playing = false, speed = 10, sel = null, tab = 0;
+let camLock = false, lockKey = '';   // (v154: lock camera - below, after the map's view buttons)
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', ff: 30, job: null, out: null, drag: null, sel: undefined };
@@ -3758,7 +3765,7 @@ function spreadOut() {
 }
 function draw() {
   if (!round) return;
-  if (cx === cvCtx) syncZoom();
+  if (cx === cvCtx) { lockView(); syncZoom(); }
   cx.setTransform(dpr,0,0,dpr,0,0);
   cx.clearRect(0,0,size,sizeH);
   { const [dx,dy] = toC(-W/2, W/2), dw = W/view.span*size;
@@ -4795,6 +4802,7 @@ cv.addEventListener('pointerdown', e => { pan = { x: e.clientX, y: e.clientY, v:
 cv.addEventListener('pointermove', e => {
   if (!pan) return; const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
   if (!pan.moved && Math.hypot(dx, dy) < 4) return;
+  if (!pan.moved && camLock && sel !== null) { setCamLock(false); toast('Camera unlocked: K or "Lock camera" locks it again'); }
   pan.moved = true; cv.style.cursor = 'grabbing';
   view = { ...pan.v, x0: pan.v.x0 - dx/size*pan.v.span, y0: pan.v.y0 + dy/size*pan.v.span }; draw();
 });
@@ -4831,7 +4839,7 @@ cv.addEventListener('wheel', e => {
   const span = Math.max(40, Math.min(W * 1.2 * Math.max(1, size / sizeH), view.span * k));
   view = { x0: wx - mx/size*span, y0: wy + my/size*span, span }; draw();
 }, { passive: false });
-$('#vFit').onclick = () => { viewFit(); draw(); };
+$('#vFit').onclick = () => { setCamLock(false); viewFit(); draw(); };
 // zoom slider: from the whole map (a little more) in to 40 m across, on a log scale, like the wheel; it follows the wheel
 // and the view buttons. It zooms on the soldier you follow while he is on screen, else on the middle of the map
 const zoomLim = () => [40, W * 1.2 * Math.max(1, size / sizeH)];   // limits of view.span (metres across the map's width)
@@ -4858,7 +4866,33 @@ function setBigMap(on) {
 }
 $('#vBig').onclick = () => { setBigMap(!$('#mapbox').classList.contains('big')); if ($('#mapbox').classList.contains('big')) $('#mapbox').scrollIntoView({ block: 'nearest' }); };
 try { if (localStorage.getItem('bf2rr.bigmap') === '1') setTimeout(() => setBigMap(true), 0); } catch (e) {}
-$('#vAll').onclick = () => { viewWhole(); draw(); };
+$('#vAll').onclick = () => { setCamLock(false); viewWhole(); draw(); };
+// ---------- lock camera (v154, Sagara: "режим lock camera - коли вона буде прикована до обраного бійця") ----------
+// On: the soldier (or vehicle) you follow stays in the middle of the map as he moves, at any speed and when you jump in
+// time; zooming keeps him there. Dead, the camera waits where he fell and goes to where he spawns again. Following
+// nobody, it waits for one. Dragging the map, Fit action or Whole map unlock it; the button and K lock it again
+// (remembered in this browser). Clips have their own camera (Camera: Follow).
+try { camLock = localStorage.getItem('bf2rr.camlock') === '1'; } catch (e) {}
+function lockView() {
+  lockSync();
+  if (!camLock || sel === null) return;
+  const q = playerAt(sel, t); if (!(q.alive || q.down) || !Number.isFinite(q.x) || !Number.isFinite(q.y)) return;
+  viewAt(q.x, q.y, view.span);
+}
+function lockSync() {
+  const k = camLock + '|' + (sel !== null); if (k === lockKey) return; lockKey = k;
+  for (const b of document.querySelectorAll('.vlock')) {
+    b.setAttribute('aria-pressed', String(camLock)); b.classList.toggle('wait', camLock && sel === null);
+    b.title = camLock ? (sel === null ? 'Camera lock is on: click a soldier to follow and the map keeps him in the middle (K turns it off)' : 'The camera follows the soldier you follow: click to unlock (K). Dragging the map unlocks it too') : 'Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it';
+  }
+}
+function setCamLock(on) {
+  if (camLock === !!on) return; camLock = !!on;
+  try { localStorage.setItem('bf2rr.camlock', camLock ? '1' : '0'); } catch (e) {}
+  lockSync(); if (round) draw();
+}
+for (const b of document.querySelectorAll('.vlock')) b.onclick = () => { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); };
+lockSync();
 // Controls left (v108): the map's buttons, the speed and the zoom moved into a column on the left of the map (and back);
 // remembered in this browser. Not on a phone (the bar sits under the map there).
 const PHONE = window.matchMedia('(max-width: 640px)');
@@ -5219,6 +5253,17 @@ function renderStats() {
   const best = PRow.slice().sort((a, b) => (PR.hasScore ? b.score - a.score : 0) || b.k - a.k)[0];
   const lgst = PRow.filter(r => r.lg).sort((a, b) => b.long - a.long)[0], stk = S.streaks[0];
   const revN = S.summary[0].revives + S.summary[1].revives, capN = S.summary[0].caps + S.summary[1].caps;
+  // (v154, Sagara: "хто був останній вбитий в раунді; хто більше всього вбив з claymore, рокетниці або мін") the round's
+  // last kill (by somebody else: not a suicide), and who made the most enemy kills with claymores, an AT launcher
+  // (SRAW / Eryx) and AT mines - one tile each that the round has (a tie: both names)
+  const pidx = id => round.pidx.get(id), KL = round.events.filter(e => e.type === 'kill' && e.killer !== e.victim && pidx(e.victim) !== undefined);
+  const lastK = KL[KL.length - 1];
+  const byW = [['Claymore kills', e => /claymore/i.test(e.weapon || '')], ['Rocket kills', e => killCause(e, false) === 'at'], ['Mine kills', e => /\bmine\b/i.test(e.weapon || '') && !/claymore/i.test(e.weapon || '')]].map(([label, f]) => {
+    const M = new Map();
+    for (const e of KL) { const ki = pidx(e.killer), vi = pidx(e.victim); if (ki === undefined || round.players[ki].vehicle || teamOf(ki, e.t) === teamOf(vi, e.t) || !f(e)) continue; const o = M.get(ki) || { i: ki, n: 0, first: e }; o.n++; M.set(ki, o); }
+    const L = [...M.values()].sort((a, b) => b.n - a.n || a.first.t - b.first.t), top = L.filter(o => o.n === L[0]?.n);
+    return top.length ? { label, top, w: [...new Set(KL.filter(e => pidx(e.killer) === top[0].i && f(e)).map(e => killWpn(e) || e.weapon))].join(' / ') } : null;
+  }).filter(Boolean);
   const bySide = f => [0, 1].map(k => `<span class="t${k}">${tn(k)}</span> ${f(k)}`).join(' · ');
   const tile = (label, value, sub, attrs) => attrs ? `<button class="kpi"${attrs}><span class="kl">${label}</span><span class="kv">${value}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</button>`
     : `<div class="kpi"><span class="kl">${label}</span><span class="kv">${value}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
@@ -5231,6 +5276,8 @@ function renderStats() {
     ${lgst ? tile('Longest kill', `${lgst.long} m`, `${nm(lgst.i)} · ${esc(killWpn(lgst.lg))}`, ` data-i="${lgst.i}" data-t="${lgst.lg.t}" title="Go to this kill"`) : ''}
     ${stk ? tile('Best streak', `${stk.n} kills`, `${nm(stk.i)} · ${fmt(stk.t0)}–${fmt(stk.t1)}`, ` data-i="${stk.i}" data-t="${stk.t0}" title="Go to the start of the streak"`) : ''}
     ${revN ? tile('Revives', revN, bySide(k => S.summary[k].revives)) : ''}
+    ${lastK ? (() => { const ki = pidx(lastK.killer), vi = pidx(lastK.victim), tk = ki !== undefined && teamOf(ki, lastK.t) === teamOf(vi, lastK.t); const pn2 = i => esc(round.players[i]?.name || ''), w = killWpn(lastK) || lastK.weapon || ''; return tile('Last killed', fmt(lastK.t), `${nm(vi)} by ${ki !== undefined ? nm(ki) : 'nobody known'}${w ? ' · ' + esc(w) : ''}${tk ? ' · team kill' : ''}`, ` data-i="${vi}" data-t="${lastK.t}" data-wrap title="${pn2(vi)} killed by ${ki !== undefined ? pn2(ki) : 'nobody known'}${w ? ' with the ' + esc(w) : ''} at ${fmt(lastK.t)}: go to this kill"`); })() : ''}
+    ${byW.map(o => tile(o.label, o.top[0].n, `${o.top.slice(0, 2).map(x => nm(x.i)).join(', ')}${o.top.length > 2 ? ` +${o.top.length - 2}` : ''} · ${esc(o.w)}`, ` data-i="${o.top[0].i}" data-t="${o.top[0].first.t}" data-wrap title="${o.top.map(x => esc(round.players[x.i].name)).join(', ')}: ${o.top[0].n} enemy kill${o.top[0].n > 1 ? 's' : ''} with the ${esc(o.w)}${o.top.length > 1 ? ' each' : ''} - go to the first one"`)).join('')}
   </div></div>`;
   // the two sides
   h += `<div class="stblock"><h3>Both sides</h3><table class="sttab sum"><thead><tr><th></th>${[0, 1].map(k => `<th class="n t${k}">${tn(k)}</th>`).join('')}</tr></thead><tbody>
@@ -8209,6 +8256,7 @@ document.addEventListener('keydown', e => {
   if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round) clipMark(e.code==='KeyI' ? 'a' : 'b');
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
   if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
+  if (e.code==='KeyK' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); }
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { if (sel !== null) aheadFor(sel); else aheadAll(!aheadOn()); }
