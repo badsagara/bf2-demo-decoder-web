@@ -671,6 +671,8 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .mbar { displ
 .lmenu .btn::before { content: ''; flex: none; width: 14px; height: 14px; margin-right: 9px; border: 1.5px solid var(--muted); border-radius: 3px; box-sizing: border-box; }
 .lmenu .btn.on::before { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--panel); }
 .lmenu .btn:hover { background: var(--panel-2); }
+.lmenu .btn.sub { padding: 5px 10px 5px 33px; font-size: 12.5px; }   /* (v155: a part of the layer above) */
+.lmenu .btn.sub.dim { opacity: .55; }
 #namBtn b { font: 600 12px var(--font-data); color: var(--accent); }
 #namList { display: grid; gap: 2px; }
 .lmenu .lall { display: flex; gap: 4px; padding: 0 2px 4px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
@@ -786,7 +788,9 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
           <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
-          <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height. Following a soldier: the ground higher than his eyes hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). The pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
+          <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). The pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
+          <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
+          <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
           <button class="btn" id="tAhead" title="While paused: where everyone goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where somebody comes back in (spawn). Vehicles that move too. Not while playing, not in clips. For one soldier only: follow him and press 'For him' on the map or in his card (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"></span></span></button>
           <span class="lrange" id="aheadRow" title="How far ahead the paths go while paused: 1-30 s"><input type="range" id="aheadT" min="1" max="30" step="1" value="20" aria-label="Seconds ahead shown while paused"><output id="aheadV" for="aheadT">20 s</output></span>
           <button class="btn" id="tFront" title="Which side holds which part of the map, from where its soldiers are and were over the last 30 s (aircraft left out) and the flags it owns: the ground tinted in its colour, and a dashed line where the two sides meet. A rough picture of who stands where, not the game's own control of ground">Front line</button>
@@ -922,7 +926,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v154';
+const APP_VERSION = 'v155';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1317,12 +1321,15 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.vehicles') === 'icons') opts.models = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.legend') === '0') opts.legend = false; } catch (e) {}
+// (v155, Sagara: "вимкнемо заливку висот, додамо можливість вимикати в фільтрах") the relief's parts: the shading (on) and
+// the ground higher than the followed soldier's eyes (turquoise fill and hatching: off unless turned on)
+try { if (localStorage.getItem('bf2rr.relShade') === '0') opts.relShade = false; if (localStorage.getItem('bf2rr.relAbove') === '1') opts.relAbove = true; } catch (e) {}
 // a vehicle seat's view from its third-person camera instead of its own (the card's View row, the map's 1st / 3rd and the C key switch it)
 try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
@@ -2062,7 +2069,7 @@ const reliefIv = k => k >= 5 ? 2 : k >= 1.2 ? 5 : 10;
 function drawRelief(D) {
   const R = reliefOf(D), k = size / view.span, st = R.st, N = R.N;
   // the shading, stretched over the map (a sample's pixel centred on it)
-  { const [ax, ay] = toC(D.hmX0 - st / 2, D.hmY0 + (N - 1) * st + st / 2), w = N * st * k;
+  if (opts.relShade) { const [ax, ay] = toC(D.hmX0 - st / 2, D.hmY0 + (N - 1) * st + st / 2), w = N * st * k;
     cx.save(); cx.imageSmoothingEnabled = true; cx.drawImage(R.shade, ax, ay, w, w); cx.restore(); }
   // the contour lines of the squares in view
   const iv = reliefIv(k), vx1 = view.x0 + view.span, vy0 = view.y0 - view.span * sizeH / size, cs = REL_CH * st;
@@ -3774,7 +3781,7 @@ function draw() {
     if (mmReady) { cx.imageSmoothingQuality = minimap instanceof HTMLImageElement ? 'medium' : 'low'; cx.drawImage(minimap, dx,dy,dw,dw); cx.imageSmoothingQuality = 'low'; cx.globalAlpha = 0.28; cx.fillStyle = css('--bg'); cx.fillRect(dx,dy,dw,dw); cx.globalAlpha = 1; }
     else if (terrain) cx.drawImage(terrain,dx,dy,dw,dw); }
   // relief (Layers > Relief): shading, contour lines, the ground over the followed soldier's eyes
-  if (opts.relief) { const D = losData(); if (D) { drawRelief(D); const who = reliefWho(t); if (who) drawAbove(D, who.eye); } }
+  if (opts.relief) { const D = losData(); if (D) { drawRelief(D); const who = opts.relAbove ? reliefWho(t) : null; if (who) drawAbove(D, who.eye); } }
   if (cx === cvCtx) hTipShow();   // (the height under the pointer, as the round plays on)
   if (opts.front) drawFront();   // (Layers > Front line)
   // grid A-H x 1-8
@@ -8040,7 +8047,14 @@ try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } ca
 setSpeed(speed);
 const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tFire:'fire', tSpawnG:'spawns', tOrders:'orders', tView:'view', tWalls:'walls', tRelief:'relief', tFront:'front', tAhead:'ahead', tLegend:'legend' };
 Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } if (k === 'legend') { try { localStorage.setItem('bf2rr.legend', opts.legend ? '1' : '0'); } catch (e) {} } if (k === 'ahead') { if (aheadOnly.size) opts.ahead = true; aheadAll(opts.ahead); return; } refresh(true); });
-$('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend);
+$('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front);
+// (v155) the relief's parts: turning one on turns the relief on too
+function relSub() { for (const [id, k] of [['tRelShade', 'relShade'], ['tRelAbove', 'relAbove']]) { const b = $('#' + id); b.classList.toggle('on', !!opts[k]); b.classList.toggle('dim', !opts.relief); b.setAttribute('aria-pressed', String(!!opts[k])); } }
+for (const [id, k, key] of [['tRelShade', 'relShade', 'bf2rr.relShade'], ['tRelAbove', 'relAbove', 'bf2rr.relAbove']]) $('#' + id).onclick = () => {
+  opts[k] = !opts[k]; try { localStorage.setItem(key, opts[k] ? '1' : '0'); } catch (e) {}
+  if (opts[k] && !opts.relief) $('#tRelief').click(); else { relSub(); refresh(true); }
+};
+relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend);
 // how far ahead (the slider under "Next N s"): moving it turns the layer on
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
 $('#aheadT').addEventListener('input', () => {
@@ -8145,6 +8159,7 @@ function lgFit() {
   new ResizeObserver(() => requestAnimationFrame(() => { if (round) legend(); })).observe(mapbox);
 }
 function layCount() {
+  relSub();
   let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
   document.querySelectorAll('.qwall').forEach(b => b.setAttribute('aria-pressed', String(!!opts.walls)));
   document.querySelectorAll('.qrel').forEach(b => b.setAttribute('aria-pressed', String(!!opts.relief)));
