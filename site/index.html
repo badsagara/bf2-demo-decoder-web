@@ -630,6 +630,15 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .mbar { displ
 #layBtn b { font: 600 12px var(--font-data); color: var(--accent); }
 .lmenu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; display: grid; gap: 2px; min-width: 220px; padding: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }
 .lmenu[hidden] { display: none; }
+.lmenu { overflow-y: auto; overscroll-behavior: contain; }
+.lmenu.up { top: auto; bottom: calc(100% + 6px); }   /* (the map's own Layers ▾: upwards, kept inside the map) */
+.mapctl .lmenu .btn { background: none; font-size: 13px; padding: 8px 10px; white-space: normal; justify-content: flex-start; width: 100%; }
+/* (v145) the time a click on a time bar goes to, by the pointer; on the timeline a line at the spot */
+.seektip { position: fixed; z-index: 1000; pointer-events: none; display: flex; gap: 7px; align-items: baseline; padding: 4px 8px; font: 500 11px/1.25 var(--font-data); color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 4px 14px rgba(0, 0, 0, .4); white-space: nowrap; }
+.seektip b { font: 600 13px/1.25 var(--font-data); color: var(--fg); }
+.seekline { position: fixed; z-index: 999; width: 1px; pointer-events: none; background: var(--fg); opacity: .55; }
+.seektip[hidden], .seekline[hidden] { display: none; }
+.layN2 { font: 600 12px var(--font-data); color: var(--accent); }
 .lmenu .lrange { display: flex; align-items: center; gap: 10px; padding: 0 10px 6px 33px; }
 .lmenu .lrange input { flex: 1; min-width: 0; width: 80px; accent-color: var(--accent); }
 .lmenu .lrange output { font: 600 12px/1 var(--font-data); color: var(--fg); min-width: 3.2em; text-align: right; }
@@ -730,7 +739,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Layers ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Layers <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Layers ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
@@ -739,7 +748,7 @@ body.mbar-on { padding-bottom: 72px; }
           <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Layers <b id="layN"></b> ▾</button>
           <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
           <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
-          <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting)">Figures</button></span>
+          <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green; a white dot at his nose while he aims down the sights">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting; jumping, falling from a height, under a parachute, climbing a ladder). Either way a white dot at his nose while he aims down the sights">Figures</button></span>
           <span class="vwseg" role="radiogroup" aria-label="Scoreboard, top bar and text"><span>HUD</span><button class="sg" id="hdGame" role="radio" aria-checked="true" title="As in the game: its scoreboard (Tab), its bar of time and tickets, its font for the kill feed and the names on the map">Game</button><button class="sg" id="hdPage" role="radio" aria-checked="false" title="The page's own: a list for the scoreboard, a plain bar, the page's font">Page</button></span>
           <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
@@ -768,7 +777,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> the map's layers (Layers ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -886,7 +895,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v144';
+const APP_VERSION = 'v147';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1508,9 +1517,51 @@ const MOVE_FIG = {
   run: [2.05, -3.45, 1.4, 'M-0.35 -2.35L1.95 -1.55L0.75 1.45L-1.45 0.75Z', [[0.2, 0.9, 2.75, 1.95, 2.25, 4.9], [-0.65, 0.85, -1.4, 3.25, -3.7, 4.55], [1.4, -1.3, 2.65, -0.15, 3.65, -1.15], [0.1, -1.55, -1.25, -0.45, -2.25, -1.45]]],
 };
 MOVE_FIG.sprint = [...MOVE_FIG.run, [[-5.4, -2.6, -3.9, -2.6], [-5.8, -0.5, -4.3, -0.5]]];
+// (v146) in the air, under a parachute, on a ladder (Sagara: "окрім лежить, йде, сидить, біжить, ще стрибає,
+// парашутується, падає з висоти, залазить по драбині"): jumping - knees drawn up, arms up, lines under the feet; falling
+// from a height - arms and legs spread, lines over the head; under a parachute - hands up on its lines, legs hanging;
+// climbing a ladder - hands on the rungs ahead, a knee raised, the ladder in front of him
+MOVE_FIG.jump = [0.45, -4.55, 1.4, 'M-1.0 -3.05H1.45L1.2 0.55H-0.8Z', [[0.55, 0.45, 2.35, 1.35, 1.45, 3.35], [-0.4, 0.45, -1.75, 1.75, -0.6, 3.45], [1.05, -2.6, 2.45, -3.75, 2.75, -5.35], [-0.6, -2.6, -2.05, -3.55, -2.6, -5.15]], [[-1.1, 4.4, -1.1, 5.9], [1.1, 4.4, 1.1, 5.9]]];
+MOVE_FIG.fall = [0, -2.85, 1.4, 'M-1.05 -1.3H1.05L0.85 1.75H-0.85Z', [[-0.85, -0.95, -2.7, -2.55, -3.85, -4.45], [0.85, -0.95, 2.7, -2.55, 3.85, -4.45], [-0.45, 1.65, -1.85, 3.15, -3.15, 4.45], [0.45, 1.65, 1.85, 3.15, 3.15, 4.45]], [[-1.0, -6.1, -1.0, -4.9], [1.0, -6.1, 1.0, -4.9]]];
+MOVE_FIG.chute = [0, -3.4, 1.4, 'M-1.05 -1.9H1.05L0.85 1.45H-0.85Z', [[-0.85, -1.6, -1.85, -3.7, -2.45, -5.9], [0.85, -1.6, 1.85, -3.7, 2.45, -5.9], [-0.35, 1.35, -0.45, 3.35, -0.75, 5.0], [0.35, 1.35, 0.55, 3.35, 0.9, 5.0]]];
+MOVE_FIG.ladder = [0.2, -3.95, 1.4, 'M-1.25 -2.4H1.05L0.85 1.25H-1.05Z', [[0.75, -2.05, 2.15, -3.05, 3.25, -4.55], [0.55, -0.9, 2.05, -0.15, 3.25, -1.35], [0.4, 1.05, 2.15, 1.5, 2.35, 3.15], [-0.45, 1.05, -0.45, 3.15, 0.0, 5.0]], [[3.75, -6.1, 3.75, 6.1], [3.35, -4.55, 5.0, -4.55], [3.35, -1.35, 5.0, -1.35], [3.35, 1.85, 5.0, 1.85]]];
+const MOVE_GROUND = new Set(['walk', 'run', 'sprint']);   // (the figures with speed streaks behind the disc)
 const movePaths = Object.fromEntries(Object.entries(MOVE_FIG).map(([k, f]) => [k, new Path2D(f[3])]));
 // the figure for a soldier at q in stance st: walk / run / sprint when upright and moving on the ground, else the stance
 const figKey = (st, q) => st !== 0 || !q || q.speed == null || q.speed < 0.3 || (q.vup ?? 0) < -4 || (q.vup ?? 0) > 2.5 ? st : q.speed >= 5 ? 'sprint' : q.speed >= 2.6 ? 'run' : 'walk';
+// (v146) in the air on foot, from his speed up frame by frame (0.1 s): 'jump' after pushing off (the speed up leaps to 4-7
+// m/s, then the game's gravity takes ~1.5 m/s off it each frame), 'fall' going down faster each frame without a jump (off
+// a ledge or a roof; a jump off a roof once faster than 8 m/s), else null. (=FL= 20:37: 668 starts over +2.5 m/s, nearly
+// all on this curve; a ladder or stairs keep an even speed.)
+function airNow(i, tt) {
+  const V = round && round.VV; if (!V || i === null || i === undefined) return null;
+  const [a] = frameAt(tt), n = round.n; if (a < 0) return null;
+  const v = f => { const x = V[f * n + i]; return x === -32768 || !round.L[f * n + i] || round.VT[f * n + i] ? null : x / 100; };
+  const v1 = v(a); if (v1 === null) return null;
+  const g = d => d <= -0.8 && d >= -2.4;   // (one frame's change under gravity)
+  let k = a; while (k > 0 && k > a - 40) { const p0 = v(k - 1), c = v(k); if (p0 === null || c === null || !g(c - p0)) break; k--; }
+  const v0 = v(k), pre = k > 0 ? v(k - 1) : null, took = v0 !== null && v0 > 2.5 && (pre === null || v0 - pre > 2.5);
+  if (k === a) return took ? 'jump' : null;
+  if (took) return v1 < -8 ? 'fall' : 'jump';
+  return a - k >= 2 && v1 < -6 ? 'fall' : null;   // (off a ledge: once faster than 6 m/s down, ~1.2 m - not a kerb or a step)
+}
+// (v146) the figure for player i now: under a parachute, on a ladder, in free fall (the demo's own flags), jumping or
+// falling (airNow), else the stance or how he moves on the ground (figKey)
+function figFor(i, p, q, st, tt = t) {
+  if (!p || p.vehicle || !q || !q.alive || q.veh) return st;
+  if (onChute(p, tt)) return 'chute';
+  const m = mvNow(p, tt);
+  if (m & 4) return 'ladder';
+  if (m & 2) return st ?? 0;   // (swimming: the waves under him say it)
+  if (m & 1) return 'fall';
+  return airNow(i, tt) || (st === null ? null : figKey(st, q));
+}
+const zoomNow = (p, tt = t) => !!(mvNow(p, tt) & 16);   // (v146) looking through the sights or the scope
+// a small bright dot at the tip of his nose, the way he looks, while he aims down the sights (both kinds of soldier mark)
+function drawZoomDot(px, py, yaw) {
+  const x = px + Math.sin(yaw) * 22, y = py - Math.cos(yaw) * 22;
+  cx.beginPath(); cx.arc(x, y, 2.6, 0, Math.PI * 2); cx.fillStyle = '#fff'; cx.strokeStyle = css('--bg'); cx.lineWidth = 1.5; cx.stroke(); cx.fill();
+}
 // facing: right when he looks to the right on the map (the figures face right; prone faces left)
 const figFace = (k, yaw) => (Math.sin(yaw) < 0 ? -1 : 1) * (k === 2 ? -1 : 1);
 // the same figure as a small picture in a line of text
@@ -3444,18 +3495,12 @@ function drawModel(o, px, py, yaw, aim, mg, col, wreck, spin, tt) {
   const s0 = size / view.span, minL = Math.min(56, Math.max(26, o.len * 3.6)), k = Math.max(s0, minL / o.len), sc = k / o.ppm;
   const L = wreck ? o.wreck || o.hull : o.hull, ok = l => l.img.complete && l.img.naturalWidth;
   const img = l => { if (ok(l)) cx.drawImage(l.img, -l.ax * sc, -l.ay * sc, l.w * sc, l.h * sc); };
-  // the outline in the team's colour: its silhouette in that colour, drawn 2 px off all round under the picture
-  const rim = (l, c, dark) => {
-    if (!ok(l)) return; l.sil = l.sil || new Map(); let m = l.sil.get(c);
-    if (!m) { m = document.createElement('canvas'); m.width = l.w; m.height = l.h; const g = m.getContext('2d'); g.drawImage(l.img, 0, 0, l.w, l.h); g.globalCompositeOperation = 'source-in'; g.fillStyle = c; g.fillRect(0, 0, l.w, l.h); l.sil.set(c, m); }
-    const x = -l.ax * sc, y = -l.ay * sc, w = l.w * sc, h = l.h * sc;
-    if (dark) { cx.shadowColor = 'rgba(0,0,0,.6)'; cx.shadowBlur = 5; cx.drawImage(m, x, y, w, h); cx.shadowBlur = 0; cx.shadowColor = 'transparent'; }   // (one soft shadow under it all)
-    for (let a = 0; a < 8; a++) { const d = a % 2 ? 1.6 : 2.2; cx.drawImage(m, x + Math.cos(a * Math.PI / 4) * d, y + Math.sin(a * Math.PI / 4) * d, w, h); }
-  };
-  const part = l => { rim(l, col); cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 3; img(l); cx.shadowBlur = 0; cx.shadowColor = 'transparent'; };
+  // (v147, Sagara: "Техніку не заливати кольором команди, а робити пунктирний квадрат навколо, бо текстура зливається"):
+  // the model in its own colours on a soft dark shadow, the team's colour in a dashed square round it (drawn after)
+  const part = l => { cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 3; img(l); cx.shadowBlur = 0; cx.shadowColor = 'transparent'; };
   cx.save(); cx.translate(px, py); cx.rotate(yaw);
   if (wreck) { cx.shadowColor = 'rgba(255,110,30,.85)'; cx.shadowBlur = 7; img(L); cx.restore(); return o.len * k / 2; }
-  rim(L, col, true); img(L);
+  cx.shadowColor = 'rgba(0,0,0,.65)'; cx.shadowBlur = 6; img(L); cx.shadowBlur = 0; cx.shadowColor = 'transparent';
   const T = o.turret, G = o.mg, tw = T ? (aim ?? yaw + T.rest) : yaw;
   const gun = base => { const gw = mg ?? base + G.rest; cx.save(); cx.translate(G.px * k, -G.pz * k); cx.rotate(gw - base); part(G); cx.restore(); };
   if (T) { cx.save(); cx.translate(T.px * k, -T.pz * k); cx.rotate(tw - yaw); part(T); if (G && G.on === 'turret') gun(tw); cx.restore(); }
@@ -3469,7 +3514,17 @@ function drawModel(o, px, py, yaw, aim, mg, col, wreck, spin, tt) {
     at(o.tail, 0, 1 - fb); at(o.tailblur, 0, fb);
     at(o.rotor, spin ? dir * spin.th : 0, 1 - fb); at(o.blur, o.blur ? (o.blur.spin * tt) % (2 * Math.PI) : 0, fb);
   }
-  cx.restore(); return R;
+  cx.restore();
+  teamSquare(px, py, R + 4, col);
+  return R;
+}
+// a dashed square of half side h round (px, py) in colour col, on a dark line so it shows over any ground
+function teamSquare(px, py, h, col) {
+  const x = Math.round(px - h) + 0.5, y = Math.round(py - h) + 0.5, w = Math.round(2 * h);
+  cx.save(); cx.lineJoin = 'miter';
+  cx.strokeStyle = 'rgba(6,8,6,.55)'; cx.lineWidth = 3.2; cx.strokeRect(x, y, w, w);
+  cx.strokeStyle = col; cx.lineWidth = 1.7; cx.setLineDash([6, 4]); cx.strokeRect(x, y, w, w);
+  cx.restore();
 }
 // how a helicopter's rotors turn at tt: w their speed (0 still .. 1 full), th how far the blades have turned (rad). They
 // speed up evenly to full in ROTOR_UP s from when somebody is in it (getting back in while they still turn: from there)
@@ -3838,9 +3893,12 @@ function draw() {
       }
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - VIEW_HALF, a0 + VIEW_HALF); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
-      // (its edges: dashed in his colour on a dark line, so they show over any ground)
-      cx.globalAlpha = 1; cx.strokeStyle = 'rgba(6,8,6,.45)'; cx.lineWidth = 3; cx.stroke();
-      cx.strokeStyle = col; cx.globalAlpha = 0.9; cx.lineWidth = 1.6; cx.setLineDash(q.ahead ? [2, 4] : [7, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      // (its edges: dashed in his colour on a dark line, so they show over any ground - a vehicle seat's view only; a
+      // soldier's view is the shading alone - v147, Sagara: "прибрати пунктирні лінії при кути зору піхотинця")
+      if (q.role !== 'foot') {
+        cx.globalAlpha = 1; cx.strokeStyle = 'rgba(6,8,6,.45)'; cx.lineWidth = 3; cx.stroke();
+        cx.strokeStyle = col; cx.globalAlpha = 0.9; cx.lineWidth = 1.6; cx.setLineDash(q.ahead ? [2, 4] : [7, 4]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+      }
       if (q.role && q.role !== 'foot') {
         // third person: the camera behind and above the vehicle, a dashed line to where he sits
         if (q.third && q.seat) {
@@ -4020,7 +4078,7 @@ function draw() {
     else if (!inIcon && !p.vehicle && opts.gameSol && gameSoldier(i, p, q, px, py, col)) {   // (v141) as on the game's minimap
       cx.globalAlpha = 1;
       if (firing.has(i)) { cx.save(); cx.translate(px, py); cx.rotate(q.yaw); muzzleFlash(-15); cx.restore(); }
-      if (q.alive && !q.veh) { if (onChute(p, t)) drawChute(px, py, col); else { const m = mvNow(p, t); if (m & 2) drawWaves(px, py, col); if (m & 4) drawLadder(px, py, col); } }
+      if (q.alive && !q.veh) { if (onChute(p, t)) drawChute(px, py, col); else { const m = mvNow(p, t); if (m & 2) drawWaves(px, py, col); if (m & 4) drawLadder(px, py, col); if (m & 16) drawZoomDot(px, py, q.yaw); } }
     }
     else if (!inIcon) {
       cx.globalAlpha = ca;
@@ -4036,8 +4094,8 @@ function draw() {
       if (p.vehicle && !wreck && q.mg != null) drawRoofGun(px, py, 20, q.mg, col);
       // standing, walking, running, sprinting, crouching or prone: a figure inside the disc, facing his way on the map;
       // moving upright, also 1 / 2 / 3 speed streaks (walk / run / sprint) behind the disc, against the way he moves
-      if (!p.vehicle) { const sn = stanceNow(p, t); if (sn !== null) { const k = figKey(sn, q); drawStance(k, px, py, 1.3, css('--stance-ink'), figFace(k, q.yaw)); if (MOVE_FIG[k]) moveStreaks(i, q, px, py, k, col); } }
-      if (!p.vehicle && q.alive && !q.veh) { if (onChute(p, t)) drawChute(px, py, col); else { const m = mvNow(p, t); if (m & 2) drawWaves(px, py, col); if (m & 4) drawLadder(px, py, col); } }
+      if (!p.vehicle) { const sn = stanceNow(p, t), k = figFor(i, p, q, sn); if (k !== null) { drawStance(k, px, py, 1.3, css('--stance-ink'), figFace(k, q.yaw)); if (MOVE_GROUND.has(k)) moveStreaks(i, q, px, py, k, col); } }
+      if (!p.vehicle && q.alive && !q.veh) { if (onChute(p, t)) drawChute(px, py, col); else { const m = mvNow(p, t); if (m & 2) drawWaves(px, py, col); if (m & 4) drawLadder(px, py, col); if (m & 16) drawZoomDot(px, py, q.yaw); } }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
       cx.globalAlpha = 1;
     }
@@ -4555,6 +4613,44 @@ tl.addEventListener('pointerdown', e => {
 });
 tl.addEventListener('pointermove', e => { if (clip.drag) clipDragTo(e); else if (dragging) seekFromEvent(e); else tl.style.cursor = clipEdgeAt(e) ? 'ew-resize' : ''; });
 tl.addEventListener('pointerup', () => { dragging = false; if (clip.drag) { clip.drag = null; renderClipBar(); } });
+// ---- where a click on a time bar goes: the round's time under the pointer, how far from now, and the server's clock
+// then - over the bar under the map, the timeline here and the phone's bar; on the timeline a line marks the spot. (v145,
+// Sagara: "показувати при наводці курсору на таймлайн час куди перескочить при натисканні") ----
+const seekTip = document.createElement('div'), seekLine = document.createElement('div');
+seekTip.className = 'seektip'; seekLine.className = 'seekline'; seekTip.hidden = seekLine.hidden = true; seekTip.setAttribute('aria-hidden', 'true');
+let seekAt = null;   // (the bar and the pointer's x, so the tip follows the playhead while it plays)
+function seekTipShow(el, x, tt, line) {
+  if (!round || tt == null) { seekTipHide(); return; }
+  seekAt = { el, x, tt, line };
+  const host = document.fullscreenElement || document.webkitFullscreenElement || document.body;   // (in full screen only the map shows)
+  if (seekTip.parentElement !== host) { host.appendChild(seekTip); host.appendChild(seekLine); }
+  const d = Math.round(tt) - Math.round(t), sc = serverClock(tt);
+  seekTip.innerHTML = `<b>${fmt(tt)}</b><span>${d === 0 ? 'now' : (d > 0 ? '+' : '−') + fmt(Math.abs(d))}</span>${sc ? `<span>${sc}</span>` : ''}`;
+  seekTip.hidden = false;
+  const r = el.getBoundingClientRect(), w = seekTip.offsetWidth, W = document.documentElement.clientWidth;
+  seekTip.style.left = Math.round(Math.max(4, Math.min(W - w - 4, x - w / 2))) + 'px';
+  seekTip.style.top = Math.round(r.top - seekTip.offsetHeight - 6 >= 4 ? r.top - seekTip.offsetHeight - 6 : r.bottom + 6) + 'px';
+  seekLine.hidden = !line;
+  if (line) { seekLine.style.left = Math.round(x) + 'px'; seekLine.style.top = Math.round(r.top + TL.axis) + 'px'; seekLine.style.height = Math.max(0, Math.round(r.height - TL.axis)) + 'px'; }
+}
+function seekTipHide() { seekAt = null; seekTip.hidden = seekLine.hidden = true; }
+// a range: the browser puts the thumb's middle under the pointer (the thumb is 22 px)
+const rangeTime = (el, x) => { const r = el.getBoundingClientRect(), f = (x - r.left - 11) / Math.max(1, r.width - 22); return Math.max(0, Math.min(1, f)) * (+el.max || round.duration); };
+for (const id of ['#seek', '#mseek']) {
+  const el = $(id);
+  el.addEventListener('pointermove', e => { if (round) seekTipShow(el, e.clientX, rangeTime(el, e.clientX), false); });
+  el.addEventListener('pointerleave', seekTipHide);
+  el.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') seekTipHide(); });
+}
+tl.addEventListener('pointermove', e => {
+  if (!round || clip.drag) { seekTipHide(); return; }
+  const r = tl.getBoundingClientRect(), x = e.clientX - r.left;
+  if (x < TL.label || clipEdgeAt(e)) { seekTipHide(); return; }   // (the names: a click follows him; a clip's edge: drags it)
+  seekTipShow(tl, e.clientX, Math.max(0, Math.min(round.duration, (x - TL.label) / (r.width - TL.label - 6) * round.duration)), true);
+});
+tl.addEventListener('pointerleave', seekTipHide);
+tl.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') seekTipHide(); });
+window.addEventListener('scroll', seekTipHide, { passive: true });
 
 // ---------- side panels ----------
 let lastPanel = -1;
@@ -4637,7 +4733,7 @@ function panels(force) {
     const crewNow = p.vehicle ? round.players.map((q, i) => i).filter(i => !round.players[i].vehicle && playerAt(i, t).alive && playerAt(i, t).veh === p.name) : [];
     const tmNow = p.vehicle ? (crewNow.length ? teamOf(crewNow[0], t) : -1) : teamOf(sel, t), switched = (p.teams || []).length > 1 ? ` <span class="w">(changed sides: ${p.teams.map(([ts, tm]) => fmt(ts) + ' ' + esc(round.teams[tm]?.name || '')).join(', ')})</span>` : '';
     $('#selInfo').innerHTML = `<dl class="meta"><dt>Name</dt><dd class="t${tmNow}">${esc(p.name)}</dd><dt>Team</dt><dd>${esc(round.teams[tmNow]?.name||'') || (p.vehicle ? '<span class="w">nobody in it</span>' : '')}${switched}</dd>
-      <dt>Status</dt><dd>${status}</dd>${!p.vehicle ? sbRows(p, t) : ''}${!p.vehicle && !p.sb && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${(() => { const w = inHands(sel, t); if (!w && !p.vehicle && q.alive && !q.veh && round.meta.source === 'demo' && !(round._hasItems ??= round.players.some(o => o.items))) return `<dt title="Which weapon he holds is read from the demo since viewer v96; this round was decoded by an older version. On the site the server decodes every round again after an update - open it again later">In hands</dt><dd><span class="w">not in this round's data yet (decoded by an older version)</span></dd>`; return w ? `<dt title="Which of his kit's slots he holds is in the demo; the kit (and a weapon he killed with in this life, for unlocked ones) says what is in it">In hands</dt><dd>${weaponIcon(w.wid, w.name) || ''} ${esc(w.name)}</dd>` : ''; })()}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${figSvg(stanceNow(p, t), figFace(stanceNow(p, t), q.yaw))} ${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t), mvNow(p, t), sel) ? `<dt title="From the velocity the demo sends with his position, and (since v140) from the demo's own state: free fall, swimming, on a ladder, sprinting; under a parachute from its flight">Moving</dt><dd>${moveIcon(stanceNow(p, t), q)}${moveText(q, stanceNow(p, t), mvNow(p, t), sel)}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
+      <dt>Status</dt><dd>${status}</dd>${!p.vehicle ? sbRows(p, t) : ''}${!p.vehicle && !p.sb && p.pts ? `<dt>≈ Score</dt><dd>${scoreNow(p, t)} <span class="w">${[...scoreParts(p, t)].map(([why, [n, v]]) => `${why} ${n}× (${v > 0 ? '+' : ''}${v})`).join(' · ')}</span></dd>` : ''}${!p.vehicle && kitNow(p, t) ? `<dt>Kit</dt><dd>${kitIcon(kitNow(p, t))} ${esc(kitNow(p, t))}</dd>` : ''}${(() => { const w = inHands(sel, t); if (!w && !p.vehicle && q.alive && !q.veh && round.meta.source === 'demo' && !(round._hasItems ??= round.players.some(o => o.items))) return `<dt title="Which weapon he holds is read from the demo since viewer v96; this round was decoded by an older version. On the site the server decodes every round again after an update - open it again later">In hands</dt><dd><span class="w">not in this round's data yet (decoded by an older version)</span></dd>`; return w ? `<dt title="Which of his kit's slots he holds is in the demo; the kit (and a weapon he killed with in this life, for unlocked ones) says what is in it">In hands</dt><dd>${weaponIcon(w.wid, w.name) || ''} ${esc(w.name)}</dd>` : ''; })()}${!p.vehicle && q.alive && !q.veh && stanceNow(p, t) !== null ? `<dt>Stance</dt><dd>${figSvg(stanceNow(p, t), figFace(stanceNow(p, t), q.yaw))} ${STANCE_NAME[stanceNow(p, t)]}</dd>` : ''}${!p.vehicle && q.alive && !q.veh && moveText(q, stanceNow(p, t), mvNow(p, t), sel) ? `<dt title="From the velocity the demo sends with his position, and (since v140) from the demo's own state: free fall, swimming, on a ladder, sprinting; under a parachute from its flight">Moving</dt><dd>${moveIcon(stanceNow(p, t), q, sel)}${moveText(q, stanceNow(p, t), mvNow(p, t), sel)}</dd>` : ''}<dt>Grid</dt><dd>${col}${row}</dd><dt>Position</dt><dd>x ${q.x.toFixed(0)} · y ${q.y.toFixed(0)} m${q.h ? ' · height ' + q.h.toFixed(1) + ' m' : ''}</dd>${q.veh ? `<dt>Vehicle</dt><dd>${esc(q.veh)}</dd>` : ''}
       ${viewRows(sel, p)}${vehTxt}${p.vehicle ? '' : `${p.sb ? (HS.get(p.id) ? `<dt>Headshots</dt><dd>${HS.get(p.id)} <span class="w">of ${K.get(p.id)} killing shots (${Math.round(HS.get(p.id) / K.get(p.id) * 100)}%)</span></dd>` : '') : `<dt>Kills / deaths</dt><dd>${K.get(p.id)||0} K / ${Dd.get(p.id)||0} D${HS.get(p.id) ? ` · ${HS.get(p.id)} headshot${HS.get(p.id) > 1 ? 's' : ''} (${Math.round(HS.get(p.id) / K.get(p.id) * 100)}%)` : ''}</dd>`}${medicTxt}${repTxt}
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
@@ -6397,10 +6493,12 @@ function moveStreaks(i, q, px, py, k, col) {
   cx.restore();
 }
 // the walking / running / sprinting figure before moveText (none standing still, crouched, prone or in the air)
-const moveIcon = (st, q) => { const k = figKey(st, q); return MOVE_FIG[k] ? figSvg(k, figFace(k, q.yaw)) + ' ' : ''; };
+const moveIcon = (st, q, i = null, tt = t) => { const p = i !== null ? round.players[i] : null, k = p ? figFor(i, p, q, st, tt) : figKey(st, q); return MOVE_FIG[k] ? figSvg(k, figFace(k, q.yaw)) + ' ' : ''; };
 // (v140) m: how the demo says he moves (mvNow: free fall, swimming, ladder, sprint; null: not known - then by speed);
 // i, tt: who and when, for the parachute (its flight, from the positions a second around tt)
-function moveText(q, st, m = null, i = null, tt = t) {
+// (v146) while he aims down the sights: ", aiming down the sights" after it
+function moveText(q, st, m = null, i = null, tt = t) { const s = moveText0(q, st, m, i, tt); return s && m !== null && (m & 16) ? s + ', aiming down the sights' : s; }
+function moveText0(q, st, m, i, tt) {
   const p = i !== null ? round.players[i] : null;
   if (p && onChute(p, tt)) {
     const a = playerAt(i, tt - 0.5), b = playerAt(i, tt + 0.5);
@@ -6411,8 +6509,10 @@ function moveText(q, st, m = null, i = null, tt = t) {
   const v = q.speed, up = q.vup ?? 0;
   if (m & 1) return up < -0.5 ? `in free fall, ${(-up).toFixed(1)} m/s down` : 'in free fall';
   if (m & 2) return `swimming ${v.toFixed(1)} m/s`;
-  if (up < -4) return `falling ${(-up).toFixed(1)} m/s`;
-  if (up > 2.5) return 'jumping';
+  const air = i !== null ? airNow(i, tt) : null;   // (v146: jumping and falling by the curve of his speed up)
+  if (air === 'jump') return up > 0.3 ? 'jumping' : 'jumping, coming down';
+  if (air === 'fall' || up < -4) return `falling ${(-up).toFixed(1)} m/s`;
+  if (up > 2.5 && i === null) return 'jumping';
   if (v < 0.3) return 'standing still';
   const spr = m !== null ? (m & 8) && v >= 1 : v >= 5;
   return `${spr ? 'sprinting' : st === 2 ? 'crawling' : st === 1 ? 'moving crouched' : v >= 2.6 ? 'running' : 'walking'} ${v.toFixed(1)} m/s`;
@@ -6975,7 +7075,7 @@ function drawSide() {
     L.push(`<span class="w">First sight:</span> <b>${ENG_TEXT[g.kind]}</b> <span class="w">·</span> ${g.k != null ? `${pn(ki)} had him in sight ${sec(e.t - g.k)} before the kill` : `${pn(ki)} had no clear sight of him`}${vTxt ? '; ' + vTxt : ''}${g.walls ? '' : ' <span class="w">(walls not known: field of view only)</span>'}`);
   } else if (g && g.k != null) L.push(`<span class="w">First sight:</span> ${pn(ki)} had him in sight ${sec(e.t - g.k)} before the kill; ${pn(vi)} was in a vehicle`);
   if (vFoot) L.push(`<span class="w">${esc(vp.name)} faced ${Math.round(vFace * 180 / Math.PI)}° away from him${o.pitch != null ? ', looking ' + pitchText(o.pitch) : ''}.</span>`);
-  { const km = kFoot ? moveText(q, kSt, mvNow(kp, tt), ki, tt) : null, vm = vFoot ? moveText(o, vSt, mvNow(vp, tt), vi, tt) : null; if (km || vm) L.push(`<span class="w">Moving:</span> ${km ? `${pn(ki)} <span class="w">${moveIcon(kSt, q)}${km}</span>` : ''}${km && vm ? ' <span class="w">·</span> ' : ''}${vm ? `${pn(vi)} <span class="w">${moveIcon(vSt, o)}${vm}</span>` : ''}`); }
+  { const km = kFoot ? moveText(q, kSt, mvNow(kp, tt), ki, tt) : null, vm = vFoot ? moveText(o, vSt, mvNow(vp, tt), vi, tt) : null; if (km || vm) L.push(`<span class="w">Moving:</span> ${km ? `${pn(ki)} <span class="w">${moveIcon(kSt, q, ki, tt)}${km}</span>` : ''}${km && vm ? ' <span class="w">·</span> ' : ''}${vm ? `${pn(vi)} <span class="w">${moveIcon(vSt, o, vi, tt)}${vm}</span>` : ''}`); }
   info.innerHTML = L.map(x => `<div>${x}</div>`).join('');
 }
 // warm-up: who saw whom first for every kill, a few at a time once the walls are in (the card's "First sight" row reads it)
@@ -7731,7 +7831,7 @@ $('#cDrop').onclick = () => { dropClipOut(); clipMsg(''); renderClipBar(); };
 // ---------- playback ----------
 let lastTs = null;
 function loop(ts) {
-  if (playing && round) { if (lastTs!==null) { t += (ts-lastTs)/1000*speed; if (t >= round.duration) { t = round.duration; setPlaying(false); } } lastTs = ts; refresh(false); }
+  if (playing && round) { if (lastTs!==null) { t += (ts-lastTs)/1000*speed; if (t >= round.duration) { t = round.duration; setPlaying(false); } } lastTs = ts; refresh(false); if (seekAt) seekTipShow(seekAt.el, seekAt.x, seekAt.tt, seekAt.line); }
   else lastTs = null;
   requestAnimationFrame(loop);
 }
@@ -7747,7 +7847,8 @@ $('#play2').onclick = () => setPlaying(!playing);
 $('#seek').addEventListener('input', e => { t = Math.max(0, Math.min(round.duration, +e.target.value)); refresh(true); });
 // playback speed on the map (so it is there in full screen too): slow motion 0.1x to 0.75x, then 1x to 60x; the slider
 // goes through these steps; remembered in this browser
-const SPEEDS = [0.1, 0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 40, 50, 60];
+// (v147, Sagara: "швидкість відігравання кроками по 0.25"): 0.25x to 10x in steps of 0.25, then the fast ones as before
+const SPEEDS = [...Array.from({ length: 40 }, (_, k) => (k + 1) / 4), 12, 15, 20, 25, 30, 40, 50, 60];
 const speedText = v => v + '×';   // (0.1×, 0.25×, 0.5×, 0.75×: Sagara prefers numbers to ¼ ½ ¾)
 const speedIdx = v => { let k = 0; for (let i = 0; i < SPEEDS.length; i++) if (Math.abs(SPEEDS[i] - v) < Math.abs(SPEEDS[k] - v)) k = i; return k; };
 function setSpeed(v) {
@@ -7775,14 +7876,33 @@ function layCount() {
   let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
   document.querySelectorAll('.qwall').forEach(b => b.setAttribute('aria-pressed', String(!!opts.walls)));
   document.querySelectorAll('.qrel').forEach(b => b.setAttribute('aria-pressed', String(!!opts.relief)));
-  $('#layN').textContent = n + '/' + Object.keys(toggles).length;
+  $('#layN').textContent = n + '/' + Object.keys(toggles).length; for (const b of document.querySelectorAll('.layN2')) b.textContent = $('#layN').textContent;
 }
 const popToggle = (btn, box, on) => {
   box.hidden = !on; btn.setAttribute('aria-expanded', String(on));
   // (kept inside the screen: on a phone the menu opened past its right edge)
   if (on) { box.style.transform = ''; const r = box.getBoundingClientRect(), W = document.documentElement.clientWidth, dx = r.right > W - 8 ? W - 8 - r.right : 0; if (dx) box.style.transform = `translateX(${Math.round(Math.max(dx, 8 - r.left))}px)`; }
 };
-$('#layBtn').onclick = e => { e.stopPropagation(); popToggle($('#namBtn'), $('#namMenu'), false); popToggle($('#layBtn'), $('#layMenu'), $('#layMenu').hidden); };
+// (v145) Layers ▾ opens from either button: the one under the map (by Play and Clip) or the map's own, which is also there
+// in full screen (Sagara: "Де кнопка фільтри?" - the one under the map was below the window's edge). The menu moves to the
+// button that opened it; on the map it opens upwards and stays inside the map, scrolling when taller than the room.
+function layOpen(btn, on) {
+  const box = $('#layMenu');
+  if (on && box.parentElement !== btn.parentElement) btn.parentElement.appendChild(box);
+  for (const b of [$('#layBtn'), $('#mLayBtn')]) b.setAttribute('aria-expanded', String(on && b === btn));
+  const inMap = btn.closest('#mapbox');
+  box.hidden = !on; box.classList.remove('up'); box.style.transform = ''; box.style.maxHeight = '';
+  if (!on) return;
+  const br = btn.getBoundingClientRect(), mr = inMap ? inMap.getBoundingClientRect() : null;
+  if (inMap) {   // (upwards unless there is more room below it - on a phone the map above the buttons is short)
+    const above = br.top - mr.top - 12, below = mr.bottom - br.bottom - 12, up = above >= box.scrollHeight || above >= below;
+    box.classList.toggle('up', up); box.style.maxHeight = Math.max(140, Math.floor(up ? above : below)) + 'px';
+  }
+  const r = box.getBoundingClientRect(), lo = (mr ? mr.left : 0) + 8, hi = (mr ? mr.right : document.documentElement.clientWidth) - 8;
+  const dx = r.right > hi ? hi - r.right : r.left < lo ? lo - r.left : 0; if (dx) box.style.transform = `translateX(${Math.round(Math.max(dx, lo - r.left))}px)`;
+}
+const layWho = () => $('#mLayBtn').getAttribute('aria-expanded') === 'true' ? $('#mLayBtn') : $('#layBtn');
+for (const id of ['#layBtn', '#mLayBtn']) $(id).onclick = e => { e.stopPropagation(); popToggle($('#namBtn'), $('#namMenu'), false); const b = $(id); layOpen(b, $('#layMenu').hidden || layWho() !== b); };
 // Names ▾: a box per kind of name (LABELS), All / None; how many are on by the button
 $('#namList').innerHTML = LABELS.map(([k, nm, tip]) => `<button class="btn" type="button" data-lab="${k}" title="${esc(tip)}">${esc(nm)}</button>`).join('');
 function labSync() {
@@ -7795,13 +7915,13 @@ $('#namMenu').addEventListener('click', e => {
   if (b.dataset.lab) opts.lab[b.dataset.lab] = !opts.lab[b.dataset.lab]; else for (const [k] of LABELS) opts.lab[k] = b.dataset.laball === '1';
   labSync(); if (round) refresh(true);
 });
-$('#namBtn').onclick = e => { e.stopPropagation(); popToggle($('#layBtn'), $('#layMenu'), false); popToggle($('#namBtn'), $('#namMenu'), $('#namMenu').hidden); };
+$('#namBtn').onclick = e => { e.stopPropagation(); layOpen(layWho(), false); popToggle($('#namBtn'), $('#namMenu'), $('#namMenu').hidden); };
 document.addEventListener('click', e => { if (!$('#namMenu').hidden && !e.target.closest('#namMenu, #namBtn')) popToggle($('#namBtn'), $('#namMenu'), false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#namMenu').hidden) { popToggle($('#namBtn'), $('#namMenu'), false); $('#namBtn').focus(); } });
 labSync();
 $('#kbBtn').onclick = () => popToggle($('#kbBtn'), $('#kbHelp'), $('#kbHelp').hidden);
-document.addEventListener('click', e => { if (!$('#layMenu').hidden && !e.target.closest('#layMenu, #layBtn')) popToggle($('#layBtn'), $('#layMenu'), false); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layMenu').hidden) { popToggle($('#layBtn'), $('#layMenu'), false); $('#layBtn').focus(); } });
+document.addEventListener('click', e => { if (!$('#layMenu').hidden && !e.target.closest('#layMenu, #layBtn, #mLayBtn')) layOpen(layWho(), false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layMenu').hidden) { const b = layWho(); layOpen(b, false); b.focus(); } });
 layCount();
 // vehicles as icons or as models (Layers menu, or M); remembered in this browser
 function setHudView(game) {
@@ -7867,6 +7987,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { if (sel !== null) aheadFor(sel); else aheadAll(!aheadOn()); }
+  if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; popToggle($('#namBtn'), $('#namMenu'), false); layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
 // (v136) Tab held: the scoreboard (not while typing in a field)
 document.addEventListener('keydown', e => { if (e.key !== 'Tab' || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || !round || e.target.closest('input, select, textarea, button, a, [role=radio], [role=tab]')) return; e.preventDefault(); if (!tabHold) { tabHold = true; renderTab(true); } });
@@ -8716,11 +8837,11 @@ function solExact(B, p, L) {
     const mask = rd(21);
     if (mask & 0x40) sk(9);
     if (mask & 0x20) sk(6);
-    if (mask & 0x8000) { sk(9); sk(96); vec2(); vec2(); vec2(); return q === e ? { sky: 0, swim: 0, ladder: 0, rag: 1 } : null; }
+    if (mask & 0x8000) { sk(9); sk(96); vec2(); vec2(); vec2(); return q === e ? { sky: 0, swim: 0, ladder: 0, zoom: 0, rag: 1 } : null; }
     if (mask & 0x1) vec();
     if (mask & 0x80) vec();
     for (const b of [2, 4, 8, 0x10]) if (mask & b) sk(12);
-    sk(5); const sky = rd(1), swim = rd(1); sk(1);
+    const zoom = rd(3); sk(2); const sky = rd(1), swim = rd(1); sk(1);   // (v146) zoom: 1 looking through the sights / scope
     if (mask & 0x400) sk(10); if (mask & 0x800) sk(10);
     sk(1);
     if (mask & 0x4000) sk(5);
@@ -8729,15 +8850,18 @@ function solExact(B, p, L) {
     let ladder = null; if (mask & 0x10000) { ladder = rd(9); if (ladder) sk(12); }
     if (mask & 0x100000) { if (rd(16)) sk(12); }
     if (mask & 0x80000) sk(5);
-    return q === e ? { sky, swim, ladder, rag: 0 } : null;
+    return q === e ? { sky, swim, ladder, zoom, rag: 0 } : null;
   } catch (x) { return null; }
 }
-// a soldier's state when it changes: [t, id, 1 free fall | 2 swimming | 4 on a ladder] (0 when dead)
+// a soldier's state when it changes: [t, id, 1 free fall | 2 swimming | 4 on a ladder | 16 aiming down the sights] (0 when
+// dead). (v146) The zoom: the 3 bits before "sky diving" (Kakarotto22's state_3): 1 while he looks through the sights or the
+// scope, else 0 (9 rounds: at the shot of 100% of L96A1 kills, 86% M95, 62% L85A1 and M4, 0% of shotguns, knives, mounted
+// MGs, C4, mines and grenade launchers - weapons without a zoom)
 function solState(B, rc, t, st) {
   const f = solExact(B, rc.s + 32, rc.L); if (!f) return;
   let o = st.sstLast.get(rc.id); if (!o) st.sstLast.set(rc.id, o = { c: -1, lad: 0 });
   if (f.ladder !== null) o.lad = f.ladder ? 1 : 0;
-  const c = f.rag ? 0 : (f.sky ? 1 : 0) | (f.swim ? 2 : 0) | (o.lad ? 4 : 0);
+  const c = f.rag ? 0 : (f.sky ? 1 : 0) | (f.swim ? 2 : 0) | (o.lad ? 4 : 0) | (f.zoom === 1 ? 16 : 0);
   if (c !== o.c) { st.sst.push([+t.toFixed(3), rc.id, c]); o.c = c; }
 }
 // (v140) a parachute's flight: its own object (template 4471) carries the soldier hanging under it, whose own records
@@ -10165,7 +10289,8 @@ async function buildTimeline(r) {
     if (s.sgs.length) en.sgs = s.sgs;
   }
   // (v140) how he moves: en.mv = [[t, code] ...] when it changes - 1 free fall (before the parachute opens, or a long fall
-  // off a roof), 2 swimming, 4 on a ladder (his soldier's records), 8 sprinting (his Player ghost; off when he dies)
+  // off a roof), 2 swimming, 4 on a ladder, 16 aiming down the sights (v146; his soldier's records), 8 sprinting (his
+  // Player ghost; off when he dies)
   for (const en of ents) {
     if (en.vehicle) continue;
     const pl = +en.id.slice(1), A = (sstOf.get(pl) || []).slice().sort((a, b) => a[0] - b[0]), Bs = exact.get(pl)?.spr || [];
