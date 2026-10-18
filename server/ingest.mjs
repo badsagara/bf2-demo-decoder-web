@@ -36,6 +36,10 @@ const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'
 const INDEX = path.join(DATA, 'rounds.json'), HEAT_DIR = path.join(DATA, 'heat'), SHARE_DIR = path.join(DATA, 'share');
 const DOMAIN = opt('BF2R_DOMAIN', '').trim();
 const args = new Set(process.argv.slice(2));
+// Decoders whose rounds come out the same as the current one's (a fix that changes only demos that failed before): rounds
+// they made are not decoded again after the update, only marked as made by the current decoder. v138 (054e89ecf1): a map
+// not among the 22 failed since v135 ("Cannot access 'size' before initialization"); every other round is the same.
+const SAME_ROUNDS = { '054e89ecf1': ['3621404639'] };
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 // ---------- the page's decoder ----------
@@ -521,6 +525,8 @@ async function main() {
   for (const d of Object.values(DIRS)) fs.mkdirSync(d, { recursive: true });
   const dec = loadDecoder(), idx = readIndex();
   let changed = false;
+  const same = SAME_ROUNDS[dec.hash] || [];
+  for (const r of idx.rounds) if (same.includes(r.decoder)) { r.decoder = dec.hash; changed = true; }
   // rounds listed before with fewer players than BF2R_MIN_PLAYERS (set or raised since) leave the list
   for (const r of idx.rounds.filter(r => r.sum && !r.sum.empty && r.sum.players < MIN_PLAYERS)) {
     dropRound(idx, r.name, path.join(DIRS.demos, r.name)); changed = true;

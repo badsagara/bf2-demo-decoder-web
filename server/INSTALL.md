@@ -207,6 +207,12 @@ ls -lh /srv/bf2replay/data/rounds /srv/bf2replay/data/demos
 
 # демо, скачане руками (напр. з Mac через scp у /tmp):
 sudo install -o bf2replay -g bf2replay -m 644 /tmp/auto_….bf2demo /srv/bf2replay/upload/incoming/
+# (розбирає лише те, що в upload/incoming: демо, покладене просто в data/demos, саме раундом не стане)
+
+# демо, що не розібралися ("could not read" у журналі - лежать у data/bad), ще раз після оновлення:
+sudo mv -n /srv/bf2replay/data/bad/*.bf2demo* /srv/bf2replay/upload/incoming/
+sudo chown bf2replay:bf2replay /srv/bf2replay/upload/incoming/*.bf2demo*
+journalctl -u bf2replay-ingest -u bf2replay-reprocess -f  # нові демо розбирає і той, і той (по черзі)
 
 # перерозібрати все з демо (напр. якщо щось пішло не так):
 sudo -u bf2replay flock /srv/bf2replay/data/.ingest.lock node /srv/bf2replay/repo/server/ingest.mjs --rebuild

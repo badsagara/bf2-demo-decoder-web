@@ -875,7 +875,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v137';
+const APP_VERSION = 'v138';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -9102,6 +9102,12 @@ async function buildTimeline(r) {
   // flag names, main bases, team names and starting tickets come from the level files (GAME.maps): the layout of this
   // game mode and size first, any layout of the map otherwise (flags are matched by position); unknown maps get Flag A, B, ...
   const mi = GAME.maps[(r.map || '').toLowerCase()] || null;
+  // the map's size where the game files don't give it (a map not among the 22): from how far out the objects go (v138:
+  // worked out here, before the spawn groups use it - after them, a map not in GAME.maps failed with "Cannot access 'size'
+  // before initialization" since v135)
+  const ext = Float64Array.from(r.obs, o => Math.max(Math.abs(o[3]), Math.abs(o[5]))).sort();
+  const m = ext.length ? ext[Math.floor(ext.length * 0.99)] : 512;
+  const size = [1024, 2048, 4096].find(s => s >= m * 2.1) || 4096;
   const vt = tm => tm === 1 ? 0 : tm === 2 ? 1 : -1;
   const cpl = (r.cps || []).slice().sort((a, b) => b.pos[2] - a.pos[2]);
   const layout = mi ? mi.layouts[(r.mode || '').toLowerCase() + ':' + (r.size || '')] || [] : [], anyLayout = mi ? Object.values(mi.layouts).flat() : [];
@@ -9687,9 +9693,6 @@ async function buildTimeline(r) {
     if (aim.length) em.aim = aim.sort((a, b) => a[0] - b[0]);
     delete em.ids;
   }
-  const ext = Float64Array.from(r.obs, o => Math.max(Math.abs(o[3]), Math.abs(o[5]))).sort();
-  const m = ext.length ? ext[Math.floor(ext.length * 0.99)] : 512;
-  const size = [1024, 2048, 4096].find(s => s >= m * 2.1) || 4096;
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', ...(r.settings ? { settings: r.settings } : {}), scoreEstimate: !ents.some(e => e.sb), ...(r.packets?.events ? { exactEvents: true } : {}), manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: mi ? mi.teams[0] : 'Team 1', tickets: tkStart[0] ?? 0 }, { id: 1, name: mi ? mi.teams[1] : 'Team 2', tickets: tkStart[1] ?? 0 }],
     players: ents, flags, frames: [], cols, events, emplacements, ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
