@@ -37,9 +37,9 @@ const INDEX = path.join(DATA, 'rounds.json'), HEAT_DIR = path.join(DATA, 'heat')
 const DOMAIN = opt('BF2R_DOMAIN', '').trim();
 const args = new Set(process.argv.slice(2));
 // Decoders whose rounds come out the same as the current one's (a fix that changes only demos that failed before): rounds
-// they made are not decoded again after the update, only marked as made by the current decoder. v138 (054e89ecf1): a map
-// not among the 22 failed since v135 ("Cannot access 'size' before initialization"); every other round is the same.
-const SAME_ROUNDS = { '054e89ecf1': ['3621404639'] };
+// they made are not decoded again after the update, only marked as made by the current decoder. (v138 used it once:
+// 054e89ecf1 = 3621404639 but for maps not among the 22. v140's decoder adds to every round: none now.)
+const SAME_ROUNDS = {};
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 // ---------- the page's decoder ----------

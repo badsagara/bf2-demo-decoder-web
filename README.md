@@ -62,7 +62,8 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 ### Кожна нова версія
 
 Від Claude приходять два архіви: `bf2-round-replay-vNN.zip` (сайт) і `bf2-round-replay-vNN-geo.zip` (точні форми
-колізій мап для підказки "No line of sight", ~10 МБ, з v111; з v120 там і дерева мап `site/assets/los/*.veg.js`).
+колізій мап для підказки "No line of sight", ~10 МБ, з v111; з v120 там і дерева мап `site/assets/los/*.veg.js`, з v144 —
+чіткі мінімапи 2048 px `site/assets/maps_hd/*.webp`, ще ~13 МБ).
 Обидва розпаковуються в ту саму папку `bf2-round-replay-vNN/` — потрібні **обидва**, інакше `rsync --delete` прибере
 `site/assets/geo` і дерева з репозиторію. На Mac:
 
@@ -108,6 +109,10 @@ KilledBy, id шаблонів решти авіації: Mi-28, Su-30MKK, MiG-29
 відродитись, обрана точка спавну).
 З v136 — нумерація шаблонів на мапах Armored Fury (booster_global), події StickyProjectile, IssueSquadOrder і прапорець
 втрати квитків у ScoreManager.
+З v140 — повний запис бійця (SoldierNetworkable: вільне падіння, плавання, драбина; 100 % записів 4 раундів).
+З v142 — розкладка ігрового HUD (табло Tab і верхня смуга часу й квитків за HudElementsScoreboard.con /
+HudElementsMap.con) і виміряні кольори шрифтів; самі текстури й бітмап-шрифти взято з файлів гри (Menu_client.zip,
+Fonts_client.zip).
 Їхня ліцензія:
 
 ```
@@ -133,3 +138,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+Чіткі мінімапи (з v144, `site/assets/maps_hd/*.webp`, 2048 px) зменшено з паку
+[High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) від Deine-Augen (ModDB, 2023:
+мінімапи Battlefield 2 у 8192 px). Звичайні мінімапи 512 px (`site/assets/maps`) — з файлів самої гри.
