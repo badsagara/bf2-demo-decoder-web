@@ -361,3 +361,27 @@ journalctl -u bf2replay-admin -n 20             # входи, неправиль
 
 З nginx — блок `location /admin` з `nginx-example.conf` треба додати руками. Без `sudo` на VPS (`apt install sudo`)
 сторінка все показує, але кнопки служб відповідають «could not start».
+
+## 15. Пости про нові раунди в Discord / Telegram (v153)
+
+Після кожного нового раунду — пост у канал Discord і / або чат Telegram: мапа й час, хто виграв і квитки, скільки
+тривав, гравців і вбивств, троє найкращих за очками, сервер і посилання на раунд (чат сам покаже під ним картинку
+мапи — прев'ю з розділу 11). Налаштовується на адмін-сторінці, картка **Posts about new rounds**:
+
+- **Discord**: налаштування каналу (шестірня) → Integrations → Webhooks → New Webhook → Copy Webhook URL → вставити,
+  **Save Discord**;
+- **Telegram**: @BotFather → `/newbot` → токен; бота додати в групу (у канал — адміністратором); чат — `@назва` для
+  публічного каналу, для групи її id (написати в групу, відкрити `https://api.telegram.org/bot<токен>/getUpdates`,
+  узяти `"chat":{"id":-100…}`) → **Save Telegram**;
+- **Send a test post** — пробний пост; **Post the newest round** — останній раунд ще раз.
+
+Постяться лише раунди з 6+ гравцями (там же змінити), записані за останні 12 год (не старі демо, скачані пачкою), і
+не кліпи. Посилання — лише з `BF2R_DOMAIN`. Адреса вебхука й токен лежать тільки на VPS — `data/.notify.json`
+(600, власник bf2replay; веб-сервер файли `data/.*` не віддає), на сторінці видно лише 4 останні символи. Те саме
+можна задати в `/etc/bf2replay.conf` (тоді воно головне): `BF2R_DISCORD_WEBHOOK`, `BF2R_TELEGRAM_TOKEN`,
+`BF2R_TELEGRAM_CHAT`, `BF2R_NOTIFY_MIN_PLAYERS`. З консолі:
+
+```bash
+sudo -u bf2replay node /srv/bf2replay/repo/server/notify.mjs --test    # пробний пост
+journalctl -u bf2replay-ingest | grep 'round post'                     # що постилось
+```

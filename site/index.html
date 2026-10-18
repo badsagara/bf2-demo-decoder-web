@@ -140,7 +140,7 @@ input[type=file] { display: none; }
 .mapplay input[type=range]::-moz-range-thumb, .mbar input[type=range]::-moz-range-thumb, .mapside input[type=range]::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,.5); }
 /* full screen: the map fills the screen (also without the Fullscreen API, e.g. inside a frame), with a small feed */
 .mapbox.fs { position: fixed; inset: 0; width: auto; max-width: none; border: 0; border-radius: 0; z-index: 50; }
-.mapbox.fs canvas { width: 100%; height: 100%; aspect-ratio: auto; }
+.mapbox.fs > canvas { width: 100%; height: 100%; aspect-ratio: auto; }   /* (the map only: v153 - the legend's icons were stretched to it) */
 .mapbox.fs #vBig { display: none; }
 /* kill feed over the map, top right (also outside full screen): see-through, the map shows beneath; "Kill feed" in Layers */
 .fsfeed { position: absolute; top: 10px; right: 10px; width: min(310px, 46%); max-height: 50%; overflow: hidden; pointer-events: none;
@@ -211,17 +211,17 @@ input[type=file] { display: none; }
 .mlegend { flex: 0 0 100%; display: flex; pointer-events: none; position: relative; z-index: 3; }   /* (opened over the kill feed where they meet: on a phone) */
 .mlegend[hidden] { display: none; }
 .mapbox.side .mlegend { padding-left: 168px; }   /* (Controls left: beside their column) */
-.lgbox { pointer-events: auto; width: 300px; max-width: 100%; display: flex; flex-direction: column; min-height: 0; background: color-mix(in srgb, var(--bg) 84%, transparent); border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); border-radius: 4px; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); box-shadow: 0 2px 10px rgba(0,0,0,.25); }
-.lgh { all: unset; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 9px; font: 700 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lgbox { --k: var(--lgk, 1); pointer-events: auto; width: calc(300px * var(--k)); max-width: 100%; display: flex; flex-direction: column; min-height: 0; background: color-mix(in srgb, var(--bg) 84%, transparent); border: 1px solid color-mix(in srgb, var(--line) 75%, transparent); border-radius: 4px; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); box-shadow: 0 2px 10px rgba(0,0,0,.25); }
+.lgh { all: unset; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: calc(10px * var(--k)); padding: calc(4px * var(--k)) calc(9px * var(--k)); font: 700 calc(11px * var(--k)) var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .lgh:hover { color: var(--fg); }
 .lgh:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
 .lgh b { font-weight: 400; transition: transform .15s; }
 .lgh[aria-expanded="false"] b { transform: rotate(-90deg); }
-.lgl { list-style: none; margin: 0; padding: 0 6px 5px; display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 0 6px; overflow-y: auto; scrollbar-width: thin; max-height: var(--lgmax, 60vh); }
+.lgl { list-style: none; margin: 0; padding: 0 calc(6px * var(--k)) calc(5px * var(--k)); display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(132px * var(--k)), 1fr)); gap: 0 calc(6px * var(--k)); overflow-y: auto; scrollbar-width: thin; max-height: var(--lgmax, 60vh); }
 .lgh[aria-expanded="false"] + .lgl { display: none; }
 .lgbox:has(> .lgh[aria-expanded="false"]) { width: auto; }
-.lgl li { display: flex; align-items: center; gap: 5px; min-height: 22px; font: 500 11px/1.2 var(--font-body); color: var(--fg); white-space: nowrap; cursor: default; }
-.lgl li canvas { flex: none; width: 32px; height: 22px; }
+.lgl li { display: flex; align-items: center; gap: calc(5px * var(--k)); min-height: calc(22px * var(--k)); font: 500 calc(11px * var(--k))/1.2 var(--font-body); color: var(--fg); white-space: nowrap; cursor: default; }
+.lgl li canvas { flex: none; width: calc(32px * var(--k)); height: calc(22px * var(--k)); }
 .lgl li.blink canvas { animation: lgBlink .7s steps(1, end) infinite; }
 @keyframes lgBlink { 60% { opacity: .18; } }
 @media (prefers-reduced-motion: reduce) { .lgl li.blink canvas { animation-duration: 1.4s; } }
@@ -311,7 +311,7 @@ svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentCo
 .feed .ico { margin: 0 2px; opacity: .9; }
 .kmw { font-weight: 600; white-space: nowrap; }
 .feed[hidden], #hlBox[hidden], #admBox[hidden] { display: none; }
-.hk-wall, .hk-snap, .hk-speed, .hk-track, .hk-smoke, .hk-fog, .hk-reach, .hk-rate, .hk-ammo, .hk-react, .hk-stam, .hk-tele, .hk-clip, .hk-fly, .hk-spawn, .hk-vspeed, .hk-dmg, .hk-guided, .hk-arty, .hk-fastcap, .hk-trigger, .hk-smooth, .hk-switch, .hk-preaim, .hk-spread, .hk-blindspot, .hk-under { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }
+.hk-wall, .hk-snap, .hk-speed, .hk-track, .hk-wallfire, .hk-smoke, .hk-fog, .hk-reach, .hk-rate, .hk-ammo, .hk-react, .hk-stam, .hk-tele, .hk-clip, .hk-fly, .hk-spawn, .hk-vspeed, .hk-dmg, .hk-guided, .hk-arty, .hk-fastcap, .hk-trigger, .hk-smooth, .hk-switch, .hk-preaim, .hk-spread, .hk-blindspot, .hk-under { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }
 .hk-hs { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 .hk-tk, .hk-farm { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }
 .admwarn { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
@@ -812,6 +812,7 @@ body.mbar-on { padding-bottom: 72px; }
               <label id="cFFl" title="The game plays a demo only from its start: how fast the round before the clip goes by (the last 3 s before the clip and the clip itself at the real pace). An experiment: if the game stops or crashes, try a lower one" hidden>Before the clip <select id="cFF"></select></label>
               <label>Camera <select id="cCam"><option value="follow">Follow</option><option value="fixed">As on screen</option></select></label>
               <span class="cliplen" id="cLen"></span>
+              <button class="btn" id="cOwn" type="button" hidden title="The server has no copy of this round's demo: use the .bf2demo file you have (from the game's demos folder or your download) - it is checked to be this round's">Open my copy…</button><input type="file" id="cOwnF" accept=".bf2demo,.gz" hidden>
               <span class="spacer"></span>
               <button class="btn primary" id="cGo">Make video</button>
               <button class="btn" id="cX">Close</button>
@@ -915,7 +916,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v152';
+const APP_VERSION = 'v153';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -5499,7 +5500,7 @@ function jumpTo(h, keepSel) {
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
 const MELEE_REACH = { 5406: ['knife', 2.0], 5386: ['defibrillator', 2.8] }, MELEE_SLACK = 2.5;
 const LAUNCH_MIN = { Grenade: 0.7, SRAW: 4.0, Eryx: 4.2, Claymore: 0.6, 'LAV-25 TOW': 10, 'BTR-90 missile': 10, 'WZ551 missile': 10, TOW: 5, 'HJ-8': 5 };
 const SHOT_MIN = { 5038: 1.5, 5222: 1.5, 5073: 1.5, 5400: 1.0, 5478: 1.0, 5491: 1.0, 5483: 0.6, 5380: 0.6 };
@@ -5628,10 +5629,46 @@ function cheatHints(R) {
 // TRACK_T s or more on end, and the enemy moving across his view meanwhile (the bearing to him turning TRACK_TURN or more,
 // and his view turning with it): following somebody he can't see. Worked out in the background (wallTracks; a few
 // seconds a round), then added to the admin hints.
+// (v153, Sagara's todo 159: "стріляв у стіну") Fired at a wall: in the same pass, his trigger held (the first fire button)
+// with his view on the same hidden enemy (as above: within TRACK_DEG / TRACK_VDEG, 8-150 m, behind walls or hills), no
+// enemy or vehicle he can see within WF_NEAR of his crosshair, a gun in his hands, and that enemy not seen by him (in his
+// 90° and in the open) in the WF_PRE s before: shooting at somebody behind a wall he hadn't seen go there. A hint for
+// one such burst of WF_T s or more, or for WF_N of WF_T0 s or more in a round (then one, with the longest). The 9 rounds
+// (59 bursts of 0.4 s or more at a hidden enemy, sampled every 0.2 s): the longest 1.0 s (3), at most 2 of 0.6 s+ by one
+// soldier - no hint.
+const WF_T = 1.4, WF_T0 = 0.6, WF_N = 4, WF_PRE = 3, WF_NEAR = 8, WF_GUN = w => !!w && killCause({ weapon: w.name }, false) === 'small' && !/knife|defib|shock|paddle|wrench|repair|bag|binocular|designat|zipline|grappl|tear ?gas|flash|smoke|mine|C4|claymore|^tool$/i.test(w.name || '');
 const TRACK_STEP = 0.2, TRACK_DEG = 3, TRACK_VDEG = 6, TRACK_T = 2, TRACK_TURN = 10;
 function wallTracks(R, done) {
   const D = losData(); if (!D) { done([]); return; }
   const DEG = Math.PI / 180, fog = Math.min(150, fogRange()), out = [], sol = R.players.map((p, i) => p.vehicle ? -1 : i).filter(i => i >= 0);
+  // (fired at a wall) each soldier's trigger presses, by start; a pointer each (the steps go forward in time)
+  const trig = new Map(), tp = new Map(); for (const i of sol) { const F = (R.players[i].fire || []).filter(f => f[2] === 0).sort((a, b) => a[0] - b[0]); if (F.length) { trig.set(i, F); tp.set(i, 0); } }
+  const held = (i, tt) => { const F = trig.get(i); if (!F) return false; let k = tp.get(i); while (k < F.length && F[k][1] < tt) k++; tp.set(i, k); return k < F.length && F[k][0] <= tt; };
+  const seesAt = (i, j, tt, coneDeg) => {   // (j in i's view - within coneDeg of where he looks - and in the open)
+    const a = playerAt(i, tt), b = playerAt(j, tt); if (!a.alive || !b.alive || a.veh || b.veh || !Number.isFinite(a.x) || !Number.isFinite(b.x) || a.h == null || b.h == null) return false;
+    const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (d > fog) return false;
+    if (a.yaw != null && angOff(Math.atan2(dx, dy), a.yaw) / DEG > coneDeg) return false;
+    const eye = a.h + EYE_H[stanceNow(R.players[i], tt) ?? 0], st = stanceNow(R.players[j], tt) ?? 0;
+    return !losBlocked(D, a.x, a.y, eye, b.x, b.y, b.h + AIM_H[st][0], tt) || !losBlocked(D, a.x, a.y, eye, b.x, b.y, b.h + AIM_H[st][1], tt);
+  };
+  const vehs = R.players.map((p, v) => p.vehicle ? v : -1).filter(v => v >= 0);
+  const vehNear = (i, q, eye, tt) => vehs.some(v => {   // (a vehicle in the open near his crosshair: he may be shooting at it)
+    const o = playerAt(v, tt); if (!o.alive || !Number.isFinite(o.x) || o.h == null) return false;
+    const dx = o.x - q.x, dy = o.y - q.y, d = Math.hypot(dx, dy); if (d < 2 || d > fog || angOff(Math.atan2(dx, dy), q.yaw) / DEG > WF_NEAR) return false;
+    return !losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + 1.5, tt);
+  });
+  const fires = new Map(), wfAll = R._wfAll = [];   // viewer -> { j, t0, t1, d, x, y }
+  const closeF = i => { const r = fires.get(i); if (!r) return; fires.delete(i);
+    const dur = Math.round((r.t1 - r.t0 + TRACK_STEP) * 10) / 10; if (dur < 0.4) return;
+    const w = inHands(i, (r.t0 + r.t1) / 2); if (!WF_GUN(w)) return;
+    let last = null; for (let tt = r.t0 - TRACK_STEP; tt >= r.t0 - 6; tt -= TRACK_STEP) if (seesAt(i, r.j, tt, 45)) { last = r.t0 - tt; break; }
+    wfAll.push({ i, j: r.j, t: r.t0, dur, d: r.d, w: w.name, last });
+    if (dur >= WF_T0 && (last === null || last > WF_PRE)) { if (!wfBy.has(i)) wfBy.set(i, []); wfBy.get(i).push({ t: r.t0, vs: R.players[r.j].id, dur, d: r.d, w: w.name, last, x: r.x, y: r.y }); } };
+  const wfBy = new Map();   // soldier -> his bursts at hidden enemies he hadn't seen (WF_T0 s or more)
+  const wfHints = () => { for (const [i, B] of wfBy) {
+    const top = B.reduce((a, b) => b.dur > a.dur ? b : a), h = (b, n) => ({ t: b.t, kind: 'wallfire', adm: true, actor: R.players[i].id, vs: b.vs, dur: b.dur, d: b.d, w: b.w, last: b.last, n, total: B.reduce((a, c) => a + c.dur, 0), x: b.x, y: b.y });
+    if (B.length >= WF_N) out.push(h(top, B.length)); else for (const b of B) if (b.dur >= WF_T) out.push(h(b, 1));
+  } };
   const T0 = R.times[0] || 0, T1 = R.duration, steps = Math.floor((T1 - T0) / TRACK_STEP);
   // positions and views of all soldiers, step by step (once)
   let k = 0; const pos = new Array(steps);
@@ -5646,7 +5683,7 @@ function wallTracks(R, done) {
       const tt = T0 + k * TRACK_STEP, P = new Map();
       for (const i of sol) { const q = playerAt(i, tt); if (q.alive && !q.down && !q.veh && Number.isFinite(q.x) && q.h != null) P.set(i, q); }
       for (const i of sol) {
-        const q = P.get(i); if (!q || q.pitch == null) { close(i); continue; }
+        const q = P.get(i); if (!q || q.pitch == null) { close(i); closeF(i); continue; }
         const tm = teamOf(i, tt), eye = q.h + EYE_H[stanceNow(R.players[i], tt) ?? 0]; let best = null;
         for (const [j, o] of P) {
           if (j === i || teamOf(j, tt) === tm) continue;
@@ -5656,8 +5693,14 @@ function wallTracks(R, done) {
           if (!best || off < best.off) best = { j, o, b, d, off };
         }
         const r = runs.get(i);
-        if (!best) { close(i); continue; }
+        if (!best) { close(i); closeF(i); continue; }
         const st = stanceNow(R.players[best.j], tt) ?? 0, hidden = losBlocked(D, q.x, q.y, eye, best.o.x, best.o.y, best.o.h + AIM_H[st][0], tt) && losBlocked(D, q.x, q.y, eye, best.o.x, best.o.y, best.o.h + AIM_H[st][1], tt);
+        // (fired at a wall: the trigger held, on this hidden enemy, nobody he sees near his crosshair)
+        if (hidden && held(i, tt) && ![...P.keys()].some(j => j !== best.j && j !== i && teamOf(j, tt) !== tm && seesAt(i, j, tt, WF_NEAR)) && !vehNear(i, q, eye, tt)) {
+          const f = fires.get(i);
+          if (f && f.j === best.j && tt - f.t1 <= TRACK_STEP * 1.5) { f.t1 = tt; f.d = Math.min(f.d, best.d); }
+          else { closeF(i); fires.set(i, { j: best.j, t0: tt, t1: tt, d: best.d, x: q.x, y: q.y }); }
+        } else closeF(i);
         if (!hidden) { close(i); continue; }
         if (r && r.j === best.j && tt - r.t1 <= TRACK_STEP * 1.5) { r.t1 = tt; r.b1 = best.b; r.y1 = q.yaw; r.dmin = Math.min(r.dmin, best.d); }
         else { close(i); runs.set(i, { j: best.j, t0: tt, t1: tt, b0: best.b, b1: best.b, y0: q.yaw, y1: q.yaw, dmin: best.d, x: q.x, y: q.y }); }
@@ -5665,6 +5708,8 @@ function wallTracks(R, done) {
     }
     if (k < steps) { R._trackP = k / steps; setTimeout(work, 15); return; }
     for (const i of [...runs.keys()]) close(i);
+    for (const i of [...fires.keys()]) closeF(i);
+    wfHints();
     done(out);
   };
   setTimeout(work, 50);
@@ -6355,6 +6400,7 @@ function admDescribe(h) {
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
   if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag or support near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
+  if (h.kind === 'wallfire') return [h.n > 1 ? h.n + '×' : h.dur.toFixed(1) + ' s', `<b>Fired at a wall</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">${h.n > 1 ? `${h.n} times this round he held the trigger (${WF_T0} s or more, ${h.total.toFixed(1)} s in all) on an enemy behind walls or a hill he hadn't seen in the ${WF_PRE} s before; the longest ` : 'held the trigger '}${h.dur.toFixed(1)} s on end with his crosshair on him behind cover, ${Math.round(h.d)} m away · ${esc(h.w)} · ${h.last === null ? 'not seen in the 6 s before' : `last seen ${h.last.toFixed(1)} s before`} · nobody in sight near his crosshair</span>`, `Fired at a wall: ${pt(h.actor)} → ${pt(h.vs)}, ${h.n > 1 ? h.n + ' times' : h.dur.toFixed(1) + ' s'}`];
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
   if (h.kind === 'speed') return [h.v.toFixed(0) + ' m/s', `<b>Speed</b> ${pn(h.actor)} <span class="w">on foot at up to ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s${h.n > 1 ? ' in ' + h.n + ' stretches over ' + Math.round(h.span) + ' s' : ''} (${Math.round(h.dist)} m, ${h.vavg.toFixed(1)} m/s on average) · the game's sprint is ${SPEED_RUN} m/s</span>`, `Speed: ${pt(h.actor)} ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s`];
   if (h.kind === 'react') return [h.q + '/' + h.n, `<b>Reaction</b> ${pn(h.actor)} <span class="w">${h.q} of ${h.n} kills within ${REACT_Q} s of first seeing the victim (the others in this round ${Math.round(h.others * 100)}%; his middle ${h.med.toFixed(1)} s) · a man needs about 0.2 s just to react</span>`, `Reaction: ${pt(h.actor)}, ${h.q} of ${h.n} kills within ${REACT_Q} s`];
@@ -7327,6 +7373,7 @@ function renderClipBar() {
     $('#cRange').textContent = `${fmt(clip.a)} – ${fmt(clip.b)}`;
     const secs = clipSecs(), mx = clipMax(), long = secs > mx + 0.01, gif = clip.fmt === 'gif', what = gif ? 'GIF' : 'video';
     const dem = clip.fmt === 'demo', dOk = demoOk(), no = long || (dem && !dOk);
+    $('#cOwn').hidden = !(dem && !dOk && demoMissing()); $('#cOwn').disabled = busy;
     const len = $('#cLen'); len.classList.toggle('bad', no);
     len.textContent = dem ? demoPlan(dOk) : long ? `${fmtDur(secs)} of ${what}, longer than ${mx >= 60 ? mx / 60 + ' min' : mx + ' s'}: a higher speed or a shorter stretch` : (clip.speed === 1 ? `${fmtDur(secs)} of ${what}` : `${fmtDur(clip.b - clip.a)} of the round → ${fmtDur(secs)} of ${what}`) + (gif ? ` · ${gifSize(CLIP_SIZES[clip.size][1], CLIP_SIZES[clip.size][2]).join('×')}` : '');
     $('#cGo').textContent = dem ? 'Make demo' : gif ? 'Make GIF' : 'Make video'; $('#cFmt').value = clip.fmt;
@@ -7645,6 +7692,39 @@ async function clipGif(S, N, job, onP) {
   onP(1);
   return { blob: new Blob(parts, { type: 'image/gif' }), ext: 'gif', mime: 'image/gif', codec: GIF_FPS + ' frames/s' };
 }
+// (v153) MediaRecorder writes a WebM without its length (players show no length and can't seek in it, the segment's
+// size is "unknown"): the Duration (ms, in the file's TimecodeScale) put into its Segment Info - written over one that
+// is there, else added at the end of the Info, whose size grows (left as it was where a SeekHead would point past it)
+async function webmDuration(blob, ms) {
+  try {
+    const u8 = new Uint8Array(await blob.arrayBuffer()), N = u8.length;
+    const rid = o => { const b = u8[o], l = b & 0x80 ? 1 : b & 0x40 ? 2 : b & 0x20 ? 3 : b & 0x10 ? 4 : 0; if (!l || o + l > N) return null; let v = 0; for (let k = 0; k < l; k++) v = v * 256 + u8[o + k]; return { l, v }; };
+    const rsz = o => { const b = u8[o]; let l = 1, m = 0x80; while (l <= 8 && !(b & m)) { l++; m >>= 1; } if (l > 8 || o + l > N) return null; let v = b & (m - 1), all = v === m - 1; for (let k = 1; k < l; k++) { v = v * 256 + u8[o + k]; if (u8[o + k] !== 255) all = false; } return { l, v, unknown: all }; };
+    const el = o => { const i = rid(o); if (!i) return null; const z = rsz(o + i.l); if (!z) return null; return { id: i.v, at: o, body: o + i.l + z.l, size: z.unknown ? null : z.v, szAt: o + i.l, szL: z.l }; };
+    const ebml = el(0); if (!ebml || ebml.id !== 0x1A45DFA3 || ebml.size === null) return blob;
+    const seg = el(ebml.body + ebml.size); if (!seg || seg.id !== 0x18538067) return blob;
+    let o = seg.body, seek = false;
+    while (o < N) {
+      const e = el(o); if (!e || e.size === null) return blob;
+      if (e.id === 0x114D9B74) seek = true;
+      if (e.id === 0x1549A966) {   // Info
+        let scale = 1e6, dur = null;
+        for (let c = e.body; c < e.body + e.size; ) { const f = el(c); if (!f || f.size === null) return blob; if (f.id === 0x2AD7B1) { let v = 0; for (let k = 0; k < f.size; k++) v = v * 256 + u8[f.body + k]; if (v) scale = v; } if (f.id === 0x4489) dur = f; c = f.body + f.size; }
+        const val = ms * 1e6 / scale;
+        if (dur && (dur.size === 8 || dur.size === 4)) { const dv = new DataView(u8.buffer, dur.body, dur.size); if (dur.size === 8) dv.setFloat64(0, val); else dv.setFloat32(0, val); return new Blob([u8], { type: blob.type }); }
+        if (seek || (seg.size !== null && seg.szL !== 8)) return blob;
+        const d = new Uint8Array(11); d.set([0x44, 0x89, 0x88]); new DataView(d.buffer).setFloat64(3, val);
+        const hd = new Uint8Array(4 + 8); hd.set(u8.subarray(e.at, e.at + 4));   // (Info's id: 4 bytes) and its size as 8 bytes
+        let sz = e.size + 11; hd[4] = 0x01; for (let k = 11; k >= 5; k--) { hd[k] = sz % 256; sz = Math.floor(sz / 256); }
+        if (seg.size !== null) { let v = seg.size + (12 + e.size + 11) - (e.body + e.size - e.at); for (let k = seg.szAt + 7; k > seg.szAt; k--) { u8[k] = v % 256; v = Math.floor(v / 256); } }
+        return new Blob([u8.subarray(0, e.at), hd, u8.subarray(e.body, e.body + e.size), d, u8.subarray(e.body + e.size)], { type: blob.type });
+      }
+      if (e.id === 0x1F43B675) return blob;   // (a Cluster: no Info before it)
+      o = e.body + e.size;
+    }
+  } catch (err) { console.warn('WebM length not written:', err); }
+  return blob;
+}
 // without WebCodecs: film the canvas with MediaRecorder, a frame every 1/30 s of real time
 async function clipRecorder(S, N, job, onP) {
   if (typeof MediaRecorder !== 'function' || typeof S.c.captureStream !== 'function') return null;
@@ -7667,8 +7747,9 @@ async function clipRecorder(S, N, job, onP) {
   await new Promise(r => setTimeout(r, 1000 / CLIP_FPS));
   rec.stop(); await stopped; track.stop();
   if (job.cancelled) return null;
-  const type = mime.split(';')[0], blob = new Blob(parts, { type });
+  const type = mime.split(';')[0]; let blob = new Blob(parts, { type });
   if (!blob.size) throw new Error('the recording came out empty');
+  if (type === 'video/webm') blob = await webmDuration(blob, N / CLIP_FPS * 1000);
   return { blob, ext: type === 'video/mp4' ? 'mp4' : 'webm', mime: type, codec: /vp9/.test(mime) ? 'VP9' : /vp8/.test(mime) ? 'VP8' : /avc1/.test(mime) ? 'H.264' : '', realtime: true };
 }
 async function recordClip() {
@@ -7739,9 +7820,11 @@ async function shareClip() {
 // ticks later) is used again a tick after the one it was freed in at the earliest, in case the game removes objects only
 // at the end of a frame ("Networkables already added", the game's error when an object comes twice). Whether the game
 // plays the records by these ticks at all is what the test in the game shows.
-const demoOk = () => !!(round && round.meta.source === 'demo' && demoSrc && (demoSrc.file || demoSrc.url) && demoSrc.name === $('#srcLabel').textContent);
+const demoOk = () => !!(round && round.meta.source === 'demo' && demoSrc && (demoSrc.file || (demoSrc.url && !demoSrc.gone)) && demoSrc.name === $('#srcLabel').textContent);
+// (v153) no copy on the server (deleted to save space, or never kept): the demo file you have, if it is this round's
+const demoMissing = () => !!(round && round.meta.source === 'demo' && demoSrc && !demoSrc.file && (!demoSrc.url || demoSrc.gone) && demoSrc.name === $('#srcLabel').textContent);
 function demoPlan(ok) {
-  if (!ok) return round && round.meta.source === 'demo' ? "this round's demo file isn't here (the server has no copy of it)" : "this round isn't from a demo file";
+  if (!ok) return round && round.meta.source === 'demo' ? (demoMissing() ? "the server has no copy of this round's demo: open yours" : "this round's demo file isn't here") : "this round isn't from a demo file";
   const lead = Math.min(DEMO_LEAD / 30, clip.a), pre = clip.a - lead, f = clip.ff, rest = fmtDur(clip.b - clip.a + lead) + ' at the real pace';
   if (pre < 1) return 'the round from its start, ' + rest;
   return (f === 1 ? `${fmtDur(pre)} of the round before the clip at its pace` : f ? `${fmtDur(pre)} of the round before the clip in ~${fmtDur(pre / f)}` : `${fmtDur(pre)} of the round before the clip as fast as the game can`) + ', then ' + rest;
@@ -7811,6 +7894,7 @@ function unsqueezeDemo(u8) {
 }
 // the round's demo, unpacked: the file opened here again, or the server's copy (data/demos/…, maybe gzipped too)
 async function demoRaw(src, onP) {
+  if (src.raw) return src.raw;
   let u8 = src.file ? new Uint8Array(await src.file.arrayBuffer()) : await fetchBytes(src.url, onP).catch(e => { throw new Error(/: 404$/.test(e.message) ? "the server doesn't have this round's demo any more" : 'the demo did not download (' + e.message + ')'); });
   const packed = d => d.length > 2 && ((d[0] === 0x1f && d[1] === 0x8b) || (d[0] === 0x78 && ((d[0] << 8) | d[1]) % 31 === 0));
   for (let k = 0; k < 2 && packed(u8); k++) { const r = await inflate(u8); if (!r || !r.data.length) break; u8 = r.data; }
@@ -7840,9 +7924,23 @@ async function makeDemoClip() {
     try { o.share = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([o.blob], o.name, { type: o.mime })] })); } catch (e) { o.share = false; }
     dropClipOut(); clip.out = o; toast('Demo ready · ' + kbOf(blob.size));
   } catch (e) {
-    clipMsg("Couldn't make the demo: " + (e && e.message || e) + '.');
+    if (src.url && !src.file && /any more/.test(e && e.message || '')) { src.gone = true; clipMsg("The server doesn't have this round's demo any more: open your copy of it (Open my copy…)."); }
+    else clipMsg("Couldn't make the demo: " + (e && e.message || e) + '.');
   } finally { if (clip.job === job) clip.job = null; renderClipBar(); }
 }
+// (v153) your own copy of the round's demo, when the server has none: the same server, date and map in its header
+$('#cOwn').onclick = () => $('#cOwnF').click();
+$('#cOwnF').onchange = async e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f || !demoSrc) return;
+  const want = demoHeader && demoHeader.fields, src = demoSrc;
+  clipMsg('Reading ' + f.name + '…');
+  try {
+    const u8 = await demoRaw({ file: f }), h = readHeader(u8);
+    if (want && h && h.fields.some((v, k) => v !== want[k])) { clipMsg(`${f.name} is another round's demo (${h.fields[1]}, ${h.fields[2].split('/').pop()}), not this one (${want[1]}).`); return; }
+    if (demoSrc !== src) return;
+    demoSrc = { name: src.name, file: f, raw: u8 }; clipMsg(''); toast('Your copy of the demo will be used'); renderClipBar();
+  } catch (err) { clipMsg("Couldn't read " + f.name + ': ' + (err && err.message || err) + '.'); }
+};
 $('#tClip').onclick = () => clip.open ? closeClip() : openClip();
 $('#cA').onclick = () => clipMark('a');
 $('#cB').onclick = () => clipMark('b');
@@ -7957,10 +8055,14 @@ const LEGEND = [
   ['blasts', () => 'Explosion', 'Where a grenade, a rocket, a shell, C4 or a mine went off', () => { const g = cx.createRadialGradient(0, 0, 1, 0, 0, 11), b = css('--blast'); g.addColorStop(0, 'rgba(255,245,200,.95)'); g.addColorStop(0.35, rgbaOf(b, 0.85) || b); g.addColorStop(1, rgbaOf(b, 0) || 'transparent'); cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, 11, 0, Math.PI * 2); cx.fill(); }],
 ];
 let lgKey = '';
+// (v153, Sagara: "легенда не масштабується при full screen"): it grows with the map, as the game's top bar and kill
+// feed do - 1x on a map up to 700 px (its smaller side), up to 1.75x, in steps of 1/8
+const lgScale = () => { const r = mapbox.getBoundingClientRect(), m = Math.min(r.width, r.height) || 700; return Math.max(1, Math.min(1.75, Math.floor(m / 700 * 8) / 8)); };
 function legend() {
   const box = $('#mLegend'), on = !!(round && opts.legend);
   box.hidden = !on; if (!on) return;
-  const L = LEGEND.filter(([k]) => !k || opts[k]), d = window.devicePixelRatio || 1;
+  const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
+  const L = LEGEND.filter(([k]) => !k || opts[k]), d = (window.devicePixelRatio || 1) * lk;
   const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), opts.gameSol, opts.models, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
@@ -7968,7 +8070,7 @@ function legend() {
     try {
       for (const [, txt, tip, fn, blink] of L) {
         const li = document.createElement('li'), c = document.createElement('canvas'), sp = document.createElement('span');
-        c.width = LG_W * d; c.height = LG_H * d; c.setAttribute('aria-hidden', 'true'); sp.textContent = txt(); li.title = tip;
+        c.width = Math.round(LG_W * d); c.height = Math.round(LG_H * d); c.setAttribute('aria-hidden', 'true'); sp.textContent = txt(); li.title = tip;
         if (blink) li.className = 'blink';
         cx = c.getContext('2d'); cx.setTransform(d, 0, 0, d, LG_W / 2 * d, LG_H / 2 * d); cx.scale(0.85, 0.85); cx.save(); fn(); cx.restore();
         li.append(c, sp); ul.append(li);
@@ -7993,7 +8095,7 @@ function lgFit() {
   let open = true; try { const v = localStorage.getItem('bf2rr.legendOpen'); open = v === null ? !matchMedia('(max-width: 640px)').matches : v === '1'; } catch (e) {}
   h.setAttribute('aria-expanded', String(open));
   h.onclick = () => { const o = h.getAttribute('aria-expanded') !== 'true'; h.setAttribute('aria-expanded', String(o)); try { localStorage.setItem('bf2rr.legendOpen', o ? '1' : '0'); } catch (e) {} lgFit(); };
-  new ResizeObserver(() => requestAnimationFrame(lgFit)).observe(mapbox);
+  new ResizeObserver(() => requestAnimationFrame(() => { if (round) legend(); })).observe(mapbox);
 }
 function layCount() {
   let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
@@ -10621,8 +10723,8 @@ function showDecoding(name, f, stage, t0) {
 async function readDemoFile(file) {
   const buf = new Uint8Array(await file.arrayBuffer());
   const inf = await inflate(buf);
-  const data = inf ? inf.data : buf, hdr = readHeader(data), clipAt = hdr ? unsqueezeDemo(data) : null;   // (v137: a clip made here)
-  return { data, keep: data === buf, hdr, info: { bytes: buf.length, format: inf ? inf.format : null, truncated: !!(inf && inf.truncated), dataLen: data.length, hdr, ...(clipAt !== null ? { clipAt } : {}) } };
+  const data = inf ? inf.data : buf, hdr = readHeader(data), sq = hdr ? unsqueezeDemo(data) : null, clipAt = sq ?? (hdr ? clipByName(file.name) : null);   // (v137: a clip made here)
+  return { data, keep: data === buf, hdr, info: { bytes: buf.length, format: inf ? inf.format : null, truncated: !!(inf && inf.truncated), dataLen: data.length, hdr, ...(clipAt !== null ? { clipAt, ...(sq === null ? { clipReal: true } : {}) } : {}) } };
 }
 // decode in the worker, or on the page when no worker can be started
 async function decodeData(data, keep, job, onProgress) {
@@ -10639,7 +10741,7 @@ function demoHead(name, info) {
   const hdr = info.hdr;
   let html = `<dl class="meta"><dt>File</dt><dd>${esc(name)} · ${kbOf(info.bytes)}</dd>`;
   html += `<dt>Stream</dt><dd>${info.format ? `${info.format} → ${kbOf(info.dataLen)}${info.truncated?' (ends early, file may be cut)':''}` : 'not compressed / unknown compression'}</dd>`;
-  if (info.clipAt != null) html += `<dt>Clip</dt><dd>made by this viewer for the game: the round before ${fmt(info.clipAt)} goes by fast in it, then the clip at the real pace</dd>`;
+  if (info.clipAt != null) html += `<dt>Clip</dt><dd>made by this viewer for the game: ${info.clipReal ? `the round from its start at its pace, opened 3 s before the clip, which starts at ${fmt(info.clipAt + DEMO_LEAD / 30)} (from the file's name)` : `the round before ${fmt(info.clipAt)} goes by fast in it, then the clip at the real pace`}</dd>`;
   if (hdr) { const [server, date, map] = hdr.fields; html += `<dt>Game version</dt><dd>${hdr.lead}</dd><dt>Server</dt><dd>${esc(server)}</dd><dt>Recorded</dt><dd>${esc(date)}</dd><dt>Map</dt><dd>${esc(map)}</dd>`; }
   return html;
 }
@@ -10687,6 +10789,13 @@ async function openDemo(file) {
   decodeJob = null; showDecoding(file.name, null);
   if (session && session.rounds.some(r => r.file === file)) cacheDecoded(file, rd.info, tl);
   showDemo(file.name, rd.info, tl); atClip(rd.info);
+}
+// (v153) a clip at the real pace (only its end cut: no ticks to put back) is known by the name it was saved under -
+// <round>_clip_MMSS_MMSS[_xN|_fastest].bf2demo - and opens at its start (3 s before it the round is at the real pace already)
+function clipByName(name) {
+  const m = /_clip_(\d{2,3})([0-5]\d)_(\d{2,3})([0-5]\d)(?:_x\d+|_fastest)?(?: ?\(\d+\))?\.bf2demo(?:\.gz)?$/i.exec(String(name || ''));
+  if (!m) return null; const a = +m[1] * 60 + +m[2], b = +m[3] * 60 + +m[4];
+  return b > a ? Math.max(0, a - DEMO_LEAD / 30) : null;
 }
 // a clip made by this viewer for the game opens where its real pace starts
 function atClip(info) { if (info && info.clipAt != null && round && round.meta.source === 'demo') { t = Math.max(0, Math.min(round.duration, info.clipAt)); refresh(true); } }
@@ -11289,13 +11398,13 @@ async function openServerRound(r) {
   const hit = decodedCache.get(r);
   demoSrc = { name, url: r.srv.demo ? 'data/' + r.srv.demo : null };
   try {
-    if (hit) { decodeJob = null; showDemo(name, hit.info, hit.tl); }
+    if (hit) { decodeJob = null; showDemo(name, hit.info, hit.tl); atClip(hit.info); }
     else if (r.srv.bfr) {
       showDecoding(name, 0, 'download', t0);
       const u8 = await fetchBytes('data/' + r.srv.bfr, f => { if (!job.cancelled) showDecoding(name, f, 'download', t0); });
       if (job.cancelled) return;
       const B = await bfrParse(u8); if (job.cancelled) return;
-      decodeJob = null; showDecoding(name, null); cacheDecoded(r, B.info, B.tl); showDemo(name, B.info, B.tl);
+      decodeJob = null; showDecoding(name, null); cacheDecoded(r, B.info, B.tl); showDemo(name, B.info, B.tl); atClip(B.info);
     } else {
       showDecoding(name, 0, 'download', t0);
       const u8 = await fetchBytes('data/' + r.srv.demo, f => { if (!job.cancelled) showDecoding(name, f, 'download', t0); });

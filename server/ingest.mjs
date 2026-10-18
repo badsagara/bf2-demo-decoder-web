@@ -55,7 +55,19 @@ function loadDecoder() {
   const kc = html.slice(k0, k1 + 2);
   const hash = crypto.createHash('sha1').update(gline).update(region).update(kc).digest('hex').slice(0, 10);
   const mod = new Function('performance', 'setTimeout', 'process', gline + '\n' + region + '\n' + kc + '\nreturn { decodeDemo, readHeader, killCause, GAME };')(performance, setTimeout, process);
-  return { ...mod, hash };
+  // (v153) a clip the page made for the game (.bf2demo): the round before it squeezed into fewer ticks - its ticks are
+  // put back as the page does when it opens one (unsqueezeDemo; a clip at the real pace is known by its name,
+  // clipByName), so it decodes at the round's own pace and the site opens it at the clip. Out of the decoder's region:
+  // the hash (and so every round decoded already) stays as it is
+  const fnText = sig => { const i = html.indexOf(sig); if (i < 0) return null; const j = html.indexOf('\n}\n', i); return j < 0 ? null : html.slice(i, j + 2); };
+  const lineText = sig => { const i = html.indexOf(sig); return i < 0 ? null : html.slice(i, html.indexOf('\n', i)); };
+  const lead = /DEMO_LEAD = (\d+)/.exec(html), parts = [fnText('function demoIndex('), lineText('const stateTick = '), lineText('const isState = '), fnText('function unsqueezeDemo('), fnText('function clipByName(')];
+  let clipFns = {};
+  if (lead && parts.every(Boolean)) {
+    try { clipFns = new Function('readHeader', `const DEMO_LEAD = ${lead[1]};\n` + parts.join('\n') + '\nreturn { unsqueezeDemo, clipByName };')(mod.readHeader); }
+    catch (e) { log('clips: the page\'s unsqueezeDemo did not load:', e.message); }
+  }
+  return { ...mod, ...clipFns, hash };
 }
 
 // ---------- decoded round file (.bfr) ----------
@@ -154,14 +166,15 @@ function summarize(tl, hdr, killCause) {
 }
 
 // ---------- one demo ----------
-async function decodeFile(dec, file) {
+async function decodeFile(dec, file, name = path.basename(file)) {
   const raw = fs.readFileSync(file);
   let data; try { data = zlib.inflateSync(raw); } catch (e) { try { data = zlib.gunzipSync(raw); } catch (e2) { throw new Error('not a zlib / gzip stream'); } }
   const u8 = new Uint8Array(data.buffer, data.byteOffset, data.byteLength), hdr = dec.readHeader(u8);
   if (!hdr) throw new Error('no Battle Recorder header');
+  const sq = dec.unsqueezeDemo ? dec.unsqueezeDemo(u8) : null, clipAt = sq ?? (dec.clipByName ? dec.clipByName(name) : null);   // (v153: a clip made by the page)
   const tl = await dec.decodeDemo(u8, null);
   const ok = tl && tl.stats && tl.stats.positions > 0 && tl.cols && tl.cols.times.length && tl.stats.spawns > 0;
-  const info = { bytes: raw.length, format: 'deflate', truncated: false, dataLen: u8.length, hdr: { lead: hdr.lead, fields: hdr.fields, end: hdr.end } };
+  const info = { bytes: raw.length, format: 'deflate', truncated: false, dataLen: u8.length, hdr: { lead: hdr.lead, fields: hdr.fields, end: hdr.end }, ...(clipAt != null ? { clipAt, ...(sq === null ? { clipReal: true } : {}) } : {}) };
   return { tl: ok ? tl : null, hdr, info };
 }
 const baseOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
@@ -484,10 +497,11 @@ function dropRound(idx, name, src) {
 }
 // the heavy part of a demo, also in a worker thread: decoded, summed up, packed (.bfr) - { sum, info, bfr } or { sum, drop }
 async function decodeWork(dec, src, name) {
-  const { tl, hdr, info } = await decodeFile(dec, src), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
+  const { tl, hdr, info } = await decodeFile(dec, src, name), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
   if (!tl || sum.empty || sum.players < MIN_PLAYERS) return { sum, drop: true };
   return { sum, info, bfr: bfrBuild({ name, info, tl }) };
 }
+const NEW_ROUNDS = [];
 async function processDemo(dec, idx, src, name, { move, pre, t0 = Date.now(), note = '' }) {
   const { sum, info, bfr, drop } = pre || await decodeWork(dec, src, name);
   const old = idx.rounds.findIndex(r => r.name === name);
@@ -506,6 +520,7 @@ async function processDemo(dec, idx, src, name, { move, pre, t0 = Date.now(), no
   const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum };
   heatPut(name, entry.sum);
   if (old >= 0) idx.rounds[old] = entry; else idx.rounds.push(entry);
+  if (old < 0 && move) NEW_ROUNDS.push({ ...entry, clip: info.clipAt != null });   // (v153: posted to Discord / Telegram after the queue, notify.mjs)
   log('round', name, `${(info.bytes / 1e6).toFixed(1)} MB -> ${(bfr.length / 1e6).toFixed(1)} MB`, `${entry.sum.players} players, ${entry.sum.kills} kills`, `${((Date.now() - t0) / 1000).toFixed(1)} s`, note);
 }
 // worker threads for decoding many demos: each loads the page's decoder itself (the same file: the same hash)
@@ -544,6 +559,8 @@ async function main() {
     catch (e) { log('could not read', f, '-', e.message); try { fs.renameSync(src, path.join(DIRS.bad, f)); } catch (e2) {} }
     writeIndex(idx, dec);   // after each round, so the site lists it at once
   }
+  // (v153) a post about each new round in Discord / Telegram, when the admin page (or bf2replay.conf) says where
+  if (NEW_ROUNDS.length) { try { const { notifyRounds } = await import('./notify.mjs'); await notifyRounds(NEW_ROUNDS.splice(0)); } catch (e) { log('round posts:', e.message); } }
   // 2. after a site update: rounds made by another decoder are decoded again from their demo
   if (args.has('--reprocess') || args.has('--rebuild')) {
     const all = args.has('--rebuild') ? fs.readdirSync(DIRS.demos).filter(f => /\.bf2demo(\.gz)?$/i.test(f)) : idx.rounds.filter(r => r.decoder !== dec.hash).map(r => r.name);

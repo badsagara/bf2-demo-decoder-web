@@ -3,7 +3,8 @@
 // the decoder, the demos waiting to be decoded, decoding again after an update, the services, the disk) and does what
 // otherwise needs a shell on the VPS: decode the waiting demos now, decode old rounds again (or all), try the demos that
 // failed again, fetch new demos now, update from GitHub, back up; add and remove game servers / demo pages to fetch from
-// (and check one first); read the services' logs. Nothing here deletes a demo or a round.
+// (and check one first); where new rounds are posted (Discord / Telegram: notify.mjs); read the services' logs. Nothing
+// here deletes a demo or a round.
 //
 //   node admin.mjs                  the admin server (bf2replay-admin.service, as bf2replay): http://127.0.0.1:8781,
 //                                   Caddy sends /admin* to it
@@ -20,6 +21,7 @@ import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
+import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE } from './notify.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -150,7 +152,7 @@ async function state() {
   const bad = demoFiles(BAD);
   let disk = null; try { const st = fs.statfsSync(DATA); disk = { free: st.bavail * st.bsize, total: st.blocks * st.bsize }; } catch (e) {}
   const u = await units();
-  const settings = Object.fromEntries(Object.keys({ ...conf, ...process.env }).filter(k => /^BF2R_/.test(k) && !/PASS/.test(k)).sort().map(k => [k, opt(k, '')]));
+  const settings = Object.fromEntries(Object.keys({ ...conf, ...process.env }).filter(k => /^BF2R_/.test(k) && !/PASS/.test(k)).sort().map(k => [k, /TOKEN|WEBHOOK|SECRET|KEY/.test(k) && opt(k, '') ? '(set: not shown)' : opt(k, '')]));
   return {
     now: new Date().toISOString(), site: { version: dec.ver, decoder: dec.hash },
     rounds: { total: R.length, current: cur, old: R.length - cur, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null },
@@ -159,8 +161,32 @@ async function state() {
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
     units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
     sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
-    settings, password: !!readPass()
+    settings, password: !!readPass(), notify: notifyState()
   };
+}
+// (v153) the round posts (notify.mjs): where to, with the secrets shown only by their last 4 characters
+function notifyState() {
+  const N = notifySettings(), tail = v => v ? '…' + v.slice(-4) : '';
+  return { discord: tail(N.discord), discordConf: N.discordConf, tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, tgChat: N.tgChat, tgChatConf: N.tgChatConf, minPlayers: N.minPlayers, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim() };
+}
+function notifySet(b) {
+  const ch = {}, said = [];
+  if (b.discord !== undefined) { const v = String(b.discord || '').trim(); if (v && !DISCORD_RE.test(v)) return { ok: false, msg: 'not a Discord webhook address (https://discord.com/api/webhooks/<number>/<token>)' }; ch.discord = v; said.push(v ? 'Discord webhook saved' : 'Discord webhook removed'); }
+  if (b.tgToken !== undefined || b.tgChat !== undefined) {
+    const t = b.tgToken === undefined ? undefined : String(b.tgToken || '').trim(), c = b.tgChat === undefined ? undefined : String(b.tgChat || '').trim();
+    if (t && !TG_TOKEN_RE.test(t)) return { ok: false, msg: "not a Telegram bot token (from @BotFather: 123456789:AA…)" };
+    if (c && !TG_CHAT_RE.test(c)) return { ok: false, msg: 'not a Telegram chat: its id (-100… for a group or channel) or @channelname' };
+    ch.telegram = {}; if (t !== undefined) ch.telegram.token = t; if (c !== undefined) ch.telegram.chat = c; said.push(t === '' && c === '' ? 'Telegram removed' : 'Telegram saved');
+  }
+  if (b.minPlayers !== undefined) { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; ch.minPlayers = n; said.push(`rounds with ${n}+ players`); }
+  if (!said.length) return { ok: false, msg: 'nothing to change' };
+  saveNotify(ch); log('round posts:', said.join(', '));
+  return { ok: true, msg: said.join(' · ') };
+}
+async function notifyRun(arg) {
+  const r = await run(NODE, [path.join(HERE, 'notify.mjs'), arg], { timeout: 45e3 });
+  const out = (r.out + (r.err ? '\n' + r.err : '')).trim();
+  return { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'posted' : 'failed') };
 }
 
 // ---------- actions ----------
@@ -245,6 +271,9 @@ const server = http.createServer(async (req, res) => {
     if (what === 'source-remove') return send(res, 200, removeSource(String(b.url || '')));
     if (what === 'probe') { const a = String(b.url || '').trim(); if (a && !SOURCE_RE.test(a)) return send(res, 200, { ok: false, out: 'not an address' }); return send(res, 200, await fetchLook(a ? ['--probe', a] : ['--probe'], 60e3)); }
     if (what === 'fetch-list') return send(res, 200, await fetchLook(['--list'], 180e3));
+    if (what === 'notify-set') return send(res, 200, notifySet(b));
+    if (what === 'notify-test') return send(res, 200, await notifyRun('--test'));
+    if (what === 'notify-last') return send(res, 200, await notifyRun('--last'));
     return send(res, 404, { error: 'not found' });
   } catch (e) { log('error:', e.stack || e.message); try { send(res, 500, { error: e.message }); } catch (e2) {} }
 });
