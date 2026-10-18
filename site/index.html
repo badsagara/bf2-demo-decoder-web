@@ -733,19 +733,19 @@ body.mbar-on { padding-bottom: 72px; }
         <span class="tag sim" id="simTag">Simulated</span>
         <div class="topbar" id="topBar" aria-label="Tickets and time left" hidden></div>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qbr" aria-hidden="true"></span><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Layers ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qbr" aria-hidden="true"></span><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="tabboard" id="tabBoard" role="dialog" aria-label="Scoreboard" hidden></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Layers <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Layers ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
       <section class="timeline">
         <div class="tlctl">
           <button class="btn primary" id="play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
           <button class="btn" id="tClip" aria-pressed="false" title="Make a video of part of the round to share (I / O: clip starts / ends at the playhead)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg><span>Clip</span></button>
-          <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Layers <b id="layN"></b> ▾</button>
+          <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Filters <b id="layN"></b> ▾</button>
           <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
           <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
           <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green; a white dot at his nose while he aims down the sights">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting; jumping, falling from a height, under a parachute, climbing a ladder). Either way a white dot at his nose while he aims down the sights">Figures</button></span>
@@ -777,7 +777,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> the map's layers (Layers ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -895,7 +895,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v147';
+const APP_VERSION = 'v148';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -4248,9 +4248,10 @@ function draw() {
     const pm = m => m / view.span * size, colOf = by => { const i = by == null ? undefined : round.pidx.get(by); return i === undefined ? css('--accent') : teamColor(teamOf(i, t)); };
     const tag = (txt, x, y, col) => { cx.font = '500 10px ' + css('--font-data'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(txt, x, y); cx.fillStyle = col; cx.fillText(txt, x, y); };
     const labels = opts.lab.dist && (sel !== null || view.span <= 500);   // (distances and weapon names only zoomed in or following someone; Names ▾)
-    // a blast where it went off, over dur s: a white-hot flash, a fire ball growing to the blast radius R and fading, a
-    // dashed ring at R and (Rk) the part where it kills a soldier with full health; fan: [facing, half angle] (claymore)
-    const splash = (qx, qy, R, age, dur, fan, Rk, ring = true) => {
+    // a blast where it went off, over dur s: a white-hot flash, a fire ball growing to the blast radius R and fading, and
+    // (Rk) a deeper red core where it kills a soldier with full health; fan: [facing, half angle] (claymore). (v148,
+    // Sagara: no dashed circles round explosions - grenades', artillery's, any: the explosion alone)
+    const splash = (qx, qy, R, age, dur, fan, Rk) => {
       const a = 1 - age / dur, grow = age < 0.25 ? 0.4 + 2.4 * age : 1, Rg = R * grow;
       const shape = r => { cx.beginPath(); if (fan) { cx.moveTo(qx, qy); cx.arc(qx, qy, r, fan[0] - fan[1] - Math.PI / 2, fan[0] + fan[1] - Math.PI / 2); cx.closePath(); } else cx.arc(qx, qy, r, 0, Math.PI * 2); };
       const g = cx.createRadialGradient(qx, qy, 0, qx, qy, Rg);
@@ -4261,41 +4262,43 @@ function draw() {
         gf.addColorStop(0, `rgba(255,248,215,${f})`); gf.addColorStop(0.6, `rgba(255,236,180,${0.6 * f})`); gf.addColorStop(1, 'rgba(255,230,170,0)');
         cx.fillStyle = gf; shape(rf); cx.fill();
       }
-      cx.globalAlpha = a; if (ring) { cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.setLineDash([5, 4]); shape(R); cx.stroke(); cx.setLineDash([]); }
-      if (Rk) { cx.fillStyle = `rgba(255,70,30,${0.38 * a})`; shape(Rk * grow); cx.fill(); cx.strokeStyle = css('--blast'); cx.lineWidth = 1.5; cx.stroke(); }
+      cx.globalAlpha = a;
+      if (Rk) { const gk = cx.createRadialGradient(qx, qy, 0, qx, qy, Rk * grow); gk.addColorStop(0, `rgba(255,70,30,${0.42 * a})`); gk.addColorStop(0.8, `rgba(255,70,30,${0.3 * a})`); gk.addColorStop(1, 'rgba(255,70,30,0)'); cx.fillStyle = gk; shape(Rk * grow); cx.fill(); }
       cx.globalAlpha = 1;
     };
     for (const e of round.events) {
       if (e.t > t) break;
-      if (e.type === 'throw' && e.path?.length && (t < e.t1 || (MISSILES.has(e.kind) && t < e.t1 + 3))) {
-        // a guided missile (SRAW, Eryx, TOW) flies where its gunner steers it: its recorded path (every 0.1 s) is drawn
-        // solid and stays 3 s after the hit
-        const col = colOf(e.by), msl = MISSILES.has(e.kind), after = t >= e.t1; let head = null;
-        if (after) cx.globalAlpha = Math.max(0, 1 - (t - e.t1) / 3);
-        cx.strokeStyle = col; cx.lineWidth = msl ? 2 : 1.5; cx.setLineDash(msl ? [] : [2, 3]); cx.beginPath();
-        for (let k = 0; k < e.path.length; k++) {
-          const o = e.path[k];
-          if (o[0] > t) { if (head) { const u = (t - head[0]) / (o[0] - head[0] || 1); head = [t, head[1] + (o[1] - head[1]) * u, head[2] + (o[2] - head[2]) * u]; const [qx, qy] = toC(head[1], head[2]); cx.lineTo(qx, qy); } break; }
-          const [qx, qy] = toC(o[1], o[2]); if (k) cx.lineTo(qx, qy); else cx.moveTo(qx, qy); head = o;
+      if (e.type === 'throw' && e.path?.length && (t < e.t1 || (MISSILES.has(e.kind) && t < e.t1 + 1.5))) {
+        // (v148, Sagara: "Не показувати лінію ракет і снарядів, а тільки самі снаряди і ракети (може трохи анімації)"; no
+        // dotted line behind a grenade; artillery only as its explosions) - a guided missile (SRAW, Eryx, TOW, TV) as a dart
+        // along its heading with a short trail of smoke puffs, a grenade as the game's icon, a launcher's round as a dot
+        const col = colOf(e.by), msl = MISSILES.has(e.kind), P = e.path;
+        if (t >= e.t1) {   // (a missile: what it was and how far it flew from where it was fired, by where it went off, for 1.5 s)
+          const z = P[P.length - 1], z0 = P[0];
+          if (msl && labels) { const [zx, zy] = toC(z[1], z[2]); tag(`${e.name || e.kind} · ${Math.round(Math.hypot(z[1] - z0[1], z[2] - z0[2]))} m`, zx + Math.max(7, pm(EXPLOSIVE_R[e.kind] || 2)) + 4, zy + 3, col); }
+          continue;
         }
-        cx.stroke(); cx.setLineDash([]);
-        if (after) {
-          cx.globalAlpha = 1; head = null;
-          // (a missile: what it was and how far it flew from where it was fired, by where it went off, for 1.5 s)
-          const z = e.path[e.path.length - 1], z0 = e.path[0];
-          if (msl && labels && t < e.t1 + 1.5) { const [zx, zy] = toC(z[1], z[2]); tag(`${e.name || e.kind} · ${Math.round(Math.hypot(z[1] - z0[1], z[2] - z0[2]))} m`, zx + Math.max(7, pm(EXPLOSIVE_R[e.kind] || 2)) + 4, zy + 3, col); }
+        if (SHELL_KINDS.has(e.kind)) continue;
+        const at = tt => { if (tt < P[0][0]) return null; let k = 1; while (k < P.length && P[k][0] <= tt) k++; if (k >= P.length) return P[P.length - 1]; const a = P[k - 1], b = P[k], u = (tt - a[0]) / (b[0] - a[0] || 1); return [tt, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u]; };
+        const head = at(t); if (!head) continue;
+        const [qx, qy] = toC(head[1], head[2]);
+        if (msl || !GRENADE_KINDS.has(e.kind)) {   // smoke puffs behind it, ~5 px apart over ~40 px (0.6 s at most), older ones bigger and fainter
+          const o1 = at(Math.max(P[0][0], t - 0.05)), [bx0, by0] = o1 ? toC(o1[1], o1[2]) : [qx, qy], vpx = Math.hypot(qx - bx0, qy - by0) / 0.05;
+          const dt = vpx > 1 ? Math.min(0.1, 5 / vpx) : 0.1, n = Math.max(1, Math.min(msl ? 9 : 5, Math.floor(Math.min(0.6, t - P[0][0]) / dt)));
+          cx.fillStyle = 'rgb(214,214,204)';
+          for (let j = n; j >= 1; j--) { const o = at(t - j * dt); if (!o) continue; const [ox, oy] = toC(o[1], o[2]); cx.globalAlpha = 0.55 * (1 - j / (n + 1)); cx.beginPath(); cx.arc(ox, oy, 1.6 + j * 0.42, 0, Math.PI * 2); cx.fill(); }
+          cx.globalAlpha = 1;
         }
-        if (head) {
-          const [qx, qy] = toC(head[1], head[2]);
-          if (msl && e.path.length > 1) {   // the missile: a small dart along its heading
-            const k = e.path.findIndex(o => o[0] > t), p0 = e.path[Math.max(0, (k < 0 ? e.path.length : k) - 2)], [ax, ay] = toC(p0[1], p0[2]), ang = Math.atan2(qy - ay, qx - ax);
-            cx.save(); cx.translate(qx, qy); cx.rotate(ang); cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1;
-            cx.beginPath(); cx.moveTo(6, 0); cx.lineTo(-5, -3.5); cx.lineTo(-3, 0); cx.lineTo(-5, 3.5); cx.closePath(); cx.fill(); cx.stroke(); cx.restore();
-          } else if (e.kind === 'Grenade') {   // a live grenade: the game's icon, and how far it is from where it was thrown
-            if (!drawIcon('xGrenade', qx, qy, 15)) { cx.fillStyle = col; cx.beginPath(); cx.arc(qx, qy, 3, 0, Math.PI * 2); cx.fill(); }
-            if (labels) tag(Math.round(Math.hypot(head[1] - e.path[0][1], head[2] - e.path[0][2])) + ' m', qx + 9, qy + 3, col);
-          } else { cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1; cx.beginPath(); cx.arc(qx, qy, 3, 0, Math.PI * 2); cx.fill(); cx.stroke(); }
-        }
+        if (msl) {
+          const o = at(t - 0.05) || P[0], [ax, ay] = toC(o[1], o[2]), ang = Math.atan2(qy - ay, qx - ax);
+          cx.save(); cx.translate(qx, qy); cx.rotate(ang); cx.scale(1.35, 1.35); cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1;
+          cx.fillStyle = 'rgba(255,214,120,.95)'; cx.beginPath(); cx.arc(-4.6, 0, 1.7 + 0.6 * Math.sin(t * 60), 0, Math.PI * 2); cx.fill();   // (its motor's flame, flickering)
+          cx.fillStyle = col; cx.beginPath(); cx.moveTo(6, 0); cx.lineTo(-5, -3.5); cx.lineTo(-3, 0); cx.lineTo(-5, 3.5); cx.closePath(); cx.fill(); cx.stroke();
+          cx.restore();
+        } else if (e.kind === 'Grenade') {   // a live grenade: the game's icon, and how far it is from where it was thrown
+          if (!drawIcon('xGrenade', qx, qy, 15)) { cx.fillStyle = col; cx.beginPath(); cx.arc(qx, qy, 3, 0, Math.PI * 2); cx.fill(); }
+          if (labels) tag(Math.round(Math.hypot(head[1] - P[0][1], head[2] - P[0][2])) + ' m', qx + 9, qy + 3, col);
+        } else { cx.fillStyle = col; cx.strokeStyle = css('--bg'); cx.lineWidth = 1; cx.beginPath(); cx.arc(qx, qy, 3, 0, Math.PI * 2); cx.fill(); cx.stroke(); }
       } else if (e.type === 'throw' && e.kind === 'Grenade' && e.path?.length && t < e.t1 + 1.5) {
         if (labels) { const z = e.path[e.path.length - 1], [zx, zy] = toC(z[1], z[2]); tag(Math.round(Math.hypot(z[1] - e.path[0][1], z[2] - e.path[0][2])) + ' m', zx + Math.max(9, pm(e.r || 9) * 0.35) + 4, zy + 3, colOf(e.by)); }
       } else if (e.type === 'charge' && t <= (e.until ?? e.t + 10)) {
@@ -4320,12 +4323,11 @@ function draw() {
         // (a grenade - thrown, or a 40 mm one from an underslung launcher: only the fire ball - no ring, no lethal
         // circle: Sagara, v81-v83)
         const gr = GRENADE_KINDS.has(e.kind);
-        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr && !gr ? Math.max(3, pm(lr)) : 0, !gr);
+        splash(qx, qy, R, t - e.t, 2, fc != null ? [fc, CLAY_HALF] : null, lr && !gr ? Math.max(3, pm(lr)) : 0);
       }
     }
     // tank / APC cannon shells that hit (shotsOf: a kill, or a vehicle hit): the shell flies from the gun at its real speed
-    // (most kills are 7-65 m away, so 0.02-0.4 s), drawing its line; the line from the gun to the hit then stays 2 s,
-    // fading, with the shell's blast (splash) for the first 1.2 s
+    // (most kills are 7-65 m away, so 0.02-0.4 s) with a short tracer; then its blast (splash) for 1.2 s
     for (const o of shotsOf(round)) {
       if (o.t - t > 3.2 || t - o.t > 2) continue;
       if (o.fly == null) {   // where the gun was when it fired (the vehicle moves while the shell flies)
@@ -4335,15 +4337,13 @@ function draw() {
       }
       if (!o.fly || t < o.t - o.fly) continue;
       const col = colOf(o.killer), [ax, ay] = toC(o.gx, o.gy), [bx, by] = toC(o.x, o.y), L = Math.hypot(bx - ax, by - ay) || 1;
-      if (t < o.t) {
-        const u = (t - (o.t - o.fly)) / o.fly, sx = ax + (bx - ax) * u, sy = ay + (by - ay) * u, tail = Math.min(pm(12), L * u);
-        cx.globalAlpha = 0.55; cx.strokeStyle = col; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(sx, sy); cx.stroke(); cx.globalAlpha = 1;
-        cx.lineWidth = 2.5; cx.beginPath(); cx.moveTo(sx - (bx - ax) / L * tail, sy - (by - ay) / L * tail); cx.lineTo(sx, sy); cx.stroke();
+      if (t < o.t) {   // (v148: no line from the gun - the shell with a short glowing tracer behind it)
+        const u = (t - (o.t - o.fly)) / o.fly, sx = ax + (bx - ax) * u, sy = ay + (by - ay) * u, tail = Math.min(Math.max(8, pm(12)), L * u);
+        const gt = cx.createLinearGradient(sx - (bx - ax) / L * tail, sy - (by - ay) / L * tail, sx, sy); gt.addColorStop(0, 'rgba(255,200,90,0)'); gt.addColorStop(1, 'rgba(255,226,150,.95)');
+        cx.strokeStyle = gt; cx.lineWidth = 2.5; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(sx - (bx - ax) / L * tail, sy - (by - ay) / L * tail); cx.lineTo(sx, sy); cx.stroke(); cx.lineCap = 'butt';
         cx.fillStyle = '#fff2c0'; cx.beginPath(); cx.arc(sx, sy, 2.6, 0, Math.PI * 2); cx.fill();
       } else {
         const age = t - o.t;
-        cx.globalAlpha = 0.7 * (1 - age / 2); cx.strokeStyle = col; cx.lineWidth = 1.5; cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(bx, by); cx.stroke();
-        cx.globalAlpha = 1;
         if (age < 1.2) splash(bx, by, Math.max(6, pm(o.r)), age, 1.2);
         if (age < 1.5 && labels) tag(`${o.w} · ${o.dist} m`, bx + Math.max(6, pm(o.r)) + 4, by + 3, col);
       }
@@ -4738,7 +4738,7 @@ function panels(force) {
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
-      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${aheadOnly.has(sel) ? ' on' : ''}" id="selAhead" aria-pressed="${aheadOnly.has(sel)}" title="While paused: the next ${aheadT} s only for ${p.vehicle ? 'this vehicle' : 'him'} (and others turned on the same way), whatever Layers ▾ Next ${aheadT} s says for everyone; press again to go back (A)">Next ${aheadT} s: only ${p.vehicle ? 'it' : 'him'}</button></div>`;
+      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${aheadOnly.has(sel) ? ' on' : ''}" id="selAhead" aria-pressed="${aheadOnly.has(sel)}" title="While paused: the next ${aheadT} s only for ${p.vehicle ? 'this vehicle' : 'him'} (and others turned on the same way), whatever Filters ▾ Next ${aheadT} s says for everyone; press again to go back (A)">Next ${aheadT} s: only ${p.vehicle ? 'it' : 'him'}</button></div>`;
     $('#clearSel').onclick = () => { sel = null; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
     $('#selAhead').onclick = () => aheadFor(sel);
   }
