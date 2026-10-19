@@ -246,7 +246,9 @@ input[type=file] { display: none; }
 /* layers at hand on the map: vehicles as icons / models, buildings' outlines on / off (as in Layers ▾) */
 .qlay { display: flex; gap: 6px; margin-right: 6px; }
 .qseg { display: flex; }
-.qseg[hidden] { display: none !important; } .qahdme[hidden] { display: none !important; } .qbr { display: none; }
+.qseg[hidden] { display: none !important; }
+.qahdg { display: inline-flex; } .qahdg .btn { border-radius: 0; } .qahdg .btn:first-child { border-radius: 4px 0 0 4px; } .qahdg .btn:last-child { border-radius: 0 4px 4px 0; } .qahdg .btn + .btn { margin-left: -1px; }
+.qahdg .qahdst { padding-left: 8px; padding-right: 8px; font-weight: 700; } .qahdg .qahdst:disabled { opacity: .4; cursor: default; } .qbr { display: none; }
 .mapctl .qcam { margin-right: 6px; }
 .mapside .qcam { margin: 0; } .mapside .qcam .sg { flex: 1; }
 .qseg .sg { font: 600 12px/1 var(--font-body); color: var(--fg); background: color-mix(in srgb, var(--bg) 82%, transparent); border: 1px solid var(--line); padding: 6px 9px; cursor: pointer; white-space: nowrap; }
@@ -340,10 +342,13 @@ svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentCo
 /* highlights */
 .hlchips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .ffbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
-.ffbar input { flex: 1 1 140px; min-width: 0; font: 500 13px var(--font-data); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
+.ffbar input { flex: 1 1 120px; min-width: 0; font: 500 13px var(--font-data); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
 .ffbar input.nomatch { border-color: var(--blast); }
 .ffbar select { max-width: 100%; padding: 5px 6px; }
 .ffbar .btn { padding: 5px 9px; }
+.ffbar #ffBoth[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
+#feed li[data-k] { cursor: pointer; } #feed li[data-k]:hover { background: color-mix(in srgb, var(--fg) 6%, transparent); }
+#feed li.fut { opacity: .5; }
 .ffbar .ffnote { flex-basis: 100%; font-size: 12px; }
 .ffbar .ffnote:empty { display: none; }
 .hlchips .btn { padding: 5px 8px; font-size: 12px; }
@@ -545,7 +550,7 @@ details.schema p { max-width: 70ch; }
   .mapbox:not(.fs) .mapctl .qlay { display: none; }
   .mapbox:not(.fs) .mapplay .qlay { display: flex; flex: 1 1 100%; margin: 0; flex-wrap: wrap; height: auto; } .mapbox:not(.fs) .mapplay .qbr { display: block; flex-basis: 100%; height: 0; } .mapbox:not(.fs) .mapplay .qlay > :not(.qbr) { min-height: 40px; }
   .mapbox:not(.fs) .mapplay .qseg { flex: 1; } .mapbox:not(.fs) .mapplay .qseg .sg { flex: 1; padding: 9px 8px; }
-  .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd, .qahdme) { flex: 1; justify-content: center; font-size: 13px; }
+  .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd, .qahdme) { flex: 1; justify-content: center; font-size: 13px; } .mapbox:not(.fs) .mapplay .qahdg { flex: 1; } .mapbox:not(.fs) .mapplay .qahdg .qahdst { flex: none; }
   @media (max-width: 440px) { .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd, .qahdme) { padding-left: 6px; padding-right: 6px; } .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd) svg { display: none; } }
   .mapbox:not(.fs) .mapplay .qseg .sg { font-size: 13px; }
 }
@@ -787,13 +792,13 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="topbar" id="topBar" aria-label="Tickets and time left" hidden></div>
         <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Filters ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qbr" aria-hidden="true"></span><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qbr" aria-hidden="true"></span><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"></div>
       <div class="tabboard" id="tabBoard" role="dialog" aria-label="Scoreboard" hidden></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
     </div>
     <div class="sideview svbox" id="sideView" aria-label="Side view of a kill" hidden>
@@ -819,8 +824,9 @@ body.mbar-on { padding-bottom: 72px; }
       <section class="card fcard" id="feedCard">
         <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" title="Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills">For admins</button></div>
         <div class="ffbar" id="ffBar">
-          <input id="ffName" list="ffList" placeholder="Filter by player…" autocomplete="off" spellcheck="false" aria-label="Filter by player"><datalist id="ffList"></datalist>
-          <div class="qseg" role="radiogroup" aria-label="As"><button class="sg" role="radio" aria-checked="true" data-r="any" title="He killed or was killed (did it or had it done to him)">Either</button><button class="sg" role="radio" aria-checked="false" data-r="k" title="He killed (or did it: revived, repaired, healed; the one a hint is about)">Killer</button><button class="sg" role="radio" aria-checked="false" data-r="v" title="He was killed (or had it done to him: revived, healed)">Victim</button></div>
+          <input id="ffK" list="ffList" placeholder="Killer…" autocomplete="off" spellcheck="false" aria-label="Killer (the one who did it)" title="The killer - the one who did it (killed, revived, repaired; the one a hint is about)"><datalist id="ffList"></datalist>
+          <button class="btn" id="ffBoth" aria-pressed="false" title="Either way: the two names in either role - one name: he killed or was killed">⇄</button>
+          <input id="ffV" list="ffList" placeholder="Victim…" autocomplete="off" spellcheck="false" aria-label="Victim (the one it was done to)" title="The victim - the one it was done to">
           <select id="ffFlag" hidden aria-label="Near the flag"></select>
           <button class="btn" id="ffClear" hidden title="Clear the filter">✕</button>
           <span class="ffnote w" id="ffNote"></span>
@@ -885,7 +891,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
       <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
       <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
-      <button class="btn" id="tAhead" title="While paused: where everyone goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where somebody comes back in (spawn). Vehicles that move too. Not while playing, not in clips. For one soldier only: follow him and press 'For him' on the map or in his card (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"></span></span></button>
+      <button class="btn" id="tAhead" title="While paused: where the soldier you follow goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where he comes back in; the vehicle he rides in too. Not while playing, not in clips (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"> · the one you follow</span></span></button>
       <span class="lrange" id="aheadRow" title="How far ahead the paths go while paused: 1-30 s"><input type="range" id="aheadT" min="1" max="30" step="1" value="20" aria-label="Seconds ahead shown while paused"><output id="aheadV" for="aheadT">20 s</output></span>
       <button class="btn" id="tFront" title="Which side holds which part of the map, from where its soldiers are and were over the last 30 s (aircraft left out) and the flags it owns: the ground tinted in its colour, and a dashed line where the two sides meet. A rough picture of who stands where, not the game's own control of ground">Front line</button>
       <button class="btn on" id="tLegend" title="A box on the map under its top bar with what each mark means - only those of the layers switched on; its header folds it">Legend</button>
@@ -964,7 +970,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v171';
+const APP_VERSION = 'v173';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -2938,8 +2944,10 @@ function aheadPaths(tt) {
 // N s for chosen soldiers only: turned on for the soldier you follow (his card, "For him" on the map, the A key); while
 // any is on, only theirs show - and the paths of the vehicles they ride in then -, whatever is set for everyone; the
 // switch for everyone (Layers, "Next N s" on the map) clears them. For this round only.
-let aheadOnly = new Set();
-const aheadOn = () => opts.ahead || aheadOnly.size > 0;
+// (v173, Sagara: "приберемо next 20 seconds для всіх гравців, залишимо тільки для одного гравця і зробимо можливість
+// міняти число секунд з 1 до 30") only for the one you follow now: opts.ahead switches it, aheadT (1-30 s) how far
+let aheadOnly = new Set();   // (kept empty: no "for everyone" any more)
+const aheadOn = () => !!opts.ahead && sel !== null && !!round?.players[sel];
 // what shows for the chosen ones: them and the vehicles they ride in over the window
 function aheadVis(AP, ids) {
   const vis = new Set(ids), vi = new Map(); round.players.forEach((p, j) => { if (p.vehicle) vi.set(p.name, j); });
@@ -2950,9 +2958,18 @@ function aheadVis(AP, ids) {
 function aheadAll(on) {
   opts.ahead = !!on; aheadOnly.clear(); try { localStorage.setItem('bf2rr.ahead', opts.ahead ? '1' : '0'); } catch (e) {}
   aheadShow(); layCount(); refresh(true);
+  if (!opts.ahead) toast(`Next ${aheadT} s: off`); else if (sel === null) toast(`Next ${aheadT} s: follow a soldier (click him) to see where he goes`); else if (playing) toast(`Next ${aheadT} s: shows while paused`);
+}
+// (v173) how far ahead: d seconds more or less, 1-30
+function aheadBy(d) {
+  const v = Math.max(1, Math.min(30, aheadT + d)); if (v === aheadT) return; aheadT = v;
+  try { localStorage.setItem('bf2rr.aheadT', String(aheadT)); } catch (e) {}
+  if (!opts.ahead) { opts.ahead = true; try { localStorage.setItem('bf2rr.ahead', '1'); } catch (e) {} layCount(); }
+  aheadShow(); refresh(true);
 }
 // for soldier i alone: on / off
 function aheadFor(i) {
+  aheadAll(!opts.ahead); return;   // (v173: one switch, for the soldier you follow)
   if (i === null || i === undefined || !round || !round.players[i]) return;
   const on = !aheadOnly.has(i); if (on) aheadOnly.add(i); else aheadOnly.delete(i);
   aheadShow(); layCount(); refresh(true);
@@ -2968,11 +2985,11 @@ function aheadSync() {
   const me = round && sel !== null && round.players[sel] ? sel : null, k = [opts.ahead, aheadT, me, [...aheadOnly].join(','), round && me !== null && round.players[me].vehicle].join('|');
   if (k === aheadKey) return; aheadKey = k;
   // Layers ▾ Next N s: on = for everyone; "· only X" while some are chosen
-  const n = aheadOnly.size, one = n === 1 && round ? round.players[[...aheadOnly][0]]?.name.trim() || '' : '';
-  $('#aheadWho').textContent = n ? ' · only ' + (n === 1 ? (one.length > 16 ? one.slice(0, 15) + '…' : one) : n + ' soldiers') : '';
-  $('#tAhead').classList.toggle('on', opts.ahead && !n); $('#aheadRow').classList.toggle('off', !aheadOn());
-  document.querySelectorAll('.qahd').forEach(b => { b.setAttribute('aria-pressed', String(aheadOn())); b.querySelector('.qahdN').textContent = aheadT; });
-  document.querySelectorAll('.qahdme').forEach(b => { b.hidden = me === null; b.setAttribute('aria-pressed', String(me !== null && aheadOnly.has(me))); b.textContent = me !== null && round.players[me].vehicle ? 'For it' : 'For him'; });
+  const nm = me !== null ? round.players[me].name.trim() : '';
+  $('#aheadWho').textContent = me !== null ? ' · ' + (nm.length > 16 ? nm.slice(0, 15) + '…' : nm) : ' · the one you follow';
+  $('#tAhead').classList.toggle('on', !!opts.ahead); $('#aheadRow').classList.toggle('off', !opts.ahead);
+  document.querySelectorAll('.qahd').forEach(b => { b.setAttribute('aria-pressed', String(!!opts.ahead)); b.querySelector('.qahdN').textContent = aheadT; });
+  document.querySelectorAll('.qahdst').forEach(b => { b.disabled = +b.dataset.d < 0 ? aheadT <= 1 : aheadT >= 30; });
 }
 function aheadLab(txt, x, y, col) {
   cx.font = '700 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.lineJoin = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
@@ -4168,7 +4185,7 @@ function draw() {
   // followed soldier's bolder), a dot every 5 s (every 1 s for 6 s or less), a ring at the end, a cross where one dies with how many seconds on and
   // a thin line from his killer, a ring where one comes back in
   if (aheadOn() && !playing && !clip.job && round.meta?.source !== 'sim') {
-    const AP0 = aheadPaths(t), vis = aheadOnly.size ? aheadVis(AP0, aheadOnly) : null, AP = vis ? AP0.filter(a => vis.has(a.i)) : AP0, ink = 'rgba(6,8,6,.55)';
+    const AP0 = aheadPaths(t), vis = aheadVis(AP0, [sel]), AP = AP0.filter(a => vis.has(a.i)), ink = 'rgba(6,8,6,.55)';   // (v173: the one you follow only - and what he rides in)
     const colOf = a => a.team === null ? css('--veh-empty') : teamColor(a.team);
     cx.lineCap = 'round'; cx.lineJoin = 'round';
     for (const a of AP) {
@@ -4881,13 +4898,13 @@ function panels(force) {
   $('#tickets').innerHTML = [0,1].map(tm => { const v = tm?tk1:tk0; const pct = start[tm] ? Math.max(0,Math.min(100,v/start[tm]*100)) : 0; return `<div class="trow"><span class="nm t${tm}">${source === 'demo' || GAME.maps[mapKey()] ? flagChip(tm, false, 13) + ' ' : ''}${esc(round.teams[tm]?.name||'Team '+(tm+1))}</span><span class="bar"><i style="width:${pct}%;background:var(--team${tm})"></i></span><span class="v">${start[tm] ? Math.round(v) : '—'}</span></div>`; }).join('');
   $('#flagrow').innerHTML = round.flags.map((f,i) => { const o = round.FO[fa*round.nf+i]; return `<span class="flagchip">${flagChip(o, f.main)}${esc(f.name)}</span>`; }).join('');
   // feed & stats
-  const K = new Map(), Dd = new Map(), RV = new Map(), HL = new Map(), RP = new Map(), HS = new Map(), feed = [], feedT = [], feedE = [];
+  let K = new Map(), Dd = new Map(), RV = new Map(), HL = new Map(), RP = new Map(), HS = new Map(); const feed = [], feedT = [], feedE = [], feedI = [];
   let evT = t;   // names take the colour of the side the player was on at that event
   const pn = id => { const i = round.pidx.get(id); const p = round.players[i]; return p ? `<span class="t${teamOf(i, evT)}">${esc(p.name)}</span>` : (id==null || id<0 ? 'World' : esc(id)); };
-  let ei = -1;
+  let ei = -1, nPast = -1, kept = null;   // (v172: with a filter on, the whole round's - those still to come paler; the counts stay at t)
   for (const e of round.events) {
     ei++;
-    if (e.t > t) break;
+    if (e.t > t) { if (!ffOn()) break; if (nPast < 0) { nPast = feed.length; kept = [K, Dd, RV, HL, RP, HS]; K = new Map(); Dd = new Map(); RV = new Map(); HL = new Map(); RP = new Map(); HS = new Map(); } }
     evT = e.t;
     if (e.type==='kill') { const rv = e.revived && e.revived <= t, hs = e.hit === 'head'; K.set(e.killer,(K.get(e.killer)||0)+1); if (hs) HS.set(e.killer,(HS.get(e.killer)||0)+1); if (!rv) Dd.set(e.victim,(Dd.get(e.victim)||0)+1); const kn = killName(e), kd = e.kv ? killWpn(e) : ''; feed.push(`<li${e.killer !== e.victim ? ' class="kl"' : ''}><span class="ts">${fmt(e.t)}</span><span>${pn(e.killer)} ${kn ? `<span class="kmw"${e.weapon && e.weapon !== kn ? ` title="${esc(e.weapon)}"` : ''}>[${esc(kn)}]</span>` : '→'}${hs ? HS_SVG : ''} ${pn(e.victim)} <span class="w">${esc(kd)}${e.dist !== undefined ? `${kd ? ' · ' : ''}${e.dist} m` : ''}${hs ? ' · headshot' : ''}${rv ? ' · revived' : ''}${e.wnamed ? ` · the demo says ${esc(e.wnamed)}` : ''}${e.assists ? ` · assist: ${e.assists.map(a => esc(round.players[round.pidx.get(a)]?.name || '')).join(', ')}` : ''}</span></span>${e.killer !== e.victim ? `<button class="svb" data-k="${ei}" title="Side view: the ground, walls and line of sight between them, and who saw whom first">${SIDE_SVG}</button>` : ''}</li>`); }
     else if (e.type==='revive') { RV.set(e.medic,(RV.get(e.medic)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.medic==null ? pn(e.player) + ' <span class="w">was revived</span>' : pn(e.medic) + ' <span class="w">revived</span> ' + pn(e.player)}</span></li>`); }
@@ -4907,16 +4924,20 @@ function panels(force) {
     else if (e.type==='uav' || e.type==='vdrop' || e.type==='supply') feed.push(`<li><span class="ts">${fmt(e.t)}</span><span class="cap">${e.team != null && e.team >= 0 ? `<span class="t${e.team}">${esc(round.teams[e.team]?.name||'')}</span> ` : ''}<span class="w">${e.type === 'uav' ? (e.on ? 'UAV up over' : 'UAV gone from') : e.type === 'vdrop' ? 'vehicle dropped at' : 'supply crate dropped at'} ${e.x != null ? gridOf(e.x, e.y) : ''}${e.type === 'uav' && e.until ? ` for ${Math.round(e.until - e.t)} s` : ''}</span></span></li>`);
     else if (e.type==='chat') feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${pn(e.player)}: <span class="w">${esc(e.text||'')}</span></span></li>`);
     else if (e.type==='end') feed.push(`<li><span class="ts">${fmt(e.t)}</span><span class="cap">Round over${e.winner==null ? '' : ` · <span class="t${e.winner}">${esc(round.teams[e.winner]?.name||'')}</span> wins`}${e.tickets ? ` <span class="w">(tickets ${e.tickets[0]} : ${e.tickets[1]})</span>` : ''}</span></li>`);
-    while (feedT.length < feed.length) { feedT.push(e.t); feedE.push(e); }
+    while (feedT.length < feed.length) { feedT.push(e.t); feedE.push(e); feedI.push(ei); }
   }
-  // (v171) the filter: his events only (the last 100 so far)
-  const FD = ffPid == null ? feed.slice(-40) : feed.filter((x, k) => ffOk(feedE[k])).slice(-100);
-  $('#feed').innerHTML = FD.length ? FD.reverse().join('') : `<li class="empty">${ffPid == null ? 'No events yet.' : 'Nothing of his so far.'}</li>`;
+  if (kept) [K, Dd, RV, HL, RP, HS] = kept;
+  if (nPast < 0) nPast = feed.length;
+  // (v172) every row a link to its moment (data-k: the event); with the filter on: its events of the whole round (200 at most)
+  const row = k => feed[k].replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, k >= nPast ? 'fut' : ''].filter(Boolean).join(' '); return `<li data-k="${feedI[k]}"${cl ? ` class="${cl}"` : ''}`; });
+  const FK = []; for (let k = 0; k < feed.length; k++) if (!ffOn() ? k >= nPast - 40 && k < nPast : ffOk(feedE[k])) FK.push(k);
+  const FD = FK.slice(-200).map(row);
+  $('#feed').innerHTML = FD.length ? FD.reverse().join('') : `<li class="empty">${!ffOn() ? 'No events yet.' : 'Nothing for this filter in this round.'}</li>`;
   // over the map, top right: tickets now and the last events, newest on top; ones older than 30 s of the round paler
   const fo = $('#fsfeed'); fo.hidden = !opts.feed;
   if (opts.feed) {
     const nf = mapbox.classList.contains('fs') ? 7 : 6, rows = [];
-    for (let k = feed.length - 1; k >= Math.max(0, feed.length - nf); k--) {
+    for (let k = nPast - 1; k >= Math.max(0, nPast - nf); k--) {
       const old = t - feedT[k] > 30;
       rows.push(mapHtml(round, feed[k]).replace(/<button class="svb[^"]*"[\s\S]*?<\/button>/g, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
     }
@@ -4959,7 +4980,7 @@ function panels(force) {
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
-      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${aheadOnly.has(sel) ? ' on' : ''}" id="selAhead" aria-pressed="${aheadOnly.has(sel)}" title="While paused: the next ${aheadT} s only for ${p.vehicle ? 'this vehicle' : 'him'} (and others turned on the same way), whatever Filters ▾ Next ${aheadT} s says for everyone; press again to go back (A)">Next ${aheadT} s: only ${p.vehicle ? 'it' : 'him'}</button></div>`;
+      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button></div>`;
     $('#clearSel').onclick = () => { sel = null; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
     $('#selAhead').onclick = () => aheadFor(sel);
   }
@@ -5615,10 +5636,12 @@ const HL_KILL = new Set(['long', 'above', 'gap', 'back']);   // highlights of on
 const HL_LEAD = 2;
 let hlFilter = 'all', feedTab = 0, hlShown = -2;
 // (v171, Sagara: "у вкладках For admins, хайлайтах і kill feed фільтрувати за нікнеймом: жертви або того, хто вбив;
-// у For admins - біля якого прапора це було") one filter for the three lists: a player (his name typed or picked) as
-// the killer (the one who did it - killed, revived, repaired; the one a hint is about), the victim (it was done to
-// him) or either; and in For admins the flag it was near: the nearest within FF_NEAR m of where it was
-let ffPid = null, ffRole = 'any', ffFlag = 'all';
+// у For admins - біля якого прапора це було"; v172: "одночасно вибрати жертву і вбивцю") one filter for the three
+// lists: the killer (the one who did it - killed, revived, repaired; the one a hint is about) and / or the victim (it
+// was done to him), both at once (his kills of him); ⇄ either way: the two in either role (one name: he did it or it
+// was done to him); and in For admins the flag it was near: the nearest within FF_NEAR m of where it was
+let ffK = null, ffV = null, ffBoth = false, ffFlag = 'all';
+const ffOn = () => ffK != null || ffV != null;
 const FF_NEAR = 100;
 // [the ones who did it, the ones it was done to, the ones it is just about] (player ids) of a kill feed event, a
 // highlight or a hint (his calls for a medic, his medals: only with Either)
@@ -5637,7 +5660,12 @@ function ffWho(o) {
   }
   return w([o.actor], o.kills ? o.kills.map(e => e.victim) : o.kill ? [o.kill.victim] : o.kind === 'revive' ? [o.patient] : o.by && o.by.victim ? [o.by.victim] : []);
 }
-function ffOk(o) { if (ffPid == null) return true; const [a, v, z] = ffWho(o); return ffRole === 'k' ? a.includes(ffPid) : ffRole === 'v' ? v.includes(ffPid) : a.includes(ffPid) || v.includes(ffPid) || z.includes(ffPid); }
+function ffOk(o) {
+  if (!ffOn()) return true; const [a, v, z] = ffWho(o);
+  if (!ffBoth) return (ffK == null || a.includes(ffK)) && (ffV == null || v.includes(ffV));
+  if (ffK == null || ffV == null) { const p = ffK ?? ffV; return a.includes(p) || v.includes(p) || z.includes(p); }
+  return (a.includes(ffK) && v.includes(ffV)) || (a.includes(ffV) && v.includes(ffK));
+}
 // the flag a hint was near: its index, -1 away from every flag, null when it has no place (a whole round's count)
 function ffFlagOf(h) {
   if (h._ff !== undefined) return h._ff;
@@ -5647,21 +5675,25 @@ function ffFlagOf(h) {
   return (h._ff = b);
 }
 const ffFlagOk = h => ffFlag === 'all' || ffFlagOf(h) === (ffFlag === 'away' ? -1 : +ffFlag);
-// the name typed: the player of exactly that name, else the one name it is part of (several: none yet)
-function ffResolve() {
-  const el = $('#ffName'), q = el.value.trim().toLowerCase(); let pid = null, many = 0;
+// a name typed: the player of exactly that name, else the one name it is part of (several: none yet)
+function ffResolveIn(el) {
+  const q = el.value.trim().toLowerCase(); let pid = null, many = 0;
   if (q && round) {
     const P = round.players.filter(p => !p.vehicle), ex = P.find(p => p.name.trim().toLowerCase() === q);
     if (ex) pid = ex.id; else { const M = P.filter(p => p.name.toLowerCase().includes(q)); if (M.length === 1) pid = M[0].id; many = M.length; }
   }
-  ffPid = pid; el.classList.toggle('nomatch', !!q && pid == null && many === 0);
-  return { q, many };
+  el.classList.toggle('nomatch', !!q && pid == null && many === 0);
+  return { q, pid, many };
 }
+function ffResolve() { const k = ffResolveIn($('#ffK')), v = ffResolveIn($('#ffV')); ffK = k.pid; ffV = v.pid; return { k, v }; }
 function ffApply() { ffUi(); if (round) { panels(true); renderHighlights(); renderAdmin(); } }
 function ffUi() {
-  const r = ffResolve(), p = ffPid != null && round ? round.players[round.pidx.get(ffPid)] : null;
-  $('#ffNote').textContent = p ? `Only ${p.name.trim()} ${ffRole === 'k' ? 'as the killer (the one who did it)' : ffRole === 'v' ? 'as the victim' : 'as killer or victim'}` : r.q ? (r.many > 1 ? `${r.many} players match: type more of the name or pick one` : 'No player of that name in this round') : '';
-  $('#ffClear').hidden = !r.q && ffFlag === 'all' && ffRole === 'any';
+  const r = ffResolve(), nm = id => id != null && round ? round.players[round.pidx.get(id)]?.name.trim() : null, K = nm(ffK), V = nm(ffV);
+  const bad = [r.k, r.v].map(q => q.q && q.pid == null ? (q.many > 1 ? `${q.many} players match "${q.q}": type more of the name or pick one` : `no player like "${q.q}" in this round`) : null).filter(Boolean);
+  const what = !K && !V ? '' : ffBoth ? (K && V ? `Only between ${K} and ${V}, either way` : `Only ${K || V}, as killer or victim`) : K && V ? `Only ${K} → ${V}` : K ? `Only ${K} as the killer (the one who did it)` : `Only ${V} as the victim`;
+  $('#ffNote').textContent = [what, ...bad].filter(Boolean).join(' · ');
+  $('#ffBoth').setAttribute('aria-pressed', String(ffBoth));
+  $('#ffClear').hidden = !r.k.q && !r.v.q && ffFlag === 'all' && !ffBoth;
 }
 function ffList() { const L = $('#ffList'); if (!L || !round) return; L.innerHTML = [...new Set(round.players.filter(p => !p.vehicle).map(p => p.name.trim()))].sort((a, b) => a.localeCompare(b)).map(n => `<option value="${esc(n)}"></option>`).join(''); }
 function highlights() {
@@ -5781,7 +5813,7 @@ function renderHighlights() {
   $('#fTab1').innerHTML = `Highlights <span class="w">${H.length}</span>`;
   const L = H.map((h, i) => [h, i]).filter(([h]) => ffOk(h) && (hlFilter === 'all' || h.kind === hlFilter));
   box.innerHTML = `<div class="hlchips">${[['all', 'All', HF.length], ...HL_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${hlFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
-    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = hlDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${HL_KILL.has(h.kind) ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffPid != null ? 'No highlights of his.' : 'No highlights in this round.'}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = hlDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${HL_KILL.has(h.kind) ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffOn() ? 'No highlights for this filter.' : 'No highlights in this round.'}</li>`}</ul>
     <p class="stnote">Click to jump there. N / P: next / previous moment of the soldier you follow, or the next highlight.</p>`;
   box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { hlFilter = b.dataset.f; renderHighlights(); });
   box.querySelectorAll('.hli').forEach(b => b.onclick = () => jumpTo(H[+b.dataset.i]));
@@ -7020,7 +7052,7 @@ function renderAdmin() {
   box.innerHTML = `<p class="admwarn">Hints for a closer look, not proof. Walls are the map's collision shapes, and some fences, thin walls and boards let bullets through; views and positions are known 10 times a second; good players turn fast too. Watch the moment (and its side view) before you judge.</p>
     ${(round._trackRun && !round._tracks) || (round._geoRun && !round._geo) ? '<p class="admtop">Wall tracking, walls and floating: still going through the round (a few seconds)…</p>' : ''}${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => pn(id) + ' <span class="w">' + c + '</span>').join(', ')}</p>` : ''}
     <div class="hlchips">${[['all', 'All', nAll], ...ADM_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${admFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
-    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = admDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffPid != null || ffFlag !== 'all' ? 'Nothing for this filter.' : 'Nothing to look at in this round.'}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = admDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffOn() || ffFlag !== 'all' ? 'Nothing for this filter.' : 'Nothing to look at in this round.'}</li>`}</ul>
     <p class="stnote">${A.noLos ? 'No wall data for this map: "No line of sight" is not checked. ' : ''}${A.wait ? `Checking ${A.wait} kill${A.wait > 1 ? 's' : ''} against the map's exact collision shapes… ` : ''}Click to jump there.</p>`;
   box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { admFilter = b.dataset.f; renderAdmin(); });
   box.querySelectorAll('.hli').forEach(b => b.onclick = () => jumpTo(A[+b.dataset.i]));
@@ -8773,7 +8805,7 @@ relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classLi
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
 $('#aheadT').addEventListener('input', () => {
   aheadT = Math.max(1, Math.min(30, Math.round(+$('#aheadT').value) || 20)); try { localStorage.setItem('bf2rr.aheadT', String(aheadT)); } catch (e) {}
-  if (!aheadOn()) { opts.ahead = true; $('#tAhead').classList.toggle('on', true); try { localStorage.setItem('bf2rr.ahead', '1'); } catch (e) {} layCount(); }
+  if (!opts.ahead) { opts.ahead = true; $('#tAhead').classList.toggle('on', true); try { localStorage.setItem('bf2rr.ahead', '1'); } catch (e) {} layCount(); }
   aheadShow(); refresh(true);
 });
 aheadShow();
@@ -8962,8 +8994,8 @@ for (const seg of document.querySelectorAll('.vwseg, .qseg:not(.qcam)')) seg.add
 // buildings' outlines from the map's own button (or B), the same as Layers ▾ > Buildings
 document.querySelectorAll('.qwall').forEach(b => b.onclick = () => $('#tWalls').click());
 document.querySelectorAll('.qrel').forEach(b => b.onclick = () => $('#tRelief').click());
-document.querySelectorAll('.qahd').forEach(b => b.onclick = () => aheadAll(!aheadOn()));
-document.querySelectorAll('.qahdme').forEach(b => b.onclick = () => aheadFor(sel));
+document.querySelectorAll('.qahd').forEach(b => { b.onclick = () => aheadAll(!opts.ahead); b.addEventListener('wheel', e => { e.preventDefault(); aheadBy(e.deltaY < 0 ? 1 : -1); }, { passive: false }); });
+document.querySelectorAll('.qahdst').forEach(b => b.onclick = e => aheadBy(+b.dataset.d * (e.shiftKey ? 5 : 1)));
 setVehView(opts.models);
 // Round stats / Weapons: the long lists show their top 8 until "Show all"
 const stMore = { wpn: false, hit: false };
@@ -8998,7 +9030,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyK' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); }
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
-  if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { if (sel !== null) aheadFor(sel); else aheadAll(!aheadOn()); }
+  if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
   if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; popToggle($('#namBtn'), $('#namMenu'), false); layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
 // (v136) Tab held: the scoreboard (not while typing in a field)
@@ -9041,10 +9073,21 @@ function setRound(data, src) {
   $('#feed').hidden = k !== 0; $('#hlBox').hidden = k !== 1; $('#admBox').hidden = k !== 2; $('#ffFlag').hidden = k !== 2; hlShown = -2; markHighlights();
 }));
 // (v171) the filter bar's controls
-$('#ffName').addEventListener('input', ffApply);
-$('#ffBar').querySelectorAll('.sg').forEach(b => b.onclick = () => { ffRole = b.dataset.r; $('#ffBar').querySelectorAll('.sg').forEach(x => x.setAttribute('aria-checked', String(x === b))); ffApply(); });
+$('#ffK').addEventListener('input', ffApply); $('#ffV').addEventListener('input', ffApply);
+$('#ffBoth').onclick = () => { ffBoth = !ffBoth; ffApply(); };
 $('#ffFlag').addEventListener('change', e => { ffFlag = e.target.value; ffApply(); });
-$('#ffClear').onclick = () => { $('#ffName').value = ''; ffRole = 'any'; ffFlag = 'all'; $('#ffBar').querySelectorAll('.sg').forEach(x => x.setAttribute('aria-checked', String(x.dataset.r === 'any'))); ffApply(); };
+$('#ffClear').onclick = () => { $('#ffK').value = ''; $('#ffV').value = ''; ffBoth = false; ffFlag = 'all'; ffApply(); };
+// (v172, Sagara: "на кіли в killfeed теж можна було натискати і переноситися в той момент") a row of the kill feed: to
+// that moment (HL_LEAD s before), following the one who did it
+$('#feed').addEventListener('click', ev => {
+  if (!round || ev.target.closest('.svb')) return; const li = ev.target.closest('li[data-k]'); if (!li) return;
+  const e = round.events[+li.dataset.k]; if (!e) return;
+  t = Math.max(0, Math.min(round.duration, e.t - HL_LEAD));
+  const who = e.killer ?? e.medic ?? e.by ?? e.attacker ?? e.player ?? null; if (who != null && round.pidx.get(who) !== undefined && !round.players[round.pidx.get(who)].vehicle) sel = round.pidx.get(who);
+  const f = e.flag != null ? round.flags[e.flag] : null, x = e.x ?? f?.x, y = e.y ?? f?.y; if (Number.isFinite(x) && Number.isFinite(y)) viewAt(x, y, Math.min(view.span, 360));
+  toast(fmt(e.t) + ' · ' + li.textContent.replace(/^\s*\d+:\d+(:\d+)?\s*/, '').trim());
+  refresh(true);
+});
 // the stats charts are drawn at their width: again when the page gets wider or narrower
 { let w0 = 0, tm = null; new ResizeObserver(es => { const w = Math.round(es[0].contentRect.width); if (Math.abs(w - w0) < 16) return; w0 = w; clearTimeout(tm); tm = setTimeout(() => { if (round) try { renderStats(); } catch (e) { console.error(e); } }, 150); }).observe($('#stats')); }
 function loadSim(seed, size, mapName) { simSeed = seed; setRound(simulate(seed, size, mapName), 'sim'); }
