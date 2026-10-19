@@ -950,7 +950,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v168';
+const APP_VERSION = 'v169';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -5756,7 +5756,7 @@ function jumpTo(h, keepSel) {
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
 const MELEE_REACH = { 5406: ['knife', 2.0], 5386: ['defibrillator', 2.8] }, MELEE_SLACK = 2.5;
 const LAUNCH_MIN = { Grenade: 0.7, SRAW: 4.0, Eryx: 4.2, Claymore: 0.6, 'LAV-25 TOW': 10, 'BTR-90 missile': 10, 'WZ551 missile': 10, TOW: 5, 'HJ-8': 5 };
 const SHOT_MIN = { 5038: 1.5, 5222: 1.5, 5073: 1.5, 5400: 1.0, 5478: 1.0, 5491: 1.0, 5483: 0.6, 5380: 0.6 };
@@ -6708,13 +6708,17 @@ const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { 
 // a kill by a claymore that lay inside a flag's capture zone (main bases left out - they can't be taken). Where it lay:
 // where it was seen being put (cx, cy), else where the victim died. (v168: the zone as the game has it - zoneOf: the
 // level's radius + 1.2 m round the pole's foot in 3D, wherever one can stand - not the level's radius on the map)
+// (v169, Sagara: "add filter - claymore kill in for admin") and every claymore kill (clay: a list to go through, not a
+// hint - left out of All and of the count): who, whom, how far from where it lay, at which flag's zone, a team kill
 function clayCapHints(R) {
-  const out = []; if (!R.flags || !R.flags.length) return out;
+  const out = [];
   for (const e of R.events) {
     if (e.type !== 'kill' || e.killer === e.victim || !/claymore/i.test(e.weapon || '')) continue;
     const placed = e.cx !== undefined, x = placed ? e.cx : e.x, y = placed ? e.cy : e.y; if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-    let best = null; R.flags.forEach((f, k) => { if (f.main) return; const z = zoneOf(R, k); if (!z || !zoneHas(z, x, y)) return; const d = Math.hypot(x - f.x, y - f.y); if (!best || d < best.d) best = { f, d, r: z.R }; });
+    let best = null; (R.flags || []).forEach((f, k) => { if (f.main) return; const z = zoneOf(R, k); if (!z || !zoneHas(z, x, y)) return; const d = Math.hypot(x - f.x, y - f.y); if (!best || d < best.d) best = { f, d, r: z.R }; });
     if (best) out.push({ t: e.t, kind: 'claycap', adm: true, actor: e.killer, kill: e, flag: best.f.name, d: best.d, r: best.r, placed, x, y });
+    const ki = R.pidx.get(e.killer), vi = R.pidx.get(e.victim), tk = ki !== undefined && vi !== undefined && teamOf(ki, e.t) === teamOf(vi, e.t);
+    out.push({ t: e.t, kind: 'clay', adm: true, info: true, actor: e.killer, kill: e, placed, dv: placed && Number.isFinite(e.x) ? Math.hypot(e.x - e.cx, e.y - e.cy) : null, flag: best ? best.f.name : null, tk, x, y });
   }
   return out;
 }
@@ -6838,20 +6842,21 @@ function admDescribe(h) {
   if (h.kind === 'fog') return [Math.round(h.d) + ' m', `<b>Beyond fog</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${Math.round(h.d)} m, the map's view distance is ${h.fog} m · ${tail}</span>`, `Beyond fog: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.d)} m`];
   if (h.kind === 'wall') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>No line of sight</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill${wallBy(h)} · ${tail}</span>`, `No line of sight: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
   if (h.kind === 'snap') return [Math.round(h.from) + '°', `<b>Aim snap</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">his view swung onto him from ${Math.round(h.from)}° off to ${h.to.toFixed(1)}° in 0.1 s, ${Math.round(h.dist)} m away${h.before >= 0.05 ? ' · ' + h.before.toFixed(1) + ' s before the kill' : ' · at the kill'} · ${tail}</span>`, `Aim snap: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.from)}° in 0.1 s`];
+  if (h.kind === 'clay') return [h.dv != null ? Math.round(h.dv) + ' m' : '—', `<b>Claymore kill</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${h.dv != null ? `${m1(h.dv)} m from where the claymore lay` : 'where it lay is not known'}${h.flag ? ` · in ${esc(h.flag)}'s capture zone` : ''}${h.tk ? ' · a team kill' : ''} · ${tail}</span>`, `Claymore kill: ${pt(e.killer)} → ${pt(e.victim)}${h.flag ? ' at ' + h.flag : ''}`];
   if (h.kind === 'claycap') return [Math.round(h.d) + ' m', `<b>Claymore at a flag</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">the claymore lay ${Math.round(h.d)} m from ${esc(h.flag)}, inside its capture zone (${m1(h.r)} m round the pole, in 3D)${h.placed ? '' : ' - where it lay is not known: where he died'} · ${tail}</span>`, `Claymore at a flag: ${pt(e.killer)} → ${pt(e.victim)} at ${h.flag}`];
   return ['TK', `<b>Team kill</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${h.veh ? 'from ' + esc(h.veh) + (e.weapon ? ' · ' + esc(killWpn(e) || e.weapon) : '') : tail}</span>`, `Team kill: ${pt(e.killer)} → ${pt(e.victim)}`];
 }
 function renderAdmin() {
   const box = $('#admBox'); if (!box || !round) return;
-  const A = adminHints(), cnt = k => A.filter(h => h.kind === k).length;
-  $('#fTab2').innerHTML = `For admins <span class="w">${A.length}</span>`;
-  const L = A.map((h, i) => [h, i]).filter(([h]) => admFilter === 'all' || h.kind === admFilter);
-  const per = new Map(); for (const h of A) if (h.kind !== 'tk' && h.kind !== 'claycap' && h.kind !== 'idle' && h.kind !== 'spotspam' && h.kind !== 'outside' && h.actor != null && !(h.kind === 'arty' && !h.sure)) per.set(h.actor, (per.get(h.actor) || 0) + 1);
+  const A = adminHints(), cnt = k => A.filter(h => h.kind === k).length, nAll = A.filter(h => !h.info).length;   // (v169: lists - Claymore kills - not in All)
+  $('#fTab2').innerHTML = `For admins <span class="w">${nAll}</span>`;
+  const L = A.map((h, i) => [h, i]).filter(([h]) => admFilter === 'all' ? !h.info : h.kind === admFilter);
+  const per = new Map(); for (const h of A) if (!h.info && h.kind !== 'tk' && h.kind !== 'claycap' && h.kind !== 'idle' && h.kind !== 'spotspam' && h.kind !== 'outside' && h.actor != null && !(h.kind === 'arty' && !h.sure)) per.set(h.actor, (per.get(h.actor) || 0) + 1);
   const top = [...per].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]);
   const pn = id => { const i = round.pidx.get(id); return i === undefined ? '' : `<span class="t${teamOf(i, round.duration)}">${esc(round.players[i].name)}</span>`; };
   box.innerHTML = `<p class="admwarn">Hints for a closer look, not proof. Walls are the map's collision shapes, and some fences, thin walls and boards let bullets through; views and positions are known 10 times a second; good players turn fast too. Watch the moment (and its side view) before you judge.</p>
     ${(round._trackRun && !round._tracks) || (round._geoRun && !round._geo) ? '<p class="admtop">Wall tracking, walls and floating: still going through the round (a few seconds)…</p>' : ''}${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => pn(id) + ' <span class="w">' + c + '</span>').join(', ')}</p>` : ''}
-    <div class="hlchips">${[['all', 'All', A.length], ...ADM_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${admFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
+    <div class="hlchips">${[['all', 'All', nAll], ...ADM_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${admFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
     <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = admDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : '<li class="empty">Nothing to look at in this round.</li>'}</ul>
     <p class="stnote">${A.noLos ? 'No wall data for this map: "No line of sight" is not checked. ' : ''}${A.wait ? `Checking ${A.wait} kill${A.wait > 1 ? 's' : ''} against the map's exact collision shapes… ` : ''}Click to jump there.</p>`;
   box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { admFilter = b.dataset.f; renderAdmin(); });
