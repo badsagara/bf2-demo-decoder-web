@@ -96,6 +96,19 @@ input[type=file] { display: none; }
 @media (max-width: 900px) { .main { grid-template-columns: minmax(0,1fr); } }
 
 .stage { display: grid; gap: 12px; min-width: 0; align-content: start; }
+/* the map's row (v161, Sagara: "not in full screen - kill feed + highlights + for admins to the left of the map"): that
+   card in a column on the map's left, as high as the map, when the page is wide enough for both (placeFeed: at least
+   300 px beside the map); else in Battle under the map as before. --mapw: the map's width (placeFeed) */
+.maprow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+.maprow.lfeed { grid-template-columns: minmax(0, 1fr) min(var(--mapw, 600px), calc(100% - 312px)); }
+.fslot { position: relative; min-width: 0; }
+.fslot[hidden] { display: none; }
+.fslot > .fcard { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.fslot > .fcard > .tabs { flex: none; }
+.fslot .feed:not([hidden]) { flex: 1 1 0; min-height: 0; max-height: none; align-content: start; }
+.fslot :is(#hlBox, #admBox):not([hidden]) { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
+.fslot :is(#hlBox, #admBox) > :not(.feed) { flex: none; }
+.stage > .svbox { background: var(--panel); }
 /* the map as high as the window leaves under what is above it (--maptop: measured, fitMap), so a laptop's screen shows
    all of it with its controls; Bigger map: nearly the window's height */
 .mapbox { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; width: min(100%, max(360px, calc(100vh - var(--maptop, 150px) - 14px))); justify-self: center; }
@@ -204,6 +217,8 @@ input[type=file] { display: none; }
 .panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: start; }
 @media (max-width: 1100px) { .panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 700px) { .panels { grid-template-columns: minmax(0, 1fr); } }
+.panels.two { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }   /* (the feed's card beside the map: tickets, scoreboard) */
+@media (max-width: 700px) { .panels.two { grid-template-columns: minmax(0, 1fr); } }
 .mapbox canvas { display: block; width: 100%; aspect-ratio: 1 / 1; max-width: 100%; cursor: crosshair; }
 .maphud { position: absolute; inset: 10px calc(min(310px, 46%) + 20px) auto 10px; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start; gap: 8px; pointer-events: none; }
 .mapbox.fs .maphud { right: calc(min(360px, 42vw) + 20px); }   /* (v136: room for the kill feed on the right) */
@@ -610,7 +625,7 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .pkdline b { color: var(--fg); font-weight: 600; }
 .pcard .chips { margin-top: 10px; }
 /* a player over all rounds (#player=<nick> on the site): in place of the map and the views under it */
-body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .mbar { display: none !important; }
+body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .timeline, body.pview .mbar { display: none !important; }
 .ppage { display: grid; gap: 12px; margin-bottom: 12px; }
 .ppage[hidden] { display: none; }
 .pphead { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
@@ -752,6 +767,8 @@ body.mbar-on { padding-bottom: 72px; }
   <section class="ppage" id="pPage" aria-label="A player over all rounds" hidden></section>
 
   <div class="stage">
+    <div class="maprow" id="mapRow">
+    <div class="fslot" id="feedSlot" hidden></div>
     <div class="mapbox" id="mapbox">
       <canvas id="map" tabindex="0" aria-label="Tactical map"></canvas>
       <div class="htip" id="hTip" hidden></div>
@@ -769,93 +786,12 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
       <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><button class="btn qahd" aria-pressed="true" title="While paused: where everyone goes in the next seconds and who dies (the slider in Filters ▾ sets how many: 1-30 s). Off: no paths at all"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdme" aria-pressed="false" hidden title="While paused: the next seconds only for the soldier you follow (and others you turn on the same way), whatever is set for everyone; press again to go back (A)">For him</button></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
-      <section class="timeline">
-        <div class="tlctl">
-          <button class="btn primary" id="play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
-          <button class="btn" id="tClip" aria-pressed="false" title="Make a video of part of the round to share (I / O: clip starts / ends at the playhead)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg><span>Clip</span></button>
-          <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Filters <b id="layN"></b> ▾</button>
-          <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
-          <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
-          <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green; a white dot at his nose while he aims down the sights">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting; jumping, falling from a height, under a parachute, climbing a ladder). Either way a white dot at his nose while he aims down the sights">Figures</button></span>
-          <span class="vwseg" role="radiogroup" aria-label="Scoreboard, top bar and text"><span>HUD</span><button class="sg" id="hdGame" role="radio" aria-checked="true" title="As in the game: its scoreboard (Tab), its bar of time and tickets, its font for the kill feed and the names on the map">Game</button><button class="sg" id="hdPage" role="radio" aria-checked="false" title="The page's own: a list for the scoreboard, a plain bar, the page's font">Page</button></span>
-          <span class="vwseg cuseg" role="radiogroup" aria-label="What the pointer over the map shows"><span>Cursor</span><button class="sg" id="cuOff" role="radio" aria-checked="false" title="Nothing by the pointer (G)">Off</button><button class="sg" id="cuH" role="radio" aria-checked="false" title="The height of the ground under the pointer, and how much higher or lower it is than the soldier you follow (G)">Height</button><button class="sg" id="cuXY" role="radio" aria-checked="false" title="Where the pointer is: the map's grid square (as on the game's map), metres east and north of the middle, and how far and which way from the soldier you follow (G)">Grid</button></span>
-          <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
-          <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
-          <button class="btn on" id="tSpots">Spots</button>
-          <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines; smoke from vehicles' launchers and smoke grenades">Explosions</button>
-          <button class="btn on" id="tFire" title="A flash at the gun of everyone holding a fire button (the trigger, a second or third fire button), and at a vehicle when someone in it fires. The demo has when a button goes down and up, not each shot">Firing</button>
-          <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
-          <button class="btn on" id="tOrders" title="Each squad's current order (attack, defend, move) where its leader put it, with the game's icon and the squad's name; an order shows for 3 minutes or until the next one">Squad orders</button>
-          <button class="btn" id="tSpawnG" title="Where each flag's soldiers spawn (the middle of its spawn points, as the demo has it), in the colour of the side that can spawn there - a dashed ring round a dot; grey while nobody can">Spawn points</button>
-          <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
-          <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
-          <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
-          <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
-          <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
-          <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
-          <button class="btn" id="tAhead" title="While paused: where everyone goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where somebody comes back in (spawn). Vehicles that move too. Not while playing, not in clips. For one soldier only: follow him and press 'For him' on the map or in his card (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"></span></span></button>
-          <span class="lrange" id="aheadRow" title="How far ahead the paths go while paused: 1-30 s"><input type="range" id="aheadT" min="1" max="30" step="1" value="20" aria-label="Seconds ahead shown while paused"><output id="aheadV" for="aheadT">20 s</output></span>
-          <button class="btn" id="tFront" title="Which side holds which part of the map, from where its soldiers are and were over the last 30 s (aircraft left out) and the flags it owns: the ground tinted in its colour, and a dashed line where the two sides meet. A rough picture of who stands where, not the game's own control of ground">Front line</button>
-          <button class="btn on" id="tLegend" title="A box on the map under its top bar with what each mark means - only those of the layers switched on; its header folds it">Legend</button>
-          </span></span>
-          <span class="lwrap"><button class="btn" id="namBtn" aria-expanded="false" aria-controls="namMenu" title="Which names and labels the map shows">Names <b id="namN"></b> ▾</button>
-          <span class="lmenu" id="namMenu" role="group" aria-label="Names and labels on the map" hidden><span class="lall"><button class="btn" type="button" data-laball="1">All</button><button class="btn" type="button" data-laball="0">None</button></span><span id="namList"></span><span class="lnote">The soldier you follow: his name always</span></span></span>
-          <span class="spacer"></span>
-          <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
-          <label class="mapsizel">Map size (m)
-            <input type="number" id="mapSize" min="256" max="8192" step="256" value="2048">
-          </label>
-        </div>
-        <div class="kbhelp" id="kbHelp" hidden>
-          <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
-          <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
-        </div>
-        <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
-          <div id="cSet">
-            <div class="cliprow">
-              <b class="cliphead">Clip</b>
-              <button class="btn" id="cA" title="The clip starts at the playhead (I)">Start here</button>
-              <span class="cliprange" id="cRange">00:00 – 00:15</span>
-              <button class="btn" id="cB" title="The clip ends at the playhead (O)">End here</button>
-              <label>Size <select id="cSize"></select></label>
-              <label>Speed <select id="cSpeed"></select></label>
-              <label id="cSndL" title="Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)"><input type="checkbox" id="cSnd" checked> Sound</label>
-              <label title="A GIF plays everywhere, also in chats that don't play videos, but is smaller (600 px), 10 frames a second and at most 20 s. A BF2 demo is a Battle Recorder file to watch the clip in the game itself">File <select id="cFmt"><option value="video">Video (MP4)</option><option value="gif">GIF</option><option value="demo">BF2 demo (for the game)</option></select></label>
-              <label id="cFFl" title="The game plays a demo only from its start: how fast the round before the clip goes by (the last 3 s before the clip and the clip itself at the real pace). An experiment: if the game stops or crashes, try a lower one" hidden>Before the clip <select id="cFF"></select></label>
-              <label>Camera <select id="cCam"><option value="follow">Follow</option><option value="fixed">As on screen</option></select></label>
-              <span class="cliplen" id="cLen"></span>
-              <button class="btn" id="cOwn" type="button" hidden title="The server has no copy of this round's demo: use the .bf2demo file you have (from the game's demos folder or your download) - it is checked to be this round's">Open my copy…</button><input type="file" id="cOwnF" accept=".bf2demo,.gz" hidden>
-              <span class="spacer"></span>
-              <button class="btn primary" id="cGo">Make video</button>
-              <button class="btn" id="cX">Close</button>
-            </div>
-            <p class="cliphint" id="cHint">Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills.</p>
-          </div>
-          <div class="clipprog" id="cProg" role="status" aria-live="polite" hidden><div class="decrow"><span id="cTxt">Making the video</span><b id="cPct">0%</b></div><div class="dectrack"><i id="cFill"></i></div><button class="btn" id="cStop">Cancel</button></div>
-          <div class="clipout" id="cOut" hidden>
-            <video id="cVid" controls playsinline muted loop preload="metadata"></video>
-            <img id="cImg" alt="The GIF" hidden>
-            <div class="clipmeta"><b id="cName"></b><span id="cInfo"></span>
-              <div class="cliprow"><button class="btn primary" id="cSave">Save video</button><button class="btn" id="cShare" hidden>Share…</button><button class="btn" id="cDrop">Discard</button></div>
-            </div>
-          </div>
-          <p class="clipmsg" id="cMsg" hidden></p>
-        </div>
-        <div class="sideview" id="sideView" aria-label="Side view of a kill" hidden>
-          <div class="svhead"><b id="svTitle">Side view</b><span class="w" id="svSub"></span><span class="spacer"></span><button class="btn" id="svGo" title="Back to the moment of this kill">Go to the kill</button><button class="btn" id="svX">Close</button></div>
-          <canvas id="svCv" role="img" aria-label="Side view: the ground and walls along the line from the killer to the victim"></canvas>
-          <div class="svinfo" id="svInfo"></div>
-        </div>
-        <p class="maphint" id="mapHint" hidden></p>
-        <canvas id="tl" aria-label="Round timeline"></canvas>
-        <div class="legend">
-          <span><i style="background:var(--team0)"></i><b id="lg0" style="font-weight:inherit">Kill by team 1</b></span>
-          <span><i style="background:var(--team1)"></i><b id="lg1" style="font-weight:inherit">Kill by team 2</b></span>
-          <span>▼ flag captured (team colour) · ▽ neutralised</span>
-          <span>Rows: each soldier's lives · ● kill · ✕ death</span>
-        </div>
-      </section>
+    </div>
+    <div class="sideview svbox" id="sideView" aria-label="Side view of a kill" hidden>
+      <div class="svhead"><b id="svTitle">Side view</b><span class="w" id="svSub"></span><span class="spacer"></span><button class="btn" id="svGo" title="Back to the moment of this kill">Go to the kill</button><button class="btn" id="svX">Close</button></div>
+      <canvas id="svCv" role="img" aria-label="Side view: the ground and walls along the line from the killer to the victim"></canvas>
+      <div class="svinfo" id="svInfo"></div>
+    </div>
   </div>
 
   <div class="ptabs" id="ptabs" role="tablist" aria-label="What to show under the map">
@@ -871,13 +807,13 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="tickets" id="tickets"></div>
         <div class="flagrow" id="flagrow"></div>
       </section>
-      <section class="card">
+      <section class="card fcard" id="feedCard">
         <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" title="Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills">For admins</button></div>
         <ul class="feed" id="feed"></ul>
         <div id="hlBox" hidden></div>
         <div id="admBox" hidden></div>
       </section>
-      <section class="card">
+      <section class="card" id="lbCard">
         <div class="tabs">
           <button class="btn on" data-tab="0" id="tab0">Team 1</button>
           <button class="btn" data-tab="1" id="tab1">Team 2</button>
@@ -909,6 +845,89 @@ body.mbar-on { padding-bottom: 72px; }
     <section class="card session" id="sessPlayers" aria-label="Players over all the rounds"></section>
   </div>
 
+  <section class="timeline" id="tlSec">
+    <div class="tlctl">
+      <button class="btn primary" id="play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
+      <button class="btn" id="tClip" aria-pressed="false" title="Make a video of part of the round to share (I / O: clip starts / ends at the playhead)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg><span>Clip</span></button>
+      <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Filters <b id="layN"></b> ▾</button>
+      <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
+      <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
+      <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green; a white dot at his nose while he aims down the sights">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting; jumping, falling from a height, under a parachute, climbing a ladder). Either way a white dot at his nose while he aims down the sights">Figures</button></span>
+      <span class="vwseg" role="radiogroup" aria-label="Scoreboard, top bar and text"><span>HUD</span><button class="sg" id="hdGame" role="radio" aria-checked="true" title="As in the game: its scoreboard (Tab), its bar of time and tickets, its font for the kill feed and the names on the map">Game</button><button class="sg" id="hdPage" role="radio" aria-checked="false" title="The page's own: a list for the scoreboard, a plain bar, the page's font">Page</button></span>
+      <span class="vwseg cuseg" role="radiogroup" aria-label="What the pointer over the map shows"><span>Cursor</span><button class="sg" id="cuOff" role="radio" aria-checked="false" title="Nothing by the pointer (G)">Off</button><button class="sg" id="cuH" role="radio" aria-checked="false" title="The height of the ground under the pointer, and how much higher or lower it is than the soldier you follow (G)">Height</button><button class="sg" id="cuXY" role="radio" aria-checked="false" title="Where the pointer is: the map's grid square (as on the game's map), metres east and north of the middle, and how far and which way from the soldier you follow (G)">Grid</button></span>
+      <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
+      <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
+      <button class="btn on" id="tSpots">Spots</button>
+      <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines; smoke from vehicles' launchers and smoke grenades">Explosions</button>
+      <button class="btn on" id="tFire" title="A flash at the gun of everyone holding a fire button (the trigger, a second or third fire button), and at a vehicle when someone in it fires. The demo has when a button goes down and up, not each shot">Firing</button>
+      <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
+      <button class="btn on" id="tOrders" title="Each squad's current order (attack, defend, move) where its leader put it, with the game's icon and the squad's name; an order shows for 3 minutes or until the next one">Squad orders</button>
+      <button class="btn" id="tSpawnG" title="Where each flag's soldiers spawn (the middle of its spawn points, as the demo has it), in the colour of the side that can spawn there - a dashed ring round a dot; grey while nobody can">Spawn points</button>
+      <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
+      <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
+      <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
+      <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
+      <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
+      <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
+      <button class="btn" id="tAhead" title="While paused: where everyone goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where somebody comes back in (spawn). Vehicles that move too. Not while playing, not in clips. For one soldier only: follow him and press 'For him' on the map or in his card (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"></span></span></button>
+      <span class="lrange" id="aheadRow" title="How far ahead the paths go while paused: 1-30 s"><input type="range" id="aheadT" min="1" max="30" step="1" value="20" aria-label="Seconds ahead shown while paused"><output id="aheadV" for="aheadT">20 s</output></span>
+      <button class="btn" id="tFront" title="Which side holds which part of the map, from where its soldiers are and were over the last 30 s (aircraft left out) and the flags it owns: the ground tinted in its colour, and a dashed line where the two sides meet. A rough picture of who stands where, not the game's own control of ground">Front line</button>
+      <button class="btn on" id="tLegend" title="A box on the map under its top bar with what each mark means - only those of the layers switched on; its header folds it">Legend</button>
+      </span></span>
+      <span class="lwrap"><button class="btn" id="namBtn" aria-expanded="false" aria-controls="namMenu" title="Which names and labels the map shows">Names <b id="namN"></b> ▾</button>
+      <span class="lmenu" id="namMenu" role="group" aria-label="Names and labels on the map" hidden><span class="lall"><button class="btn" type="button" data-laball="1">All</button><button class="btn" type="button" data-laball="0">None</button></span><span id="namList"></span><span class="lnote">The soldier you follow: his name always</span></span></span>
+      <span class="spacer"></span>
+      <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
+      <label class="mapsizel">Map size (m)
+        <input type="number" id="mapSize" min="256" max="8192" step="256" value="2048">
+      </label>
+    </div>
+    <div class="kbhelp" id="kbHelp" hidden>
+      <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
+      <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+    </div>
+    <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
+      <div id="cSet">
+        <div class="cliprow">
+          <b class="cliphead">Clip</b>
+          <button class="btn" id="cA" title="The clip starts at the playhead (I)">Start here</button>
+          <span class="cliprange" id="cRange">00:00 – 00:15</span>
+          <button class="btn" id="cB" title="The clip ends at the playhead (O)">End here</button>
+          <label>Size <select id="cSize"></select></label>
+          <label>Speed <select id="cSpeed"></select></label>
+          <label id="cSndL" title="Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)"><input type="checkbox" id="cSnd" checked> Sound</label>
+          <label title="A GIF plays everywhere, also in chats that don't play videos, but is smaller (600 px), 10 frames a second and at most 20 s. A BF2 demo is a Battle Recorder file to watch the clip in the game itself">File <select id="cFmt"><option value="video">Video (MP4)</option><option value="gif">GIF</option><option value="demo">BF2 demo (for the game)</option></select></label>
+          <label id="cFFl" title="The game plays a demo only from its start: how fast the round before the clip goes by (the last 3 s before the clip and the clip itself at the real pace). An experiment: if the game stops or crashes, try a lower one" hidden>Before the clip <select id="cFF"></select></label>
+          <label>Camera <select id="cCam"><option value="follow">Follow</option><option value="fixed">As on screen</option></select></label>
+          <span class="cliplen" id="cLen"></span>
+          <button class="btn" id="cOwn" type="button" hidden title="The server has no copy of this round's demo: use the .bf2demo file you have (from the game's demos folder or your download) - it is checked to be this round's">Open my copy…</button><input type="file" id="cOwnF" accept=".bf2demo,.gz" hidden>
+          <span class="spacer"></span>
+          <button class="btn primary" id="cGo">Make video</button>
+          <button class="btn" id="cX">Close</button>
+        </div>
+        <p class="cliphint" id="cHint">Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills.</p>
+      </div>
+      <div class="clipprog" id="cProg" role="status" aria-live="polite" hidden><div class="decrow"><span id="cTxt">Making the video</span><b id="cPct">0%</b></div><div class="dectrack"><i id="cFill"></i></div><button class="btn" id="cStop">Cancel</button></div>
+      <div class="clipout" id="cOut" hidden>
+        <video id="cVid" controls playsinline muted loop preload="metadata"></video>
+        <img id="cImg" alt="The GIF" hidden>
+        <div class="clipmeta"><b id="cName"></b><span id="cInfo"></span>
+          <div class="cliprow"><button class="btn primary" id="cSave">Save video</button><button class="btn" id="cShare" hidden>Share…</button><button class="btn" id="cDrop">Discard</button></div>
+        </div>
+      </div>
+      <p class="clipmsg" id="cMsg" hidden></p>
+    </div>
+    <p class="maphint" id="mapHint" hidden></p>
+    <canvas id="tl" aria-label="Round timeline"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--team0)"></i><b id="lg0" style="font-weight:inherit">Kill by team 1</b></span>
+      <span><i style="background:var(--team1)"></i><b id="lg1" style="font-weight:inherit">Kill by team 2</b></span>
+      <span>▼ flag captured (team colour) · ▽ neutralised</span>
+      <span>Rows: each soldier's lives · ● kill · ✕ death</span>
+    </div>
+  </section>
+
   <div class="mbar" id="mbar" aria-label="Replay" hidden>
     <button class="btn" id="play3" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
     <button class="btn" id="mBack" aria-label="10 seconds back">−10 s</button>
@@ -929,7 +948,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v159';
+const APP_VERSION = 'v162';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -4240,10 +4259,11 @@ function draw() {
       const big = !p.vehicle && !inIcon, rv = (inIcon ? vehRad.get(q.veh) : vr) || 0; let lx = px + (big ? 14 : Math.max(11, rv * 0.85)), ly = py - (big ? 11 : 8);
       if (inIcon) { const k = seated.get(q.veh) || 0; seated.set(q.veh, k + 1); ly = py - 8 + k * 13; }
       const B = q.veh ? 14 : 20;
-      if (nameLeft && big) lx = px - 14 - mlWidth(p.name) - (kit ? 3 + B : 0);
-      mlText(p.name, lx, ly, wreck ? css('--muted') : nameCol(p.vehicle ? (riders.has(p.name) ? riders.get(p.name) : -1) : teamOf(i, t)));   // (v142: the game's font, its side's colour)
+      const nm = mapNm(round, p);   // (v160: Su-30, Abrams, Jeep ...)
+      if (nameLeft && big) lx = px - 14 - mlWidth(nm) - (kit ? 3 + B : 0);
+      mlText(nm, lx, ly, wreck ? css('--muted') : nameCol(p.vehicle ? (riders.has(p.name) ? riders.get(p.name) : -1) : teamOf(i, t)));   // (v142: the game's font, its side's colour)
       if (kit) {   // the kit's tool after the name, in black (text if the kit is unknown)
-        const x = lx + mlWidth(p.name) + 3 + B / 2, y = ly - 3.5;
+        const x = lx + mlWidth(nm) + 3 + B / 2, y = ly - 3.5;
         if (!drawKitGlyph(kit, x, y, B)) { const lb = ' · ' + (KIT_SHORT[kit] || kit); cx.strokeText(lb, x - B / 2, ly); cx.fillText(lb, x - B / 2, ly); }
       }
     }
@@ -4302,7 +4322,7 @@ function draw() {
         const ring = () => { cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a2 = k * Math.PI / 2, c2 = Math.cos(a2), s2 = Math.sin(a2); cx.moveTo(tx + c2 * (r - 3), ty + s2 * (r - 3)); cx.lineTo(tx + c2 * (r + tk), ty + s2 * (r + tk)); } };
         cx.lineCap = 'round'; ring(); cx.strokeStyle = ink; cx.lineWidth = 7; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 3.4; cx.stroke(); cx.lineCap = 'butt';
         cx.beginPath(); cx.arc(tx, ty, r - 3.2, 0, Math.PI * 2); cx.strokeStyle = tc; cx.lineWidth = 1.8; cx.stroke();
-        lab = (opts.lab.foot ? '' : o.name + ' · ') + Math.round(al.l) + ' m'; lx = tx; ly = ty - r - tk - 5;   // (his name is next to him already)
+        lab = (opts.lab.foot ? '' : mapNm(round, o) + ' · ') + Math.round(al.l) + ' m'; lx = tx; ly = ty - r - tk - 5;   // (his name is next to him already)
         if (eyeOn.has(al.j)) ly -= 13;   // (over the eye)
       } else if (!far) {   // a wall, roof, the ground or the sea: a cross in a ring
         const k = Math.max(7, Math.min(10, size / view.span * 1.5));
@@ -4784,7 +4804,7 @@ function panels(force) {
     const nf = mapbox.classList.contains('fs') ? 7 : 6, rows = [];
     for (let k = feed.length - 1; k >= Math.max(0, feed.length - nf); k--) {
       const old = t - feedT[k] > 30;
-      rows.push(feed[k].replace(/<button class="svb[^"]*"[\s\S]*?<\/button>/g, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
+      rows.push(mapHtml(round, feed[k]).replace(/<button class="svb[^"]*"[\s\S]*?<\/button>/g, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
     }
     const tbOn = !!round.TK && round.meta.source === 'demo' && (tk0 > 0 || tk1 > 0);
     fo.innerHTML = (tbOn ? '' : `<div class="fstk">${[0,1].map(tm => `<span class="t${tm}">${flagChip(tm, false, 12)} ${esc(round.teams[tm]?.name || '')} ${start[tm] ? Math.round(tm ? tk1 : tk0) : ''}</span>`).join('')}</div>`) + `${rows.length ? `<ul>${rows.join('')}</ul>` : ''}`;
@@ -4913,7 +4933,7 @@ $('#zoomR').addEventListener('input', e => {
 function setBigMap(on) {
   $('#mapbox').classList.toggle('big', on); $('#vBig').setAttribute('aria-pressed', String(on)); $('#vBig').textContent = on ? 'Smaller map' : 'Bigger map';
   try { localStorage.setItem('bf2rr.bigmap', on ? '1' : '0'); } catch (e) {}
-  resize();
+  placeFeed(); resize();
 }
 $('#vBig').onclick = () => { setBigMap(!$('#mapbox').classList.contains('big')); if ($('#mapbox').classList.contains('big')) $('#mapbox').scrollIntoView({ block: 'nearest' }); };
 try { if (localStorage.getItem('bf2rr.bigmap') === '1') setTimeout(() => setBigMap(true), 0); } catch (e) {}
@@ -4968,7 +4988,25 @@ function fitMap() {
   const mb = $('#mapbox'); if (mb.classList.contains('fs')) return;
   const top = Math.round(mb.getBoundingClientRect().top + window.scrollY);
   if (top > 0 && Math.abs(top - (fitMap.top || 0)) > 1) { fitMap.top = top; document.documentElement.style.setProperty('--maptop', top + 'px'); }
+  placeFeed();
 }
+// the kill feed / highlights / for admins card: left of the map when the page has 300 px or more beside it (not on a
+// phone, not in full screen), else back in Battle between the tickets and the scoreboard (v161)
+const FEED_MIN = 300;
+function placeFeed() {
+  const row = $('#mapRow'), slot = $('#feedSlot'), card = $('#feedCard'), lb = $('#lbCard'), mb = $('#mapbox');
+  if (!row || !card || !lb || mb.classList.contains('fs')) return;
+  // (the map's width as its CSS has it: the window's height under what is above it, or nearly all of it when bigger)
+  const vh = window.innerHeight, mw = Math.round(mb.classList.contains('big') ? Math.max(420, vh - 24) : Math.max(360, vh - (fitMap.top || 150) - 14));
+  const left = !PHONE.matches && row.clientWidth - mw - 12 >= FEED_MIN;
+  row.style.setProperty('--mapw', mw + 'px');
+  if (left === (card.parentElement === slot)) return;
+  row.classList.toggle('lfeed', left); slot.hidden = !left;
+  if (left) slot.append(card); else lb.before(card);
+  lb.parentElement.classList.toggle('two', left);
+}
+new ResizeObserver(() => requestAnimationFrame(placeFeed)).observe($('#mapRow'));
+window.addEventListener('resize', () => requestAnimationFrame(placeFeed));
 { const ro = new ResizeObserver(() => requestAnimationFrame(fitMap)); for (const el of [document.querySelector('header'), $('#notice'), $('#session'), $('#pPage')]) if (el) ro.observe(el); }
 fitMap();
 // full screen: the browser's full screen when the page may use it, otherwise the map just covers the page
@@ -4980,7 +5018,7 @@ async function setFull(on) {
     else if (document.fullscreenElement || document.webkitFullscreenElement) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
   } catch (e) { /* not allowed here (e.g. inside a frame): the map still covers the page */ }
   $('#vFull').textContent = on ? 'Exit full screen' : 'Full screen'; $('#vFull').setAttribute('aria-pressed', String(on));
-  mbarSync();
+  mbarSync(); if (!on) placeFeed();
   resize(); refresh(true);
 }
 $('#vFull').onclick = () => setFull(!mapbox.classList.contains('fs'));
@@ -5013,6 +5051,35 @@ function killName(e) {
   if (vp) return KM.v[typeof vp.tpl === 'string' ? vp.tpl.toLowerCase() : String(vp.tpl ?? '')] || vp.name.replace(/ \d+$/, '');
   return KM.w[e.wid] || KM.w[widOf(e.weapon)] || e.weapon || '';
 }
+// shorter names on the map (v160, Sagara): by the vehicles, on whom the followed soldier aims, in the feed over the map
+// and in clips; the panels, lists and stats keep the full names (and the feed over the map its tooltips)
+const MAP_SHORT = { 'Su-30MKK': 'Su-30', 'M6 Linebacker': 'Linebacker', 'M1A2 Abrams': 'Abrams', 'FAAV buggy': 'Buggy',
+  'MEC paratrooper jeep': 'Jeep', 'Nanjing jeep': 'Jeep', 'Paratrooper jeep': 'Jeep', 'RIB boat': 'Boat', 'Q-5 Fantan': 'Q-5',
+  'AH-64 Apache': 'Apache', 'Mi-24 Hind': 'Mi-24', 'M2 HMG': 'M2', 'Kord HMG': 'Kord', 'HJ-8 launcher': 'HJ-8' };
+// a round's vehicles: full name -> the map's, numbered again where two kinds become one (Nanjing jeep 1, Nanjing jeep 2
+// and a Paratrooper jeep: Jeep 1, Jeep 2, Jeep 3); and a pattern for the names in any text (weapons too: Su-30 cannon)
+function mapNames(R) {
+  if (R._mapNames && R._mapNames.n === R.players.length) return R._mapNames;   // (players added later: again)
+  const vn = new Set(Object.values(VEHICLES)), groups = new Map(), lab = new Map();
+  R.players.forEach(p => {
+    if (!p.vehicle) return;
+    const m = / (\d+)$/.exec(p.name), num = !vn.has(p.name) && m && vn.has(p.name.slice(0, m.index));
+    const base = num ? p.name.slice(0, m.index) : p.name, short = MAP_SHORT[base] || base;
+    if (!groups.has(short)) groups.set(short, []);
+    groups.get(short).push({ name: p.name, base, n: num ? +m[1] : 0 });
+  });
+  for (const [short, L] of groups) {
+    if (L.every(o => o.base === short)) continue;   // (none of them shortened: as they were)
+    const first = new Map(); L.forEach((o, k) => { if (!first.has(o.base)) first.set(o.base, k); });
+    L.sort((a, b) => first.get(a.base) - first.get(b.base) || a.n - b.n).forEach((o, k) => lab.set(o.name, L.length > 1 ? short + ' ' + (k + 1) : short));
+  }
+  const keys = [...lab.keys(), ...Object.keys(MAP_SHORT)].sort((a, b) => b.length - a.length).map(s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`(^|[^\\w-])(${keys.join('|')})(?![\\w-])`, 'g');
+  return R._mapNames = { n: R.players.length, lab, re, sub: (m, pre, s) => pre + (lab.get(s) ?? MAP_SHORT[s] ?? s) };
+}
+const mapNm = (R, p) => p.vehicle ? mapNames(R).lab.get(p.name) ?? p.name : p.name;
+const mapTxt = (R, s) => { const M = mapNames(R); M.re.lastIndex = 0; return String(s).replace(M.re, M.sub); };
+const mapHtml = (R, h) => h.replace(/>([^<]+)</g, (m, s) => '>' + mapTxt(R, s) + '<');
 function killWpn(e) {
   const w = e.weapon || '', vp = e.kv ? round.players[round.pidx.get(e.kv)] : null;
   if (!vp) return w;
@@ -7610,20 +7677,20 @@ function clipOverlay(S, tt) {
   const pill = (x, y, w, h) => { g.fillStyle = back; g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, 4); else g.rect(x, y, w, h); g.fill(); };
   const tw = (txt, font) => { g.font = font; return g.measureText(txt).width; };
   const put = (txt, font, col, x, y) => { g.font = font; g.fillStyle = col; g.fillText(txt, x, y); return x + g.measureText(txt).width; };
-  const pidx = id => R.pidx.get(id), nameOf = id => { const i = pidx(id); return i === undefined ? (id == null || id < 0 ? 'World' : String(id)) : R.players[i].name; };
+  const pidx = id => R.pidx.get(id), nameOf = id => { const i = pidx(id); return i === undefined ? (id == null || id < 0 ? 'World' : String(id)) : mapNm(R, R.players[i]); };
   const colOf = (id, at) => { const i = pidx(id); return i === undefined ? mu : teamColor(teamOf(i, at)); };
   // top left
   let leftEnd = 12;
   { const F1 = '700 30px ' + FD, F2 = '500 12px ' + FM, F3 = '600 13px ' + FB;
     const clock = fmt(tt), spd = S.speed !== 1 ? speedLabel(S.speed) : '', sub = [mapName(R.meta.map), S.when].filter(Boolean).join(' · ');
     const fp = S.follow !== null ? R.players[S.follow] : null;
-    const w1 = tw(clock, F1) + (spd ? 8 + tw(spd, '700 14px ' + FM) : 0), w2 = sub ? tw(sub, F2) : 0, w3 = fp ? tw('Following ', F3) + tw(fp.name, F3) : 0;
+    const w1 = tw(clock, F1) + (spd ? 8 + tw(spd, '700 14px ' + FM) : 0), w2 = sub ? tw(sub, F2) : 0, w3 = fp ? tw('Following ', F3) + tw(mapNm(R, fp), F3) : 0;
     const bw = Math.max(w1, w2, w3) + 20, bh = 44 + (sub ? 18 : 0) + (fp ? 19 : 0);
     pill(12, 12, bw, bh); leftEnd = 12 + bh;
     let y = 12 + 36, x = put(clock, F1, fg, 22, y);
     if (spd) put(spd, '700 14px ' + FM, ac, x + 8, y);
     if (sub) { y += 18; put(sub, F2, mu, 22, y); }
-    if (fp) { y += 19; put(fp.name, F3, teamColor(teamOf(S.follow, tt)), put('Following ', F3, mu, 22, y), y); }
+    if (fp) { y += 19; put(mapNm(R, fp), F3, teamColor(teamOf(S.follow, tt)), put('Following ', F3, mu, 22, y), y); }
   }
   // top right: tickets
   let y = 12;
@@ -7658,7 +7725,7 @@ function clipOverlay(S, tt) {
       if (!self) { tx_(nameOf(e.killer), FN, colOf(e.killer, e.t)); if (r) P.push({ icon: 'w' + e.wid, w: IH * r[2] / r[3] }); else tx_('→', FN, mu); }
       if (e.hit === 'head') P.push({ hs: true });
       tx_(nameOf(e.victim), FN, colOf(e.victim, e.t));
-      const tail = [self ? 'died' : '', !r ? killWpn(e) : e.kv ? round.players[round.pidx.get(e.kv)]?.name || '' : '', e.dist !== undefined && !self ? e.dist + ' m' : ''].filter(Boolean).join(' · ');
+      const tail = mapTxt(R, [self ? 'died' : '', !r ? killWpn(e) : e.kv ? R.players[R.pidx.get(e.kv)]?.name || '' : '', e.dist !== undefined && !self ? e.dist + ' m' : ''].filter(Boolean).join(' · '));
       if (tail) tx_(tail, FS, mu);
       if (tk) tx_('TK', '700 12px ' + FM, css('--tk'));
     } else if (e.type === 'revive') {
@@ -8661,29 +8728,26 @@ function readHeader(u8) {
 // Payloads are bitstreams read LSB-first. Tick records run at 30 per second.
 const F32 = new DataView(new ArrayBuffer(4));
 // a packet's bits: u(s, k) = k bits (k <= 32) from bit s, LSB-first (-1 past the end); bit(s); f(s) = float32 at s.
-// This reader is the hot spot of the whole decoder (every scan tries every bit position), so the 32 bits starting at
-// each bit position are worked out once per packet (w[s]) and a read is a single look-up. The table is shared: a Bits is
-// only valid until the next one is made (the decoder reads one packet at a time).
-let BITS_W = new Int32Array(1 << 16), BITS_P = new Uint8Array(1 << 13);
+// w32(s): the 32 bits from bit s, read from the bytes when asked (v161: until v160 they were worked out for every bit
+// position of every packet beforehand - 8 per byte, while the decoder reads only about 1 in 7 of them). The bytes are
+// copied into a shared buffer with 8 zero bytes after them: a Bits is only valid until the next one is made (the
+// decoder reads one packet at a time).
+let BITS_P = new Uint8Array(1 << 13);
 class Bits {
   constructor(p) {
-    const m = p.length, n = m * 8;
-    if (BITS_P.length < m + 8) { BITS_P = new Uint8Array(m + 1024); BITS_W = new Int32Array((m + 1024) * 8); }
-    const q = BITS_P, w = BITS_W; q.set(p); q.fill(0, m, m + 8);
-    for (let b = 0, s = 0; b < m; b++, s += 8) {
-      const lo = q[b] | (q[b + 1] << 8) | (q[b + 2] << 16) | (q[b + 3] << 24), hi = q[b + 4];
-      w[s] = lo;
-      for (let sh = 1; sh < 8; sh++) w[s + sh] = (lo >>> sh) | (hi << (32 - sh));
-    }
-    this.n = n; this.w = w;
+    const m = p.length;
+    if (BITS_P.length < m + 8) BITS_P = new Uint8Array(m + 1024);
+    BITS_P.set(p); BITS_P.fill(0, m, m + 8); this.q = BITS_P; this.n = m * 8;
   }
+  // the 32 bits from bit s (as an int32)
+  w32(s) { const q = this.q, b = s >>> 3, sh = s & 7, lo = q[b] | (q[b + 1] << 8) | (q[b + 2] << 16) | (q[b + 3] << 24); return sh ? (lo >>> sh) | (q[b + 4] << (32 - sh)) : lo; }
   u(s, k) {
     if (s < 0 || s + k > this.n) return -1;
-    const v = this.w[s];
+    const v = this.w32(s);
     return k >= 32 ? v >>> 0 : v & ((1 << k) - 1);
   }
-  bit(s) { return (s < 0 || s >= this.n) ? 0 : this.w[s] & 1; }
-  f(s) { if (s < 0 || s + 32 > this.n) return NaN; F32.setInt32(0, this.w[s], true); return F32.getFloat32(0, true); }
+  bit(s) { return (s < 0 || s >= this.n) ? 0 : (this.q[s >>> 3] >>> (s & 7)) & 1; }
+  f(s) { if (s < 0 || s + 32 > this.n) return NaN; F32.setInt32(0, this.w32(s), true); return F32.getFloat32(0, true); }
 }
 const mkBits = p => new Bits(p);
 function demoRecords(data) {
@@ -8814,9 +8878,8 @@ function vehicleRot(B, p) {
 // a packet (bit 944, after other messages) and was shown as "Player 27" - so the whole packet is searched.
 const JOIN_HEAD = 5 | (130 << 7);   // the first 15 bits: type 5, then 130
 function scanJoin(B, out, t) {
-  const w = B.w;
   for (let s = 16; s + 72 <= B.n; s++) {
-    if ((w[s] & 0x7fff) !== JOIN_HEAD) continue;
+    if ((B.w32(s) & 0x7fff) !== JOIN_HEAD) continue;
     const idx = B.u(s + 15, 8); if (B.u(s + 23, 8) !== ((idx + 1) & 255) || B.u(s + 31, 25) !== 0) continue;
     let name = '', end = false;
     for (let o = s + 56; o + 8 <= B.n && name.length <= 40; o += 8) { const c = B.u(o, 8); if (!c) { end = true; break; } if (c < 32 || (c > 126 && c < 160)) break; name += String.fromCharCode(c); }
@@ -9379,14 +9442,14 @@ function ticketRecord(B, s, out, t) {
 // until v38), but only set bits are visited, once: ~4x faster. st: output lists and what to look for (rot: rotations
 // etc. of known objects, cp: flag updates).
 function scanRecords(B, t, st) {
-  const n = B.n, w = B.w, end = n - 55, rot = st.rot, cp = st.cp;
+  const n = B.n, end = n - 55, rot = st.rot, cp = st.cp;
   let sx = null, vx = null;
   // only the set bits are visited: 32 at a time, lowest first
   for (let base = 0; base < end; base += 32) {
-    let bits = w[base]; if (end - base < 32) bits &= (1 << (end - base)) - 1;
+    let bits = B.w32(base); if (end - base < 32) bits &= (1 << (end - base)) - 1;
     while (bits) {
       const low = bits & -bits; bits ^= low;
-      const r = base + 31 - Math.clz32(low), h = w[r + 13];
+      const r = base + 31 - Math.clz32(low), h = B.w32(r + 13);
       if (cp && (h & 255) === CP_UPD && r < n - 71) cpRecord(B, r, st.cps, st.cpEv, t);
       if (h & 62) continue;
       if (rot) rotRecord(B, r, t, st);
@@ -9539,9 +9602,8 @@ function ghostRecs(B, p, cnt) {
 }
 // the packet's block { b: its first bit, recs }, or null
 function ghostBlock(B, typ, tick) {
-  const w = B.w;
   for (let b = typ === 4 ? 0 : 16; b + 44 <= B.n; b++) {
-    if ((w[b + 3] >>> 0) !== tick) { if (typ === 4) return null; continue; }
+    if ((B.w32(b + 3) >>> 0) !== tick) { if (typ === 4) return null; continue; }
     const R = ghostRecs(B, b + 44, B.u(b + 35, 9)); if (R) return { b, recs: R };
     if (typ === 4) return null;
   }
@@ -9612,7 +9674,7 @@ function playerRecord(B, P, L) {
 }
 // the same work as scanRecords, on the block's records only
 function scanRecs(B, recs, t, st) {
-  const n = B.n, w = B.w, rot = st.rot, cp = st.cp, vt = st.vehTpl, em = st.statIds;
+  const n = B.n, rot = st.rot, cp = st.cp, vt = st.vehTpl, em = st.statIds;
   for (let k = 0; k < recs.length; k++) {
     const rc = recs[k]; if (rc.gone) continue;
     if (st.pgs) { const gid = B.u(rc.s + 2, 16); if (gid >= 1 && gid <= 256 && rc.L >= 30) { const f = playerRecord(B, rc.s + 32, rc.L); if (f) { if (f.spawnAt !== undefined) f.spawnAt = +((f.spawnAt - st.tick0) / 30).toFixed(2); st.pgs.push([t, gid - 1, f]); continue; } } }
@@ -9623,7 +9685,7 @@ function scanRecs(B, recs, t, st) {
       continue;
     }
     if (em.has(rc.id)) { empRecord(B, rc, t, st); continue; }
-    const r = rc.s, h = w[r + 13];
+    const r = rc.s, h = B.w32(r + 13);
     // (v135) a flag's record read exactly (every kind of update - before, only the ones with the take-over level, in
     // type 4 packets: =FL= 21:23 lost 9 of 25 changes of hands, Square taken by MEC at 3:40 among them)
     if (st.cps.has(rc.id)) { const f = cpExact(B, rc.s + 32, rc.L); if (f) { st.cpEv.push({ t, cp: rc.id, ...f }); continue; } }
@@ -9782,6 +9844,19 @@ async function decodeDemo(data, progress) {
   const settings = PA.settings ? { ...PA.settings, ...(PA.maxPlayers ? { maxPlayers: PA.maxPlayers } : {}), ...(PA.commander !== undefined ? { commander: PA.commander } : {}) } : null;
   return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, settings, players, joins, obs, evs, rot, hp, vhp, stance, item, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, objs: [...objs.entries()].filter(([id, o]) => o.hits.length && o.L >= 100 && o.L <= 120 && o.hits.length <= 300 && !sids.has(id) && !vehTpl.has(id) && !statIds.has(id) && !cps.has(id)).map(([, o]) => o), packets: { exact: nBlk, searched: nOld, events: nX, eventsLost: nXbad, vehiclesAdded: nXv, emplacementsAdded: nXs }, tplOf: id => vehTpl.get(id), pgs: st.pgs, sst: st.sst, chObs: st.chObs, xev, uav: st.uav, sgu: st.sgu,
     progress: progress ? f => progress(0.6 + 0.4 * f, 'build') : null });
+}
+// the k-th smallest of f(each item) (k from 0), as Float64Array.from(L, f).sort()[k] gives it (NaN after every number)
+function kthOf(L, f, k) {
+  const a = new Float64Array(L.length); let n = 0, nan = 0;
+  for (let i = 0; i < L.length; i++) { const v = f(L[i]); if (v !== v) nan++; else a[n++] = v; }
+  if (k >= n) return NaN;
+  let lo = 0, hi = n - 1;
+  while (lo < hi) {   // (Hoare's selection: the part with k in it, until it is one number)
+    const p = a[(lo + hi) >>> 1]; let i = lo, j = hi;
+    while (i <= j) { while (a[i] < p) i++; while (a[j] > p) j--; if (i <= j) { const x = a[i]; a[i] = a[j]; a[j] = x; i++; j--; } }
+    if (k <= j) hi = j; else if (k >= i) lo = i; else return a[k];
+  }
+  return a[k];
 }
 async function buildTimeline(r) {
   // progress (0..1 of this part) and, on the page's own thread, a moment for the browser between the heavier steps
@@ -10430,8 +10505,7 @@ async function buildTimeline(r) {
   // the map's size where the game files don't give it (a map not among the 22): from how far out the objects go (v138:
   // worked out here, before the spawn groups use it - after them, a map not in GAME.maps failed with "Cannot access 'size'
   // before initialization" since v135)
-  const ext = Float64Array.from(r.obs, o => Math.max(Math.abs(o[3]), Math.abs(o[5]))).sort();
-  const m = ext.length ? ext[Math.floor(ext.length * 0.99)] : 512;
+  const m = r.obs.length ? kthOf(r.obs, o => Math.max(Math.abs(o[3]), Math.abs(o[5])), Math.floor(r.obs.length * 0.99)) : 512;
   const size = [1024, 2048, 4096].find(s => s >= m * 2.1) || 4096;
   const vt = tm => tm === 1 ? 0 : tm === 2 ? 1 : -1;
   const cpl = (r.cps || []).slice().sort((a, b) => b.pos[2] - a.pos[2]);
@@ -10672,7 +10746,15 @@ async function buildTimeline(r) {
       const o = S.last; if (!o) continue;
       let x = o[1], y = o[2], z = o[3], yw = S.yaw || 0, veh = '';
       const R = S.R; let rd = null, lo = null;
-      if (R) for (const q of R) { if (q[0] < o[0] - 0.5) continue; if (q[0] <= t && t < q[2]) rd = q; else if (q[2] <= t) lo = q; }
+      if (R) {
+        // (the rides in order of their start, none ending before it starts: from the first one that can count, up to the
+        // first starting after t - the same as going through all of them, without going through all of them every frame)
+        if (S.rOk === undefined) S.rOk = R.every((q, k) => !(q[2] < q[0]) && (k === 0 || R[k - 1][0] <= q[0]));
+        if (S.rOk) {
+          let k = S.rk || 0; const lim = o[0] - 0.5; while (k < R.length && R[k][0] < lim) k++; S.rk = k;
+          for (; k < R.length; k++) { const q = R[k]; if (q[0] > t) break; if (t < q[2]) rd = q; else if (q[2] <= t) lo = q; }
+        } else for (const q of R) { if (q[0] < o[0] - 0.5) continue; if (q[0] <= t && t < q[2]) rd = q; else if (q[2] <= t) lo = q; }
+      }
       if (rd && vlast.has(rd[1])) { const v = rd[1], vo = vlast.get(v); x = vo[1]; y = vo[2]; z = vo[3]; yw = vyaw.get(v) || 0; veh = vname.get(v); }
       else {
         // just got out, his own records not started yet: he stands where the vehicle was when he left it (not where he

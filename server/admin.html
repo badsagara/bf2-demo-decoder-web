@@ -40,6 +40,11 @@ pre { margin: 8px 0 0; padding: 10px; background: var(--bg); border: 1px solid v
 .src { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-top: 1px solid var(--line); } .src:first-child { border-top: 0; }
 .src .u { flex: 1; min-width: 0; overflow-wrap: anywhere; } .tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 3px; padding: 0 5px; white-space: nowrap; }
 .addsrc { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; } .addsrc input { flex: 1 1 220px; }
+/* (v162) how many demos at once */
+.jobs { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.jobs select { width: auto; }
+.jobs table { margin-top: 6px; font-size: 12.5px; } .jobs td.n, .jobs th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.jobs tr.best td { color: var(--ok); } .jobs tr.cur td:first-child::after { content: ' ◂ now'; color: var(--accent); }
 details summary { cursor: pointer; color: var(--muted); }
 [hidden] { display: none !important; }
 td.mono { overflow-wrap: anywhere; }
@@ -92,6 +97,7 @@ td.mono { overflow-wrap: anywhere; }
     <div class="row"><span class="big" id="qN">–</span><span class="muted" id="qInfo"></span></div>
     <div id="rp"></div>
     <div class="row" id="badRow"></div>
+    <div class="jobs" id="jobs"></div>
   </section>
 
   <section class="card" aria-labelledby="hD">
@@ -258,7 +264,32 @@ function render() {
     if (document.activeElement !== $('#nMin')) $('#nMin').value = N.minPlayers;
     const any = (N.discord || (N.tgToken && N.tgChat)); $('#nTest').disabled = !any; $('#nLast').disabled = !any;
   }
+  renderJobs();
   $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
+}
+// (v162) how many demos are decoded at once: the choice, the machine, what is being decoded now, how fast each number went
+const GB = 2 ** 30, PER_JOB = 1.2 * GB;
+let jobsPick = null;   // (chosen, not saved yet: kept over the 5 s refreshes)
+function renderJobs() {
+  const D = S.decode, box = $('#jobs'); if (!D) { box.innerHTML = ''; return; }
+  if (box.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;   // (not while choosing)
+  const N = D.now, pick = jobsPick ?? D.set, top = Math.min(D.max, Math.max(4, D.cpus, D.set || 0, pick));
+  const opts = [`<option value="0"${!pick ? ' selected' : ''}>automatic (${D.auto})</option>`].concat(Array.from({ length: top }, (_, i) => i + 1).map(n => `<option value="${n}"${pick === n ? ' selected' : ''}>${n}${n * PER_JOB > D.mem ? ' (more memory than there is)' : ''}</option>`));
+  const choose = D.conf ? `<b>${D.jobs}</b> <span class="tag" title="Edited in /etc/bf2replay.conf on the VPS: remove it there to choose here">BF2R_JOBS</span>`
+    : `<select id="jobsSel" aria-label="Demos decoded at once">${opts.join('')}</select><button type="button" id="jobsSave">Save</button>`;
+  const now = N ? `<div class="row"><span><b>Decoding ${N.kind === 'again' ? 'old rounds again' : 'new demos'}:</b> ${N.done} / ${N.total} <span class="muted">(${N.busy} running, ${N.jobs} at once)</span></span></div>` : '';
+  const need = D.jobs * PER_JOB, warn = need > D.avail ? `<div class="row warn">${D.jobs} at once may need ~${(need / GB).toFixed(1)} GB: more than the ${(D.avail / GB).toFixed(1)} GB free now - the system can stop a decoding thread (or all of ingest) when memory runs out</div>` : '';
+  const by = Object.entries(D.stats?.by || {}).map(([j, o]) => ({ j: +j, n: o.n, mbm: o.secs ? o.bytes / o.secs * +j * 60 / 1e6 : 0, rpm: o.secs ? o.n / o.secs * +j * 60 : 0, each: o.n ? o.secs / o.n : 0 })).filter(o => o.n).sort((a, b) => a.j - b.j);
+  const best = by.filter(o => o.n >= 3).reduce((b, o) => !b || o.mbm > b.mbm ? o : b, null);
+  const table = by.length ? `<table><thead><tr><th>At once</th><th class="n">Demos</th><th class="n">MB a min</th><th class="n">Rounds a min</th><th class="n">Each took</th></tr></thead><tbody>${by.map(o => `<tr class="${best && o.j === best.j && by.length > 1 ? 'best' : ''}${o.j === D.jobs ? ' cur' : ''}"><td>${o.j}</td><td class="n">${o.n}</td><td class="n">${o.mbm.toFixed(0)}</td><td class="n">${o.rpm.toFixed(1)}</td><td class="n">${o.each.toFixed(1)} s</td></tr>`).join('')}</tbody></table>
+    <div class="row muted" style="font-size:12px;align-items:center"><span>${best && by.length > 1 ? `fastest so far: <b class="ok">${best.j} at once</b> · ` : ''}measured here${D.stats?.since ? ' since <span style="white-space:nowrap">' + esc(String(D.stats.since).slice(0, 10)) + '</span>' : ''}</span><button type="button" id="jobsReset" style="padding:2px 8px">Clear</button></div>` : '<div class="row muted" style="font-size:12px">No speeds measured yet: they come with the next demos decoded (2 or more waiting at a time).</div>';
+  box.innerHTML = `${now}<div class="row" style="align-items:center"><label for="jobsSel">Demos at once</label>${choose}</div>
+    <div class="row muted" style="font-size:12px">VPS: ${D.cpus} core${D.cpus === 1 ? '' : 's'}${D.cpu ? ' (' + esc(D.cpu) + ')' : ''} · ${(D.mem / GB).toFixed(1)} GB memory, ${(D.avail / GB).toFixed(1)} GB free · load ${D.load.map(x => x.toFixed(1)).join(' ')} · each demo at once takes up to ~1.2 GB</div>
+    ${warn}${table}
+    <details style="margin-top:6px"><summary>How to find the best number</summary><p class="muted" style="font-size:12.5px;margin:6px 0 0">Choose a number and let a batch decode - "Decode old rounds again" (or "Decode every round again"), or many new demos at once - then look at <b>MB a min</b>: the bigger, the faster. Then the next number. A change takes effect within seconds, also while decoding. More than the cores rarely helps (each demo then takes longer); each one needs up to ~1.2 GB of memory. Automatic: the cores, the memory, at most 4.</p></details>`;
+  if ($('#jobsSel')) $('#jobsSel').onchange = () => { jobsPick = +$('#jobsSel').value; };
+  if ($('#jobsSave')) $('#jobsSave').onclick = () => { const v = +$('#jobsSel').value; act('jobs-set', { jobs: v }, $('#jobsSave')).then(j => { if (j && j.ok) jobsPick = null; }); };
+  if ($('#jobsReset')) $('#jobsReset').onclick = () => { if (confirm('Clear the measured speeds? They are measured again from the next demos.')) act('jobs-set', { reset: true }, $('#jobsReset')); };
 }
 async function refresh() { try { const j = await api('state'); if (j.error) return; S = j; render(); } catch (e) {} }
 async function act(what, body, btn) {

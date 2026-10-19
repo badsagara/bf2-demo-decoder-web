@@ -3,8 +3,9 @@
 // the decoder, the demos waiting to be decoded, decoding again after an update, the services, the disk) and does what
 // otherwise needs a shell on the VPS: decode the waiting demos now, decode old rounds again (or all), try the demos that
 // failed again, fetch new demos now, update from GitHub, back up; add and remove game servers / demo pages to fetch from
-// (and check one first); where new rounds are posted (Discord / Telegram: notify.mjs); read the services' logs. Nothing
-// here deletes a demo or a round.
+// (and check one first); where new rounds are posted (Discord / Telegram: notify.mjs); how many demos are decoded at once
+// (v162: data/.ingest.json, with how fast each number went - to pick the best for this machine); read the services'
+// logs. Nothing here deletes a demo or a round.
 //
 //   node admin.mjs                  the admin server (bf2replay-admin.service, as bf2replay): http://127.0.0.1:8781,
 //                                   Caddy sends /admin* to it
@@ -20,6 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import crypto from 'node:crypto';
+import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE } from './notify.mjs';
 
@@ -28,6 +30,7 @@ try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\
 const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
 const ROOT = opt('BF2R_ROOT', '/srv/bf2replay'), SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
 const BAD = path.join(DATA, 'bad'), SOURCES = path.join(DATA, '.fetch-sources.json');
+const JOBS_FILE = path.join(DATA, '.ingest.json'), STATS_FILE = path.join(DATA, '.ingest-stats.json'), NOW_FILE = path.join(DATA, '.ingest-now.json'), JOBS_MAX = 16;
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const PASS_FILE = opt('BF2R_ADMIN_PASS_FILE', '/etc/bf2replay-admin.json');
 const PORT = +opt('BF2R_ADMIN_PORT', '8781'), HOST = '127.0.0.1';
@@ -161,8 +164,28 @@ async function state() {
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
     units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
     sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
-    settings, password: !!readPass(), notify: notifyState()
+    settings, password: !!readPass(), notify: notifyState(), decode: decodeState()
   };
+}
+// (v162) how many demos ingest.mjs decodes at once: BF2R_JOBS from /etc/bf2replay.conf when set (it wins), else the
+// number chosen here (data/.ingest.json; 0 = automatic), else automatic - the cores, the memory at ~1.2 GB a demo, at
+// most 4 (as ingest.mjs works it out). With the machine, what is being decoded now and how fast each number went
+const autoJobs = () => Math.min(4, os.cpus().length || 1, Math.max(1, Math.floor(os.totalmem() / (1.2 * 2 ** 30))));
+function memAvailable() { try { const m = /MemAvailable:\s+(\d+) kB/.exec(fs.readFileSync('/proc/meminfo', 'utf8')); if (m) return +m[1] * 1024; } catch (e) {} return os.freemem(); }
+function decodeState() {
+  const conf = Math.max(0, Math.floor(+opt('BF2R_JOBS', '0')) || 0), set = Math.max(0, Math.floor(+readJson(JOBS_FILE, {})?.jobs) || 0), auto = autoJobs();
+  let now = readJson(NOW_FILE, null);
+  if (now && !(now.pid && fs.existsSync('/proc/' + now.pid) && Date.now() - Date.parse(now.updated || 0) < 30 * 60e3)) now = null;   // (left behind by a run that was stopped)
+  const cpus = os.cpus();
+  return { conf: conf || null, set, auto, jobs: Math.min(JOBS_MAX, conf || set || auto), max: JOBS_MAX, cpus: cpus.length, cpu: String(cpus[0]?.model || '').replace(/\s+/g, ' ').trim(),
+    mem: os.totalmem(), avail: memAvailable(), load: os.loadavg().map(x => +x.toFixed(2)), now, stats: readJson(STATS_FILE, null) };
+}
+function jobsSet(b) {
+  if (b.reset) { const S = readJson(STATS_FILE, null); writeJson(STATS_FILE, { machine: S?.machine || '', by: {}, since: new Date().toISOString() }); log('decoding speeds cleared'); return { ok: true, msg: 'speeds cleared: they are measured again from the next demos' }; }
+  const n = Math.floor(+b.jobs); if (!(n >= 0 && n <= JOBS_MAX)) return { ok: false, msg: `0 (automatic) to ${JOBS_MAX}` };
+  writeJson(JOBS_FILE, { jobs: n, set: new Date().toISOString() }); log('demos decoded at once:', n || 'automatic');
+  const conf = Math.max(0, Math.floor(+opt('BF2R_JOBS', '0')) || 0);
+  return { ok: true, msg: (n ? `${n} at once` : `automatic (${autoJobs()} at once here)`) + (conf ? ` - but BF2R_JOBS=${conf} in /etc/bf2replay.conf wins: remove it there` : ': from the next demo on (also while decoding now)') };
 }
 // (v153) the round posts (notify.mjs): where to, with the secrets shown only by their last 4 characters
 function notifyState() {
@@ -272,6 +295,7 @@ const server = http.createServer(async (req, res) => {
     if (what === 'probe') { const a = String(b.url || '').trim(); if (a && !SOURCE_RE.test(a)) return send(res, 200, { ok: false, out: 'not an address' }); return send(res, 200, await fetchLook(a ? ['--probe', a] : ['--probe'], 60e3)); }
     if (what === 'fetch-list') return send(res, 200, await fetchLook(['--list'], 180e3));
     if (what === 'notify-set') return send(res, 200, notifySet(b));
+    if (what === 'jobs-set') return send(res, 200, jobsSet(b));
     if (what === 'notify-test') return send(res, 200, await notifyRun('--test'));
     if (what === 'notify-last') return send(res, 200, await notifyRun('--last'));
     return send(res, 404, { error: 'not found' });
