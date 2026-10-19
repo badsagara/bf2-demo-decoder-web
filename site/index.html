@@ -287,6 +287,7 @@ input[type=file] { display: none; }
 .mapplay :is(.qwall, .qrel, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapbox canvas { touch-action: none; }
 /* the ground's height under the pointer (relief layer) */
+.htip.zt { white-space: normal; width: max-content; max-width: min(470px, calc(100% - 8px)); background: color-mix(in srgb, var(--bg) 95%, transparent); padding: 4px 8px; }
 .htip { position: absolute; z-index: 4; pointer-events: none; font: 500 11px/1.35 var(--font-data); color: var(--fg); background: color-mix(in srgb, var(--bg) 88%, transparent); border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px; white-space: nowrap; }
 .htip .w { color: var(--muted); }
 /* decoding a demo: progress over the map (the map stays usable underneath) */
@@ -949,7 +950,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v167';
+const APP_VERSION = 'v168';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1833,7 +1834,7 @@ function seenBy(i, tt) {
 // small-arms kills on foot the killer could see the victim in the last second (the rest: shots through crates, fences
 // and wagons (bullets go through some), peeking round corners; BF2 destroys no cover but bridges and red barrels)
 const LOS = new Map();   // map key -> data, 'loading', or null (none for this map / failed)
-window.__bf2los = (k, b64, brk) => { decodeLos(b64, brk).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; round._brk = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
+window.__bf2los = (k, b64, brk) => { decodeLos(b64, brk).then(D => { LOS.set(k, D); if (round && mapKey() === k) { round._eng = null; round._veng = null; round._spotter = null; round._spotC = null; round._spotN = null; round._hl = null; round._adm = null; round._brk = null; round._cz = null; renderHighlights(); renderAdmin(); refresh(true); if (sideKill) drawSide(); engWarm(round); } }).catch(e => { console.warn('Sight lines for ' + k + ':', e); LOS.set(k, null); }); };
 function losData() {
   const k = mapKey(), v = LOS.get(k);
   if (v === undefined) {
@@ -2191,14 +2192,61 @@ function chargeText(e, html) {
   const ago = Math.max(0, t - e.t), agoT = ago < 60 ? Math.round(ago) + ' s ago' : Math.round(ago / 60) + ' min ago';
   return `${html ? '<b>' + esc(e.kind) + '</b>' + esc(on) : e.kind + on} · put by ${who} · ${fmt(e.t)}, ${agoT}`;
 }
+// (v168) the flag under the pointer (its icon or its name), or null
+function flagAt(mx, my) {
+  if (!round || !round.flags) return null; const k = 57 / 33; let best = null, bd = Infinity;
+  round.flags.forEach((f, i) => {
+    const [px, py] = toC(f.x, f.y);
+    let hit = mx >= px - 6 && mx <= px + 18 * k + 3 && my >= py - 13 * k && my <= py + 6;
+    if (!hit && opts.lab.flags) hit = mx >= px + 18 * k + 3 && mx <= px + 18 * k + 8 + f.name.length * 7.5 && my >= py - 18 && my <= py;
+    if (hit) { const d = Math.hypot(mx - px - 10, my - py + 8); if (d < bd) { bd = d; best = i; } }
+  });
+  return best;
+}
+// a soldier where a tap lands (pickAt would take him)
+const someoneAt = (mx, my) => round.players.some((p, i) => { const q = playerAt(i, t); if (!q.alive) return false; const [px, py] = round._spread?.get(i) || toC(q.x, q.y); return Math.hypot(px - mx, py - my) < 14; });
+const m1 = v => String(Math.round(v * 10) / 10);
+// what the zone of flag k is, for the hover tip (html) or a toast
+function zoneText(k, html) {
+  const R = round, f = R.flags[k], z = zoneOf(R, k); if (!f || !z) return '';
+  const b = x => html ? '<b>' + esc(x) + '</b>' : x, w = x => html ? `<span class="w">${x}</span>` : x;
+  if (f.main) return `${b(f.name)} · main base: it can't be taken`;
+  const ct = (cpTimes(R) || [])[k], tm = ct && ct[2] > 0 && ct[3] > 0 ? `one man: flag down in ${ct[3]} s, up in ${ct[2]} s; two: twice as fast` : '';
+  const at = z.off[0] || z.off[1] || z.off[2] ? `its centre${z.off[1] ? ' ' + m1(Math.abs(z.off[1])) + ' m ' + (z.off[1] < 0 ? 'below' : 'above') + ' the pole' : ' off the pole'}` : 'the pole’s foot';
+  if (!html) return `${f.name}: capture zone ${m1(z.R)} m round ${at}, in 3D${z.hemi ? ', only above it' : ''}${tm ? ' · ' + tm : ''}`;
+  return `${b(f.name)} · capture zone: ${m1(z.R)} m from ${at}, in 3D${z.hemi ? ', only above it' : ''}<br>`
+    + `(the level’s ${m1(z.r)} m + ${ZONE_FOOT} m) · ` + (z.flat ? 'drawn as flat ground' : `bright: standing lowest, out to ${m1(z.g)} m`) + '<br>'
+    + (z.n2 >= 16 ? 'paler: only from a floor or roof higher up<br>' : '') + (z.n3 >= 16 ? 'hatched: not from the floor or roof above it<br>' : '')
+    + w(`${tm ? tm + '<br>' : ''}left alone it slides back at half the one-man speed<br>from a vehicle further: jeep +3 m, APC +4–5, tank +7, heli +11–13`);
+}
+// the zone of flag k on the map (screen only)
+function drawZone(k) {
+  const z = zoneOf(round, k); if (!z || round.flags[k]?.main) return;
+  const col = css('--accent'), kk = size / view.span;
+  cx.save(); cx.transform(kk, 0, 0, -kk, -view.x0 * kk, view.y0 * kk); cx.lineJoin = 'round';
+  let E; if (z.flat) { E = new Path2D(); E.arc(z.x, z.y, z.rg, 0, Math.PI * 2); cx.fillStyle = col; cx.globalAlpha = 0.3; cx.fill(E); }
+  else {
+    E = z.edge; cx.fillStyle = col; cx.globalAlpha = 0.36; cx.fill(z.p1); cx.globalAlpha = 0.14; cx.fill(z.p2);
+    if (z.n3) {   // hatched: not from the floor or roof over it - lines 1.2 m apart across the squares
+      cx.save(); cx.clip(z.p3); const H = new Path2D(), L = z.N * ZONE_STEP; for (let d = -L; d <= L; d += 1.2) { H.moveTo(z.x0 + d, z.y0); H.lineTo(z.x0 + d + L, z.y0 + L); }
+      cx.globalAlpha = 0.9; cx.strokeStyle = css('--bg'); cx.lineWidth = 1.6 / kk; cx.stroke(H); cx.restore();
+    }
+  }
+  cx.globalAlpha = 0.55; cx.strokeStyle = css('--bg'); cx.lineWidth = 3.2 / kk; cx.stroke(E);
+  cx.globalAlpha = 1; cx.strokeStyle = col; cx.lineWidth = 1.5 / kk; cx.stroke(E);
+  if (z.off[0] || z.off[2]) { const a = 2.5; cx.beginPath(); cx.moveTo(z.x - a, z.y - a); cx.lineTo(z.x + a, z.y + a); cx.moveTo(z.x - a, z.y + a); cx.lineTo(z.x + a, z.y - a); cx.lineWidth = 1.5 / kk; cx.stroke(); }
+  cx.restore();
+}
 function hTipShow() {
   const el = $('#hTip'); if (!el) return;
   if (!round || !mapHover || pan) { el.hidden = true; return; }
   const [mx, my] = mapHover, ch = chargeAt(mx, my);   // (v167) a C4 / claymore / mine under the pointer: who put it - in any cursor mode
-  if (!ch && opts.cursor === 'off') { el.hidden = true; return; }
+  const fz = ch ? null : round._zk ?? null;   // (v168) a flag: its capture zone, in any cursor mode too
+  if (!ch && fz === null && opts.cursor === 'off') { el.hidden = true; return; }
   const x = view.x0 + mx / size * view.span, y = view.y0 - my / size * view.span, D = !ch && opts.cursor === 'height' ? losData() : null;
   let html;
   if (ch) html = chargeText(ch, true);
+  else if (fz !== null) html = zoneText(fz, true);
   else if (D) {
     const g = groundAt(D, x, y), wl = WATER[mapKey()] ?? -1e9;
     if (g < -1e8) { el.hidden = true; return; }
@@ -2212,9 +2260,13 @@ function hTipShow() {
     html = `<b>${gridOf(x, y)}</b> · ${r(x)}, ${r(y)} m`;
     if (sel !== null) { const q = playerAt(sel, t); if ((q.alive || q.down) && Number.isFinite(q.x)) { const dx = x - q.x, dy = y - q.y, d = Math.hypot(dx, dy); if (d >= 1) html += ` <span class="w">· ${d < 10 ? d.toFixed(1) : Math.round(d)} m ${COMPASS[Math.round(((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360 / 45) % 8]} of ${esc(round.players[sel].name)}</span>`; } }
   }
-  if (el._h !== html) { el.innerHTML = html; el._h = html; }
+  if (el._h !== html) { el.innerHTML = html; el._h = html; el.classList.toggle('zt', fz !== null); }
   el.hidden = false;
-  const W = el.offsetWidth, left = Math.max(0, Math.min(size - W, mx + 16 + W > size ? mx - 12 - W : mx + 16)), top = Math.max(0, my + 18 > sizeH - 22 ? my - 30 : my + 18);   // (v167: kept on the map both ways)
+  let W = el.offsetWidth, left = Math.max(0, Math.min(size - W, mx + 16 + W > size ? mx - 12 - W : mx + 16)), top = Math.max(0, my + 18 > sizeH - 22 ? my - 30 : my + 18);   // (v167: kept on the map both ways)
+  if (fz !== null) {   // (v168) the zone's tip under the zone (over it when there's no room), so the zone stays in sight
+    const z = zoneOf(round, fz), f = round.flags[fz], [fx, fy] = toC(z ? z.x : f.x, z ? z.y : f.y), rr = (z ? z.R : 0) * size / view.span + 8, H = el.offsetHeight;
+    left = Math.max(0, Math.min(size - W, fx - W / 2)); top = fy + rr + H <= sizeH ? fy + rr : fy - rr - H >= 0 ? fy - rr - H : Math.max(0, fy < sizeH / 2 ? sizeH - H : 0);   // (no room: the map's far edge)
+  }
   el.style.left = (cv.offsetLeft + left) + 'px'; el.style.top = (cv.offsetTop + top) + 'px';
 }
 // ---------- front line (v120, todo 118) ----------
@@ -3920,6 +3972,7 @@ function draw() {
     cx.strokeStyle = col; cx.lineWidth = 2.2; cx.globalAlpha = 1; cx.setLineDash([4, 3]); cx.stroke(); cx.setLineDash([]);
     cx.beginPath(); cx.arc(px, py, 3.2, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.strokeStyle = css('--bg'); cx.lineWidth = 1.2; cx.stroke();
   }
+  if (cx === cvCtx && round._zk != null) drawZone(round._zk);   // (v168) the flag under the pointer: its capture zone
   // flags
   const [fa] = frameAt(t);
   round.flags.forEach((f,i) => {
@@ -4915,6 +4968,11 @@ cv.addEventListener('pointerup', e => {
     const B = round._crowdOpen?.box; if (!(B && mx >= B[0] && mx <= B[2] && my >= B[1] && my <= B[3])) mapHover = null;
   }
   if (e.pointerType !== 'mouse' && round) { const r = cv.getBoundingClientRect(), ch = chargeAt(e.clientX - r.left, e.clientY - r.top); if (ch) { toast(chargeText(ch, false)); return; } }   // (v167)
+  if (e.pointerType !== 'mouse' && round) {   // (v168) a tap on a flag with nobody there: its capture zone (another tap hides it)
+    const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, fk = someoneAt(mx, my) ? null : flagAt(mx, my);
+    if (fk !== null) { round._zk = round._zk === fk ? null : fk; mapHover = round._zk !== null ? [mx, my] : null; draw(); hTipShow(); return; }
+    if (round._zk != null) { round._zk = null; mapHover = null; hTipShow(); }
+  }
   pickAt(e);
 });
 // the pointer over the map: a crowd under it fans out (spreadOut); redrawn only when that changes
@@ -4922,7 +4980,8 @@ let hoverRaf = 0;
 cv.addEventListener('pointermove', e => {
   if (pan || e.pointerType !== 'mouse' || !round) return;
   const r = cv.getBoundingClientRect(); mapHover = [e.clientX - r.left, e.clientY - r.top];
-  hTipShow();   // (v167: also over a placed charge with the cursor off)
+  const fk = chargeAt(...mapHover) ? null : flagAt(...mapHover);   // (v168) over a flag: its capture zone drawn
+  if (fk !== (round._zk ?? null)) { round._zk = fk; draw(); } else hTipShow();   // (v167: also over a placed charge with the cursor off)
   if (hoverRaf) return;
   hoverRaf = requestAnimationFrame(() => {
     hoverRaf = 0; if (!round || !mapHover) return;
@@ -4932,7 +4991,7 @@ cv.addEventListener('pointermove', e => {
     if (over || (O && !inOpen)) draw();
   });
 });
-cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; const had = round?._crowdOpen; mapHover = null; hTipShow(); if (had) draw(); });
+cv.addEventListener('pointerleave', e => { if (e.pointerType !== 'mouse') return; const had = round?._crowdOpen || round?._zk != null; mapHover = null; if (round) round._zk = null; hTipShow(); if (had) draw(); });
 cv.addEventListener('wheel', e => {
   e.preventDefault(); const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top;
   const [wx, wy] = toW(mx, my), k = Math.exp(Math.sign(e.deltaY) * 0.18);
@@ -6304,6 +6363,91 @@ function cpTimes(R) {
   }
   return (R._cpt = best && best.ok ? R.flags.map(f => f.main ? null : best.L.find(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 6) || null) : null);
 }
+// ---------- capture zones (v168, Sagara: "при наведенні на прапор можна було побачити зону захоплення цього прапора.
+// Точну зону захоплення, не теоретичну") ----------
+// What the game does, measured in 42 demos (Karkand, Wake, Dalian, Oman: the flag's level and its change a second as the
+// server sent them, 30 times a second, against where everyone was). A flag starts moving when a soldier comes within
+// the level's radius (ObjectTemplate.radius) + ZONE_FOOT m of the pole's foot, and that is in 3D, not on the map:
+// 303 times one soldier alone came near and it started, 148 times one left and it went back - 0.9 m past the radius
+// coming in, 1.4 m going out (the server sees him ~0.1 s late either way), 1.2 m at walking pace; the same on the
+// ground and on roofs 5-10 m up (Gatehouse, Cement Factory, Suburb), and a soldier 7 m to the side but 28 m over Wake's
+// North Base took nothing. A vehicle's crew take it from further, as far again as the vehicle is big: jeeps 2.5-3.5 m
+// more, APCs 4-5, tanks 6.5-7, helicopters 11-13, jets 10-16. The centre: the pole's foot (the ControlPoint's place
+// in GamePlayObjects.con), moved by ObjectTemplate.radiusOffset where the level sets one (Midnight Sun's Pumping
+// Station: 17.5 m down); isHemisphere 1: only the half over it. Speed: one man pulls the flag down in timeToLoseControl
+// s and raises his own in timeToGetControl s; each more man of his side there than of the other adds as much again
+// (x2 with two: 65 times, x3 with three: 16, x4 with four: 5; two against one: x1). Left alone, half the one-man speed back.
+// The zone on the map: each 25 cm square where a soldier standing there - on the ground, a floor or a roof (the tops of
+// the collision shapes in the sight-line data with 0.9 m free over them; his position is 1 m over his feet) - would be
+// in it. Bright: from the lowest place to stand there; paler: only from a floor or roof higher up. Without the
+// sight-line data: flat ground at the pole's foot.
+// CP_ZONE: per map and layout, each control point's [x, y north, height of the pole's foot (, radiusOffset x, up,
+// north, isHemisphere)] (from the level files)
+const CP_ZONE = {"dalian_plant":{"gpm_cq:64":[[88,-40,153.2],[786,49.7,191.9],[52,184,144.4],[246.8,-242.4,147.1],[-254,-210,153.3],[-706,-367,184.1],[-190.2,54.7,153.2],[-32.6,-391.1,153.3]],"gpm_cq:32":[[88,-40,153.2],[246.8,-242.4,147.1],[-32.5,-391.2,153.3],[786,49.7,191.9],[-254,-210,153.3],[-707,-367,184.1]],"gpm_cq:16":[[-92.3,-260.9,153.2],[-151.8,-58.9,153.2],[88,-40,153.2],[-254,-210,153.3]],"sp1:16":[[-92.3,-260.9,153.2],[-151.8,-58.9,153.2],[88,-40,153.2],[-254,-210,153.3]],"gpm_coop:16":[[-92.3,-260.9,153.2],[-151.8,-58.9,153.2],[88,-40,153.2],[-254,-210,153.3]]},"daqing_oilfields":{"gpm_cq:64":[[-245.7,380.4,173.8],[346,-578,139.8],[-53.5,-243.1,144.5],[129,255,152.5],[-212,21,155.4],[319,-103,139.8],[-363.7,-115.2,144],[67.8,-43.9,145.1],[486,175,137.4]],"gpm_cq:32":[[-245.7,380.4,173.8],[346,-578,139.8],[-53.5,-243.1,144.5],[129,255,152.5],[-212,21,155.4],[319,-103,139.8],[67.8,-43.9,145.1]],"gpm_cq:16":[[-53.5,-243.1,144.5],[129,255,152.5],[67.8,-43.9,145.1]],"sp1:16":[[-53.5,-243.1,144.5],[129,255,152.5],[67.8,-43.9,145.1]],"gpm_coop:16":[[-53.5,-243.1,144.5],[129,255,152.5],[67.8,-43.9,145.1]]},"dragon_valley":{"gpm_cq:64":[[-225.1,875.9,55.8],[-211.3,-430.1,92.3],[-224,479,54.8],[116.1,314.2,53.5],[-78,100,56.6],[-50.5,-227.4,66],[74.9,588.6,90.7],[-83.1,410.2,60.6],[122.4,-562.2,101.1],[382.6,822.5,87.8],[-298.4,-192.4,58.1]],"gpm_cq:32":[[116.1,314.2,53.5],[-78,100,56.6],[-298.4,-192.3,58.1],[122.5,-562.1,101.1],[-211.4,-430.1,92.3],[-50.5,-227.3,66]],"gpm_cq:16":[[122.6,-562.2,101.1],[-211.4,-430.1,92.3],[-50.5,-227.4,66],[-298.4,-192.3,58.1]],"sp1:16":[[122.6,-562.2,101.1],[-211.4,-430.1,92.3],[-50.5,-227.4,66],[-298.4,-192.3,58.1]],"gpm_coop:16":[[122.6,-562.2,101.1],[-211.4,-430.1,92.3],[-50.5,-227.4,66],[-298.4,-192.3,58.1]]},"fushe_pass":{"gpm_cq:64":[[-668.1,-493.8,123.9],[-531.5,231.7,94.9],[-248.9,287.5,130.6],[-150.3,-24.4,79.3],[139.2,128.1,77.5],[83,-199,93.5],[302,-203,84.5],[608.6,576.8,96],[276.8,125.6,157.1],[-273.9,-130.7,85.3]],"gpm_cq:32":[[-248.9,287.5,130.6],[139.2,128.1,77.5],[-150.3,-24.4,79.3],[83,-199.1,93.5],[-531.5,231.7,94.9],[302,-203,84.5]],"gpm_cq:16":[[-150.3,-24.4,79.3],[139.2,128,77.5],[94.4,-37,69]],"sp1:16":[[-150.3,-24.4,79.3],[139.2,128,77.5],[94.4,-37,69]],"gpm_coop:16":[[-150.3,-24.4,79.3],[139.2,128,77.5],[94.4,-37,69]]},"greatwall":{"gpm_cq:32":[[-157.9,-70,375.1,0,-7.5,7.5,0],[9,36,360.7,2,0,0,0],[128,255.8,335.4,-5,0,0,0],[-233,-264,334.8],[204,-56,345.3],[-306,100,341]],"gpm_cq:16":[[-58.5,13.7,388.1,0,-10,0,0],[-113,-41,374,0,0,-8,1],[-203,-4,365.8,3,0,0,0],[15,37,360.7],[-250,94,356],[-18,-64,362.5]],"sp1:64":[[-119.5,-39.6,373.7,0,-5,0,0],[18,34,362.6],[128,255.8,335.5],[-233,-264,334.8],[204,-56,345.5],[-50,506,309.9],[-84,-512,328.4],[-278,90,352.6]],"sp1:32":[[-119.5,-39.6,373.7,0,-5,0,0],[18,34,362.6],[128,255.8,335.5],[-233,-264,334.8],[204,-56,345.5],[-50,506,309.9],[-84,-512,328.4],[-278,90,352.6]],"sp1:16":[[16.4,55.1,360.7],[-56.5,-24.9,375.5,0,0,0,1],[68.9,-34.3,355.8,0,0,0,1],[-203,-4,365.8,3,0,0,0],[-157.9,-62.6,366.5,0,0,0,1],[-18,-64,362.6]],"gpm_coop:16":[[16.4,55.1,360.7],[-56.5,-24.9,375.5,0,0,0,1],[68.9,-34.3,355.8,0,0,0,1],[-203,-4,365.8,3,0,0,0],[-157.9,-62.6,366.5,0,0,0,1],[-18,-64,362.6]]},"gulf_of_oman":{"gpm_cq:64":[[281.8,-94.7,37.1],[49.4,33.5,40.4],[-133,176.2,25.7],[118,-253.6,38.2],[-65.2,-202.1,33.9],[-208.4,-141.1,33.3],[-331.5,28.2,30.2],[282,215.6,24.5],[-664.6,-553.5,66.3]],"gpm_cq:32":[[-664.6,-553.5,66.3],[-65.2,-202.1,33.9],[-208.4,-141.2,33.3],[-331.5,28.2,30.2],[281.8,-94.7,37.1],[49.4,33.5,40.4],[282,215.6,24.5]],"gpm_cq:16":[[34,-296.2,37.6],[124.8,-46.1,37.8],[10.3,-136.4,33.1],[49.4,33.5,40.4]],"sp1:16":[[34,-296.2,37.6],[124.8,-46.1,37.8],[10.2,-136.4,33.1],[49.4,33.5,40.4]],"gpm_coop:16":[[34,-296.2,37.6],[124.8,-46.1,37.8],[10.2,-136.4,33.1],[49.4,33.5,40.4]]},"highway_tampa":{"gpm_cq:64":[[608,-526,27.2],[-493,636.5,27],[-231.7,-503.5,27],[176.8,-614.3,27],[-290.7,-21.1,27],[-284.6,-781.1,27],[-729,-497,27],[105.9,-333.9,27]],"gpm_cq:32":[[608,-526,27.2],[-493,636.5,27],[-231.7,-503.5,27],[176.8,-614.2,27],[-290.7,-21.1,27],[106,-333.9,27]],"gpm_cq:16":[[608,-526,27.2],[106,-334,27],[176.8,-614.2,27],[-284.6,-781.1,27]]},"mashtuur_city":{"gpm_cq:64":[[-262,-21,44],[-368.6,-212.3,38],[-7.5,-82.2,50],[-159,-118.3,44],[-112,-222.3,44],[103.9,-322.9,80.9],[-404,188,84.4]],"gpm_cq:32":[[-262,-21,44],[-368.6,-212.3,38],[-7.5,-82.2,50],[-159,-118.3,44],[-112,-222.3,44]],"gpm_cq:16":[[-151.8,-222.3,44.1],[-261.9,-21,44],[-241.2,-161.4,38.1],[-173,-89,44]]},"midnight_sun":{"gpm_cq:64":[[-252.9,-373.4,82.7],[47,-20,100.3],[-618,-305.2,102.2],[-488,-143.5,82.1,0,0,2,0],[-179.9,-56.8,89.2],[13.6,-272.8,96],[248.4,-136.6,110.8,0,-17.5,0,0],[550.6,5.3,116]],"gpm_cq:32":[[-179.9,-56.8,89.2],[-488,-143.5,81.9,0,0,2,0],[13.6,-272.8,96],[248.4,-136.6,110.9,0,-17.5,0,0],[550.6,5.3,116],[-618,-305.2,102.2]],"gpm_cq:16":[[-188.7,-56.7,89.2,-4,0,0,0],[-488,-143.5,81.9,0,0,2,0],[-199.5,-193.1,85.3],[-385.1,-97,84.1]],"sp1:16":[[-488,-143.5,81.9,0,0,2,0],[-385.1,-97,84.1],[-193.1,-56.8,89.2],[-199.5,-193.1,85.3]],"gpm_coop:16":[[-488,-143.5,81.9,0,0,2,0],[-385.1,-97,84.1],[-193.1,-56.8,89.2],[-199.5,-193.1,85.3]]},"operationharvest":{"gpm_cq:64":[[350.7,-482.9,51.3],[199.3,568.4,30.5],[-438.5,-487.3,31.1],[-253.6,-296.9,33.4],[135.3,-260.2,52.8,-8,0,-10,0],[-137.3,-68.3,31.9,0,0,6,0],[180.2,80.5,29.8,0,0,0,1],[386.6,197.4,25.9,-9,0,5,0],[184,310.6,26.1,3,-5,-8,0]],"gpm_cq:32":[[-438.6,-487.3,31.5],[199.3,568.6,30.5],[-253.4,-296.8,33.3],[-383,-74.3,35.1,-8,-5,-6,0],[183.8,310.6,26.1,2,-5,-8,0],[386.3,196.8,25.9,-10,0,4,0],[180.3,80.5,29.8,0,0,0,1],[-137.6,-68.4,31.9,0,0,6,0]],"gpm_cq:16":[[-136.5,-68.2,31.9,0,0,5,0],[180.1,79.9,29.8,0,0,0,1],[386.9,197.4,25.9,-11,0,4,0],[472.1,435.7,28.9],[184,310.7,26.1,2,-5,-8,0]],"sp1:16":[[180.1,79.9,29.8,0,0,0,1],[386.9,197.4,25.9,-11,0,4,0],[472.1,435.7,28.9],[183.8,310.6,26.1,2,-5,-8,0]],"gpm_coop:16":[[180.1,79.9,29.8,0,0,0,1],[386.9,197.4,25.9,-11,0,4,0],[472.1,435.7,28.9],[183.8,310.6,26.1,2,-5,-8,0]]},"operationroadrage":{"gpm_cq:64":[[91.2,-370.1,48.8],[-186.1,-189.8,47.9],[-32.1,31.9,60.8,0,0,0,1],[86.3,234.6,48.8],[-129,399,51],[-136.2,823.8,57.1],[38,-746,48.8]],"gpm_cq:32":[[-129,399,51],[86.4,234.8,48.8],[-186.1,-189.7,47.9],[91.2,-370.1,48.8],[-32.1,31.9,60.8,0,0,0,1],[38,-746,48.8],[-136.1,824,57.1]],"gpm_cq:16":[[64.6,-148.3,53.9],[217.2,-235.2,59],[315.5,129.7,51.5],[-31.1,54.6,51.3,0,-10,0,1],[-187.2,-188.3,47.9]],"sp1:16":[[-27.6,-235.2,51.3,0,0,0,1],[-187.2,-188.3,47.9],[101.5,-103.8,53.8],[199.8,-165.8,56.8]],"gpm_coop:16":[[-27.6,-235.2,51.3,0,0,0,1],[-187.2,-188.3,47.9],[101.5,-103.8,53.8],[199.8,-165.8,56.8]]},"operationsmokescreen":{"gpm_cq:32":[[7.3,430.4,98.3],[-208.3,208.3,89.5,-1,0,-3,0],[-265.4,-87.6,106],[-110.8,-268.7,109.1],[72.5,-521.9,98.5],[152.7,-138,135.5,-3,0,-3,0],[4.4,-29.3,120.4]],"gpm_cq:16":[[-110.8,-268.8,109.2],[-265.4,-87.6,106],[-208.3,208.3,89.5,-1,0,-3,0],[72.5,-521.9,98.5]],"sp1:32":[[7.4,430.3,99.3],[-211.8,217.8,89.5],[-265.4,-87.6,106],[-110.8,-268.7,106.6],[72.5,-521.9,98.5],[148.4,-142.5,135.5]],"sp1:16":[[72.4,-521.9,98.5],[-110.8,-268.8,109.2,-3,0,-8,0],[-265.4,-87.6,106],[-208.3,208.3,89.5,-1,0,-3,0]],"gpm_coop:16":[[72.4,-521.9,98.5],[-110.8,-268.8,109.2,-3,0,-8,0],[-265.4,-87.6,106],[-208.3,208.3,89.5,-1,0,-3,0]]},"operation_blue_pearl":{"gpm_cq:64":[[19.8,-94,26.5],[-75.1,-197.2,26.2],[-103.3,-74.1,25.3],[-184,-128,22.2],[-304,-65.9,25],[-296.5,84,25],[-251.9,-164.1,25],[260.2,-109.2,25]],"gpm_cq:32":[[-184,-128,22.2],[-304,-66,25],[260.2,-109.2,25],[-75.2,-196.9,26.2],[19.8,-94.1,26.5],[-103.1,-74,25.5],[-251.9,-164,25.1]],"gpm_cq:16":[[-75.2,-196.9,26.2],[-103.3,-74.1,25.3],[-252,-162.8,25],[-304.1,-66,25]]},"operation_clean_sweep":{"gpm_cq:64":[[-552,544,29.7],[644,-96,30],[-538,-36,36.5],[-42,-424.1,32.9],[142,-598,32],[614,-281,32.3],[229.9,-364,36.8],[-308.1,-422.1,30.6]],"gpm_cq:32":[[-552,544,29.7],[-42,-424.1,32.9],[229.9,-364,36.8],[-538,-36,36.5],[-308.1,-422.1,30.6],[142,-598,32]],"gpm_cq:16":[[-552,544,29.7],[-538,-36,36.5],[-42,-424.1,32.9],[-308.1,-422.1,30.6]],"sp1:16":[[-552,544,29.7],[-538,-36,36.5],[-42,-424.1,32.9],[-308.1,-422.1,30.6]],"gpm_coop:16":[[-552,544,29.7],[-538,-36,36.5],[-42,-424.1,32.9],[-308.1,-422.1,30.6]]},"road_to_jalalabad":{"gpm_cq:64":[[-205.4,7.7,45.2],[-16.7,-207.8,39.1,-2,0,-3,0],[91.9,-263.2,40.2],[181.6,-170.3,37.6,-6.5,0,-2,0],[282.9,-138.2,42],[234.9,-42.1,44.4,-1,0,1,0],[293.1,55,47.9],[38.5,-40.9,37.5,3,0,3,0]],"gpm_cq:32":[[293.1,55,47.9],[282.9,-138.2,42],[91.9,-263.2,40.2],[-16.7,-207.8,39.1,-2,0,-3,0],[-205.4,7.7,45.2],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0]],"gpm_cq:16":[[282.9,-138.2,42],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0],[293.1,55,47.9]],"sp1:16":[[282.9,-138.2,42],[293.1,55,47.9],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0]],"gpm_coop:16":[[282.9,-138.2,42],[293.1,55,47.9],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0]]},"sharqi_peninsula":{"gpm_cq:64":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-316.3,-226.3,79.3],[-647.1,205.1,95.3],[-359,-115,101.2],[-307.6,-25.6,99.8],[-288.6,-597.2,74.1],[-605,-201.1,94.6],[-467.5,-77,99.6]],"gpm_cq:32":[[-112.4,-134.4,104.4,0,0,0,1],[-467.5,-77,99.6],[-647.1,205.1,95.3],[-276.8,-110.6,102.5,0,0,0,1],[-359,-115,101.2],[-316.3,-226.3,79.3],[-288.6,-597.2,74.1],[-605,-201,94.6]],"gpm_cq:16":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-188,-25.6,91.2],[-316.3,-226.3,79.3]],"sp1:16":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-188,-25.6,91.2],[-316.3,-226.3,79.3]],"gpm_coop:16":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-188,-25.6,91.2],[-316.3,-226.3,79.3]]},"songhua_stalemate":{"gpm_cq:64":[[201,128,170.4],[113,-179,172.4],[-5.8,-349.3,170.4],[-145.4,-91,168.3],[-176,-442,175],[-269,-175,168.1],[-496.9,-127.8,243.3],[290.7,-164.8,199.2]],"gpm_cq:32":[[113,-179,172.4],[-5.8,-349.3,170.4],[-145.4,-91,168.3],[-269,-175,168.1],[-496.8,-127.8,243.3],[290.7,-164.8,199.2]],"gpm_cq:16":[[113,-179,172.4],[-145.4,-91,168.3],[-269,-175,168.1],[-58,-229,168.9]],"sp1:16":[[113,-179,172.4],[-145.4,-91,168.3],[-269,-175,168.1],[-58,-229,168.9]],"gpm_coop:16":[[113,-179,172.4],[-145.4,-91,168.3],[-269,-175,168.1],[-58,-229,168.9]]},"strike_at_karkand":{"gpm_cq:64":[[-161,-262.8,161.3],[-194.4,11.4,158.2],[-220.1,98.1,155.8],[-122.4,256.6,149.9],[13.9,288.9,156],[29.4,164.4,150],[183,166,152.7],[104,231.1,152.7],[-323.7,220.2,168.4]],"gpm_cq:32":[[-194.4,11.3,158.2],[-220,98.1,155.8],[-122.4,256.6,149.9],[14,289,156],[-161,-262.9,161.3],[-196,183.6,149.9],[-323.8,220.2,168.4]],"gpm_cq:16":[[-194.4,11.4,158.2],[-196,183.6,149.9],[-161,-262.8,161.3],[-184.8,97.3,155.5]],"sp1:16":[[-194.4,11.4,158.2],[-196,183.6,149.9],[-161,-262.8,161.3],[-184.8,97.3,155.5]],"gpm_coop:16":[[-194.4,11.4,158.2],[-196,183.6,149.9],[-161,-262.8,161.3],[-184.8,97.3,155.5]]},"taraba_quarry":{"gpm_cq:32":[[-154.6,451,107.3],[427.2,-461.6,162.9],[159.2,-114.7,152.2],[-488.8,-553.2,165.3],[-396.9,-89.5,149.5],[-360,192.1,134.4],[18.5,186.6,133.7]],"gpm_cq:16":[[245.9,40.8,149.2],[425.2,-477.1,164],[50.3,-137.4,155.1],[18.5,186.3,133.7],[297.1,-242.3,165]],"sp1:32":[[-575.7,353.9,125.9]],"sp1:16":[[18.5,186.3,133.7],[245.9,40.8,149.2],[50.3,-137.4,155.1],[297.1,-242.3,165],[425.2,-477.1,164]],"gpm_coop:16":[[18.5,186.3,133.7],[245.9,40.8,149.2],[50.3,-137.4,155.1],[297.1,-242.3,165],[425.2,-477.1,164]]},"wake_island_2007":{"gpm_cq:64":[[-28,-168.5,91],[359.9,-248.7,101],[259.2,184.8,93.8],[34.9,198.8,95.6],[127.6,-302.4,86.6],[-681.2,694.5,130.7]]},"zatar_wetlands":{"gpm_cq:64":[[-565,482.1,37.5],[-772,102,43.2],[-53.2,-241.6,48],[258.6,-352.6,35.8],[482,-164,46.5],[727,-401.3,62.1],[-367.4,-330.2,39,0,0,0,1],[-441.1,-59,39],[-432.6,925.4,65.6]],"gpm_cq:32":[[-772,102,43.2],[-441.1,-59,39],[-367.4,-330.2,39,0,0,0,1],[-53.2,-241.6,48],[258.6,-352.6,35.8],[482,-164,46.5],[727,-401.3,62.1]],"gpm_cq:16":[[-53.2,-241.6,48],[-367.4,-330.3,39,0,0,0,1],[258.6,-352.6,35.8]],"sp1:16":[[-53.2,-241.6,48],[-367.4,-330.3,39,0,0,0,1],[258.6,-352.6,35.8]],"gpm_coop:16":[[-53.2,-241.6,48],[-367.4,-330.3,39,0,0,0,1],[258.6,-352.6,35.8]]},"kubra_dam":{"gpm_cq:64":[[162,184,74.5],[-72.8,105.1,62.4],[-354,156,54],[-220,294,68.1],[-260,-14,69],[-401.6,-223.4,73],[-205.5,-274.9,131.7],[-495,-105.9,118],[-388.9,-520.2,69.5]],"gpm_cq:32":[[162,184,74.5],[-72.8,105.1,62.4],[-354,156,54],[-260,-14,69],[-205.5,-274.9,131.7],[-495,-105.9,118],[-388.9,-520.2,69.5],[-401.6,-223.4,73]],"gpm_cq:16":[[-401.6,-223.4,73],[-426.8,-244.1,127],[-205.5,-274.9,131.7],[-495,-105.9,118]]}};
+const ZONE_FOOT = 1.2, ZONE_STEP = 0.25;
+function cpZones(R) {
+  if (R._cpz !== undefined) return R._cpz;
+  const lay = CP_ZONE[String(R.meta.map || '').toLowerCase()], fl = R.flags; let best = null;
+  if (lay) for (const [k, L] of Object.entries(lay)) {
+    let ok = 0; for (const f of fl) if (L.some(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 3)) ok++;
+    const sc = ok * 10 - (fl.length - ok) * 20 - Math.abs(L.length - fl.length) + (/^gpm_cq/.test(k) ? 0.5 : 0);
+    if (!best || sc > best.sc) best = { sc, L, ok };
+  }
+  return (R._cpz = best && best.ok ? fl.map(f => best.L.find(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 3) || null) : null);
+}
+// flag k's zone: { x, y (its centre on the map), h (height), R, hemi, flat (no ground data: a circle rg wide) or the
+// squares (M: 1 bright, 2 paler; N x N from x0, y0) and their paths (p1, p2, edge), g: how far out the bright part goes }
+function zoneOf(R, k) {
+  const Z = R._cz || (R._cz = []); if (Z[k]) return Z[k];
+  const f = R.flags[k]; if (!f) return null;
+  const c = (cpZones(R) || [])[k] || null, D = losData(), lk = LOS.get(mapKey()), o = c && c.length > 3 ? c.slice(3, 6) : [0, 0, 0];
+  const x = (c ? c[0] : f.x) + o[0], y = (c ? c[1] : f.y) + o[2], R0 = (f.r || 10) + ZONE_FOOT, R2 = R0 * R0;
+  const g0 = D ? groundAt(D, c ? c[0] : f.x, c ? c[1] : f.y) : -1e9, h = c ? c[2] + o[1] : g0 > -1e8 ? g0 : null;
+  const z = { k, x, y, h, R: R0, r: f.r || 10, hemi: !!(c && c[6]), off: o, known: !!c };
+  if (!D || h == null) { z.flat = true; z.rg = Math.sqrt(R2 - 1); z.g = z.rg; if (lk !== 'loading') Z[k] = z; return z; }
+  const S = ZONE_STEP, N = Math.ceil(2 * R0 / S), x0 = x - N * S / 2, y0 = y - N * S / 2, M = new Uint8Array(N * N), wl = WATER[mapKey()] ?? -1e9;
+  let g = 0, n2 = 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const px = x0 + (i + 0.5) * S, py = y0 + (j + 0.5) * S, d2 = (px - x) ** 2 + (py - y) ** 2; if (d2 > R2) continue;
+    const gr = Math.max(wl, groundAt(D, px, py)); if (gr < -1e8) continue;
+    const cc = gridCell(D, px, py), a = cc < 0 ? 0 : D.cs[cc], b = cc < 0 ? 0 : D.cs[cc + 1];
+    const cand = [gr]; for (let m = a; m < b; m++) { const top = D.sp[2 * m + 1] / 10; if (top > gr + 0.15) cand.push(top); }
+    if (cand.length > 1) cand.sort((u, v) => u - v);
+    // each place to stand there, lowest first: in the zone or not (1 bright: from the lowest; 2 paler: only from higher
+    // up; 3 hatched: from the lowest but not from a floor or roof 2 m or more over it)
+    let low = null, v = 0;
+    for (const sf of cand) {
+      const lo10 = (sf + 0.15) * 10, hi10 = (sf + 0.9) * 10; let free = true;
+      for (let m = a; m < b; m++) if (D.sp[2 * m] < hi10 && D.sp[2 * m + 1] > lo10) { free = false; break; }
+      if (!free) continue;
+      const dy = sf + 1 - h, inn = (!z.hemi || dy >= 0) && d2 + dy * dy <= R2;
+      if (low === null) { low = sf; v = inn ? 1 : 0; continue; }
+      if (inn && !v) v = 2; else if (!inn && v === 1 && sf >= low + 2) v = 3;
+    }
+    if (!v) continue;
+    M[j * N + i] = v; if (v !== 2) g = Math.max(g, Math.sqrt(d2)); else n2++;
+  }
+  // (a lone post, fence or lamp top is no roof: hatched squares with fewer than 5 of their 8 round them hatched too
+  // are bright)
+  const M3 = M.slice(); let n3 = 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    if (M3[j * N + i] !== 3) continue; let c3 = 0;
+    for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) if ((di || dj) && i + di >= 0 && j + dj >= 0 && i + di < N && j + dj < N && M3[(j + dj) * N + i + di] === 3) c3++;
+    if (c3 < 5) M[j * N + i] = 1; else n3++;
+  }
+  const p1 = new Path2D(), p2 = new Path2D(), p3 = new Path2D(), edge = new Path2D(), on = (i, j) => i >= 0 && j >= 0 && i < N && j < N && M[j * N + i] > 0;
+  for (let j = 0; j < N; j++) for (let i = 0; i < N;) { const v = M[j * N + i]; if (!v) { i++; continue; } let e = i; while (e < N && M[j * N + e] === v) e++; (v === 2 ? p2 : p1).rect(x0 + i * S, y0 + j * S, (e - i) * S, S); if (v === 3) p3.rect(x0 + i * S, y0 + j * S, (e - i) * S, S); i = e; }
+  for (let j = 0; j <= N; j++) for (let i = 0; i < N;) { if (on(i, j) === on(i, j - 1)) { i++; continue; } let e = i; while (e < N && on(e, j) !== on(e, j - 1)) e++; edge.moveTo(x0 + i * S, y0 + j * S); edge.lineTo(x0 + e * S, y0 + j * S); i = e; }
+  for (let i = 0; i <= N; i++) for (let j = 0; j < N;) { if (on(i, j) === on(i - 1, j)) { j++; continue; } let e = j; while (e < N && on(i, e) !== on(i - 1, e)) e++; edge.moveTo(x0 + i * S, y0 + j * S); edge.lineTo(x0 + i * S, y0 + e * S); j = e; }
+  Object.assign(z, { N, x0, y0, M, g, n2, n3, p1, p2, p3, edge });
+  return (Z[k] = z);
+}
+// is (x, y) on the map in zone z (from any place to stand there)
+function zoneHas(z, x, y) {
+  if (z.flat) return Math.hypot(x - z.x, y - z.y) <= z.rg;
+  const i = Math.floor((x - z.x0) / ZONE_STEP), j = Math.floor((y - z.y0) / ZONE_STEP);
+  return i >= 0 && j >= 0 && i < z.N && j < z.N && z.M[j * z.N + i] > 0;
+}
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -6561,14 +6705,15 @@ let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
 // (v167, Sagara: "a player killed by a claymore in a flag's capture zone") - many servers' rules forbid claymores at flags:
-// a kill by a claymore that lay inside a flag's capture zone (the level's own radius, f.r; main bases left out - they
-// can't be taken). Where it lay: where it was seen being put (cx, cy), else where the victim died
+// a kill by a claymore that lay inside a flag's capture zone (main bases left out - they can't be taken). Where it lay:
+// where it was seen being put (cx, cy), else where the victim died. (v168: the zone as the game has it - zoneOf: the
+// level's radius + 1.2 m round the pole's foot in 3D, wherever one can stand - not the level's radius on the map)
 function clayCapHints(R) {
   const out = []; if (!R.flags || !R.flags.length) return out;
   for (const e of R.events) {
     if (e.type !== 'kill' || e.killer === e.victim || !/claymore/i.test(e.weapon || '')) continue;
     const placed = e.cx !== undefined, x = placed ? e.cx : e.x, y = placed ? e.cy : e.y; if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-    let best = null; for (const f of R.flags) { if (f.main) continue; const d = Math.hypot(x - f.x, y - f.y), r = f.r || 10; if (d <= r && (!best || d < best.d)) best = { f, d, r }; }
+    let best = null; R.flags.forEach((f, k) => { if (f.main) return; const z = zoneOf(R, k); if (!z || !zoneHas(z, x, y)) return; const d = Math.hypot(x - f.x, y - f.y); if (!best || d < best.d) best = { f, d, r: z.R }; });
     if (best) out.push({ t: e.t, kind: 'claycap', adm: true, actor: e.killer, kill: e, flag: best.f.name, d: best.d, r: best.r, placed, x, y });
   }
   return out;
@@ -6693,7 +6838,7 @@ function admDescribe(h) {
   if (h.kind === 'fog') return [Math.round(h.d) + ' m', `<b>Beyond fog</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${Math.round(h.d)} m, the map's view distance is ${h.fog} m · ${tail}</span>`, `Beyond fog: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.d)} m`];
   if (h.kind === 'wall') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>No line of sight</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill${wallBy(h)} · ${tail}</span>`, `No line of sight: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
   if (h.kind === 'snap') return [Math.round(h.from) + '°', `<b>Aim snap</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">his view swung onto him from ${Math.round(h.from)}° off to ${h.to.toFixed(1)}° in 0.1 s, ${Math.round(h.dist)} m away${h.before >= 0.05 ? ' · ' + h.before.toFixed(1) + ' s before the kill' : ' · at the kill'} · ${tail}</span>`, `Aim snap: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.from)}° in 0.1 s`];
-  if (h.kind === 'claycap') return [Math.round(h.d) + ' m', `<b>Claymore at a flag</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">the claymore lay ${Math.round(h.d)} m from ${esc(h.flag)}, inside its capture zone (${Math.round(h.r)} m)${h.placed ? '' : ' - where it lay is not known: where he died'} · ${tail}</span>`, `Claymore at a flag: ${pt(e.killer)} → ${pt(e.victim)} at ${h.flag}`];
+  if (h.kind === 'claycap') return [Math.round(h.d) + ' m', `<b>Claymore at a flag</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">the claymore lay ${Math.round(h.d)} m from ${esc(h.flag)}, inside its capture zone (${m1(h.r)} m round the pole, in 3D)${h.placed ? '' : ' - where it lay is not known: where he died'} · ${tail}</span>`, `Claymore at a flag: ${pt(e.killer)} → ${pt(e.victim)} at ${h.flag}`];
   return ['TK', `<b>Team kill</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${h.veh ? 'from ' + esc(h.veh) + (e.weapon ? ' · ' + esc(killWpn(e) || e.weapon) : '') : tail}</span>`, `Team kill: ${pt(e.killer)} → ${pt(e.victim)}`];
 }
 function renderAdmin() {
