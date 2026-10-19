@@ -18,7 +18,7 @@
 set -euo pipefail
 : "${BF2R_ROOT:=/srv/bf2replay}"
 DATA="$BF2R_ROOT/data" FETCH="$BF2R_ROOT/repo/server/fetch.mjs"
-MOVE=(demos rounds rounds.json heat share www empty bad reprocess.json .fetched.json .fetch-last.json)
+MOVE=(demos rounds rounds.json .rounds-full.json heat .kills stats .stats.json share www empty bad reprocess.json .fetched.json .fetch-last.json)
 UNITS_T=(bf2replay-update.timer bf2replay-fetch.timer bf2replay-ingest.path bf2replay-ingest.timer)
 UNITS_S=(bf2replay-fetch.service bf2replay-ingest.service bf2replay-reprocess.service)
 [ "$(id -u)" = 0 ] || { echo "run it as root: sudo bash $0 $*"; exit 1; }

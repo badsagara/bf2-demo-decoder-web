@@ -13,6 +13,7 @@ __SITE__ {
 	header /data/rounds/* Cache-Control "public, max-age=31536000, immutable"
 	header /data/demos/* Cache-Control "public, max-age=31536000, immutable"
 	header /data/heat/* Cache-Control "public, max-age=31536000, immutable"
+	header /data/stats/* Cache-Control "no-cache"
 	header /r/* Cache-Control "no-cache"
 	header /p/* Cache-Control "no-cache"
 	header /assets/* Cache-Control "no-cache"
@@ -34,8 +35,9 @@ __SITE__ {
 		try_files {path} {path}/index.html
 		file_server
 	}
-	# rounds.json, decoded rounds (rounds/*.bfr), the demos themselves (demos/*.bf2demo), kill spots (heat/*.json)
-	# (heat files are named with a version by rounds.json: heat/<map>.json?v=...)
+	# rounds.json (v166: a short line a round), decoded rounds (rounds/*.bfr), the demos themselves (demos/*.bf2demo), the
+	# numbers over all rounds (stats/: players, maps, everyone - v165); the whole round list and every kill
+	# (.rounds-full.json, .kills/ - v166) are for the server only, as all of data/.*
 	handle_path /data/* {
 		root * /srv/bf2replay/data
 		@private path /logs/* /empty/* /bad/* /.*

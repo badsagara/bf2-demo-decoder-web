@@ -42,7 +42,11 @@ const RAW_KEEP_DAYS = +opt('BF2R_RAW_KEEP_DAYS', '0');       // delete the demo 
 const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30, RAW_AUTOCLEAN = opt('BF2R_RAW_AUTOCLEAN', '1') !== '0';   // (a nearly full disk: step 4)
 const SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
 const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), logs: path.join(DATA, 'logs'), empty: path.join(DATA, 'empty'), bad: path.join(DATA, 'bad') };
-const INDEX = path.join(DATA, 'rounds.json'), HEAT_DIR = path.join(DATA, 'heat'), SHARE_DIR = path.join(DATA, 'share');
+// (v166) rounds.json is what the site loads on every visit: a short line a round (no players' lines, no kills); the whole
+// list - what this script works from - is data/.rounds-full.json, and every round's kills are in data/.kills/<map>.json
+// (until v166 public: data/heat): neither is served (the web server keeps data/.* to itself); the site's views over all
+// rounds come from data/stats (v165)
+const INDEX = path.join(DATA, 'rounds.json'), FULL_INDEX = path.join(DATA, '.rounds-full.json'), HEAT_DIR = path.join(DATA, '.kills'), OLD_HEAT_DIR = path.join(DATA, 'heat'), SHARE_DIR = path.join(DATA, 'share');
 const DOMAIN = opt('BF2R_DOMAIN', '').trim();
 const args = new Set(process.argv.slice(2));
 // Decoders whose rounds come out the same as the current one's (a fix that changes only demos that failed before): rounds
@@ -195,8 +199,8 @@ async function decodeFile(dec, file, name = path.basename(file)) {
   return { tl: ok ? tl : null, hdr, info };
 }
 const baseOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
-// Every kill's spot of a round (sum.pts: what the heatmap of all rounds and the player pages need, ~25 KB a round) is
-// kept out of rounds.json - which every visit loads - in one file per map, data/heat/<map>.json ({ rounds: { name: pts } }),
+// Every kill's spot of a round (sum.pts: what the player, comparison and map views need, ~25 KB a round) is kept out
+// of the round list in one file per map, data/.kills/<map>.json ({ rounds: { name: pts } }; data/heat until v166, served then),
 // loaded only for those; rounds.json names each file with a version (heat: { map: { file, v, rounds } }).
 const HEAT = new Map();   // map -> Map(round name -> pts)
 const mapOf = sum => String(sum?.map || 'unknown').toLowerCase();
@@ -209,10 +213,76 @@ function heatPut(name, sum) {
 }
 function readIndex() {
   let d = { version: 2, rounds: [] };
-  try { const x = JSON.parse(fs.readFileSync(INDEX, 'utf8')); if (Array.isArray(x.rounds)) d = x; } catch (e) {}
+  // (v166) the kills from data/heat (before v166) to data/.kills, once
+  if (!fs.existsSync(HEAT_DIR) && fs.existsSync(OLD_HEAT_DIR)) { try { fs.renameSync(OLD_HEAT_DIR, HEAT_DIR); log('the kills: data/heat -> data/.kills (no longer served)'); } catch (e) { log('data/heat not moved:', e.message); } }
+  for (const f of fs.existsSync(FULL_INDEX) ? [FULL_INDEX, INDEX] : [INDEX]) { try { const x = JSON.parse(fs.readFileSync(f, 'utf8')); if (Array.isArray(x.rounds)) { d = x; break; } } catch (e) {} }
   try { for (const f of fs.readdirSync(HEAT_DIR)) if (f.endsWith('.json')) { const h = JSON.parse(fs.readFileSync(path.join(HEAT_DIR, f), 'utf8')); HEAT.set(h.map, new Map(Object.entries(h.rounds || {}))); } } catch (e) {}
   for (const r of d.rounds) if (r.sum?.pts) { heatPut(r.name, r.sum); d.moved = true; }   // (rounds.json before v67 had them inside)
   return d;
+}
+// ---------- (v165) the numbers over all rounds: each player's, each map's, everyone's ----------
+// The site's player, comparison, map and "Players · all rounds" views were worked out in the browser from every round's
+// kills (data/heat: 100+ MB with thousands of rounds) and summaries (rounds.json). They are worked out here instead, with
+// the page's own code (site/index.html between "// @agg-begin" and "// @agg-end", as the decoder is taken from it: the
+// same numbers), and kept in data/stats: players/<nick>.json (his rounds, his kills and deaths, with whom), maps/<map>.json,
+// table.json and table/<server>.json (everyone, as the Players view lists them), names.json (each nick's latest name).
+// Only what the changed rounds touch is written again; everything when that code changes (or the first time).
+const STATS = path.join(DATA, 'stats'), STATS_STATE = path.join(DATA, '.stats.json');
+const STATS_FORMAT = '2';   // (how this file writes them: a change here writes them all again, as a change of the page's code does)
+let AGG = null;   // { fns, v }: the page's code and its hash
+const aggTouch = { nicks: new Set(), maps: new Set(), any: false, full: false };
+function loadAgg() {
+  try {
+    const html = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8'), L = html.split('\n');
+    const g = L.find(l => l.startsWith('const GAME = ')), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end'));
+    if (!g || a < 0 || b < a) return null;   // (an older page: no stats)
+    const code = L.slice(a, b).join('\n');
+    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug };')();
+    return { fns, v: crypto.createHash('sha1').update(g).update(code).update(STATS_FORMAT).digest('hex').slice(0, 10) };
+  } catch (e) { log('stats: the page\'s code did not load:', e.message); return null; }
+}
+// a round that came, changed or went: its players and its map are written again
+function aggMark(sum) { if (!sum) return; aggTouch.any = true; aggTouch.maps.add(String(sum.map || '').toLowerCase()); for (const p of sum.P || []) aggTouch.nicks.add(nickOf(p.name)); }
+const statsWrite = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f + '.tmp', JSON.stringify(v)); fs.renameSync(f + '.tmp', f); };
+function writeStats(d) {
+  if (!AGG) return;
+  // (v166) a list without the players' lines (only rounds.json was there - data/.rounds-full.json lost): the stats stay as
+  // they are rather than be written empty; decoding every round again (--rebuild) gives the lines back
+  if (d.rounds.some(r => r.sum && !r.sum.empty && !Array.isArray(r.sum.P))) { if (!writeStats.warned) { writeStats.warned = true; log('stats not written: the round list has no players\' lines (data/.rounds-full.json missing?) - decode every round again: sudo systemctl start bf2replay-rebuild'); } return; }
+  let st = null; try { st = JSON.parse(fs.readFileSync(STATS_STATE, 'utf8')); } catch (e) {}
+  const full = aggTouch.full || !st || st.v !== AGG.v || !fs.existsSync(path.join(STATS, 'table.json'));
+  if (!full && !aggTouch.any) { d.stats = { v: AGG.v, at: st?.at || null }; return; }
+  const F = AGG.fns, t0 = Date.now();
+  const RS = F.aggRounds(d.rounds.map(r => ({ name: r.name, sum: r.sum })));
+  const ptsOf = r => HEAT.get(String(r.sum?.map || '').toLowerCase())?.get(r.name) || null;   // (as the page's ptsOf)
+  const byNick = F.aggByNick(RS), PD = path.join(STATS, 'players'), MD = path.join(STATS, 'maps'), TD = path.join(STATS, 'table');
+  // players
+  const nicks = full ? [...byNick.keys()] : [...aggTouch.nicks];
+  for (const nick of nicks) {
+    const R = byNick.get(nick), f = path.join(PD, F.nickSlug(nick) + '.json');
+    if (!R) { try { fs.unlinkSync(f); } catch (e) {} continue; }
+    statsWrite(f, { v: AGG.v, nick, rounds: R.map(x => [x.r.name, x.p]), agg: F.aggPlayer(nick, R, ptsOf) });
+  }
+  // maps
+  const mapKey = r => String(r.sum.map || '').toLowerCase(), maps = full ? [...new Set(RS.map(mapKey))] : [...aggTouch.maps];
+  for (const m of maps) {
+    const R = RS.filter(r => mapKey(r) === m), f = path.join(MD, F.nickSlug(m || '_') + '.json');
+    if (!R.length) { try { fs.unlinkSync(f); } catch (e) {} continue; }
+    statsWrite(f, { v: AGG.v, map: m, agg: F.aggMap(R, ptsOf) });
+  }
+  // everyone: names, the Players view (all servers, and each)
+  statsWrite(path.join(STATS, 'names.json'), { v: AGG.v, names: [...F.aggNames(RS)].map(([k, nm]) => [k, nm, byNick.get(k)?.length || 0]) });   // ([nick, name, rounds])   // ([nick, name] pairs: in order - an object would put nicks like "610213078" first)
+  statsWrite(path.join(STATS, 'table.json'), { v: AGG.v, rows: F.aggTable(RS) });
+  const srvs = [...new Set(RS.map(r => r.sum.server).filter(Boolean))];
+  for (const sv of srvs) statsWrite(path.join(TD, F.nickSlug(sv) + '.json'), { v: AGG.v, server: sv, rows: F.aggTable(F.aggRounds(RS, sv)) });
+  if (full) {   // (files of players, maps and servers no longer there)
+    const keepP = new Set([...byNick.keys()].map(n => F.nickSlug(n) + '.json')), keepM = new Set([...new Set(RS.map(mapKey))].map(m => F.nickSlug(m || '_') + '.json')), keepT = new Set(srvs.map(sv => F.nickSlug(sv) + '.json'));
+    for (const [dir, keep] of [[PD, keepP], [MD, keepM], [TD, keepT]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
+  }
+  const at = new Date().toISOString(); fs.writeFileSync(STATS_STATE, JSON.stringify({ v: AGG.v, at }));
+  d.stats = { v: AGG.v, at };
+  if (full) log(`stats: ${byNick.size} players, ${new Set(RS.map(mapKey)).size} maps, ${srvs.length} server${srvs.length === 1 ? '' : 's'} written in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+  aggTouch.nicks.clear(); aggTouch.maps.clear(); aggTouch.any = false; aggTouch.full = false;
 }
 // light (v163): only rounds.json and the progress - during a batch, after each demo; the heat files and the link previews
 // (seconds with thousands of rounds: v162 spent ~2.8 s of each demo on them with 5416 rounds, more than the decoding with
@@ -234,11 +304,12 @@ function writeIndex(d, dec, light = false) {
     const v = crypto.createHash('sha1').update(body).digest('hex').slice(0, 10);
     let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {}
     if (old !== body) { fs.writeFileSync(f + '.tmp', body); fs.renameSync(f + '.tmp', f); }
-    heat[m] = { file: 'heat/' + heatFile(m), v, rounds: M.size };
+    heat[m] = { file: '.kills/' + heatFile(m), v, rounds: M.size };
   }
   d.heat = heat;
+  try { writeStats(d); } catch (e) { log('stats not written:', e.message); }
   try { writeShares(d, dec); d.share = true; } catch (e) { log('link previews not written:', e.message); }
-  const tmp = INDEX + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(d)); fs.renameSync(tmp, INDEX);
+  writeLists(d);
   // how far decoding again is, in a file of its own: the site's progress tag reads it every 30 s while it lasts (rounds.json
   // is too big for that)
   if (d.reprocess) writeProgress({ ...d.reprocess, updated: d.updated });
@@ -247,8 +318,16 @@ function writeIndex(d, dec, light = false) {
 function writeIndexLight(d, dec) {
   d.rounds.sort((a, b) => String(b.sum?.date || b.name).localeCompare(String(a.sum?.date || a.name)));
   d.updated = new Date().toISOString(); d.decoder = dec.hash; d.version = 2; delete d.moved;
-  const tmp = INDEX + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(d)); fs.renameSync(tmp, INDEX);
+  writeLists(d);
   if (d.reprocess) writeProgress({ ...d.reprocess, updated: d.updated });
+}
+// (v166) the whole list for this script, the short one for the site: each round without its players' lines (P) and kills
+const slimSum = x => { if (!x) return x; const { P, pts, ...rest } = x; return rest; };
+function writeLists(d) {
+  const put = (f, text) => { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); };
+  put(FULL_INDEX, JSON.stringify(d));
+  const { heat, ...rest } = d;
+  put(INDEX, JSON.stringify({ ...rest, slim: true, rounds: d.rounds.map(r => r.sum ? { ...r, sum: slimSum(r.sum) } : r) }));
 }
 function writeProgress(P) {
   const f = path.join(DATA, 'reprocess.json');
@@ -522,7 +601,7 @@ function dropRound(idx, name, src) {
   try { if (src && fs.existsSync(src)) { if (KEEP_EMPTY) fs.renameSync(src, path.join(DIRS.empty, name)); else fs.unlinkSync(src); } } catch (e) { log('could not remove', name, '-', e.message); }
   const base = baseOf(name);
   for (const f of fs.readdirSync(DIRS.rounds)) if (f.startsWith(base + '.')) fs.unlinkSync(path.join(DIRS.rounds, f));
-  const old = idx.rounds.findIndex(r => r.name === name); if (old >= 0) idx.rounds.splice(old, 1);
+  const old = idx.rounds.findIndex(r => r.name === name); if (old >= 0) { aggMark(idx.rounds[old].sum); idx.rounds.splice(old, 1); }
   heatPut(name, null);
 }
 // the heavy part of a demo, also in a worker thread: decoded, summed up, packed (.bfr) - { sum, info, bfr } or { sum, drop }
@@ -549,6 +628,7 @@ async function processDemo(dec, idx, src, name, { move, pre, t0 = Date.now(), no
   if (move) fs.renameSync(src, path.join(DIRS.demos, name));
   const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum };
   heatPut(name, entry.sum);
+  if (old >= 0) aggMark(idx.rounds[old].sum); aggMark(entry.sum);   // (v165: their players' and maps' stats)
   if (old >= 0) idx.rounds[old] = entry; else idx.rounds.push(entry);
   if (old < 0 && move) NEW_ROUNDS.push({ ...entry, clip: info.clipAt != null });   // (v153: posted to Discord / Telegram after the queue, notify.mjs)
   log('round', name, `${(info.bytes / 1e6).toFixed(1)} MB -> ${(bfr.length / 1e6).toFixed(1)} MB`, `${entry.sum.players} players, ${entry.sum.kills} kills`, `${((Date.now() - t0) / 1000).toFixed(1)} s`, note);
@@ -649,6 +729,9 @@ async function main() {
   const dec = loadDecoder(), idx = readIndex();
   FLUSH = () => writeIndex(idx, dec);
   let changed = false;
+  AGG = loadAgg();
+  if (AGG) { let st = null; try { st = JSON.parse(fs.readFileSync(STATS_STATE, 'utf8')); } catch (e) {} if (!st || st.v !== AGG.v || !idx.stats) { changed = true; log(st ? 'stats: the page\'s code changed - all written again' : 'stats: written for the first time'); } }
+  if (args.has('--rebuild')) aggTouch.full = true;
   const S0 = SAME_ROUNDS[dec.hash], rules = (Array.isArray(S0) ? (S0.every(x => typeof x === 'string') ? [{ from: S0 }] : S0) : S0 ? [S0] : []).map(q => ({ from: q.from || [], except: new Set(q.except || []) }));
   for (const r of idx.rounds) if (rules.some(q => q.from.includes(r.decoder) && !q.except.has(mapOf(r.sum)))) { r.decoder = dec.hash; changed = true; }
   // rounds listed before with fewer players than BF2R_MIN_PLAYERS (set or raised since) leave the list
@@ -732,7 +815,7 @@ async function main() {
     if (n) log(`disk nearly full: removed the ${n} oldest demos (${(bytes / 2 ** 30).toFixed(1)} GB; their rounds stay), ${(free() / 2 ** 30).toFixed(1)} GB free now`);
     else if (free() < MIN_FREE) log(`disk nearly full (${(free() / 2 ** 30).toFixed(1)} GB free) and no demos left to remove: new rounds wait (BF2R_MIN_FREE_GB ${MIN_FREE / 2 ** 30})`);
   }
-  if (changed || idx.moved || !idx.heat || !fs.existsSync(INDEX)) writeIndex(idx, dec);
+  if (changed || idx.moved || !idx.heat || !fs.existsSync(INDEX) || !fs.existsSync(FULL_INDEX)) writeIndex(idx, dec);
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)
   try { writeWww(idx, dec); } catch (e) { log('pages for search engines not written:', e.message); }
 }

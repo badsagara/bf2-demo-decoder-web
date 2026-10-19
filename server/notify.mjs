@@ -104,7 +104,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   let L;
   if (a.includes('--test')) L = [['BF2 Round Replay', 'b'], ['A test post: new rounds will be posted here like this.', ''], ...(DOMAIN ? [[`https://${DOMAIN}/`, 'l']] : [])];
   else if (a.includes('--last')) {
-    let idx = { rounds: [] }; try { idx = JSON.parse(fs.readFileSync(path.join(DATA, 'rounds.json'), 'utf8')); } catch (e) {}
+    let idx = { rounds: [] }; for (const f of ['.rounds-full.json', 'rounds.json']) { try { idx = JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8')); break; } catch (e) {} }   // (v166: the whole list has the players' lines)
     const e = (idx.rounds || []).filter(r => r.sum && !r.sum.empty).sort((x, y) => String(y.sum.date).localeCompare(String(x.sum.date)))[0];
     if (!e) { console.log('No rounds yet.'); process.exit(1); }
     L = postLines(e);

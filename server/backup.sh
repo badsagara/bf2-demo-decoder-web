@@ -1,6 +1,6 @@
 #!/bin/bash
-# BF2 Round Replay: a weekly copy of what the demos can't give back - rounds.json (the list: when each round came, its
-# server), the round logs (data/logs), what was downloaded (.fetched.json), the settings (/etc/bf2replay.conf; and the
+# BF2 Round Replay: a weekly copy of what the demos can't give back - rounds.json and .rounds-full.json (the list: when
+# each round came, its server, its players' lines), the round logs (data/logs), what was downloaded (.fetched.json), the settings (/etc/bf2replay.conf; and the
 # admin page's: .fetch-sources.json, .notify.json, .ingest.json - the backup folder is root's, 750) - and,
 # with BF2R_BACKUP_ROUNDS=1, the decoded rounds too (data/rounds: ~3 MB a round; the only copy of a round whose demo is
 # gone). Into /srv/bf2replay/backup/bf2replay-YYYY-MM-DD.tar.gz; the last BF2R_BACKUP_KEEP (default 6) are kept.
@@ -16,7 +16,7 @@ MINFREE=$(cv BF2R_MIN_FREE_GB); [[ ${MINFREE:-} =~ ^[0-9]+$ ]] || MINFREE=3
 DATA=$ROOT/data OUT=$ROOT/backup
 install -d -m 750 "$OUT"
 files=()
-for f in rounds.json reprocess.json .fetched.json .fetch-sources.json .notify.json .ingest.json logs; do [ -e "$DATA/$f" ] && files+=("data/$f"); done
+for f in rounds.json .rounds-full.json reprocess.json .fetched.json .fetch-sources.json .notify.json .ingest.json logs; do [ -e "$DATA/$f" ] && files+=("data/$f"); done
 [ "$ROUNDS" = 1 ] && [ -d "$DATA/rounds" ] && files+=(data/rounds)
 # (enough room for it: its size plus BF2R_MIN_FREE_GB must stay free)
 need=$(du -sk --apparent-size "${files[@]/#/$ROOT/}" 2>/dev/null | awk '{s+=$1} END {print s+0}')
