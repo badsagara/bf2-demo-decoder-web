@@ -38,6 +38,7 @@ const SYSTEMCTL = opt('BF2R_ADMIN_SYSTEMCTL', fs.existsSync('/usr/bin/systemctl'
 const SUDO = opt('BF2R_ADMIN_SUDO', '/usr/bin/sudo'), JOURNALCTL = opt('BF2R_ADMIN_JOURNALCTL', 'journalctl');
 const NODE = process.execPath;
 const UNITS = ['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup'];   // (the ones the page may start)
+const STOPPABLE = ['ingest', 'reprocess', 'rebuild'];   // (v163: and stop - the decoding ones; units.sh allows it)
 const SESSION_H = 12, IDLE_H = 2;   // a login lasts 12 h, or 2 h without a look at the page
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
@@ -178,7 +179,30 @@ function decodeState() {
   if (now && !(now.pid && fs.existsSync('/proc/' + now.pid) && Date.now() - Date.parse(now.updated || 0) < 30 * 60e3)) now = null;   // (left behind by a run that was stopped)
   const cpus = os.cpus();
   return { conf: conf || null, set, auto, jobs: Math.min(JOBS_MAX, conf || set || auto), max: JOBS_MAX, cpus: cpus.length, cpu: String(cpus[0]?.model || '').replace(/\s+/g, ' ').trim(),
-    mem: os.totalmem(), avail: memAvailable(), load: os.loadavg().map(x => +x.toFixed(2)), now, stats: readJson(STATS_FILE, null) };
+    mem: os.totalmem(), avail: memAvailable(), load: os.loadavg().map(x => +x.toFixed(2)), now, stats: readJson(STATS_FILE, null), procs: procs() };
+}
+// (v163) the decoding runs now, from /proc: each ingest.mjs (node) - new demos, again (--reprocess) or all again
+// (--rebuild) - since when, and whether it started before the last update (the old code: the site or ingest.mjs is newer
+// than it); and the flock in front of each (the services run "flock -w 7200 .ingest.lock node ingest.mjs"): one with no
+// ingest.mjs under it yet is waiting for the lock - another run has it
+function procs() {
+  let boot = 0; try { boot = +((/^btime (\d+)/m.exec(fs.readFileSync('/proc/stat', 'utf8')) || [])[1] || 0); } catch (e) { return null; }
+  if (!boot) return null;
+  const HZ = 100, L = [];
+  for (const pid of listDir('/proc')) {
+    if (!/^\d+$/.test(pid)) continue;
+    let cmd = []; try { cmd = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').filter(Boolean); } catch (e) { continue; }
+    const i = cmd.findIndex(a => /(^|\/)ingest\.mjs$/.test(a)); if (i < 0) continue;
+    let st = ''; try { st = fs.readFileSync(`/proc/${pid}/stat`, 'utf8'); } catch (e) { continue; }
+    const f = st.slice(st.lastIndexOf(')') + 2).split(' ');   // (from the 3rd field on: state, ppid, ... starttime is the 22nd)
+    const args = cmd.slice(i + 1), kind = args.includes('--rebuild') ? 'rebuild' : args.includes('--reprocess') ? 'reprocess' : 'ingest';
+    L.push({ pid: +pid, ppid: +f[1], start: boot + +f[19] / HZ, flock: /(^|\/)flock$/.test(cmd[0]), kind });
+  }
+  const mt = fl => { try { return fs.statSync(fl).mtimeMs / 1000; } catch (e) { return 0; } }, upd = Math.max(mt(path.join(SITE, 'index.html')), mt(path.join(HERE, 'ingest.mjs')));
+  const runs = L.filter(p => !p.flock), out = [];
+  for (const p of runs) out.push({ kind: p.kind, pid: p.pid, since: new Date(p.start * 1000).toISOString(), old: upd > 0 && p.start < upd - 1 });
+  for (const p of L.filter(p => p.flock && !runs.some(r => r.ppid === p.pid))) out.push({ kind: p.kind, pid: p.pid, since: new Date(p.start * 1000).toISOString(), waiting: true });
+  return out.sort((a, b) => !!a.waiting - !!b.waiting || a.since.localeCompare(b.since));
 }
 function jobsSet(b) {
   if (b.reset) { const S = readJson(STATS_FILE, null); writeJson(STATS_FILE, { machine: S?.machine || '', by: {}, since: new Date().toISOString() }); log('decoding speeds cleared'); return { ok: true, msg: 'speeds cleared: they are measured again from the next demos' }; }
@@ -213,6 +237,15 @@ async function notifyRun(arg) {
 }
 
 // ---------- actions ----------
+// (v163) stop a decoding run: it finishes writing the round list and ends (from v163 on; an older ingest.mjs just ends -
+// a round it was writing is listed again by the next run); what it had not got to waits for the next one
+async function stopUnit(u) {
+  if (!STOPPABLE.includes(u)) return { ok: false, msg: 'only the decoding services can be stopped here' };
+  const r = await run(SUDO, ['-n', SYSTEMCTL, 'stop', '--no-block', `bf2replay-${u}.service`]);
+  if (r.code === 0) { log('stopped', `bf2replay-${u}`); return { ok: true, msg: `bf2replay-${u} stopped: what it had not decoded yet waits for the next run` }; }
+  const why = (r.err || r.out).trim().split('\n').pop();
+  return { ok: false, msg: `could not stop bf2replay-${u}: ${why || 'error ' + r.code}${/password|sudoers|not allowed/i.test(why) ? ' (the permission comes with units.sh: wait a minute after the update, or run sudo bash /srv/bf2replay/repo/server/units.sh; or on the VPS: sudo systemctl stop bf2replay-' + u + ')' : ''}` };
+}
 async function startUnit(u) {
   if (!UNITS.includes(u)) return { ok: false, msg: 'unknown service' };
   const r = await run(SUDO, ['-n', SYSTEMCTL, 'start', '--no-block', `bf2replay-${u}.service`]);
@@ -289,6 +322,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'POST') return send(res, 405, { error: 'method' });
     const b = await bodyOf(req);
     if (what === 'start') return send(res, 200, await startUnit(String(b.unit)));
+    if (what === 'stop') return send(res, 200, await stopUnit(String(b.unit)));
     if (what === 'retry-bad') return send(res, 200, retryBad());
     if (what === 'source-add') return send(res, 200, addSource(b.url));
     if (what === 'source-remove') return send(res, 200, removeSource(String(b.url || '')));

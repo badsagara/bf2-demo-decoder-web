@@ -236,8 +236,9 @@ function render() {
     const st = u.loaded === 'not-found' ? 'not installed' : u.state === 'activating' ? 'running' : u.state === 'active' ? 'running' : u.state === 'failed' ? 'failed' : u.state ? 'idle' : '?';
     const last = sdt(u.ended) || sdt(u.started), next = t && t.next ? sdt(t.next) : '';
     const busy = u.state === 'activating' || u.state === 'active';
-    return `<tr><td><b>${name}</b><br><span class="muted">${what}</span></td><td><span class="dot ${esc(u.state || '')}"></span>${st}${u.result && u.result !== 'success' && u.state !== 'activating' ? ` <span class="bad">(${esc(u.result)})</span>` : ''}</td><td class="mono">${esc(last)}</td><td class="mono">${esc(next)}</td><td class="act"><button type="button" data-unit="${k}" class="${k === 'rebuild' ? 'danger' : ''}" ${busy || u.loaded === 'not-found' ? 'disabled' : ''}>${btn}</button></td></tr>`;
+    return `<tr><td><b>${name}</b><br><span class="muted">${what}</span></td><td><span class="dot ${esc(u.state || '')}"></span>${st}${u.result && u.result !== 'success' && u.state !== 'activating' ? ` <span class="bad">(${esc(u.result)})</span>` : ''}</td><td class="mono">${esc(last)}</td><td class="mono">${esc(next)}</td><td class="act"><button type="button" data-unit="${k}" class="${k === 'rebuild' ? 'danger' : ''}" ${busy || u.loaded === 'not-found' ? 'disabled' : ''}>${btn}</button>${busy && STOPPABLE.includes(k) ? ` <button type="button" class="danger" data-stop="${k}" title="Stop it: it writes the round list and ends; what it had not decoded yet waits for the next run">Stop</button>` : ''}</td></tr>`;
   }).join('');
+  for (const b of document.querySelectorAll('#units button[data-stop]')) b.onclick = () => stopRun(b.dataset.stop, b);
   for (const b of document.querySelectorAll('#units button[data-unit]')) b.onclick = () => {
     const u = b.dataset.unit;
     if (u === 'rebuild' && !confirm(`Decode all ${S.rounds.total} rounds again from their demos? It takes long and new demos wait meanwhile.`)) return;
@@ -269,6 +270,9 @@ function render() {
 }
 // (v162) how many demos are decoded at once: the choice, the machine, what is being decoded now, how fast each number went
 const GB = 2 ** 30, PER_JOB = 1.2 * GB;
+// (v163) the decoding runs: stop one (ingest, reprocess, rebuild)
+const STOPPABLE = ['ingest', 'reprocess', 'rebuild'], RUN_NAME = { ingest: 'Decoding new demos', reprocess: 'Decoding old rounds again', rebuild: 'Decoding every round again' };
+function stopRun(u, b) { if (confirm(`Stop "${RUN_NAME[u]}"? The demos it has not decoded yet wait for the next run (nothing is lost).`)) act('stop', { unit: u }, b); }
 let jobsPick = null;   // (chosen, not saved yet: kept over the 5 s refreshes)
 function renderJobs() {
   const D = S.decode, box = $('#jobs'); if (!D) { box.innerHTML = ''; return; }
@@ -278,16 +282,23 @@ function renderJobs() {
   const choose = D.conf ? `<b>${D.jobs}</b> <span class="tag" title="Edited in /etc/bf2replay.conf on the VPS: remove it there to choose here">BF2R_JOBS</span>`
     : `<select id="jobsSel" aria-label="Demos decoded at once">${opts.join('')}</select><button type="button" id="jobsSave">Save</button>`;
   const now = N ? `<div class="row"><span><b>Decoding ${N.kind === 'again' ? 'old rounds again' : 'new demos'}:</b> ${N.done} / ${N.total} <span class="muted">(${N.busy} running, ${N.jobs} at once)</span></span></div>` : '';
+  // (v163) what runs now and what waits for it (from the VPS's processes)
+  const unitOf = k => k === 'ingest' ? 'ingest' : k;
+  const runs = (D.procs || []).map(p => p.waiting
+    ? `<div class="row"><span><span class="warn">${RUN_NAME[p.kind] || p.kind}: waiting for its turn</span> <span class="muted">since ${hm((Date.now() - Date.parse(p.since)) / 1000)}: another decoding run has the lock (one at a time)</span></span></div>`
+    : `<div class="row" style="align-items:center"><span><b>${RUN_NAME[p.kind] || p.kind}</b> <span class="muted">runs since ${hm((Date.now() - Date.parse(p.since)) / 1000)} · pid ${p.pid}</span>${p.old ? ' <span class="warn">· started before the last update: the old code, the new one waits for it to end</span>' : ''}</span>${STOPPABLE.includes(p.kind) ? `<button type="button" class="danger" data-stoprun="${unitOf(p.kind)}" style="padding:2px 8px">Stop</button>` : ''}</div>`).join('');
+
   const need = D.jobs * PER_JOB, warn = need > D.avail ? `<div class="row warn">${D.jobs} at once may need ~${(need / GB).toFixed(1)} GB: more than the ${(D.avail / GB).toFixed(1)} GB free now - the system can stop a decoding thread (or all of ingest) when memory runs out</div>` : '';
   const by = Object.entries(D.stats?.by || {}).map(([j, o]) => ({ j: +j, n: o.n, mbm: o.secs ? o.bytes / o.secs * +j * 60 / 1e6 : 0, rpm: o.secs ? o.n / o.secs * +j * 60 : 0, each: o.n ? o.secs / o.n : 0 })).filter(o => o.n).sort((a, b) => a.j - b.j);
   const best = by.filter(o => o.n >= 3).reduce((b, o) => !b || o.mbm > b.mbm ? o : b, null);
   const table = by.length ? `<table><thead><tr><th>At once</th><th class="n">Demos</th><th class="n">MB a min</th><th class="n">Rounds a min</th><th class="n">Each took</th></tr></thead><tbody>${by.map(o => `<tr class="${best && o.j === best.j && by.length > 1 ? 'best' : ''}${o.j === D.jobs ? ' cur' : ''}"><td>${o.j}</td><td class="n">${o.n}</td><td class="n">${o.mbm.toFixed(0)}</td><td class="n">${o.rpm.toFixed(1)}</td><td class="n">${o.each.toFixed(1)} s</td></tr>`).join('')}</tbody></table>
     <div class="row muted" style="font-size:12px;align-items:center"><span>${best && by.length > 1 ? `fastest so far: <b class="ok">${best.j} at once</b> · ` : ''}measured here${D.stats?.since ? ' since <span style="white-space:nowrap">' + esc(String(D.stats.since).slice(0, 10)) + '</span>' : ''}</span><button type="button" id="jobsReset" style="padding:2px 8px">Clear</button></div>` : '<div class="row muted" style="font-size:12px">No speeds measured yet: they come with the next demos decoded (2 or more waiting at a time).</div>';
-  box.innerHTML = `${now}<div class="row" style="align-items:center"><label for="jobsSel">Demos at once</label>${choose}</div>
+  box.innerHTML = `${runs}${now}<div class="row" style="align-items:center"><label for="jobsSel">Demos at once</label>${choose}</div>
     <div class="row muted" style="font-size:12px">VPS: ${D.cpus} core${D.cpus === 1 ? '' : 's'}${D.cpu ? ' (' + esc(D.cpu) + ')' : ''} · ${(D.mem / GB).toFixed(1)} GB memory, ${(D.avail / GB).toFixed(1)} GB free · load ${D.load.map(x => x.toFixed(1)).join(' ')} · each demo at once takes up to ~1.2 GB</div>
     ${warn}${table}
     <details style="margin-top:6px"><summary>How to find the best number</summary><p class="muted" style="font-size:12.5px;margin:6px 0 0">Choose a number and let a batch decode - "Decode old rounds again" (or "Decode every round again"), or many new demos at once - then look at <b>MB a min</b>: the bigger, the faster. Then the next number. A change takes effect within seconds, also while decoding. More than the cores rarely helps (each demo then takes longer); each one needs up to ~1.2 GB of memory. Automatic: the cores, the memory, at most 4.</p></details>`;
   if ($('#jobsSel')) $('#jobsSel').onchange = () => { jobsPick = +$('#jobsSel').value; };
+  for (const b of box.querySelectorAll('[data-stoprun]')) b.onclick = () => stopRun(b.dataset.stoprun, b);
   if ($('#jobsSave')) $('#jobsSave').onclick = () => { const v = +$('#jobsSel').value; act('jobs-set', { jobs: v }, $('#jobsSave')).then(j => { if (j && j.ok) jobsPick = null; }); };
   if ($('#jobsReset')) $('#jobsReset').onclick = () => { if (confirm('Clear the measured speeds? They are measured again from the next demos.')) act('jobs-set', { reset: true }, $('#jobsReset')); };
 }

@@ -18,6 +18,9 @@
 // what is being decoded now in data/.ingest-now.json (both for the admin page). Decoding again keeps its progress in
 // rounds.json too (reprocess: done / total / left, for bf2replay-status and the site), and in the log: "[45/480 9%, ~1 h
 // 10 min left]".
+// (v163) A run that sees the site (or this file) updated starts no more demos and ends, so the new code takes over; on
+// SIGTERM it writes the round list before it goes; a demo in data/demos with no round listed is decoded again; during a
+// batch only rounds.json is written after each demo (the heat files and link previews every 30 s and at the end).
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
@@ -211,7 +214,13 @@ function readIndex() {
   for (const r of d.rounds) if (r.sum?.pts) { heatPut(r.name, r.sum); d.moved = true; }   // (rounds.json before v67 had them inside)
   return d;
 }
-function writeIndex(d, dec) {
+// light (v163): only rounds.json and the progress - during a batch, after each demo; the heat files and the link previews
+// (seconds with thousands of rounds: v162 spent ~2.8 s of each demo on them with 5416 rounds, more than the decoding with
+// several at once) at most every FULL_EVERY s, at the end of the batch and when the run is stopped (SIGTERM)
+const FULL_EVERY = 30e3; let fullAt = 0, fullDue = false;
+function writeIndex(d, dec, light = false) {
+  if (light && Date.now() - fullAt < FULL_EVERY) { fullDue = true; return writeIndexLight(d, dec); }
+  fullAt = Date.now(); fullDue = false;
   d.rounds.sort((a, b) => String(b.sum?.date || b.name).localeCompare(String(a.sum?.date || a.name)));
   d.updated = new Date().toISOString(); d.decoder = dec.hash; d.version = 2; delete d.moved;
   // heat files: rounds no longer listed leave; a file is written only when it changed
@@ -232,6 +241,13 @@ function writeIndex(d, dec) {
   const tmp = INDEX + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(d)); fs.renameSync(tmp, INDEX);
   // how far decoding again is, in a file of its own: the site's progress tag reads it every 30 s while it lasts (rounds.json
   // is too big for that)
+  if (d.reprocess) writeProgress({ ...d.reprocess, updated: d.updated });
+}
+// (the heat files and d.heat stay as the last full write left them: they agree with each other)
+function writeIndexLight(d, dec) {
+  d.rounds.sort((a, b) => String(b.sum?.date || b.name).localeCompare(String(a.sum?.date || a.name)));
+  d.updated = new Date().toISOString(); d.decoder = dec.hash; d.version = 2; delete d.moved;
+  const tmp = INDEX + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(d)); fs.renameSync(tmp, INDEX);
   if (d.reprocess) writeProgress({ ...d.reprocess, updated: d.updated });
 }
 function writeProgress(P) {
@@ -575,6 +591,14 @@ class Pool {
   }
   close() { for (const w of this.free) w.terminate(); this.free = []; this.n = 0; }
 }
+// (v163) the site updated while this run goes on (git pull: a new site/index.html - maybe a new decoder - or a new
+// ingest.mjs): no more demos are started; the ones being decoded are finished and listed, and the run ends, so that the
+// next one - the new code - takes over at once (before v163 an old run went on for up to 2 h, with the old decoder,
+// while bf2replay-reprocess waited for the lock)
+const SELF = new URL(import.meta.url).pathname;
+const updStamp = () => { try { return fs.statSync(path.join(SITE, 'index.html')).mtimeMs + ':' + fs.statSync(SELF).mtimeMs; } catch (e) { return ''; } };
+let STAMP0 = null; const siteChanged = () => STAMP0 !== null && updStamp() !== STAMP0;
+let FLUSH = null;   // (the round list written in full: on SIGTERM - systemctl stop, the 2 h limit - before the run ends)
 // decode items ([{ name, src, bytes }]) several at once, as many as jobsWanted() says (looked at again after each demo
 // and every 5 s); each result goes to done(item, pre, err, t0, k: the how-manyth done) on this thread, one after another. A single demo is
 // decoded here, without a worker. P (progress): { kind, total, done, jobs, busy } - written to data/.ingest-now.json
@@ -594,10 +618,11 @@ async function decodeAll(dec, items, done, P) {
       const pump = () => {
         const want = jobsWanted();
         if (want !== P.jobs) { log(`${want} at once now (was ${P.jobs})`); P.jobs = want; now(); }
-        const go = []; while (busy < want && next < items.length) go.push(start(items[next++], want));
+        if (!P.stopped && next < items.length && siteChanged()) { P.stopped = true; log(`the site was updated: ${items.length - next} ${P.kind === 'again' ? 'rounds' : 'demos'} left for the next run (the new code)`); }
+        const go = []; while (!P.stopped && busy < want && next < items.length) go.push(start(items[next++], want));
         for (const g of go) g.full = busy === want;   // (all of them side by side: the first ones of a batch start together)
         if (go.length) now();
-        if (!busy && next >= items.length) { clearInterval(tick); chain.then(resolve); }
+        if (!busy && (P.stopped || next >= items.length)) { clearInterval(tick); chain.then(resolve); }
       };
       const start = (it, want) => {
         busy++; P.busy = busy; const w = pool.take(), t1 = Date.now(), rec = { full: false };
@@ -620,7 +645,9 @@ const hm = s => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 6
 
 async function main() {
   for (const d of Object.values(DIRS)) fs.mkdirSync(d, { recursive: true });
+  STAMP0 = updStamp();
   const dec = loadDecoder(), idx = readIndex();
+  FLUSH = () => writeIndex(idx, dec);
   let changed = false;
   const S0 = SAME_ROUNDS[dec.hash], rules = (Array.isArray(S0) ? (S0.every(x => typeof x === 'string') ? [{ from: S0 }] : S0) : S0 ? [S0] : []).map(q => ({ from: q.from || [], except: new Set(q.except || []) }));
   for (const r of idx.rounds) if (rules.some(q => q.from.includes(r.decoder) && !q.except.has(mapOf(r.sum)))) { r.decoder = dec.hash; changed = true; }
@@ -640,20 +667,27 @@ async function main() {
     if (fs.existsSync(path.join(DIRS.demos, f)) && idx.rounds.some(r => r.name === f)) { fs.unlinkSync(src); log('already have', f); continue; }   // (sent twice)
     fresh.push({ name: f, src, bytes: st.size });
   }
+  // (v163) a demo kept in data/demos with no round listed: a run stopped between keeping it and writing the list (before
+  // v163 every demo was followed by seconds of writing it, with thousands of rounds) - decoded again and listed
+  { const listed = new Set(idx.rounds.map(r => r.name)), queued = new Set(fresh.map(o => o.name)), orph = [];
+    for (const f of fs.readdirSync(DIRS.demos).sort()) if (/\.bf2demo(\.gz)?$/i.test(f) && !listed.has(f) && !queued.has(f)) { const src = path.join(DIRS.demos, f); try { const st = fs.statSync(src); if (st.isFile()) orph.push({ name: f, src, bytes: st.size, kept: true }); } catch (e) {} }
+    if (orph.length) { log(`${orph.length} demo${orph.length === 1 ? '' : 's'} in data/demos with no round listed: decoded again`); fresh.push(...orph); } }
   // (v162) several at once (decodeAll); each round is listed as soon as it is decoded
   if (fresh.length > 1) log(`decoding ${fresh.length} new demos, ${Math.min(jobsWanted(), fresh.length)} at once`);
   const NOW = { kind: 'new' };
   await decodeAll(dec, fresh, async (it, pre, err, t1, k) => {
     const bad = e => { log('could not read', it.name, '-', e.message); try { fs.renameSync(it.src, path.join(DIRS.bad, it.name)); } catch (e2) {} };
-    if (err && err.dead) log('not decoded now:', it.name, '-', err.message, '(it stays in the queue: tried again at the next run)');   // (the thread stopped, not the demo's fault)
+    if (err && err.dead) log('not decoded now:', it.name, '-', err.message, '(it stays where it is: tried again at the next run)');   // (the thread stopped, not the demo's fault)
     else if (err) bad(err);
-    else { try { await processDemo(dec, idx, it.src, it.name, { move: true, pre, t0: t1, note: fresh.length > 1 ? `[new ${k}/${fresh.length}, ${NOW.jobs} at once]` : '' }); changed = true; } catch (e) { bad(e); } }
-    writeIndex(idx, dec);   // after each round, so the site lists it at once
+    else { try { await processDemo(dec, idx, it.src, it.name, { move: !it.kept, pre, t0: t1, note: fresh.length > 1 ? `[new ${k}/${fresh.length}, ${NOW.jobs} at once]` : '' }); changed = true; } catch (e) { bad(e); } }
+    writeIndex(idx, dec, true);   // after each round, so the site lists it at once (light: the heat files and previews every 30 s)
   }, NOW);
+  if (fullDue) writeIndex(idx, dec);
   // (v153) a post about each new round in Discord / Telegram, when the admin page (or bf2replay.conf) says where
   if (NEW_ROUNDS.length) { try { const { notifyRounds } = await import('./notify.mjs'); await notifyRounds(NEW_ROUNDS.splice(0)); } catch (e) { log('round posts:', e.message); } }
   // 2. after a site update: rounds made by another decoder are decoded again from their demo
-  if (args.has('--reprocess') || args.has('--rebuild')) {
+  if ((args.has('--reprocess') || args.has('--rebuild')) && siteChanged()) log('the site was updated: decoding again is left for the next run (the new code)');
+  else if (args.has('--reprocess') || args.has('--rebuild')) {
     const all = args.has('--rebuild') ? fs.readdirSync(DIRS.demos).filter(f => /\.bf2demo(\.gz)?$/i.test(f)) : idx.rounds.filter(r => r.decoder !== dec.hash).map(r => r.name);
     if (args.has('--rebuild')) idx.rounds = idx.rounds.filter(r => all.includes(r.name) || fs.existsSync(path.join(DATA, r.bfr)));
     const names = all.filter(name => { if (fs.existsSync(path.join(DIRS.demos, name))) return true; log('no demo left for', name, '(kept as it was)'); return false; });
@@ -669,9 +703,10 @@ async function main() {
         P.done++; P.jobs = Q.jobs; const el = (Date.now() - t0) / 1000, left = el / P.done * (P.total - P.done); P.left = Math.round(left);
         if (err) log('could not decode again', it.name, '-', err.message);
         else { try { await processDemo(dec, idx, it.src, it.name, { move: false, pre, t0: t1, note: `[${P.done}/${P.total} ${Math.floor(100 * P.done / P.total)}%${P.done < P.total ? ', ~' + hm(left) + ' left' : ''}, ${Q.jobs} at once]` }); changed = true; } catch (e) { log('could not write', it.name, '-', e.message); } }
-        writeIndex(idx, dec);
+        writeIndex(idx, dec, true);
       }, Q);
-      log(`decoded ${P.total} rounds again in ${hm((Date.now() - t0) / 1000)}`);
+      if (fullDue) writeIndex(idx, dec);
+      log(Q.stopped ? `decoded ${P.done} of ${P.total} rounds again in ${hm((Date.now() - t0) / 1000)}: the rest at the next run` : `decoded ${P.total} rounds again in ${hm((Date.now() - t0) / 1000)}`);
     }
     if (idx.reprocess) { const P = idx.reprocess; delete idx.reprocess; changed = true; writeProgress({ ...P, left: 0, end: new Date().toISOString() }); }   // (the tag: done)
   }
@@ -701,7 +736,15 @@ async function main() {
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)
   try { writeWww(idx, dec); } catch (e) { log('pages for search engines not written:', e.message); }
 }
-if (isMainThread) main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });
+if (isMainThread) {
+  process.on('SIGTERM', () => {   // (v163: systemctl stop, the service's time limit) the round list first, then out
+    log('stopped: writing the round list first');
+    try { if (FLUSH) FLUSH(); } catch (e) { log('the round list not written:', e.message); }
+    try { fs.unlinkSync(NOW_FILE); } catch (e) {}
+    process.exit(143);
+  });
+  main().catch(e => { log('error:', e.stack || e.message); process.exit(1); });
+}
 else {   // a decoding worker (Pool): the page's decoder, one demo at a time
   const dec = loadDecoder();
   parentPort.on('message', async ({ src, name }) => {

@@ -18,12 +18,14 @@ for f in "$HERE"/systemd/bf2replay-*; do
   fi
 done
 
-# the admin page (bf2replay-admin.service, as bf2replay) may start these services through sudo, nothing else:
+# the admin page (bf2replay-admin.service, as bf2replay) may start these services through sudo, and stop the decoding
+# ones (v163: ingest, reprocess, rebuild), nothing else:
 # /etc/sudoers.d/bf2replay-admin (checked with visudo before it is put in place)
 if [ -x /usr/bin/systemctl ]; then SC=/usr/bin/systemctl; else SC=/bin/systemctl; fi
 SU=/etc/sudoers.d/bf2replay-admin
-want=$(printf '# BF2 Round Replay: the admin page (bf2replay-admin.service) may start these services, nothing else (written by units.sh)\nbf2replay ALL=(root) NOPASSWD:'
-  sep=' '; for u in ingest reprocess rebuild fetch update backup; do printf '%s%s start --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; sep=', '; done)
+want=$(printf '# BF2 Round Replay: the admin page (bf2replay-admin.service) may start these services and stop the decoding ones, nothing else (written by units.sh)\nbf2replay ALL=(root) NOPASSWD:'
+  sep=' '; for u in ingest reprocess rebuild fetch update backup; do printf '%s%s start --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; sep=', '; done
+  for u in ingest reprocess rebuild; do printf '%s%s stop --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; done)
 if [ -d /etc/sudoers.d ] && command -v visudo >/dev/null 2>&1 && [ "$want" != "$(cat "$SU" 2>/dev/null)" ]; then
   tmp=$(mktemp); printf '%s\n' "$want" > "$tmp"
   if visudo -cf "$tmp" >/dev/null 2>&1; then install -m 440 -o root -g root "$tmp" "$SU"; echo "admin page: may start the services (sudoers)"
