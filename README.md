@@ -122,6 +122,7 @@ KilledBy, id шаблонів решти авіації: Mi-28, Su-30MKK, MiG-29
 HudElementsMap.con) і виміряні кольори шрифтів; самі текстури й бітмап-шрифти взято з файлів гри (Menu_client.zip,
 Fonts_client.zip).
 Їхня ліцензія:
+З v156 — нумерація шаблонів Euro Force (техніка рівнів) і Special Forces (xpack) з тієї ж таблиці шаблонів.
 
 ```
 MIT License

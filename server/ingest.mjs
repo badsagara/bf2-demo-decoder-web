@@ -39,7 +39,11 @@ const args = new Set(process.argv.slice(2));
 // Decoders whose rounds come out the same as the current one's (a fix that changes only demos that failed before): rounds
 // they made are not decoded again after the update, only marked as made by the current decoder. (v138 used it once:
 // 054e89ecf1 = 3621404639 but for maps not among the 22. v140's decoder adds to every round: none now.)
-const SAME_ROUNDS = {};
+// (v156) { from: [hashes], except: [maps] }: the same, but rounds on these maps are decoded again - a629ba2a28 numbers the
+// Euro Force's and Special Forces' templates (their maps below); every other round comes out byte for byte as with
+// 1d5536877e (the 9 test rounds checked), so only these are decoded again
+const EF_SF_MAPS = ['greatwall', 'taraba_quarry', 'operationsmokescreen', 'devils_perch', 'ghost_town', 'iron_gator', 'leviathan', 'mass_destruction', 'night_flight', 'surge', 'warlord'];
+const SAME_ROUNDS = { a629ba2a28: { from: ['1d5536877e'], except: EF_SF_MAPS } };
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 // ---------- the page's decoder ----------
@@ -540,8 +544,8 @@ async function main() {
   for (const d of Object.values(DIRS)) fs.mkdirSync(d, { recursive: true });
   const dec = loadDecoder(), idx = readIndex();
   let changed = false;
-  const same = SAME_ROUNDS[dec.hash] || [];
-  for (const r of idx.rounds) if (same.includes(r.decoder)) { r.decoder = dec.hash; changed = true; }
+  const S0 = SAME_ROUNDS[dec.hash], same = Array.isArray(S0) ? S0 : S0?.from || [], except = new Set(S0?.except || []);
+  for (const r of idx.rounds) if (same.includes(r.decoder) && !except.has(mapOf(r.sum))) { r.decoder = dec.hash; changed = true; }
   // rounds listed before with fewer players than BF2R_MIN_PLAYERS (set or raised since) leave the list
   for (const r of idx.rounds.filter(r => r.sum && !r.sum.empty && r.sum.players < MIN_PLAYERS)) {
     dropRound(idx, r.name, path.join(DIRS.demos, r.name)); changed = true;

@@ -318,7 +318,7 @@ svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentCo
 .feed[hidden], #hlBox[hidden], #admBox[hidden] { display: none; }
 .hk-wall, .hk-snap, .hk-speed, .hk-track, .hk-wallfire, .hk-smoke, .hk-fog, .hk-reach, .hk-rate, .hk-ammo, .hk-react, .hk-stam, .hk-tele, .hk-clip, .hk-fly, .hk-spawn, .hk-vspeed, .hk-dmg, .hk-guided, .hk-arty, .hk-fastcap, .hk-trigger, .hk-smooth, .hk-switch, .hk-preaim, .hk-spread, .hk-blindspot, .hk-under { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }
 .hk-hs { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
-.hk-tk, .hk-farm { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }
+.hk-tk, .hk-farm, .hk-fov { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }
 .admwarn { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
 .admtop { font-size: 12px; margin: 0 0 8px; }
 /* highlights */
@@ -405,6 +405,7 @@ input[type=number] { width: 84px; font: 500 13px var(--font-data); background: v
 .cliprow label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .cliprow .btn { padding: 7px 10px; }
 .cliprow .spacer { flex: 1; }
+.cliprow label.off { opacity: .55; }
 .cliphead { font: 700 15px/1 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
 .cliprange { font: 600 13px var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cliplen { font-size: 12px; color: var(--muted); }
@@ -777,6 +778,7 @@ body.mbar-on { padding-bottom: 72px; }
           <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
           <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green; a white dot at his nose while he aims down the sights">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting; jumping, falling from a height, under a parachute, climbing a ladder). Either way a white dot at his nose while he aims down the sights">Figures</button></span>
           <span class="vwseg" role="radiogroup" aria-label="Scoreboard, top bar and text"><span>HUD</span><button class="sg" id="hdGame" role="radio" aria-checked="true" title="As in the game: its scoreboard (Tab), its bar of time and tickets, its font for the kill feed and the names on the map">Game</button><button class="sg" id="hdPage" role="radio" aria-checked="false" title="The page's own: a list for the scoreboard, a plain bar, the page's font">Page</button></span>
+          <span class="vwseg cuseg" role="radiogroup" aria-label="What the pointer over the map shows"><span>Cursor</span><button class="sg" id="cuOff" role="radio" aria-checked="false" title="Nothing by the pointer (G)">Off</button><button class="sg" id="cuH" role="radio" aria-checked="false" title="The height of the ground under the pointer, and how much higher or lower it is than the soldier you follow (G)">Height</button><button class="sg" id="cuXY" role="radio" aria-checked="false" title="Where the pointer is: the map's grid square (as on the game's map), metres east and north of the middle, and how far and which way from the soldier you follow (G)">Grid</button></span>
           <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
           <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
           <button class="btn on" id="tSpots">Spots</button>
@@ -788,7 +790,7 @@ body.mbar-on { padding-bottom: 72px; }
           <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
           <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
           <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
-          <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). The pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
+          <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
           <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
           <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
           <button class="btn" id="tAhead" title="While paused: where everyone goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where somebody comes back in (spawn). Vehicles that move too. Not while playing, not in clips. For one soldier only: follow him and press 'For him' on the map or in his card (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"></span></span></button>
@@ -807,7 +809,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="kbhelp" id="kbHelp" hidden>
           <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
           <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+          <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
         </div>
         <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
           <div id="cSet">
@@ -818,6 +820,7 @@ body.mbar-on { padding-bottom: 72px; }
               <button class="btn" id="cB" title="The clip ends at the playhead (O)">End here</button>
               <label>Size <select id="cSize"></select></label>
               <label>Speed <select id="cSpeed"></select></label>
+              <label id="cSndL" title="Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)"><input type="checkbox" id="cSnd" checked> Sound</label>
               <label title="A GIF plays everywhere, also in chats that don't play videos, but is smaller (600 px), 10 frames a second and at most 20 s. A BF2 demo is a Battle Recorder file to watch the clip in the game itself">File <select id="cFmt"><option value="video">Video (MP4)</option><option value="gif">GIF</option><option value="demo">BF2 demo (for the game)</option></select></label>
               <label id="cFFl" title="The game plays a demo only from its start: how fast the round before the clip goes by (the last 3 s before the clip and the clip itself at the real pace). An experiment: if the game stops or crashes, try a lower one" hidden>Before the clip <select id="cFF"></select></label>
               <label>Camera <select id="cCam"><option value="follow">Follow</option><option value="fixed">As on screen</option></select></label>
@@ -926,7 +929,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v155';
+const APP_VERSION = 'v159';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1020,6 +1023,8 @@ function drawKitGlyph(kit, x, y, size) {
 const kitIcon = (kit, h = 16) => { const G = KIT_GLYPHS[kit]; if (!G) return ''; return `<svg class="kg" viewBox="0 0 24 24" width="${h}" height="${h}" role="img" aria-label="${esc(kit)}"><title>${esc(kit)}</title><g${G.r ? ` transform="rotate(${G.r} 12 12)"` : ''}>${G.p.map(d => `<path d="${d}" fill-rule="evenodd"/>`).join('')}</g></svg>`; };
 // (v136) Armored Fury's own vehicles (20000 + booster id, T()): the game's minimap kinds
 Object.assign(GAME.vmini, { 25659: 'mjet', 25689: 'mjet', 25721: 'mattack_heli', 25754: 'mattack_heli', 25782: 'mattack_heli', 25813: 'mjet', 25846: 'mjeep', 25861: 'mjeep' });
+// (v156) Euro Force's and Special Forces' own vehicles (31000 / 32000 on): the same minimap kinds
+Object.assign(GAME.vmini, {"31001":"mtank","31002":"mtank","31003":"mjet","31004":"mattack_heli","32001":"mjeep","32002":"mattack_heli","32003":"mjeep","32004":"mapc","32005":"mjeep","32006":"mjeep","32007":"mjeep","32008":"mattack_heli","32009":"mjeep","32010":"mrib"});
 const vehIconKey = p => { const tp = typeof p.tpl === 'string' ? GAME.vtpl[p.tpl.toLowerCase()] : p.tpl; return tp ? GAME.vmini[tp] || null : null; };
 
 // ---------- simulated round ----------
@@ -1311,7 +1316,7 @@ let t = 0, playing = false, speed = 10, sel = null, tab = 0;
 let camLock = false, lockKey = '';   // (v154: lock camera - below, after the map's view buttons)
 let animNow = null;   // clock of flickering effects (seconds): the clip's own time while a clip is drawn, else the page's
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
-const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', ff: 30, job: null, out: null, drag: null, sel: undefined };
+const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', ff: 30, sound: true, job: null, out: null, drag: null, sel: undefined };
 let demoSrc = null;   // (v137) the open round's demo, for a clip as a .bf2demo: { name, file } or { name, url } (the server's copy)
 // names and labels on the map (Names ▾): soldiers on foot (and their kit), crew by their vehicle, vehicles' own names
 // (empty ones; all of them when the crew's are off), the wounded waiting for a medic, who spotted, flags, distances and
@@ -1321,7 +1326,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -1330,6 +1335,9 @@ try { if (localStorage.getItem('bf2rr.legend') === '0') opts.legend = false; } c
 // (v155, Sagara: "вимкнемо заливку висот, додамо можливість вимикати в фільтрах") the relief's parts: the shading (on) and
 // the ground higher than the followed soldier's eyes (turquoise fill and hatching: off unless turned on)
 try { if (localStorage.getItem('bf2rr.relShade') === '0') opts.relShade = false; if (localStorage.getItem('bf2rr.relAbove') === '1') opts.relAbove = true; } catch (e) {}
+// (v158, Sagara: "перемикач курсору, який може показувати висоту або координати") what the pointer over the map shows:
+// 'off', 'height' or 'grid' (Filters ▾ Cursor, G); at first as before - the height while the relief layer is on
+try { const v = localStorage.getItem('bf2rr.cursor'); opts.cursor = v === 'off' || v === 'height' || v === 'grid' ? v : localStorage.getItem('bf2rr.relief') === '1' ? 'height' : 'off'; } catch (e) {}
 // a vehicle seat's view from its third-person camera instead of its own (the card's View row, the map's 1st / 3rd and the C key switch it)
 try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
 let minimap = null, terrain = null, source = 'sample', demoHeader = null;
@@ -2135,15 +2143,29 @@ function reliefWho(tt) {
   const onFoot = !p.vehicle && !q.veh;
   return { eye: V && V.eye != null ? V.eye : onFoot ? eyeOf(sel, q, tt) : q.h + 1.5, feet: onFoot ? q.h - 1.0 : g, name: p.vehicle ? p.name : p.name };
 }
-// the ground's height under the pointer (relief layer on, a mouse over the map): a tag by the pointer
+// a tag by the pointer over the map (a mouse), as Filters ▾ Cursor says (v158): the ground's height under it (and how much
+// higher or lower than the soldier you follow) - where the map's heights are not known, the grid instead - or where it
+// is: the grid square of the game's map (A-H across, 1-8 down), metres east and north of the map's middle, and how far
+// and which way from the soldier you follow
+const COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 function hTipShow() {
   const el = $('#hTip'); if (!el) return;
-  const D = round && opts.relief && mapHover && !pan ? losData() : null; if (!D) { el.hidden = true; return; }
-  const [mx, my] = mapHover, x = view.x0 + mx / size * view.span, y = view.y0 - my / size * view.span, g = groundAt(D, x, y), wl = WATER[mapKey()] ?? -1e9;
-  if (g < -1e8) { el.hidden = true; return; }
-  let html = g < wl ? `sea · ${Math.round(wl)} m` : `${Math.round(g)} m`;
-  const who = reliefWho(t);
-  if (who && g >= wl) { const d = g - who.feet, a = Math.abs(d); html += ` <span class="w">· ${a < 0.5 ? 'level with' : (a < 10 ? a.toFixed(1) : Math.round(a)) + ' m ' + (d > 0 ? 'above' : 'below')} ${esc(who.name)}</span>`; }
+  if (!round || !mapHover || pan || opts.cursor === 'off') { el.hidden = true; return; }
+  const [mx, my] = mapHover, x = view.x0 + mx / size * view.span, y = view.y0 - my / size * view.span, D = opts.cursor === 'height' ? losData() : null;
+  let html;
+  if (D) {
+    const g = groundAt(D, x, y), wl = WATER[mapKey()] ?? -1e9;
+    if (g < -1e8) { el.hidden = true; return; }
+    html = g < wl ? `sea · ${Math.round(wl)} m` : `${Math.round(g)} m`;
+    const who = reliefWho(t);
+    if (who && g >= wl) { const d = g - who.feet, a = Math.abs(d); html += ` <span class="w">· ${a < 0.5 ? 'level with' : (a < 10 ? a.toFixed(1) : Math.round(a)) + ' m ' + (d > 0 ? 'above' : 'below')} ${esc(who.name)}</span>`; }
+  } else {
+    const half = (GAME.maps[mapKey()]?.size || round.meta.mapSize || 2048) / 2;
+    if (Math.abs(x) > half || Math.abs(y) > half) { el.hidden = true; return; }
+    const r = v => (v < 0 ? '−' : '') + Math.abs(Math.round(v));
+    html = `<b>${gridOf(x, y)}</b> · ${r(x)}, ${r(y)} m`;
+    if (sel !== null) { const q = playerAt(sel, t); if ((q.alive || q.down) && Number.isFinite(q.x)) { const dx = x - q.x, dy = y - q.y, d = Math.hypot(dx, dy); if (d >= 1) html += ` <span class="w">· ${d < 10 ? d.toFixed(1) : Math.round(d)} m ${COMPASS[Math.round(((Math.atan2(dx, dy) * 180 / Math.PI) + 360) % 360 / 45) % 8]} of ${esc(round.players[sel].name)}</span>`; } }
+  }
   if (el._h !== html) { el.innerHTML = html; el._h = html; }
   el.hidden = false;
   const W = el.offsetWidth, left = mx + 16 + W > size ? mx - 12 - W : mx + 16, top = Math.max(0, my + 18 > sizeH - 22 ? my - 30 : my + 18);
@@ -3105,7 +3127,7 @@ const ENG_TEXT = { first: 'saw him first', even: 'saw each other at once', secon
 // port, an emplacement - where it points is in the demo: its gunner, within 3° or 3 m to either side, out to 400 m,
 // via 'gun'); a kill of someone inside it at that moment (via 'kill'). Enemy: the other team than its crew (or the
 // crew it last had). Kept per round.
-const VHIT_MIN = 4, VHIT_JOIN = 0.3, VHIT_AT = new Set(['SRAW', 'Eryx', 'TOW', 'TV missile', 'D-30 shell', 'M777 shell']);
+const VHIT_MIN = 4, VHIT_JOIN = 0.3, VHIT_AT = new Set(['SRAW', 'Eryx', 'RPG-7', 'TOW', 'TV missile', 'D-30 shell', 'M777 shell']);
 const vhitRange = () => Math.min(400, fogRange() * 1.25);   // (a gun pointing at something it can't see past the fog: chance)
 const vehClass = j => ARMOR_KIND[vehIconKey(round.players[j])] || 'light';   // 'tank', 'apc', 'aa' or 'light' (jeeps)
 const VCLASS_NAME = { tank: 'tank', apc: 'APC', aa: 'AA vehicle', light: 'jeep' }, capFirst = x => x.charAt(0).toUpperCase() + x.slice(1);
@@ -3549,6 +3571,7 @@ function modelsData() {
   return MODELS.st === 'ok' ? MODELS.m : null;
 }
 const TPL_NAME = Object.fromEntries(Object.entries(GAME.vtpl || {}).map(([k, v]) => [v, k]));
+TPL_NAME[32009] = 'usjep_hmmwv';   // (v156: Special Forces' Humvee TOW - a Humvee's model, box and seats)
 // the model of a vehicle (by its template), when vehicles are drawn as models and its pictures are in
 function vehModel(p) {
   if (!opts.models || !p.vehicle) return null;
@@ -3558,16 +3581,37 @@ function vehModel(p) {
 }
 // draw it at (px, py): yaw the hull's heading, aim / mg where the main gun / the roof gun point (world, rad; null: at
 // rest), col the team's colour, spin: how its rotors turn ({ w, th }: rotorState). Returns its radius on the canvas (px)
+// (v158, Sagara: "моделі техніки погано масштабуються при віддаленні мапи") zoomed out, a model was drawn from its
+// big picture (~32 px a metre) squeezed into a few dozen pixels in one step - ragged and shimmering - and could shrink
+// to 26 px, smaller than a soldier's mark, dark on dark ground. Now: halved copies of each picture (made once, smoothly,
+// on first need) and the one just above the size drawn; drawn bigger than to scale, a thin light edge so it shows on dark
+// ground too. (v159, Sagara: "занадто великі при великому віддаленні") Its size: to scale zoomed in; zoomed out it
+// shrinks more slowly than the map (MODEL_REF px a metre at the root: half as fast), never under MODEL_MIN px - a tank
+// ~23 px at 400 m across the map, ~15 at 900, ~12 at the whole map (before: 30-60 px whatever the zoom)
+function modelMip(l, sc) {
+  const T = cx.getTransform ? cx.getTransform() : null, want = sc * (T ? Math.hypot(T.a, T.b) : dpr);   // (source pixels to device pixels)
+  if (want >= 0.7) return l.img;
+  if (!l.mips) l.mips = [l.img];
+  let m = 0, s = 1;
+  while (s / 2 >= want && m < 6) {
+    m++; s /= 2;
+    if (!l.mips[m]) { const p = l.mips[m - 1], c = document.createElement('canvas'); c.width = Math.max(1, Math.round((p.naturalWidth || p.width) / 2)); c.height = Math.max(1, Math.round((p.naturalHeight || p.height) / 2)); const g = c.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high'; g.drawImage(p, 0, 0, c.width, c.height); l.mips[m] = c; }
+  }
+  return l.mips[m];
+}
+const MODEL_REF = 3.2, MODEL_MIN = 13;
 function drawModel(o, px, py, yaw, aim, mg, col, wreck, spin, tt) {
-  const s0 = size / view.span, minL = Math.min(56, Math.max(26, o.len * 3.6)), k = Math.max(s0, minL / o.len), sc = k / o.ppm;
+  const s0 = size / view.span, k = Math.max(s0, Math.sqrt(s0 * MODEL_REF), MODEL_MIN / o.len), sc = k / o.ppm, big = k > s0 * 1.2;
   const L = wreck ? o.wreck || o.hull : o.hull, ok = l => l.img.complete && l.img.naturalWidth;
-  const img = l => { if (ok(l)) cx.drawImage(l.img, -l.ax * sc, -l.ay * sc, l.w * sc, l.h * sc); };
+  const img = l => { if (ok(l)) cx.drawImage(modelMip(l, sc), -l.ax * sc, -l.ay * sc, l.w * sc, l.h * sc); };
   // (v147, Sagara: "Техніку не заливати кольором команди, а робити пунктирний квадрат навколо, бо текстура зливається"):
   // the model in its own colours on a soft dark shadow, the team's colour in a dashed square round it (drawn after)
   const part = l => { cx.shadowColor = 'rgba(0,0,0,.45)'; cx.shadowBlur = 3; img(l); cx.shadowBlur = 0; cx.shadowColor = 'transparent'; };
   cx.save(); cx.translate(px, py); cx.rotate(yaw);
   if (wreck) { cx.shadowColor = 'rgba(255,110,30,.85)'; cx.shadowBlur = 7; img(L); cx.restore(); return o.len * k / 2; }
-  cx.shadowColor = 'rgba(0,0,0,.65)'; cx.shadowBlur = 6; img(L); cx.shadowBlur = 0; cx.shadowColor = 'transparent';
+  cx.shadowColor = 'rgba(0,0,0,.65)'; cx.shadowBlur = 6; img(L);
+  if (big) { cx.shadowColor = 'rgba(236,238,228,.6)'; cx.shadowBlur = 2.2; img(L); }   // (bigger than to scale: a thin light edge)
+  cx.shadowBlur = 0; cx.shadowColor = 'transparent';
   const T = o.turret, G = o.mg, tw = T ? (aim ?? yaw + T.rest) : yaw;
   const gun = base => { const gw = mg ?? base + G.rest; cx.save(); cx.translate(G.px * k, -G.pz * k); cx.rotate(gw - base); part(G); cx.restore(); };
   if (T) { cx.save(); cx.translate(T.px * k, -T.pz * k); cx.rotate(tw - yaw); part(T); if (G && G.on === 'turret') gun(tw); cx.restore(); }
@@ -3677,7 +3721,7 @@ const cvCtx = cx;
 // soldiers 3-9 m away were hurt less the further they stood: median 84 -> 60 -> 38 of 100 health)
 const EXPLOSIVE_DMG = { 'Grenade': 140, 'C4': 1000, 'AT mine': 2500, 'Claymore': 200, 'M203': 150, 'GP-30': 150, 'GP-25': 150, 'F2000 GL': 150, 'SA80 GL': 150, 'D-30 shell': 900, 'M777 shell': 900 };
 const lethalR = e => { const dmg = EXPLOSIVE_DMG[e.kind]; return dmg > 100 && e.r ? e.r * (1 - 100 / dmg) : 0; };
-const MISSILES = new Set(['SRAW', 'Eryx', 'TOW', 'TV missile']), SHELL_KINDS = new Set(['D-30 shell', 'M777 shell']), GRENADE_KINDS = new Set(['Grenade', 'M203', 'GP-30', 'GP-25', 'SA80 GL', 'F2000 GL']);
+const MISSILES = new Set(['SRAW', 'Eryx', 'TOW', 'TV missile', 'RPG-7']), SHELL_KINDS = new Set(['D-30 shell', 'M777 shell']), GRENADE_KINDS = new Set(['Grenade', 'M203', 'GP-30', 'GP-25', 'SA80 GL', 'F2000 GL']);
 // Tank and APC cannon shells are not sent in the demo (only grenades and missiles are objects), so a shell shows only
 // where it hit something: a kill with a vehicle's cannon gives the shot from the vehicle to the victim; a hit on a vehicle
 // (vehHits: its hit points dropped with an enemy tank's or APC's gun on it - from a tank 15% or more, its main gun; less
@@ -3719,13 +3763,13 @@ function clayFace(e) {
   clayCache.set(e, f); return f;
 }
 // Soldiers on foot whose markers would lie over each other (closer than SPREAD_D px on the screen) stay where they are,
-// drawn see-through (CROWD_A; the followed one on top, as he is) with a tag of how many there are by side. With the
+// drawn a little see-through (CROWD_A; the followed one on top, as he is) with a tag of how many there are by side. With the
 // pointer over such a crowd (a tap on a touch screen) it fans out: rounds of shoving every pair that is too close to that
 // distance (coincident ones each their own way) so every one of them shows, a thin line back to where each really is;
 // the followed soldier is not moved. (v112, Sagara: the crowds always pushed apart over a grey disc "won't do".)
 // -> { spread: Map(index -> [x, y]) of the fanned ones, crowds: [{ m: [index, ...], box: [x0, y0, x1, y1] }] the closed
 // crowds (2 or more, real places), open: [index, ...] or null }
-const SPREAD_D = 22, CROWD_A = 0.5;
+const SPREAD_D = 22, CROWD_A = 0.88;   // (v159, Sagara: "не такі прозорі при накладанні мітки": was 0.5)
 let mapHover = null;   // where the pointer is over the map (canvas px), or null
 function spreadOut() {
   const L = [];
@@ -4829,7 +4873,7 @@ let hoverRaf = 0;
 cv.addEventListener('pointermove', e => {
   if (pan || e.pointerType !== 'mouse' || !round) return;
   const r = cv.getBoundingClientRect(); mapHover = [e.clientX - r.left, e.clientY - r.top];
-  if (opts.relief) hTipShow();
+  if (opts.cursor !== 'off') hTipShow();
   if (hoverRaf) return;
   hoverRaf = requestAnimationFrame(() => {
     hoverRaf = 0; if (!round || !mapHover) return;
@@ -4961,6 +5005,8 @@ const CAUSES = [['small', 'Small arms'], ['veh', 'Vehicle guns'], ['expl', 'Gren
 // - in English from the game's localization files. KM.w: weapon template id -> name; KM.v: vehicle template (id or name)
 // -> name (analysis/km/build_km.py). Not in it: our own name.
 const KM = {"w":{"4228":"AH-1Z","4237":"AH-1Z","4242":"AH-1Z","4263":"Mi-28","4270":"Mi-28","4278":"Mi-28","4300":"Z-10","4304":"Z-10","4309":"Z-10","4356":"F-35B","4358":"F-35B","4365":"F-35B","4390":"J-10","4392":"J-10","4395":"J-10","4424":"Su-30","4426":"Su-30","4427":"Su-30","4430":"Su-30","4431":"Su-30","4508":"MiG-29","4510":"MiG-29","4513":"MiG-29","4547":"Su-34","4548":"Su-34","4551":"Su-34","4552":"Su-34","4553":"Su-34","4623":"F-15","4626":"F-15","4627":"F-15","4630":"F-15","4631":"F-15","4659":"F-18","4661":"F-18","4664":"F-18","4771":"Tunguska","4795":"Tunguska","4804":"PGZ-95","4827":"PGZ-95","4837":"BTR-90","4855":"BTR-90","4857":"BTR-90","4884":"WZ551","4901":"WZ551","4903":"WZ551","5038":"T-90","5064":"T-90","5073":"Type 98","5097":"Type 98","5104":"Linebacker","5128":"Linebacker","5138":"LAV-25","5158":"LAV-25","5161":"LAV-25","5222":"M1A2","5247":"M1A2","5357":"Ammo bag","5359":"AT Mine","5367":"C4","5369":"Eryx","5370":"Type 95","5372":"QSZ-92","5374":"QSZ-92","5376":"Type 85","5378":"QBZ-97","5380":"NOR982","5382":"DAO-12","5384":"Type 88","5386":"Shock paddles","5388":"FAMAS","5390":"P90","5392":"HK21","5394":"HK53A3","5396":"AG-36","5398":"BENELLI M4","5400":"L96A1","5402":"L85A2","5404":"Smoke Grenade","5406":"Knife","5408":"Medic bag","5410":"Flash Bang","5413":"PKM","5415":"RPK-74","5417":"MR-444","5419":"MR-444","5421":"GP-25","5423":"GP-30","5425":"AK-101","5427":"AK-47","5429":"PP-19","5431":"SVD","5433":"AK-47","5435":"AK-101","5437":"AK-74U","5439":"S12K","5441":"F2000 GL","5444":"F2000","5446":"G36E","5448":"MG36","5450":"MP7","5455":"SRAW","5456":"Hand Grenade","5458":"M249 SAW","5460":"Claymore","5462":"92FS","5464":"92FS","5466":"M203","5468":"SCAR-L","5470":"G36C","5472":"G3","5474":"M16A2","5476":"M16A2","5478":"M24","5480":"M4","5482":"MP5","5483":"M11-87","5485":"L85A1","5487":"MK3A1","5489":"M82A1","5491":"M95","5493":"Wrench","5494":"USS Essex","5496":"USS Essex","5501":"Artillery","5508":"HJ-8","5515":"TOW","5526":"KORD","5528":"Type 85 HMG","5530":"Type 95 LMG","5538":"M134","5541":"M2HB","5549":"IGLA","5559":"RPK-74 LMG","5572":"Stinger","5578":"Artillery","5580":"M249 LMG"},"v":{"ahe_ah1z":"AH-1Z","4223":"AH-1Z","ahe_havoc":"Mi-28","4259":"Mi-28","ahe_z10":"Z-10","4292":"Z-10","air_f35b":"F-35B","4327":"F-35B","air_j10":"J-10","4368":"J-10","air_su30mkk":"Su-30","4397":"Su-30","chthe_z8":"Z-8","4436":"Z-8","ruair_mig29":"MiG-29","4480":"MiG-29","ruair_su34":"Su-34","4515":"Su-34","the_mi17":"Mi-17","4561":"Mi-17","usair_f15":"F-15","4595":"F-15","usair_f18":"F-18","4633":"F-18","usthe_uh60":"Black Hawk","4666":"Black Hawk","aav_tunguska":"Tunguska","4768":"Tunguska","aav_type95":"PGZ-95","4800":"PGZ-95","apc_btr90":"BTR-90","4833":"BTR-90","apc_wz551":"WZ551","4880":"WZ551","jeep_faav":"DPV","4926":"DPV","jep_mec_paratrooper":"FAV","4947":"FAV","jep_nanjing":"NJ2046","4967":"NJ2046","jep_paratrooper":"FAV","4987":"FAV","jep_vodnik":"Vodnik","5007":"Vodnik","rutnk_t90":"T-90","5035":"T-90","tnk_type98":"Type 98","5068":"Type 98","usaav_m6":"Linebacker","5101":"Linebacker","usapc_lav25":"LAV-25","5134":"LAV-25","usjep_hmmwv":"HMMWV","5184":"HMMWV","ustnk_m1a2":"M1A2","5217":"M1A2","boat_rib":"RIB","5254":"RIB"}};
+// (v156) Euro Force's and Special Forces' own: their guns' vehicle, and the vehicles' names
+Object.assign(KM.w, {"31101":"Leopard 2A6","31102":"Leopard 2A6","31111":"Challenger 2","31112":"Challenger 2","31121":"Eurofighter","31122":"Eurofighter","31123":"Eurofighter","31131":"Tiger","31132":"Tiger","31133":"Tiger","31134":"Tiger","32101":"AH-64 Apache","32102":"AH-64 Apache","32103":"AH-64 Apache","32104":"AH-64 Apache","32105":"BMP-3","32106":"BMP-3","32107":"Mi-24 Hind","32108":"Mi-24 Hind","32109":"Mi-24 Hind","32110":"Mi-24 Hind"}); Object.assign(KM.v, {"31001":"Leopard 2A6","31002":"Challenger 2","31003":"Eurofighter","31004":"Tiger","32001":"AIL Raider","32002":"AH-64 Apache","32003":"ATV","32004":"BMP-3","32005":"Civilian car","32006":"Pickup","32007":"Forklift","32008":"Mi-24 Hind","32009":"Humvee TOW","32010":"Jet ski"});
 Object.assign(KM.w, { 25683: 'A-10', 25685: 'A-10', 25718: 'Su-39', 25720: 'Su-39', 25737: 'WZ-11', 25769: 'EC635', 25803: 'Little Bird', 25840: 'Q-5 Fantan', 25845: 'Q-5 Fantan' });   // (v136: Armored Fury)
 function killName(e) {
   const vp = e.kv ? round.players[round.pidx.get(e.kv)] : null;
@@ -4980,8 +5026,8 @@ function killCause(e, killerInVeh) {
   if (killerInVeh || /cannon|Coaxial|missile|smoke|Firing port|Aircraft MG|LAV-25 TOW|Tunguska|Type 95 AA|M6 Stinger|M134|mounted|Phalanx|Sea Sparrow|Hellfire|rockets|bombs|Sidewinder/i.test(w)) return 'veh';
   if (!w) return 'none';
   if (/HMG|^TOW$|HJ-8|Igla|Stinger AA|QW-2|artillery/i.test(w)) return 'emp';
-  if (/SRAW|Eryx/i.test(w)) return 'at';
-  if (/grenade|^C4$|Claymore|AT mine|^GP-\d|^M203$|Flashbang/i.test(w)) return 'expl';
+  if (/SRAW|Eryx|RPG/i.test(w)) return 'at';
+  if (/grenade|^C4$|Claymore|AT mine|^GP-\d|^M203$|Flashbang|Tear gas/i.test(w)) return 'expl';
   return 'small';
 }
 function roundStats() {
@@ -5554,7 +5600,7 @@ function jumpTo(h, keepSel) {
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
 const MELEE_REACH = { 5406: ['knife', 2.0], 5386: ['defibrillator', 2.8] }, MELEE_SLACK = 2.5;
 const LAUNCH_MIN = { Grenade: 0.7, SRAW: 4.0, Eryx: 4.2, Claymore: 0.6, 'LAV-25 TOW': 10, 'BTR-90 missile': 10, 'WZ551 missile': 10, TOW: 5, 'HJ-8': 5 };
 const SHOT_MIN = { 5038: 1.5, 5222: 1.5, 5073: 1.5, 5400: 1.0, 5478: 1.0, 5491: 1.0, 5483: 0.6, 5380: 0.6 };
@@ -5691,6 +5737,17 @@ function cheatHints(R) {
 // (59 bursts of 0.4 s or more at a hidden enemy, sampled every 0.2 s): the longest 1.0 s (3), at most 2 of 0.6 s+ by one
 // soldier - no hint.
 const WF_T = 1.4, WF_T0 = 0.6, WF_N = 4, WF_PRE = 3, WF_NEAR = 8, WF_GUN = w => !!w && killCause({ weapon: w.name }, false) === 'small' && !/knife|defib|shock|paddle|wrench|repair|bag|binocular|designat|zipline|grappl|tear ?gas|flash|smoke|mine|C4|claymore|^tool$/i.test(w.name || '');
+// (v157, Sagara's todo 140 n: "ULTRAWIDE FOV") Wide view - a weak sign: the game shows a soldier ~79° across (FOV_HALF
+// each side). Each time an enemy he can see in the open comes into the band just outside that (FOV_IN-FOV_OUT° off where
+// he looks), 8-FOV_FAR m away, and he had not had him within his view for FOV_FRESH s, has no other cue for him (the enemy
+// fired in the 1.5 s before, his side spotted him in the 6 s before, or he himself was hit in the 2 s before: none) -
+// a chance; he takes it if he turns to put him within FOV_HIT° of his aim inside FOV_REACT s. A hint when he took
+// FOV_N or more and the odds of so many at the rate of the round's others are under FOV_P (sound, the minimap or a team
+// mate's call turn honest players too: the others' rate is the yardstick). The 9 rounds: 555 chances, 39% taken (by the
+// round's others 22-42%); the lowest odds 0.019 (7 of 10), no hint - one would take ~7 of 7 or 9 of 11 such turns.
+const FOV_HALF = 39.5, FOV_IN = 42, FOV_OUT = 62, FOV_FRESH = 1.5, FOV_HIT = 15, FOV_REACT = 1.2, FOV_FAR = 150, FOV_N = 5, FOV_P = 0.001;
+// (the upper tail of a binomial, in logs: n can run to hundreds here)
+const binTailLog = (k, n, p) => { if (k <= 0) return 1; if (p <= 0) return 0; if (p >= 1) return 1; let lc = 0, s = 0; const lp = Math.log(p), lq = Math.log(1 - p); for (let j = 1; j <= n; j++) { lc += Math.log((n - j + 1) / j); if (j >= k) s += Math.exp(lc + j * lp + (n - j) * lq); } return Math.min(1, s); };
 const TRACK_STEP = 0.2, TRACK_DEG = 3, TRACK_VDEG = 6, TRACK_T = 2, TRACK_TURN = 10;
 function wallTracks(R, done) {
   const D = losData(); if (!D) { done([]); return; }
@@ -5712,6 +5769,43 @@ function wallTracks(R, done) {
     return !losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + 1.5, tt);
   });
   const fires = new Map(), wfAll = R._wfAll = [];   // viewer -> { j, t0, t1, d, x, y }
+  // (v157) wide view: per pair (viewer, enemy) when last in his view, in the band now, an open chance; per soldier chances and taken
+  const fovPair = new Map(), fovBy = new Map(), spotsOf = new Map();
+  for (const e of R.events) if (e.type === 'spot' && e.target != null) { const j = R.pidx.get(e.target); if (j === undefined) continue; if (!spotsOf.has(j)) spotsOf.set(j, []); spotsOf.get(j).push([e.t, e.team]); }
+  const firedNear = (j, tt) => (R.players[j].fire || []).some(f => f[0] <= tt && f[1] >= tt - 1.5);
+  const spottedNear = (j, tt, tm) => (spotsOf.get(j) || []).some(([ts, side]) => ts <= tt && ts >= tt - 6 && (side == null || side === tm));
+  const fovStep = (tt, P) => {
+    for (const [i, q] of P) {
+      if (q.yaw == null) continue;
+      const tm = teamOf(i, tt);
+      for (const [j, o] of P) {
+        if (j === i || teamOf(j, tt) === tm) continue;
+        const dx = o.x - q.x, dy = o.y - q.y, d = Math.hypot(dx, dy); if (d > FOV_FAR + 10) { fovPair.delete(i * 256 + j); continue; }
+        const key = i * 256 + j, off = angOff(Math.atan2(dx, dy), q.yaw) / DEG; let st = fovPair.get(key);
+        if (!st) fovPair.set(key, st = { last: -1e9, band: false, ep: null });
+        if (st.ep) {
+          if (off <= FOV_HIT) { const B = fovBy.get(i); B.q++; if (!B.first) B.first = { t: st.ep.t0, x: q.x, y: q.y, j, off: st.ep.off, d: st.ep.d }; st.ep = null; }
+          else if (tt - st.ep.t0 > FOV_REACT + 1e-6) st.ep = null;
+        }
+        const band = off >= FOV_IN && off <= FOV_OUT;
+        if (band && !st.band && !st.ep && d >= 8 && d <= FOV_FAR && tt - st.last > FOV_FRESH) {
+          const eye = q.h + EYE_H[stanceNow(R.players[i], tt) ?? 0], so = stanceNow(R.players[j], tt) ?? 0;
+          const hh = o.h + AIM_H[so][0], open = (!losBlocked(D, q.x, q.y, eye, o.x, o.y, hh, tt) || !losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + AIM_H[so][1], tt)) && !vegBlocks(q.x, q.y, eye, o.x, o.y, hh) && !smokeBlocks(q.x, q.y, o.x, o.y, tt);
+          const hit = (() => { const a = playerAt(i, tt - 2).hp, b = q.hp; return a != null && b != null && b < a - 1; })();
+          if (open && !hit && !firedNear(j, tt) && !spottedNear(j, tt, tm)) {
+            if (!fovBy.has(i)) fovBy.set(i, { n: 0, q: 0, first: null }); fovBy.get(i).n++; st.ep = { t0: tt, off, d };
+          }
+        }
+        if (off <= FOV_HALF) st.last = tt;
+        st.band = band;
+      }
+    }
+  };
+  const fovHints = () => {
+    let N = 0, Q = 0; for (const B of fovBy.values()) { N += B.n; Q += B.q; }
+    R._fovStat = [...fovBy].map(([i, B]) => ({ name: R.players[i].name, n: B.n, q: B.q, others: (Q - B.q + 1) / (N - B.n + 6), tail: binTailLog(B.q, B.n, (Q - B.q + 1) / (N - B.n + 6)) })).sort((a, b) => a.tail - b.tail);
+    for (const [i, B] of fovBy) { if (B.q < FOV_N || !B.first) continue; const p = (Q - B.q + 1) / (N - B.n + 6); if (binTailLog(B.q, B.n, p) < FOV_P) out.push({ t: B.first.t, kind: 'fov', adm: true, actor: R.players[i].id, vs: R.players[B.first.j].id, q: B.q, n: B.n, others: p, x: B.first.x, y: B.first.y }); }
+  };
   const closeF = i => { const r = fires.get(i); if (!r) return; fires.delete(i);
     const dur = Math.round((r.t1 - r.t0 + TRACK_STEP) * 10) / 10; if (dur < 0.4) return;
     const w = inHands(i, (r.t0 + r.t1) / 2); if (!WF_GUN(w)) return;
@@ -5736,6 +5830,7 @@ function wallTracks(R, done) {
     for (; k < steps && performance.now() - t0 < 25; k++) {
       const tt = T0 + k * TRACK_STEP, P = new Map();
       for (const i of sol) { const q = playerAt(i, tt); if (q.alive && !q.down && !q.veh && Number.isFinite(q.x) && q.h != null) P.set(i, q); }
+      fovStep(tt, P);
       for (const i of sol) {
         const q = P.get(i); if (!q || q.pitch == null) { close(i); closeF(i); continue; }
         const tm = teamOf(i, tt), eye = q.h + EYE_H[stanceNow(R.players[i], tt) ?? 0]; let best = null;
@@ -5763,7 +5858,7 @@ function wallTracks(R, done) {
     if (k < steps) { R._trackP = k / steps; setTimeout(work, 15); return; }
     for (const i of [...runs.keys()]) close(i);
     for (const i of [...fires.keys()]) closeF(i);
-    wfHints();
+    wfHints(); fovHints();
     done(out);
   };
   setTimeout(work, 50);
@@ -6454,6 +6549,7 @@ function admDescribe(h) {
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
   if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag or support near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
+  if (h.kind === 'fov') return [h.q + '/' + h.n, `<b>Wide view</b> ${pn(h.actor)} <span class="w">a weak sign: ${h.q} of ${h.n} times an enemy he could see came ${FOV_IN}-${FOV_OUT}° to the side of where he looked - just outside the game's ${Math.round(FOV_HALF * 2)}° view - with no shot, spot or hit to give him away, he turned to him within ${FOV_REACT} s (the round's others ${Math.round(h.others * 100)}%). A wider view than the game's (an ultrawide FOV hack) would do that; so can sound, the minimap or a team mate's call</span>`, `Wide view: ${pt(h.actor)}, ${h.q} of ${h.n}`];
   if (h.kind === 'wallfire') return [h.n > 1 ? h.n + '×' : h.dur.toFixed(1) + ' s', `<b>Fired at a wall</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">${h.n > 1 ? `${h.n} times this round he held the trigger (${WF_T0} s or more, ${h.total.toFixed(1)} s in all) on an enemy behind walls or a hill he hadn't seen in the ${WF_PRE} s before; the longest ` : 'held the trigger '}${h.dur.toFixed(1)} s on end with his crosshair on him behind cover, ${Math.round(h.d)} m away · ${esc(h.w)} · ${h.last === null ? 'not seen in the 6 s before' : `last seen ${h.last.toFixed(1)} s before`} · nobody in sight near his crosshair</span>`, `Fired at a wall: ${pt(h.actor)} → ${pt(h.vs)}, ${h.n > 1 ? h.n + ' times' : h.dur.toFixed(1) + ' s'}`];
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
   if (h.kind === 'speed') return [h.v.toFixed(0) + ' m/s', `<b>Speed</b> ${pn(h.actor)} <span class="w">on foot at up to ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s${h.n > 1 ? ' in ' + h.n + ' stretches over ' + Math.round(h.span) + ' s' : ''} (${Math.round(h.dist)} m, ${h.vavg.toFixed(1)} m/s on average) · the game's sprint is ${SPEED_RUN} m/s</span>`, `Speed: ${pt(h.actor)} ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s`];
@@ -7360,12 +7456,13 @@ const CLIP_SPEEDS = [0.5, 1, 2, 4, 8, 16];
 // its pace, 0 = as fast as can be) and how much before the clip already goes at the real pace (ticks: 3 s)
 const DEMO_FFS = [1, 10, 30, 100, 0], DEMO_LEAD = 90;
 const ffLabel = f => f === 1 ? 'Real pace' : f ? '×' + f : 'Fastest';
-const CLIP_HINT = 'Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills.';
+const CLIP_HINT = 'Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills, with sound made from the demo (shots, rockets, explosions; at up to 2×).';
 const DEMO_HINT = "A Battle Recorder file to watch the clip in BF2 itself (an experiment): put it in the game's demos folder with your other demos (restart the game if it is running). The game can't jump in a demo, so the file holds the round from its start: the part before the clip goes by fast, the last 3 s before it and the clip at the real pace, and then it ends. If the game stops or crashes, try a lower speed (×10, or Real pace).";
 const CLIP_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg>';
 const clipForceRec = /[?&]cliprec\b/.test(location.search);   // (testing: film in real time even with WebCodecs)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.clip') || '{}'); if (CLIP_SIZES[o.size]) clip.size = o.size; if (CLIP_SPEEDS.includes(o.speed)) clip.speed = o.speed; if (o.fmt === 'gif' || o.fmt === 'demo') clip.fmt = o.fmt; if (DEMO_FFS.includes(o.ff)) clip.ff = o.ff; } catch (e) {}
-const clipPrefs = () => { try { localStorage.setItem('bf2rr.clip', JSON.stringify({ size: clip.size, speed: clip.speed, fmt: clip.fmt, ff: clip.ff })); } catch (e) {} };
+const clipPrefs = () => { try { localStorage.setItem('bf2rr.clip', JSON.stringify({ size: clip.size, speed: clip.speed, fmt: clip.fmt, ff: clip.ff, sound: clip.sound })); } catch (e) {} };
+try { if (JSON.parse(localStorage.getItem('bf2rr.clip') || '{}').sound === false) clip.sound = false; } catch (e) {}
 const clipSecs = () => (clip.b - clip.a) / clip.speed;
 const speedLabel = v => v + '×';
 const fmtDur = s => { const r = Math.max(1, Math.round(s)); return r < 60 ? r + ' s' : Math.floor(r / 60) + ':' + String(r % 60).padStart(2, '0') + ' min'; };
@@ -7432,6 +7529,7 @@ function renderClipBar() {
     len.textContent = dem ? demoPlan(dOk) : long ? `${fmtDur(secs)} of ${what}, longer than ${mx >= 60 ? mx / 60 + ' min' : mx + ' s'}: a higher speed or a shorter stretch` : (clip.speed === 1 ? `${fmtDur(secs)} of ${what}` : `${fmtDur(clip.b - clip.a)} of the round → ${fmtDur(secs)} of ${what}`) + (gif ? ` · ${gifSize(CLIP_SIZES[clip.size][1], CLIP_SIZES[clip.size][2]).join('×')}` : '');
     $('#cGo').textContent = dem ? 'Make demo' : gif ? 'Make GIF' : 'Make video'; $('#cFmt').value = clip.fmt;
     for (const id of ['cSize', 'cSpeed', 'cCam']) $('#' + id).parentElement.hidden = dem;
+    { const sl = $('#cSndL'), fast = clip.speed > SND_MAX_SPEED; sl.hidden = dem || gif; $('#cSnd').checked = clip.sound && !fast; $('#cSnd').disabled = fast; sl.classList.toggle('off', fast); sl.title = fast ? `No sound faster than ${SND_MAX_SPEED}× (it would be a din)` : 'Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)'; }
     $('#cFFl').hidden = !dem; $('#cFF').value = String(clip.ff); $('#cHint').textContent = dem ? DEMO_HINT : CLIP_HINT;
     // camera: follow the soldier you follow (if you follow one), else the map as it is on screen
     const p = sel !== null ? round.players[sel] : null, fo = $('#cCam').options[0];
@@ -7494,6 +7592,7 @@ function clipFrame(S, k) {
       else { const u = 1 - Math.exp(-1 / fps / 0.35); S.cam = [S.cam[0] + (q.x - S.cam[0]) * u, S.cam[1] + (q.y - S.cam[1]) * u]; }
     } else if (!S.cam) S.cam = S.center;   // (dead: the camera waits where it is)
   } else S.cam = S.center;
+  if (S.camLog) S.camLog[k] = S.cam;   // (v156: where the picture's middle is, frame by frame - for the sound)
   const keep = { cx, size, sizeH, dpr, view, t, sel, minimap }, keepOpts = { ...opts };
   try {
     cx = S.g; size = S.LW; sizeH = S.LH; dpr = S.k; t = tt; sel = S.sel; animNow = k / fps; Object.assign(opts, S.opts); if (S.noPic) minimap = null;
@@ -7597,6 +7696,7 @@ async function clipWebCodecs(S, N, job, onP) {
     try { if ((await VideoEncoder.isConfigSupported(c)).supported) { cfg = c; kind = kd; break; } } catch (e) {}
   }
   if (!cfg) return null;
+  S.camLog = [];
   const samples = []; let desc = null, fail = null, wake = null;
   const enc = new VideoEncoder({
     output: (ch, meta) => {
@@ -7625,12 +7725,169 @@ async function clipWebCodecs(S, N, job, onP) {
   if (job.cancelled) return null;
   if (fail) throw fail;
   if (samples.length < N || (kind === 'avc' && !desc)) throw new Error('the video encoder gave back too little');
+  // (v156) the sound track, made from the demo
+  let audio = null;
+  if (S.sound) { onP(0.99, false, 'Adding the sound'); await yieldToPage(); try { audio = await clipSound(S, N); } catch (e) { console.warn('Clip: no sound', e); } }
   onP(1);
-  return { blob: mp4Mux({ kind, w: VW, h: VH, desc, samples, codec: cfg.codec }), ext: 'mp4', mime: 'video/mp4', codec: kind === 'avc' ? 'H.264' : 'VP9' };
+  return { blob: mp4Mux({ kind, w: VW, h: VH, desc, samples, codec: cfg.codec, audio }), ext: 'mp4', mime: 'video/mp4', codec: (kind === 'avc' ? 'H.264' : 'VP9') + (audio ? ' + ' + (audio.kind === 'aac' ? 'AAC' : 'Opus') : ''), sound: !!audio };
+}
+// ---------- the clip's sound (v156, Sagara's todo 163 є) ----------
+// The demo has no sound, but it has every fire button held down and let go, every rocket and missile fired and every
+// blast: from them the clip gets a sound track made here (synthesised - none of the game's own sounds). Shots: while a
+// fire button is held, at the rate of what he holds - automatic rifles and machine guns repeat, an M16A2 fires bursts of
+// three, a pistol, shotgun or sniper rifle once a press; in a vehicle the tank's main gun once a press, a cannon, a
+// machine gun or an aircraft's gun repeats. Rockets and missiles leaving their launcher (a hiss), grenade launchers (a
+// thump), and every blast. Each as loud as it is near the middle of the picture (the camera), duller far off, to the
+// left or right as on it. 48 kHz stereo, into the MP4 as AAC (Opus where the browser has no AAC encoder). At 0.5x-2x
+// only: faster it would be a din.
+const SND_RATE = 48000, SND_MAX_SPEED = 2;
+const sndRng = seed => { let x = (seed * 2654435761) >>> 0 || 1; return () => { x ^= x << 13; x ^= x >>> 17; x ^= x << 5; return (x >>> 0) / 2147483648 - 1; }; };
+const sndLp = fc => { const a = 1 - Math.exp(-2 * Math.PI * fc / SND_RATE); let y = 0; return x => (y += a * (x - y)); };
+function sndMake(len, fill) {
+  const n = Math.round(len * SND_RATE), a = new Float32Array(n); fill(a, n);
+  let m = 0; for (let i = 0; i < n; i++) m = Math.max(m, Math.abs(a[i])); if (m) for (let i = 0; i < n; i++) a[i] /= m;
+  for (let i = 0; i < 48 && i < n; i++) a[i] *= i / 48;   // (no click)
+  return a;
+}
+// a shot: a crack (the noise's top), the body (its middle), a thump and a tail
+const SND_GUN = {
+  rifle: { len: 0.4, fc: 1800, crack: 0.004, crackG: 0.8, body: 0.025, hz: 140, thump: 0.03, thumpG: 0.6, tail: 0.12, tailG: 0.5 },
+  mg: { len: 0.5, fc: 1400, crack: 0.005, crackG: 0.8, body: 0.035, hz: 110, thump: 0.045, thumpG: 0.9, tail: 0.16, tailG: 0.6 },
+  pistol: { len: 0.3, fc: 2300, crack: 0.003, crackG: 0.7, body: 0.016, hz: 180, thump: 0.02, thumpG: 0.4, tail: 0.08, tailG: 0.3 },
+  shotgun: { len: 0.6, fc: 1000, crack: 0.006, crackG: 0.6, body: 0.05, hz: 90, thump: 0.06, thumpG: 1, tail: 0.22, tailG: 0.7 },
+  sniper: { len: 1.0, fc: 1500, crack: 0.006, crackG: 1, body: 0.04, hz: 80, thump: 0.07, thumpG: 1, tail: 0.45, tailG: 0.9 },
+  cannon: { len: 0.7, fc: 900, crack: 0.006, crackG: 0.7, body: 0.06, hz: 70, thump: 0.07, thumpG: 1.1, tail: 0.25, tailG: 0.7 },
+};
+const sndGun = (seed, P) => sndMake(P.len, (a, n) => {
+  const r = sndRng(seed), lb = sndLp(P.fc), lh = sndLp(2600), lt = sndLp(P.fc * 0.35);
+  for (let i = 0; i < n; i++) { const t = i / SND_RATE, w = r(); a[i] = (w - lh(w)) * Math.exp(-t / P.crack) * P.crackG + lb(w) * Math.exp(-t / P.body) * 2.2 + Math.sin(2 * Math.PI * P.hz * t * (1 - t * 2)) * Math.exp(-t / P.thump) * P.thumpG + lt(w) * Math.exp(-t / P.tail) * P.tailG * 3; }
+});
+// a blast: low rumble, a deep thump, a crackle; a tank's main gun: the same, sharper
+const sndBoom = (seed, len, fc, decay, hz, crack) => sndMake(len, (a, n) => {
+  const r = sndRng(seed), l1 = sndLp(fc), l2 = sndLp(fc * 0.4), lh = sndLp(3000);
+  for (let i = 0; i < n; i++) { const t = i / SND_RATE, w = r(), env = Math.min(1, t / 0.004) * Math.exp(-t / decay); a[i] = (l1(w) * 2 + l2(w) * 3) * env + Math.sin(2 * Math.PI * hz * t * (1 - 0.3 * t)) * Math.exp(-t / (decay * 0.6)) * 0.8 + (w - lh(w)) * Math.exp(-t / 0.012) * crack + (r() > 0.997 ? r() * 0.6 : 0) * Math.exp(-t / 0.4); }
+});
+// a rocket leaving its launcher: a pop and a hiss going away; a grenade launcher: a hollow thump
+const sndWhoosh = seed => sndMake(1.1, (a, n) => {
+  const r = sndRng(seed), l1 = sndLp(3200), l2 = sndLp(450);
+  for (let i = 0; i < n; i++) { const t = i / SND_RATE, w = r(), b = l1(w) - l2(w); a[i] = b * 3 * Math.min(1, t / 0.03) * Math.exp(-t / 0.45) + Math.sin(2 * Math.PI * 95 * t) * Math.exp(-t / 0.03) * 0.8; }
+});
+const sndBloop = seed => sndMake(0.4, (a, n) => { const r = sndRng(seed), l = sndLp(600); for (let i = 0; i < n; i++) { const t = i / SND_RATE; a[i] = Math.sin(2 * Math.PI * 75 * t * (1 - t)) * Math.exp(-t / 0.05) + l(r()) * Math.exp(-t / 0.06) * 2; } });
+const sndBank = {};   // kind -> [near variants, far variants] (made once)
+function sndGet(kind, v, far) {
+  let B = sndBank[kind];
+  if (!B) {
+    const mk = k => SND_GUN[kind] ? sndGun(k * 7919 + kind.length, SND_GUN[kind]) : kind === 'tank' ? sndBoom(k + 11, 1.8, 650, 0.32, 58, 1.2) : kind === 'boom' ? sndBoom(k + 31, 2.4, 300, 0.55, 42, 0.5)
+      : kind === 'blast' ? sndBoom(k + 51, 1.6, 480, 0.36, 55, 0.6) : kind === 'whoosh' ? sndWhoosh(k + 71) : sndBloop(k + 91);
+    const near = [0, 1, 2].map(mk), dull = x => { const l1 = sndLp(650), l2 = sndLp(650), o = new Float32Array(x.length); for (let i = 0; i < x.length; i++) o[i] = l2(l1(x[i])) * 1.6; return o; };
+    B = sndBank[kind] = [near, near.map(dull)];
+  }
+  return B[far ? 1 : 0][v % 3];
+}
+// what a fire button held does: [sound, shots a second (0: one a press), shots in a burst]
+function sndShot(i, p, tt, k) {
+  const q = playerAt(i, tt); if (!q.alive) return null;
+  if (q.veh) {
+    const vi = vehIdx(q.veh); if (vi === undefined) return null;
+    const cls = vehClass(vi), air = airNames().has(q.veh);
+    if (q.drv) {
+      if (air) return k === 0 ? ['cannon', 14, 0, vi] : null;
+      if (cls === 'tank') return k === 0 ? ['tank', 0, 0, vi] : k === 1 ? ['mg', 11, 0, vi] : null;
+      if (cls === 'apc') return k === 0 ? ['cannon', 4, 0, vi] : k === 1 ? ['mg', 11, 0, vi] : null;
+      if (cls === 'aa') return k === 0 ? ['cannon', 9, 0, vi] : null;
+      return null;   // (a jeep's or a boat's driver has no gun)
+    }
+    return k === 0 ? ['mg', 10, 0, vi] : null;
+  }
+  if (k !== 0) return null;   // (on foot: the trigger; the others are the grenade launcher / zoom)
+  const w = inHands(i, tt), nm = w ? w.name || '' : '';
+  if (!w) return ['rifle', 11, 0];
+  if (/knife|defib|shock|wrench|repair|bag|binocular|designat|SIMRAD|zipline|grappl|gas mask|night vision|^tool$|parachute|smoke|flash|grenade|C4|claymore|mine|tear gas|SRAW|Eryx|RPG|TOW|Igla|Stinger|HJ-8|M203|GP-\d|launcher/i.test(nm)) return null;   // (thrown, placed or launched: the blast or the launch is the sound)
+  if (/M24\b|M95|L96|SVD|Dragunov|QBU|M82|crossbow/i.test(nm)) return ['sniper', 0, 0];
+  if (/^M9\b|QSZ|MR-444|pistol|Glock|USP|92FS/i.test(nm)) return ['pistol', 0, 0];
+  if (/DAO|870|Saiga|Jackhammer|11-87|Benelli|Norinco 982|NOR\b|shotgun/i.test(nm)) return ['shotgun', 0, 0];
+  if (/M249|RPK|PKM|MG36|QBB|LMG|HK21|SAW|minigun/i.test(nm)) return ['mg', 12.5, 0];
+  if (/M16A2/i.test(nm)) return ['rifle', 15, 3];
+  return ['rifle', 11, 0];
+}
+// the mix: stereo PCM for N frames of the clip S (its camera frame by frame in S.camLog)
+function clipSoundMix(S, N) {
+  const fps = S.fps || CLIP_FPS, secs = N / fps, n = Math.ceil(secs * SND_RATE), L = new Float32Array(n), Rr = new Float32Array(n), R = S.round;
+  const ta = S.a, tb = S.a + secs * S.speed, ctOf = tt => (tt - ta) / S.speed;
+  const camAt = ct => { const L2 = S.camLog || []; return L2[Math.max(0, Math.min(L2.length - 1, Math.floor(ct * fps)))] || S.center; };
+  let placed = 0;
+  const add = (kind, x, y, tt, loud, ref, reach, v) => {
+    const ct = ctOf(tt); if (ct < -2 || ct > secs || !Number.isFinite(x) || !Number.isFinite(y)) return;
+    const c = camAt(Math.max(0, ct)), dx = x - c[0], d = Math.hypot(dx, y - c[1]); if (d > reach) return;
+    const g = loud / (1 + d / ref); if (g < 0.003) return;
+    const sm = sndGet(kind, v, d > 110), pan = Math.max(-1, Math.min(1, dx / (S.span / 2 || 100))) * 0.8, gl = g * Math.sqrt(1 - pan), gr = g * Math.sqrt(1 + pan);
+    const o = Math.round(ct * SND_RATE);
+    for (let i = Math.max(0, -o), m = Math.min(sm.length, n - o); i < m; i++) { const s0 = sm[i]; L[o + i] += s0 * gl; Rr[o + i] += s0 * gr; }
+    placed++;
+  };
+  // shots
+  R.players.forEach((p, i) => {
+    if (p.vehicle || !p.fire) return;
+    for (const [f0, f1, k] of p.fire) {
+      if (f1 < ta - 0.5 || f0 > tb) continue;
+      const kind = sndShot(i, p, Math.max(f0, ta - 0.5), k); if (!kind) continue;
+      const [snd, rate, burst, vi] = kind, at = tt => { const q = playerAt(vi ?? i, tt); return [q.x, q.y]; };
+      const loud = snd === 'tank' ? 1.3 : snd === 'cannon' ? 0.9 : snd === 'sniper' ? 0.9 : snd === 'pistol' ? 0.5 : 0.65, ref = snd === 'tank' ? 40 : 18, reach = snd === 'tank' ? 900 : 450;
+      const times = []; if (!rate) times.push(f0); else if (burst) for (let j = 0; j < burst; j++) times.push(f0 + j / rate); else for (let tt = f0, j = 0; tt <= Math.max(f0, f1) && j < 400; tt += 1 / rate, j++) times.push(tt);
+      times.forEach((tt, j) => { if (tt < ta - 0.5 || tt > tb) return; const [x, y] = at(tt); add(snd, x, y, tt, loud * (0.9 + 0.1 * ((j * 37) % 7) / 6), ref, reach, i + j); });
+    }
+  });
+  // launches and blasts
+  R.events.forEach((e, j) => {
+    if (e.t < ta - 3 || e.t > tb) return;
+    if (e.type === 'throw' && e.path?.length && (MISSILES.has(e.kind) || GRENADE_KINDS.has(e.kind)) && !SHELL_KINDS.has(e.kind)) {
+      const q = e.path[0], isGl = GRENADE_KINDS.has(e.kind) && e.kind !== 'Grenade' && !/hand|M67|F1|smoke|flash/i.test(e.kind);
+      if (MISSILES.has(e.kind)) add('whoosh', q[1], q[2], e.t, 0.7, 25, 500, j); else if (isGl) add('bloop', q[1], q[2], e.t, 0.6, 18, 300, j);
+    } else if (e.type === 'blast' && e.x != null) {
+      const big = SHELL_KINDS.has(e.kind) || /C4|AT mine|bomb|shell/i.test(e.kind || '');
+      add(big ? 'boom' : 'blast', e.x, e.y, e.t, big ? 1.4 : 1.1, 45, 1400, j);
+    }
+  });
+  // (a soft limit: loud moments stay loud without clipping)
+  let peak = 0; for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(Rr[i]));
+  const pre = peak > 0.25 ? 1 : 0.25 / Math.max(peak, 0.02);   // (a quiet clip a little louder)
+  for (let i = 0; i < n; i++) { L[i] = Math.tanh(L[i] * pre); Rr[i] = Math.tanh(Rr[i] * pre); }
+  return { L, R: Rr, placed };
+}
+// the PCM into AAC (or Opus) packets for mp4Mux: { kind: 'aac' | 'opus', desc, samples: [{ d, dur (frames) }], rate, ch }
+async function clipSound(S, N) {
+  if (typeof AudioEncoder !== 'function' || typeof AudioData !== 'function') return null;
+  const { L, R, placed } = clipSoundMix(S, N); if (!placed) return null;
+  let cfg = null, kind = null;
+  for (const [codec, kd] of [['mp4a.40.2', 'aac'], ['opus', 'opus']]) {
+    const c = { codec, sampleRate: SND_RATE, numberOfChannels: 2, bitrate: 128000 };
+    try { if ((await AudioEncoder.isConfigSupported(c)).supported) { cfg = c; kind = kd; break; } } catch (e) {}
+  }
+  if (!cfg) return null;
+  const samples = []; let desc = null, fail = null;
+  const enc = new AudioEncoder({
+    output: (ch, meta) => { const d = new Uint8Array(ch.byteLength); ch.copyTo(d); samples.push({ d, dur: Math.round((ch.duration || (kind === 'aac' ? 21333 : 20000)) * SND_RATE / 1e6) }); const ds = meta?.decoderConfig?.description; if (ds && !desc) desc = ArrayBuffer.isView(ds) ? new Uint8Array(ds.buffer, ds.byteOffset, ds.byteLength).slice() : new Uint8Array(ds).slice(); },
+    error: e => { fail = e; },
+  });
+  try {
+    enc.configure(cfg);
+    const F = 4800;
+    for (let o = 0; o < L.length && !fail; o += F) {
+      const m = Math.min(F, L.length - o), buf = new Float32Array(m * 2); buf.set(L.subarray(o, o + m), 0); buf.set(R.subarray(o, o + m), m);
+      const ad = new AudioData({ format: 'f32-planar', sampleRate: SND_RATE, numberOfFrames: m, numberOfChannels: 2, timestamp: Math.round(o / SND_RATE * 1e6), data: buf });
+      try { enc.encode(ad); } finally { ad.close(); }
+      if (enc.encodeQueueSize > 20) await new Promise(r => setTimeout(r, 5));
+    }
+    if (!fail) await enc.flush();
+  } finally { try { enc.close(); } catch (e) {} }
+  if (fail || !samples.length) return null;
+  return { kind, desc, samples, rate: SND_RATE, ch: 2 };
 }
 // a plain MP4 (ISO BMFF) file: ftyp, moov with one video track (avc1 + avcC, or vp09 + vpcC), mdat with all the frames
-// in one chunk. Decode order is the encoder's output order; presentation times are the frames' own
-function mp4Mux({ kind, w, h, desc, samples, codec }) {
+// in one chunk. Decode order is the encoder's output order; presentation times are the frames' own. (v156) With audio
+// (clipSound): a second track - mp4a + esds (AAC: its AudioSpecificConfig) or Opus + dOps - its packets in a chunk of
+// their own after the frames
+function mp4Mux({ kind, w, h, desc, samples, codec, audio }) {
   const TS = 90000, N = samples.length;
   const u16 = v => [v >> 8 & 255, v & 255], u32 = v => [v >>> 24 & 255, v >>> 16 & 255, v >>> 8 & 255, v & 255];
   const ch = str => Array.from(str, c => c.charCodeAt(0)), zero = n => new Array(n).fill(0);
@@ -7655,17 +7912,47 @@ function mp4Mux({ kind, w, h, desc, samples, codec }) {
     full('stsc', 0, 0, u32(1), u32(1), u32(N), u32(1)),
     full('stsz', 0, 0, u32(0), u32(N), samples.flatMap(s => u32(s.d.length))),
     full('stco', 0, 0, u32(1), u32(off)));
+  // (v156) the sound track
+  let atrak = null, ams = 0, aTotal = 0;
+  if (audio) {
+    const A = audio.samples, NA = A.length, rate = audio.rate, nch = audio.ch, adur = A.reduce((n, s) => n + s.dur, 0); ams = Math.round(adur / rate * 1000); aTotal = A.reduce((n, s) => n + s.d.length, 0);
+    const aruns = []; for (const s of A) { const r = aruns[aruns.length - 1]; if (r && r[1] === s.dur) r[0]++; else aruns.push([1, s.dur]); }
+    const dsc = (tag, body) => { const n = body.length; return [tag, 0x80 | (n >> 21 & 127), 0x80 | (n >> 14 & 127), 0x80 | (n >> 7 & 127), n & 127, ...body]; };
+    let entry;
+    if (audio.kind === 'aac') {
+      const asc = audio.desc && audio.desc.length ? [...audio.desc] : [0x11, 0x90];   // (AAC LC, 48 kHz, stereo)
+      const esd = dsc(3, [...u16(2), 0, ...dsc(4, [0x40, 0x15, 0, 0, 0, ...u32(128000), ...u32(128000), ...dsc(5, asc)]), ...dsc(6, [2])]);
+      entry = box('mp4a', zero(6), u16(1), zero(8), u16(nch), u16(16), zero(4), u32(rate * 65536), full('esds', 0, 0, esd));
+    } else {
+      const hd = audio.desc, pre = hd && hd.length >= 12 && String.fromCharCode(...hd.slice(0, 8)) === 'OpusHead' ? hd[10] | hd[11] << 8 : 312;
+      entry = box('Opus', zero(6), u16(1), zero(8), u16(nch), u16(16), zero(4), u32(rate * 65536), box('dOps', [0, nch, ...u16(pre), ...u32(rate), ...u16(0), 0]));
+    }
+    atrak = off => box('trak',
+      full('tkhd', 0, 3, u32(0), u32(0), u32(2), u32(0), u32(ams), zero(8), u16(0), u16(1), u16(0x100), u16(0), matrix, u32(0), u32(0)),
+      box('mdia',
+        full('mdhd', 0, 0, u32(0), u32(0), u32(rate), u32(adur), u16(0x55c4), u16(0)),
+        full('hdlr', 0, 0, u32(0), ch('soun'), zero(12), ch('Sound'), [0]),
+        box('minf', full('smhd', 0, 0, u16(0), u16(0)), box('dinf', full('dref', 0, 0, u32(1), full('url ', 0, 1))),
+          box('stbl',
+            full('stsd', 0, 0, u32(1), entry),
+            full('stts', 0, 0, u32(aruns.length), aruns.flatMap(([c, d]) => [...u32(c), ...u32(d)])),
+            full('stsc', 0, 0, u32(1), u32(1), u32(NA), u32(1)),
+            full('stsz', 0, 0, u32(0), u32(NA), A.flatMap(s => u32(s.d.length))),
+            full('stco', 0, 0, u32(1), u32(off))))));
+  }
+  const vTotal = samples.reduce((n, s) => n + s.d.length, 0);
   const moov = off => box('moov',
-    full('mvhd', 0, 0, u32(0), u32(0), u32(1000), u32(ms), u32(0x10000), u16(0x100), zero(10), matrix, zero(24), u32(2)),
+    full('mvhd', 0, 0, u32(0), u32(0), u32(1000), u32(Math.max(ms, ams)), u32(0x10000), u16(0x100), zero(10), matrix, zero(24), u32(audio ? 3 : 2)),
     box('trak',
       full('tkhd', 0, 3, u32(0), u32(0), u32(1), u32(0), u32(ms), zero(8), u16(0), u16(0), u16(0), u16(0), matrix, u32(w * 65536), u32(h * 65536)),
       box('mdia',
         full('mdhd', 0, 0, u32(0), u32(0), u32(TS), u32(dur), u16(0x55c4), u16(0)),
         full('hdlr', 0, 0, u32(0), ch('vide'), zero(12), ch('Video'), [0]),
-        box('minf', full('vmhd', 0, 1, zero(8)), box('dinf', full('dref', 0, 0, u32(1), full('url ', 0, 1))), stbl(off)))));
+        box('minf', full('vmhd', 0, 1, zero(8)), box('dinf', full('dref', 0, 0, u32(1), full('url ', 0, 1))), stbl(off)))),
+    ...(atrak ? [atrak(off + vTotal)] : []));
   const ftyp = box('ftyp', ch('isom'), u32(0x200), ch('isom'), ch('iso2'), ...(kind === 'avc' ? [ch('avc1')] : []), ch('mp41'));
-  const total = samples.reduce((n, s) => n + s.d.length, 0), off = ftyp.length + moov(0).length + 8;
-  return new Blob([ftyp, moov(off), Uint8Array.from([...u32(total + 8), ...ch('mdat')]), ...samples.map(s => s.d)], { type: 'video/mp4' });
+  const off = ftyp.length + moov(0).length + 8;
+  return new Blob([ftyp, moov(off), Uint8Array.from([...u32(vTotal + aTotal + 8), ...ch('mdat')]), ...samples.map(s => s.d), ...(audio ? audio.samples.map(s => s.d) : [])], { type: 'video/mp4' });
 }
 // ---------- GIF ----------
 // One palette for the whole clip (median cut over 5 frames spread through it: 255 colours, the 256th see-through), each
@@ -7816,9 +8103,9 @@ async function recordClip() {
   const job = clip.job = { cancelled: false, why: '' };
   renderClipBar(); clipProgress(0, 'Getting ready');   // (the last clip stays until this one is made)
   try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
-  const mkScene = () => gif ? clipScene(VW, VH, GIF_LAYOUT, GIF_FPS) : clipScene(VW, VH);
+  const mkScene = () => { const o = gif ? clipScene(VW, VH, GIF_LAYOUT, GIF_FPS) : clipScene(VW, VH); o.sound = !gif && clip.sound && clip.speed <= SND_MAX_SPEED; return o; };
   let S = mkScene(); const t0 = performance.now();
-  const onP = (f, rt) => clipProgress(f, (rt ? 'Filming in real time' : gif ? 'Making the GIF' : 'Making the video') + ' · ' + Math.round((performance.now() - t0) / 1000) + ' s');
+  const onP = (f, rt, what) => clipProgress(f, (what || (rt ? 'Filming in real time' : gif ? 'Making the GIF' : 'Making the video')) + ' · ' + Math.round((performance.now() - t0) / 1000) + ' s');
   let res = null, err = null;
   try {
     // (a map picture the browser counts as foreign, e.g. one opened from disk, can't be filmed: then the clip goes without it)
@@ -8007,6 +8294,7 @@ $('#cFmt').onchange = e => { clip.fmt = e.target.value === 'gif' || e.target.val
 $('#cFF').innerHTML = DEMO_FFS.map(v => `<option value="${v}">${ffLabel(v)}</option>`).join('');
 $('#cFF').onchange = e => { clip.ff = +e.target.value; clipPrefs(); renderClipBar(); };
 $('#cCam').onchange = e => { clip.cam = e.target.value; };
+$('#cSnd').onchange = e => { clip.sound = e.target.checked; clipPrefs(); };
 $('#cGo').onclick = recordClip;
 $('#cStop').onclick = () => { if (clip.job) { clip.job.cancelled = true; clip.job.why = 'Cancelled'; } };
 $('#cSave').onclick = saveClip;
@@ -8233,9 +8521,18 @@ function setVehView(models) {
 $('#vwIcons').onclick = () => setVehView(false); $('#vwModels').onclick = () => setVehView(true);
 $('#swGame').onclick = () => setSolView(true); $('#swFig').onclick = () => setSolView(false); setSolView(opts.gameSol);
 $('#hdGame').onclick = () => setHudView(true); $('#hdPage').onclick = () => setHudView(false); setHudView(opts.gameHud);
+// (v158) the pointer's tag: Off / Height / Grid (Filters ▾ Cursor, or G round them)
+function setCursor(v) {
+  opts.cursor = v === 'height' || v === 'grid' ? v : 'off';
+  for (const [id, k] of [['cuOff', 'off'], ['cuH', 'height'], ['cuXY', 'grid']]) $('#' + id).setAttribute('aria-checked', String(opts.cursor === k));
+  try { localStorage.setItem('bf2rr.cursor', opts.cursor); } catch (e) {}
+  hTipShow();
+}
+$('#cuOff').onclick = () => setCursor('off'); $('#cuH').onclick = () => setCursor('height'); $('#cuXY').onclick = () => setCursor('grid'); setCursor(opts.cursor);
 document.querySelectorAll('.qI').forEach(b => b.onclick = () => setVehView(false)); document.querySelectorAll('.qM').forEach(b => b.onclick = () => setVehView(true));
 for (const seg of document.querySelectorAll('.qcam')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setCam3(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
-for (const seg of document.querySelectorAll('.vwseg, .qseg:not(.qcam)')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setVehView(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
+// (arrows: the next choice in the row - v158: each row its own; before, every row's arrows switched the vehicles)
+for (const seg of document.querySelectorAll('.vwseg, .qseg:not(.qcam)')) seg.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); e.stopPropagation(); const B = [...seg.querySelectorAll('[role=radio]')], k = B.findIndex(b => b.getAttribute('aria-checked') === 'true'), n = B[Math.max(0, Math.min(B.length - 1, k + (e.key === 'ArrowRight' ? 1 : -1)))]; if (n) { n.click(); n.focus(); } });
 // buildings' outlines from the map's own button (or B), the same as Layers ▾ > Buildings
 document.querySelectorAll('.qwall').forEach(b => b.onclick = () => $('#tWalls').click());
 document.querySelectorAll('.qrel').forEach(b => b.onclick = () => $('#tRelief').click());
@@ -8271,6 +8568,7 @@ document.addEventListener('keydown', e => {
   if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round) clipMark(e.code==='KeyI' ? 'a' : 'b');
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
   if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
+  if (e.code==='KeyG' && !e.ctrlKey && !e.metaKey && !e.altKey) { setCursor({ off: 'height', height: 'grid', grid: 'off' }[opts.cursor]); toast('Cursor: ' + { off: 'nothing', height: 'height', grid: 'grid square and metres' }[opts.cursor]); }
   if (e.code==='KeyK' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); }
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
@@ -8623,7 +8921,8 @@ const EXPLOSIVES = { 5457: ['Grenade', 9, 40, 3.2], 5461: ['Claymore', 15, 25, 5
   // like the rockets, every record of their flight in the demo (2F4Y Dalian 01.10 09:08: 100 TV missiles, 225 shells -
   // 15 strikes of 3 guns x 5 shells, 12 s in the air)
   5305: ['TV missile', 5, 260, 4], 5310: ['TV missile', 7, 330, 10.5], 5322: ['TV missile', 20, 330, 10.5],
-  5502: ['D-30 shell', 15, 700, 40], 5579: ['M777 shell', 15, 700, 40] };
+  5502: ['D-30 shell', 15, 700, 40], 5579: ['M777 shell', 15, 700, 40],
+  32201: ['RPG-7', 2, 150, 10] };   // (v156: Special Forces' rpg_rocket)
 const FAST_FLIGHT = { 5305: 260, 5310: 330, 5322: 330, 5502: 700, 5579: 700 }, SHELL_TPL = new Set([5502, 5579]), TV_TPL = new Set([5305, 5310, 5322]);
 // Smoke: a tank's or APC's smoke launcher (two grenades, ahead to the left and right: Smokeflare 5335) and the smoke
 // grenade (hgr_smoke_Projectile 5405) are objects like the grenades and followed the same way; the cloud stands where
@@ -8793,7 +9092,7 @@ function scanEvents(B, players, out, t, onlySpawns, exact) {
       if (s + 155 > B.n) continue;
       const u9 = B.u(s + 50, 9);
       if (u9 === 288 || u9 === 289) {   // thrown, fired or dropped item (grenade, rocket, ammo/medic bag, defibrillator shock)
-        const tpl = T(B.u(s + 7, 16)); if (tpl < 5290 || tpl > 5620) continue;
+        const tpl = T(B.u(s + 7, 16)); if ((tpl < 5290 || tpl > 5620) && !EXPLOSIVES[tpl]) continue;
         const x = B.f(s + 59), y = B.f(s + 91), z = B.f(s + 123);
         if (okPos(x, y, z) && Math.abs(x) >= 1) out.push({ t, kind: 'proj', tpl, id: 2 * B.u(s + 39, 16), x, y, z });
         continue;
@@ -8986,6 +9285,8 @@ const WEAPONS = {
   // (v136) Armored Fury's own (20000 + booster id; names from the templates)
   25683: 'A-10 cannon', 25685: 'A-10 bombs', 25718: 'Su-39 cannon', 25720: 'Su-39 bombs', 25737: 'WZ-11 cannons', 25769: 'EC635 cannons',
   25803: 'Little Bird miniguns', 25840: 'Q-5 cannon', 25845: 'Q-5 bombs',
+  // (v156) Euro Force's and Special Forces' own
+  31101: 'Leopard 2A6 cannon', 31102: 'Leopard 2A6 smoke', 31111: 'Challenger 2 cannon', 31112: 'Challenger 2 smoke', 31121: 'Eurofighter cannon', 31122: 'Eurofighter missiles', 31123: 'Eurofighter bombs', 31131: 'Tiger cannon', 31132: 'Tiger TV missile', 31133: 'Tiger rockets', 31134: 'Tiger flares', 32101: 'Apache cannon', 32102: 'Apache TV missile', 32103: 'Apache rockets', 32104: 'Apache flares', 32105: 'BMP-3 cannon', 32106: 'BMP-3 smoke', 32107: 'Hind cannon', 32108: 'Hind TV missile', 32109: 'Hind rockets', 32110: 'Hind flares', 32111: 'RPG-7', 32112: 'Crossbow', 32113: 'Grappling hook', 32114: 'G36K', 32115: 'Tear gas', 32116: 'SCAR-H', 32117: 'Gas mask', 32118: 'Night vision', 32119: 'TOW',
 };
 const weaponName = id => WEAPONS[id] || '';
 // Vehicle templates, same numbering (ground vehicles, from the object files; 6 of them also matched in tests). Aircraft
@@ -9002,13 +9303,33 @@ const weaponName = id => WEAPONS[id] || '';
 // Su-39, WZ-11, EC635, Little Bird, Q-5 ...) gets 20000 + its id, after the last one (6195) the level's own are 595 on
 const BOOSTER_LEVELS = new Set(['midnight_sun', 'operationharvest', 'operationroadrage']);
 const BOOSTER_RUNS = [[0, 21, 0], [22, 1, -1], [24, 4, -2], [29, 61, -3], [91, 2, -4], [94, 6, -5], [108, 29, -13], [147, 178, -23], [329, 32, -27], [365, 60, -31], [429, 1558, -35], [1992, 126, -40], [2123, 266, -45], [2394, 186, -50], [2610, 704, -80], [3316, 3, -82], [3330, 1, -93], [3332, 2, -94], [3335, 1, -95], [3337, 310, -96], [3653, 2, -102], [3656, 6, -103], [3663, 2, -104], [3783, 1, -50], [3869, 172, -308], [4041, 201, -307], [4243, 35, -308], [4282, 93, -312], [4439, 1220, -376], [5878, 318, -595]];
-let TMAP = false;
-const T = x => {
-  if (!TMAP || x == null) return x;
-  let lo = 0, hi = BOOSTER_RUNS.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (BOOSTER_RUNS[m][0] <= x) lo = m; else hi = m - 1; }
-  const [a, n, d] = BOOSTER_RUNS[lo]; return x >= a && x < a + n ? x + d : x >= 6196 ? x - 595 : 20000 + x;
-};
-const AIR_X = new Set([25659, 25689, 25721, 25754, 25782, 25813]);   // (the new aircraft: 20000 + their booster id)
+// (v156, Sagara's todo 158) Euro Force levels (Great Wall, Taraba Quarry, Operation Smoke Screen): the base game's
+// numbering, and the level's Init.con makes its own vehicles right after the 5601 global templates (Kakarotto22's
+// template table, MIT: exact ids). EF_LEVEL turns them into ours: one the base game has too (the LAV-25, FAAV, Humvee -
+// their seats, guns and shells) into its id, the Euro Force's own (Leopard 2A6, Challenger 2, Eurofighter, Tiger) into
+// 31000 on.
+const EF_LEVEL = {greatwall: {5657: 31001, 5660: 31101, 5662: 31011, 5683: 31201, 5688: 31102, 5691: 5134, 5695: 5138, 5714: 5157, 5715: 5158, 5717: 5161, 5721: 5165, 5724: 5168, 5727: 5171, 5730: 5174, 5740: 4926, 5742: 4928, 5745: 4931, 5761: 5184, 5763: 5186, 5788: 5211, 5789: 5212}, taraba_quarry: {5628: 4926, 5630: 4928, 5633: 4931, 5649: 31003, 5672: 31121, 5673: 31203, 5674: 31122, 5675: 31123, 5678: 31002, 5681: 31111, 5683: 31012, 5703: 31202, 5708: 31112, 5711: 31001, 5714: 31101, 5716: 31011, 5737: 31201, 5742: 31102, 5745: 5134, 5749: 5138, 5768: 5157, 5769: 5158, 5771: 5161, 5775: 5165, 5778: 5168, 5781: 5171, 5784: 5174, 5794: 5184, 5796: 5186, 5821: 5211, 5822: 5212}, operationsmokescreen: {5650: 4926, 5652: 4928, 5655: 4931, 5671: 31003, 5694: 31121, 5695: 31203, 5696: 31122, 5697: 31123, 5702: 31004, 5707: 31014, 5712: 31131, 5713: 31204, 5714: 31132, 5728: 31133, 5729: 31205, 5734: 31134, 5735: 31206, 5737: 31002, 5740: 31111, 5742: 31012, 5762: 31202, 5767: 31112}};
+// (v156) Special Forces levels (mods/xpack): its own object archive is mounted before the base game's, so every id
+// differs (6626 global templates). SF_RUNS [first, count, add] turn the ones the base game has too into ours,
+// SF_ONE the rest that matter: the same vehicle under another name (its M1A2), the SF's own vehicles and guns (32000
+// on), its kits and soldiers onto the base game's of the same kind and side (SAS / SEAL: US; MEC SF, Spetsnaz, insurgents:
+// MEC; Chinese rebels: CH - so their kits and spawns read as on the base maps); any other 40000 + id; the level's own
+// after the global ones, 1025 on (as on a base map)
+const SF_LEVELS = new Set(["devils_perch","ghost_town","iron_gator","leviathan","mass_destruction","night_flight","surge","warlord"]);
+const SF_RUNS = [[0,8,0],[9,4,-1],[23,2,-11],[28,1,-14],[30,1,-15],[38,1,-22],[40,10,-23],[55,5,-28],[86,2,-54],[124,1,-90],[127,19,-92],[148,13,-94],[163,16,-96],[182,4,-99],[190,2,-103],[195,6,-106],[205,18,-110],[225,7,-112],[235,59,-115],[306,2,-127],[320,1261,-139],[1588,70,-146],[1686,7,-174],[1698,1011,-179],[2757,61,-227],[2821,141,-230],[2967,290,-235],[3258,100,-236],[3365,4,-196],[3369,1,-195],[3370,4,-194],[3384,47,-262],[3431,1,-258],[3432,1,-257],[3433,12,-253],[3578,12,-386],[3616,1,-412],[3622,2,-417],[3628,2,-421],[3632,7,-423],[3642,8,-426],[3651,6,-427],[3658,1,-428],[3660,3,-429],[3665,3,-431],[3669,1,-432],[3677,5,-439],[3683,2,-440],[3687,13,-442],[3702,19,-444],[3723,6,-446],[3739,780,-456],[4760,160,-697],[4935,1060,-712],[6283,61,-1000],[6345,1,-1001],[6348,51,-1003],[6401,10,-1005],[6412,4,-1006],[6417,2,-1007],[6421,36,-1009],[6459,4,-1011],[6465,16,-1013],[6483,26,-1015],[6511,88,-1017],[6607,19,-1025]];
+const SF_ONE = {3358: 3088, 3360: 3091, 3362: 3094, 3376: 3110, 3378: 3113, 3380: 3116, 3382: 3119, 3445: 3159, 3447: 3159, 3448: 3162, 3450: 3162, 3451: 3165, 3464: 3180, 3466: 3183, 3468: 3183, 3469: 3186, 3471: 3186, 3472: 3189, 3474: 3159, 3476: 3162, 3478: 3165, 3483: 3180, 3485: 3183, 3487: 3186, 3489: 3189, 3491: 3192, 3493: 3193, 3495: 3195, 3512: 3199, 3514: 3200, 3516: 3202, 3518: 3203, 3520: 3192, 3522: 3192, 3523: 3193, 3525: 3193, 3526: 3195, 3544: 3199, 3546: 3200, 3548: 3200, 3549: 3202, 3551: 3202, 3552: 3203, 3554: 3159, 3556: 3162, 3558: 3165, 3560: 3180, 3562: 3183, 3564: 3186, 3566: 3189, 3721: 3275, 3722: 3276, 3729: 3281, 3730: 3282, 3731: 3281, 3732: 3282, 3733: 3283, 3734: 3284, 3735: 3283, 3736: 3284, 3737: 3281, 3738: 3282, 5995: 32001, 6007: 32051, 6011: 32052, 6015: 32053, 6022: 32002, 6023: 32054, 6028: 32101, 6033: 32202, 6034: 32102, 6047: 32103, 6049: 32104, 6050: 32205, 6056: 32003, 6066: 32004, 6089: 32105, 6090: 32203, 6091: 32106, 6094: 32055, 6097: 32056, 6100: 32057, 6103: 32058, 6113: 32005, 6123: 32059, 6128: 32006, 6139: 32060, 6143: 32061, 6150: 32007, 6164: 32062, 6166: 32008, 6171: 32063, 6173: 32107, 6174: 32204, 6178: 32108, 6191: 32109, 6196: 32110, 6197: 32206, 6204: 32009, 6226: 32064, 6230: 32010, 6248: 5217, 6253: 5222, 6254: 5223, 6275: 5244, 6278: 5247, 6344: 32201, 6346: 32207, 6347: 32209, 6399: 32117, 6411: 32111, 6416: 32118, 6419: 32112, 6420: 32113, 6457: 32114, 6463: 32115, 6464: 32208, 6481: 32116, 6599: 32011, 6605: 32119};
+const runsAt = (R, x) => { let lo = 0, hi = R.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (R[m][0] <= x) lo = m; else hi = m - 1; } const [a, n, d] = R[lo]; return x >= a && x < a + n ? x + d : null; };
+const tBooster = x => { const v = runsAt(BOOSTER_RUNS, x); return v !== null ? v : x >= 6196 ? x - 595 : 20000 + x; };
+const tSF = x => { if (x >= 6626) return x - 1025; const o = SF_ONE[x]; if (o !== undefined) return o; const v = runsAt(SF_RUNS, x); return v !== null ? v : 40000 + x; };
+function tmapOf(map) {
+  const m = String(map || '').toLowerCase();
+  if (BOOSTER_LEVELS.has(m)) return tBooster;
+  if (EF_LEVEL[m]) { const M = EF_LEVEL[m]; return x => M[x] ?? x; }
+  return SF_LEVELS.has(m) ? tSF : null;
+}
+let TMAP = null;
+const T = x => TMAP && x != null ? TMAP(x) : x;
+const AIR_X = new Set([25659, 25689, 25721, 25754, 25782, 25813, 31003, 31004, 32002, 32008]);   // (the new aircraft: 20000 + their booster id; v156: Euro Force's, Special Forces')
 const isAirTpl = tp => (tp >= 4200 && tp < 4768) || AIR_X.has(tp);
 const VEHICLES = { 4223: 'AH-1Z', 4292: 'Z-10', 4327: 'F-35B', 4368: 'J-10', 4436: 'Z-8', 4633: 'F/A-18', 4666: 'UH-60',
   4259: 'Mi-28', 4397: 'Su-30MKK', 4480: 'MiG-29', 4515: 'Su-34', 4561: 'Mi-17', 4595: 'F-15E',
@@ -9016,7 +9337,9 @@ const VEHICLES = { 4223: 'AH-1Z', 4292: 'Z-10', 4327: 'F-35B', 4368: 'J-10', 443
   4967: 'Nanjing jeep', 4987: 'Paratrooper jeep', 5007: 'Vodnik', 5035: 'T-90', 5068: 'Type 98', 5101: 'M6 Linebacker', 5134: 'LAV-25',
   5184: 'Humvee', 5217: 'M1A2 Abrams', 5254: 'RIB boat',
   // (v136) Armored Fury's own (20000 + booster id)
-  25659: 'A-10', 25689: 'Su-39', 25721: 'WZ-11', 25754: 'EC635', 25782: 'Little Bird', 25813: 'Q-5 Fantan', 25846: 'Muscle car', 25861: 'Semi truck' };
+  25659: 'A-10', 25689: 'Su-39', 25721: 'WZ-11', 25754: 'EC635', 25782: 'Little Bird', 25813: 'Q-5 Fantan', 25846: 'Muscle car', 25861: 'Semi truck',
+  // (v156) Euro Force's and Special Forces' own (31000 / 32000 on: EF_LEVEL, SF_ONE)
+  31001: 'Leopard 2A6', 31002: 'Challenger 2', 31003: 'Eurofighter', 31004: 'Tiger', 32001: 'AIL Raider', 32002: 'AH-64 Apache', 32003: 'ATV', 32004: 'BMP-3', 32005: 'Civilian car', 32006: 'Pickup', 32007: 'Forklift', 32008: 'Mi-24 Hind', 32009: 'Humvee TOW', 32010: 'Jet ski' };
 // Kit template (test 11): 16 bits in the soldier's spawn message, 282 bits before the owner index. Same ids on every
 // round seen (Karkand, Oman, =FL= Karkand 64). Heavy soldiers (3281 MEC, 3283 US): assault, support, anti-tank.
 // China (Wake Island 2007): soldier templates 3275 heavy / 3276 light, kits in name order like the others (3088 assault,
@@ -9025,11 +9348,13 @@ const KITS = { 3088: ['Assault', 'CH'], 3091: ['Anti-tank', 'CH'], 3094: ['Engin
   3116: ['Special ops', 'CH'], 3119: ['Support', 'CH'],
   3159: ['Assault', 'MEC'], 3162: ['Anti-tank', 'MEC'], 3165: ['Engineer', 'MEC'], 3180: ['Medic', 'MEC'], 3183: ['Sniper', 'MEC'],
   3186: ['Special ops', 'MEC'], 3189: ['Support', 'MEC'], 3192: ['Assault', 'US'], 3193: ['Anti-tank', 'US'], 3195: ['Engineer', 'US'],
-  3199: ['Medic', 'US'], 3200: ['Sniper', 'US'], 3202: ['Special ops', 'US'], 3203: ['Support', 'US'] };
+  3199: ['Medic', 'US'], 3200: ['Sniper', 'US'], 3202: ['Special ops', 'US'], 3203: ['Support', 'US'],
+  // (v156) the EU's (Euro Force: Kakarotto22's table; their weapons were known already)
+  3122: ['Assault', 'EU'], 3125: ['Anti-tank', 'EU'], 3127: ['Engineer', 'EU'], 3145: ['Medic', 'EU'], 3148: ['Sniper', 'EU'], 3150: ['Special ops', 'EU'], 3153: ['Support', 'EU'] };
 const KIT_SHORT = { 'Assault': 'AS', 'Anti-tank': 'AT', 'Engineer': 'EN', 'Medic': 'MD', 'Sniper': 'SN', 'Special ops': 'SO', 'Support': 'SU' };
 const VEHICLE_SIDE = { 4768: 1, 4800: 1, 4833: 1, 4880: 1, 4967: 1, 5007: 1, 5035: 1, 5068: 1, 5101: 2, 5134: 2, 5184: 2, 5217: 2,
   4223: 2, 4292: 1, 4327: 2, 4368: 1, 4436: 1, 4633: 2, 4666: 2, 4259: 1, 4397: 1, 4480: 1, 4515: 1, 4561: 1, 4595: 2,
-  25659: 2, 25689: 1, 25721: 1, 25782: 2, 25813: 1 };   // team the vehicle belongs to at start
+  25659: 2, 25689: 1, 25721: 1, 25782: 2, 25813: 1, 31001: 2, 31002: 2, 31003: 2, 31004: 2 };   // team the vehicle belongs to at start (v156: the EU's on the Euro Force maps: team 2)
 
 // ---- tickets ----
 // One object (id 1026 on every test map) holds both teams' tickets. Update record: '1' + id12 + 52-bit header
@@ -9329,7 +9654,7 @@ function preambleInfo(p, mapName) {
 async function decodeDemo(data, progress) {
   const R = demoRecords(data); if (!R) return null;
   const [server, date, mapPath] = R.hdr.fields; const mapName = mapPath.split('/').pop() || mapPath;
-  TMAP = BOOSTER_LEVELS.has(mapName.toLowerCase());   // (v136: Armored Fury's numbering)
+  TMAP = tmapOf(mapName);   // (v136: Armored Fury's numbering; v156: Euro Force's and Special Forces')
   const pres = R.recs.filter(r => r[0] === 0xffffffff).map(r => r[1]), PA = preambleParse(pres, mapName);
   const players = PA.players.length ? PA.players : pres.length ? preamblePlayers(pres[0], mapName) : [];
   const info = PA.mode ? { mode: PA.mode, size: PA.size } : pres.length ? preambleInfo(pres[0], mapName) : {};
@@ -9506,7 +9831,7 @@ async function buildTimeline(r) {
   // US); the votes only for templates of other armies. (The preamble gives each player's team when the recording
   // started: in =FL= 2026-10-01 21:51 Golg_4iter switched from US to MEC after a minute and spawned 5 times as MEC, which
   // outvoted the rest and turned MEC into US, so his fights showed as 7 team kills.)
-  const SOLDIER_TEAM = { 3275: 1, 3276: 1, 3281: 1, 3282: 1, 3283: 2, 3284: 2 }, KIT_TEAM = { CH: 1, MEC: 1, US: 2 };
+  const SOLDIER_TEAM = { 3275: 1, 3276: 1, 3279: 2, 3280: 2, 3281: 1, 3282: 1, 3283: 2, 3284: 2 }, KIT_TEAM = { CH: 1, MEC: 1, US: 2, EU: 2 };   // (v156: the EU - team 2 on the Euro Force maps)
   const spawnTeam = e => KIT_TEAM[KITS[e.kit]?.[1]] || SOLDIER_TEAM[e.tpl] || tplTeam(e.tpl);
   const teamVotes = new Map(); for (const e of spawns) { const k = e.player, tm = spawnTeam(e); if (!teamVotes.has(k)) teamVotes.set(k, [0, 0, 0]); teamVotes.get(k)[tm]++; }
   const active = new Set([...spawns.map(e => e.player), ...kills.flatMap(e => [e.killer, e.victim])]);
