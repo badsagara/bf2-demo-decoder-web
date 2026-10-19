@@ -27,6 +27,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { compactIndex, expandIndex } from './roundsidx.mjs';
 
 // ---------- settings ----------
 const conf = {};
@@ -215,7 +216,8 @@ function readIndex() {
   let d = { version: 2, rounds: [] };
   // (v166) the kills from data/heat (before v166) to data/.kills, once
   if (!fs.existsSync(HEAT_DIR) && fs.existsSync(OLD_HEAT_DIR)) { try { fs.renameSync(OLD_HEAT_DIR, HEAT_DIR); log('the kills: data/heat -> data/.kills (no longer served)'); } catch (e) { log('data/heat not moved:', e.message); } }
-  for (const f of fs.existsSync(FULL_INDEX) ? [FULL_INDEX, INDEX] : [INDEX]) { try { const x = JSON.parse(fs.readFileSync(f, 'utf8')); if (Array.isArray(x.rounds)) { d = x; break; } } catch (e) {} }
+  // (v176: rounds.json is compact - only read when the whole list is lost: back into the usual entries)
+  for (const f of fs.existsSync(FULL_INDEX) ? [FULL_INDEX, INDEX] : [INDEX]) { try { const x = JSON.parse(fs.readFileSync(f, 'utf8')); if (Array.isArray(x.rounds)) { d = expandIndex(x); delete d.compact; delete d.servers; delete d.teams; break; } } catch (e) {} }
   try { for (const f of fs.readdirSync(HEAT_DIR)) if (f.endsWith('.json')) { const h = JSON.parse(fs.readFileSync(path.join(HEAT_DIR, f), 'utf8')); HEAT.set(h.map, new Map(Object.entries(h.rounds || {}))); } } catch (e) {}
   for (const r of d.rounds) if (r.sum?.pts) { heatPut(r.name, r.sum); d.moved = true; }   // (rounds.json before v67 had them inside)
   return d;
@@ -322,12 +324,13 @@ function writeIndexLight(d, dec) {
   if (d.reprocess) writeProgress({ ...d.reprocess, updated: d.updated });
 }
 // (v166) the whole list for this script, the short one for the site: each round without its players' lines (P) and kills
+// (v176: and compact - an array a round, roundsidx.mjs: ~3 times smaller)
 const slimSum = x => { if (!x) return x; const { P, pts, ...rest } = x; return rest; };
 function writeLists(d) {
   const put = (f, text) => { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); };
   put(FULL_INDEX, JSON.stringify(d));
-  const { heat, ...rest } = d;
-  put(INDEX, JSON.stringify({ ...rest, slim: true, rounds: d.rounds.map(r => r.sum ? { ...r, sum: slimSum(r.sum) } : r) }));
+  const { heat, rounds, ...head } = d;
+  put(INDEX, JSON.stringify(compactIndex(head, rounds.map(r => r.sum ? { ...r, sum: slimSum(r.sum) } : r))));
 }
 function writeProgress(P) {
   const f = path.join(DATA, 'reprocess.json');

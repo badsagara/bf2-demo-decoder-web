@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { execFileSync } from 'node:child_process';
+import { readRoundList } from './roundsidx.mjs';
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) {}
 const ROOT = process.env.BF2R_ROOT ?? conf.BF2R_ROOT ?? '/srv/bf2replay', SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data');
@@ -22,7 +23,7 @@ try {
   const k0 = html.indexOf('function killCause('), k1 = html.indexOf('\n}\n', k0);
   hash = crypto.createHash('sha1').update(g).update(L.slice(a, b).join('\n')).update(html.slice(k0, k1 + 2)).digest('hex').slice(0, 10);
 } catch (e) {}
-let d = { rounds: [] }; try { d = JSON.parse(fs.readFileSync(path.join(DATA, 'rounds.json'), 'utf8')); } catch (e) {}
+const d = readRoundList(fs, path, DATA);   // (v176: the whole list - rounds.json is compact)
 const R = d.rounds || [], done = R.filter(r => r.decoder === hash).length, P = d.reprocess;
 const act = u => sh('systemctl', ['is-active', u]) || '?';
 console.log(`BF2 Round Replay   site ${ver}, decoder ${hash}   (${new Date().toLocaleString()})`);

@@ -37,7 +37,8 @@ echo "asking the demo pages what they list (one request per demo: a few minutes 
 # shellcheck disable=SC2024  # (root writes the scratch file: fine)
 sudo -u bf2replay env BF2R_ROOT="$T" node "$FETCH" --list > "$T/page.txt" 2>&1 || { tail -5 "$T/page.txt"; echo "could not read the pages"; exit 1; }
 grep -o 'would download [^ ]*\.bf2demo[^ ]*' "$T/page.txt" | cut -d' ' -f3 | sort -u > "$T/page_names.txt" || true
-node -e 'try { for (const r of require(process.argv[1]).rounds) console.log(r.name) } catch (e) {}' "$DATA/rounds.json" | sort -u > "$T/site_names.txt"
+# (v176: the whole list; rounds.json - compact, a round an array, its name first - only when it is not there)
+node -e 'for (const f of process.argv.slice(1)) { try { for (const r of require(f).rounds) console.log(Array.isArray(r) ? r[0] : r.name); break } catch (e) {} }' "$DATA/.rounds-full.json" "$DATA/rounds.json" | sort -u > "$T/site_names.txt"
 comm -23 "$T/site_names.txt" "$T/page_names.txt" > "$DATA/redownload-lost.txt"
 nPage=$(wc -l < "$T/page_names.txt"); nSite=$(wc -l < "$T/site_names.txt"); nLost=$(wc -l < "$DATA/redownload-lost.txt")
 echo "rounds on the site now:        $nSite ($(du -sh "$DATA/demos" 2>/dev/null | cut -f1) of demos)"

@@ -970,7 +970,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v175';
+const APP_VERSION = 'v176';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -12782,7 +12782,7 @@ async function reprocRefresh() {
   const fresh = (x, min) => !!x && Date.now() - Date.parse(x) < min * 60e3;
   if (P && !(P.end ? fresh(P.end, 10) : fresh(P.updated, 15))) P = null;
   if (!P) {   // (an older server: rounds.json, again every 5 minutes while the tag is up)
-    if (reproc?.guess && Date.now() - reprocIdxAt > 5 * 60e3) { try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) { const d = await res.json(); serverData.rounds = d.rounds; serverData.decoder = d.decoder; serverData.updated = d.updated; serverData.reprocess = d.reprocess || null; } } catch (e) {} reprocIdxAt = Date.now(); }
+    if (reproc?.guess && Date.now() - reprocIdxAt > 5 * 60e3) { try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) { const d = expandIndex(await res.json()); serverData.rounds = d.rounds; serverData.decoder = d.decoder; serverData.updated = d.updated; serverData.reprocess = d.reprocess || null; } } catch (e) {} reprocIdxAt = Date.now(); }
     P = reprocGuess();
   }
   reproc = P; reprocShow();
@@ -12812,9 +12812,33 @@ function versionWatch() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) versionCheck(); });
   setTimeout(versionCheck, 5000);
 }
+// (v176) data/rounds.json is compact from v176 (server/roundsidx.mjs, the same rule): a round is an array (its columns
+// named in d.compact), its server and teams numbers into d.servers / d.teams, the length in whole seconds (cut, as fmt shows it), the demo's and
+// the decoded round's places and the decoder only where they are not as usual (its last element, x) - back into the
+// entries the page works with. A list from an older server (objects) is left as it is.
+function expandIndex(d) {
+  if (!d || !Array.isArray(d.compact) || !Array.isArray(d.rounds)) return d;
+  const c = Object.fromEntries(d.compact.map((k, i) => [k, i])), S = d.servers || [], T = d.teams || [], baseOf = n => String(n).replace(/\.bf2demo(\.gz)?$/i, '');
+  d.rounds = d.rounds.map(a => {
+    if (!Array.isArray(a)) return a;
+    const at = k => c[k] === undefined ? undefined : a[c[k]], x = at('x') || {}, name = at('name');
+    const decoder = 'd' in x ? x.d || undefined : d.decoder || undefined, r = { name };
+    if (!('demo' in x)) r.demo = 'demos/' + name; else if (x.demo) r.demo = x.demo;
+    if (!('bfr' in x)) { if (decoder) r.bfr = `rounds/${baseOf(name)}.${decoder}.bfr`; } else if (x.bfr) r.bfr = x.bfr;
+    if (decoder) r.decoder = decoder;
+    Object.assign(r, x.o || {});
+    if (!x.nosum) {
+      const si = at('server'), ti = at('teams'), top = at('top');
+      r.sum = { date: at('date'), map: at('map'), server: si >= 0 ? S[si] : undefined, duration: at('duration'), empty: !!x.se, players: at('players'), kills: at('kills'),
+        teams: ti >= 0 ? T[ti] : undefined, tickets: at('tickets'), winner: at('winner'), top: top ? { name: top[0], score: top[1], team: top[2] } : null, ...(x.s || {}) };
+    }
+    return r;
+  });
+  return d;
+}
 async function serverBoot() {
   if (!/^https?:$/.test(location.protocol)) return;
-  let d = null; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) d = await res.json(); } catch (e) { return; }
+  let d = null; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) d = expandIndex(await res.json()); } catch (e) { return; }
   if (!d || !Array.isArray(d.rounds)) return;
   serverData = d;
   // links with previews only when the web server serves them (its config may not have /r/ and /p/ yet)

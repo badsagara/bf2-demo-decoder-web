@@ -30,6 +30,7 @@ import zlib from 'node:zlib';
 import os from 'node:os';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
+import { readRoundList } from './roundsidx.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -72,7 +73,7 @@ for (const base of [PW_DIR, path.dirname(new URL(import.meta.url).pathname), pro
 if (!chromium) { console.error('Playwright is not installed: run  sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze-setup.sh')); process.exit(2); }
 
 // ---------- what to do ----------
-let idx; try { idx = JSON.parse(fs.readFileSync(path.join(DATA, '.rounds-full.json'), 'utf8')); } catch (e) { idx = JSON.parse(fs.readFileSync(path.join(DATA, 'rounds.json'), 'utf8')); }
+const idx = readRoundList(fs, path, DATA);
 const MIN_P = +val('--min-players', 6), MAPS = val('--maps', '') ? new Set(val('--maps').split(',').map(s => s.trim().toLowerCase())) : null, SINCE = val('--since', '');
 const LIMIT = +val('--limit', 0) || Infinity, TIMEOUT = (+val('--timeout', 900) || 900) * 1000, FRESH = has('--fresh');
 const soldiers = r => r.sum?.players ?? (r.sum?.teams || []).reduce((s, t) => s + (t.players || 0), 0);

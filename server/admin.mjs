@@ -24,6 +24,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE } from './notify.mjs';
+import { expandIndex } from './roundsidx.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -115,11 +116,13 @@ function siteDecoder() {
   } catch (e) {}
   return (decCache = { mt, hash, ver });
 }
-// rounds.json, cached by its modification time
-let idxCache = { mt: 0, d: null };
+// the round list, cached by its modification time (v176: data/.rounds-full.json - rounds.json is compact; it only when
+// the whole list is not there)
+let idxCache = { mt: 0, f: '', d: null };
 function index() {
-  const f = path.join(DATA, 'rounds.json'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return { rounds: [] }; }
-  if (mt !== idxCache.mt) idxCache = { mt, d: readJson(f, { rounds: [] }) };
+  let f = path.join(DATA, '.rounds-full.json'), mt = 0;
+  try { mt = fs.statSync(f).mtimeMs; } catch (e) { f = path.join(DATA, 'rounds.json'); try { mt = fs.statSync(f).mtimeMs; } catch (e2) { return { rounds: [] }; } }
+  if (mt !== idxCache.mt || f !== idxCache.f) idxCache = { mt, f, d: expandIndex(readJson(f, { rounds: [] })) };
   return idxCache.d || { rounds: [] };
 }
 // the services: systemctl show (works without root)
