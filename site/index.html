@@ -306,6 +306,11 @@ input[type=file] { display: none; }
 .decsub { font: 400 12px/1.3 var(--font-body); color: var(--muted); }
 .tag { font: 500 11px/1 var(--font-data); letter-spacing: .08em; text-transform: uppercase; background: color-mix(in srgb, var(--bg) 80%, transparent); border: 1px solid var(--line); padding: 6px 8px; border-radius: 3px; }
 .tag.sim { color: var(--accent); border-color: var(--accent); }
+.tag.pov { display: inline-flex; align-items: center; gap: 8px; padding: 3px 4px 3px 8px; border-color: var(--accent); pointer-events: auto; text-transform: none; letter-spacing: .02em; }
+.tag.pov[hidden] { display: none; }
+.tag.pov b { font-weight: 700; }
+.tag.pov button { font: 700 13px/1 var(--font-data); color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 3px; width: 22px; height: 20px; cursor: pointer; padding: 0; }
+.tag.pov button:hover, .tag.pov button:focus-visible { border-color: var(--accent); color: var(--accent); }
 .clock { font: 700 22px/1 var(--font-display); letter-spacing: .06em; }
 
 .side { display: grid; gap: 12px; min-width: 0; }
@@ -789,6 +794,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="maphud">
         <span class="tag" id="mapTag">Map</span>
         <span class="tag sim" id="simTag">Simulated</span>
+        <span class="tag pov" id="povTag" hidden></span>
         <div class="topbar" id="topBar" aria-label="Tickets and time left" hidden></div>
         <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Filters ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
       </div>
@@ -970,7 +976,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v176';
+const APP_VERSION = 'v177';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -2196,7 +2202,7 @@ function chargeAt(mx, my) {
   const L = round._chg || (round._chg = round.events.filter(e => e.type === 'charge'));
   let best = null, bd = 11;
   for (const e of L) {
-    if (e.t > t) break; if (t > (e.until ?? e.t + 10)) continue;
+    if (e.t > t) break; if (t > (e.until ?? e.t + 10) || (POV && !povCharge(e, t))) continue;
     let p = null;
     if (e.veh) { const vi = round.pidx.get(e.veh), vq = vi !== undefined ? playerAt(vi, t) : null; if (vq && Number.isFinite(vq.x)) { const c = toC(vq.x, vq.y); p = [c[0] + 11, c[1] - 11]; } }
     if (!p) p = toC(e.x, e.y);
@@ -3905,7 +3911,7 @@ let mapHover = null;   // where the pointer is over the map (canvas px), or null
 function spreadOut() {
   const L = [];
   round.players.forEach((p, i) => {
-    if (p.vehicle) return; const q = playerAt(i, t); if (!q.alive || q.veh || !Number.isFinite(q.x)) return;
+    if (p.vehicle || (POV && !POV.known.has(i))) return; const q = playerAt(i, t); if (!q.alive || q.veh || !Number.isFinite(q.x)) return;
     const [x, y] = toC(q.x, q.y); if (x < -60 || y < -60 || x > size + 60 || y > sizeH + 60) return;
     L.push({ i, x0: x, y0: y, x, y, pin: i === sel });
   });
@@ -3945,8 +3951,133 @@ function spreadOut() {
   round._crowds = closed;
   return { spread, crowds: closed, open: open ? open.m : null };
 }
+// ---------- (v177) one soldier's view (Sagara: "Режим одного гравця. Видно лише те, що бачить один гравець, +
+// підспотані гравці та техніка, + союзники (але без того, що вони бачать). Треба щоб подивитися, від чого саме
+// відштовхується гравець у грі") ----------
+// The card's "His view" button (V), for the soldier followed: the map shows only what he knew in the game -
+//   himself; his side - its soldiers and the vehicles they ride (they are on his minimap), not where they look or what
+//   they see;
+//   the enemies he had in sight (inViewOf: in his field of view, out to the fog limit, with nothing in between - walls,
+//   hills, trees, smoke, vehicles): soldiers, and vehicles ridden by one of them or seen themselves; for POV_MEMORY s
+//   after he lost sight of one, where he last saw him (a faded marker in a dashed ring);
+//   those his side spotted (on his minimap until the spot runs out, SPOT_SHOW s), and the places his side spotted.
+// Left out: the other side's spots, squad orders, UAV and commander's camera; the death, kill line and +1 of those he
+// didn't know; the other side's grenades, rockets, shells, charges and bags he couldn't see (an explosion: in his field
+// of view, or within POV_HEAR m); supply crates he couldn't see; the front line. The panels (kill feed, scoreboard,
+// highlights, hints) stay as they are - the game's kill messages reach everyone. Following another soldier takes the view
+// over to him; a vehicle followed, or none: the whole map again. Not known here: what the UAV shows his side (its range
+// is not in the game files we have), what he heard.
+let pov = false, POV = null;
+const POV_MEMORY = 3, POV_STEP = 0.2, POV_HEAR = 40;
+const povOn = () => !!(pov && round && sel !== null && round.players[sel] && !round.players[sel].vehicle);
+// the soldiers riding each vehicle at tt: vehicle name -> [rows]
+function povRiders(tt) {
+  const M = new Map(); round.players.forEach((p, i) => { if (p.vehicle) return; const q = playerAt(i, tt); if (q.alive && q.veh) { if (!M.has(q.veh)) M.set(q.veh, []); M.get(q.veh).push(i); } }); return M;
+}
+// whom soldier s had in sight at tt: player rows - soldiers (on foot or riding), vehicles ridden by one he sees or seen
+// themselves (in his field of view, out to the fog limit, nothing in between)
+function povSeen(s, tt) {
+  const out = new Set(), V = viewOf(s, tt); if (!V) return out;
+  for (const o of inViewOf(s, tt) || []) if (o.seen !== false) out.add(o.i);
+  const who = V.who ?? s, R = viewRange(), rid = povRiders(tt);
+  round.players.forEach((p, j) => {
+    if (!p.vehicle || p.name === V.veh) return; const o = playerAt(j, tt); if (!o.alive || !Number.isFinite(o.x)) return;
+    if ((rid.get(p.name) || []).some(i => out.has(i))) { out.add(j); return; }
+    const dx = o.x - V.x, dy = o.y - V.y; if (Math.hypot(dx, dy) > R || angOff(Math.atan2(dx, dy), V.yaw) > VIEW_HALF) return;
+    if (canSee(who, j, tt, V) !== false) out.add(j);
+  });
+  return out;
+}
+// the same on a POV_STEP grid, kept (as the map's walls, trees and exact shapes come in, worked out again)
+function povSeenAt(s, tq) {
+  const k = mapKey(), st = [LOS.get(k), VEG.get(k), GEO.get(k)].map(v => v === undefined ? 'u' : v === 'loading' ? 'l' : v ? 1 : 0).join('');
+  const C = round._povC && round._povC.st === st ? round._povC : (round._povC = Object.assign(new Map(), { st }));
+  const key = s + '|' + tq.toFixed(1); let v = C.get(key);
+  if (!v) { v = povSeen(s, tq); C.set(key, v); if (C.size > 6000) C.delete(C.keys().next().value); }
+  return v;
+}
+// his side's spots, by target: row -> [spot times] (kept per round and side)
+function povSpots(tm) {
+  const C = round._povSp || (round._povSp = new Map()); if (C.has(tm)) return C.get(tm);
+  const M = new Map(); for (const e of round.events) if (e.type === 'spot' && e.team === tm && e.target != null) { const i = round.pidx.get(e.target); if (i !== undefined) { if (!M.has(i)) M.set(i, []); M.get(i).push(e.t); } }
+  C.set(tm, M); return M;
+}
+const povSpotted = (i, tt, tm) => (povSpots(tm).get(i) || []).some(a => a <= tt && tt - a <= SPOT_SHOW);
+// what the followed soldier knows at tt: known (row -> 'self' | 'ally' | 'seen' | 'spot'), mem (row -> when he last saw
+// one he no longer knows of)
+function povFrame(tt) {
+  const s = sel, tm = teamOf(s, tt), known = new Map([[s, 'self']]), mem = new Map(), rid = povRiders(tt), vrow = new Map();
+  round.players.forEach((p, i) => { if (p.vehicle) vrow.set(p.name, i); else if (i !== s && teamOf(i, tt) === tm) known.set(i, 'ally'); });
+  for (const [vn, L] of rid) { const j = vrow.get(vn); if (j !== undefined && L.some(i => known.has(i))) known.set(j, 'ally'); }   // (his side's vehicles, his own)
+  for (const i of povSeen(s, tt)) if (!known.has(i)) known.set(i, 'seen');
+  for (const [i] of povSpots(tm)) if (!known.has(i) && povSpotted(i, tt, tm)) known.set(i, 'spot');
+  // a known vehicle's riders, a known rider's vehicle
+  for (const [vn, L] of rid) { const j = vrow.get(vn); if (j === undefined) continue; if (known.has(j)) { for (const i of L) if (!known.has(i)) known.set(i, known.get(j)); } else { const k = L.find(i => known.has(i)); if (k !== undefined) known.set(j, known.get(k)); } }
+  for (let g = Math.floor(tt / POV_STEP + 1e-6) * POV_STEP; g > tt - POV_MEMORY - 1e-6 && g >= 0; g -= POV_STEP)
+    for (const i of povSeenAt(s, +g.toFixed(1))) if (!known.has(i) && !mem.has(i) && playerAt(i, tt).alive) mem.set(i, +g.toFixed(1));
+  return { s, tm, known, mem };
+}
+// did he know of row i at an earlier moment (the marks of events): himself, his side (a vehicle: one of his side in it),
+// one he had in sight then, or one his side had spotted
+function povKnewAt(i, tt) {
+  if (!POV) return true; if (i === undefined) return false; if (i === POV.s) return true;
+  const p = round.players[i];
+  if (p.vehicle) { if ((povRiders(tt).get(p.name) || []).some(k => k === POV.s || teamOf(k, tt) === POV.tm)) return true; }
+  else if (teamOf(i, tt) === POV.tm) return true;
+  return povSeenAt(POV.s, +(Math.round(tt / POV_STEP) * POV_STEP).toFixed(1)).has(i) || povSpotted(i, tt, POV.tm);
+}
+const povOwn = (by, tt) => { if (!POV) return true; const i = by == null ? undefined : round.pidx.get(by); return i !== undefined && (i === POV.s || teamOf(i, tt) === POV.tm); };
+// could he see a place at tt: in his field of view, out to the fog limit, the ground's line clear (h: the height there -
+// null: in view is enough); within near m always
+function povSeesPoint(x, y, h, tt, near = 0) {
+  if (!POV) return true; const V = viewOf(POV.s, tt); if (!V || !Number.isFinite(x)) return false;
+  const dx = x - V.x, dy = y - V.y, d = Math.hypot(dx, dy); if (d <= near) return true;
+  if (d > viewRange() || angOff(Math.atan2(dx, dy), V.yaw) > VIEW_HALF) return false;
+  if (smokeBlocks(V.x, V.y, x, y, tt)) return false;
+  const D = losData(); if (!D || V.h == null) return true;
+  const eye = V.eye ?? eyeOf(V.who ?? POV.s, V, tt), z = h ?? groundAt(D, x, y) + 0.3;
+  return eye == null || !losBlocked(D, V.x, V.y, eye, x, y, z, tt);
+}
+// a C4 / claymore / mine: his side's, or where he could see it (on a vehicle: the vehicle known to him)
+const povCharge = (e, tt) => povOwn(e.by, tt) || (e.veh ? (() => { const vi = round.pidx.get(e.veh); return vi !== undefined && POV.known.has(vi); })() : povSeesPoint(e.x, e.y, null, tt));
+// an event's mark: his side's; else - a grenade or rocket where it is now, a charge, a bag where it lies: where he could
+// see it; an explosion: in his field of view or within POV_HEAR m; a revive, a heal, a call for help: of one he knows of;
+// a repair: of a vehicle he knows of
+function povEvShown(e) {
+  if (!POV) return true;
+  switch (e.type) {
+    case 'throw': { if (povOwn(e.by, e.t)) return true; const P = e.path; if (!P || !P.length) return false; let k = 1; while (k < P.length && P[k][0] <= t) k++; const a = P[k - 1]; return povSeesPoint(a[1], a[2], null, Math.min(t, e.t1 ?? t), POV_HEAR); }
+    case 'charge': return povCharge(e, t);
+    case 'blast': return povOwn(e.by, e.t) || povSeesPoint(e.x, e.y, null, e.t, POV_HEAR);
+    case 'bag': return povOwn(e.by, e.t) || povSeesPoint(e.x, e.y, null, t);
+    case 'revive': case 'heal': case 'call': { const i = round.pidx.get(e.player); return i !== undefined && POV.known.has(i); }
+    case 'repair': { const i = round.pidx.get(e.vehicle); return i !== undefined && POV.known.has(i); }
+    default: return true;
+  }
+}
+// where he last saw those he lost sight of: a faded marker in a dashed ring, where he was then
+function povGhosts() {
+  for (const [i, g] of POV.mem) {
+    const p = round.players[i], q = playerAt(i, g); if (!Number.isFinite(q.x) || (!p.vehicle && q.veh && POV.mem.has(round.players.findIndex(v => v.vehicle && v.name === q.veh)))) continue;
+    const [px, py] = toC(q.x, q.y), a = Math.max(0.15, 1 - (t - g) / POV_MEMORY), col = teamColor(p.vehicle ? 1 - POV.tm : teamOf(i, g)), r = p.vehicle ? 15 : 11;
+    cx.globalAlpha = 0.35 * a; cx.fillStyle = col; cx.beginPath(); cx.arc(px, py, r - 3, 0, Math.PI * 2); cx.fill();
+    cx.globalAlpha = 0.9 * a; cx.strokeStyle = css('--bg'); cx.lineWidth = 3.5; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
+    cx.strokeStyle = col; cx.lineWidth = 1.8; cx.setLineDash([3, 3]); cx.stroke(); cx.setLineDash([]);
+    if (opts.lab.foot || opts.lab.veh) { cx.font = '500 10px ' + css('--font-data'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; const lb = (p.vehicle ? mapNm(round, p) : p.name) + ' · ' + Math.max(1, Math.round(t - g)) + ' s ago'; cx.strokeText(lb, px + r + 3, py - 6); cx.fillStyle = css('--muted'); cx.fillText(lb, px + r + 3, py - 6); }
+    cx.globalAlpha = 1;
+  }
+}
+// the tag over the map while it is on: whose view, and a way out
+function povTag() {
+  const el = $('#povTag'); if (!el) return;
+  if (!POV) { el.hidden = true; return; }
+  el.hidden = false; const nm = round.players[POV.s].name;
+  if (el.dataset.who !== nm) { el.dataset.who = nm; el.innerHTML = `<span>His view · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); }
+}
+function povSet(on) { pov = !!on; if (pov && !povOn()) toast(sel === null ? 'Follow a soldier first: click one on the map' : 'His view is for a soldier, not a vehicle'); refresh(true); }
 function draw() {
   if (!round) return;
+  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) povTag();   // (v177: his view only)
   if (cx === cvCtx) { lockView(); syncZoom(); }
   cx.setTransform(dpr,0,0,dpr,0,0);
   cx.clearRect(0,0,size,sizeH);
@@ -3958,7 +4089,7 @@ function draw() {
   // relief (Layers > Relief): shading, contour lines, the ground over the followed soldier's eyes
   if (opts.relief) { const D = losData(); if (D) { drawRelief(D); const who = opts.relAbove ? reliefWho(t) : null; if (who) drawAbove(D, who.eye); } }
   if (cx === cvCtx) hTipShow();   // (the height under the pointer, as the round plays on)
-  if (opts.front) drawFront();   // (Layers > Front line)
+  if (opts.front && !POV) drawFront();   // (Layers > Front line; v177: not in his view - it is everyone's places)
   // grid A-H x 1-8
   cx.strokeStyle = 'rgba(128,140,128,.28)'; cx.lineWidth = 1;
   cx.fillStyle = 'rgba(200,210,195,.55)'; cx.font = '500 10px ' + css('--font-data');
@@ -4029,6 +4160,7 @@ function draw() {
   // (v136) squad orders (Layers > Squad orders): each squad's current order where its leader put it - the game's icon,
   // its tip on the spot, with the squad's name in its side's colour
   if (opts.orders && round.raw?.orders) for (const o of ordersNow(t)) {
+    if (POV && o.team !== POV.tm) continue;   // (v177: his side's only)
     const [px, py] = toC(o.x, o.y), im = orderImg((ORDER_TYPE[o.order] || ['move'])[0]), sz = 24, col = teamColor(o.team);
     cx.globalAlpha = Math.max(0.45, 1 - (t - o.t) / ORDER_SHOW * 0.6);
     cx.beginPath(); cx.arc(px, py, 3, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.strokeStyle = css('--bg'); cx.lineWidth = 1.2; cx.stroke();
@@ -4059,6 +4191,7 @@ function draw() {
     if (e.t > t) break; if (e.type!=='kill') continue;
     const age = t - e.t; if (age > 10 || (e.revived && t >= e.revived)) continue;
     const vi = round.pidx.get(e.victim), ki = round.pidx.get(e.killer);
+    if (POV && !povKnewAt(vi, e.t - 0.05) && !povKnewAt(ki, e.t - 0.05)) continue;   // (v177: one he knew of, or by one he knew of)
     const vp = vi!==undefined ? playerAt(vi, e.t) : null; const vx = e.x ?? vp?.x, vy = e.y ?? vp?.y;
     if (vx===undefined) continue;
     const [px,py] = toC(vx,vy); const a = 1 - age/10;
@@ -4069,7 +4202,7 @@ function draw() {
     // the line from the killer; for C4 / a claymore / an AT mine from where it lay (its owner can be anywhere by then),
     // none when the charge wasn't seen being laid
     const placedKill = PLACED_W.has(e.wid);
-    if (opts.kills && age < 3 && ki!==undefined && (!placedKill || e.cx !== undefined)) {
+    if (opts.kills && age < 3 && ki!==undefined && (!placedKill || e.cx !== undefined) && povKnewAt(ki, e.t - 0.05)) {
       const kp = placedKill ? { x: e.cx, y: e.cy } : playerAt(ki, e.t); const [qx,qy] = toC(kp.x,kp.y);
       cx.strokeStyle = teamColor(teamOf(ki, e.t)); cx.globalAlpha = 1-age/3; cx.lineWidth = 2;
       cx.beginPath(); cx.moveTo(qx,qy); cx.lineTo(px,py); cx.stroke();
@@ -4084,7 +4217,7 @@ function draw() {
   }
 
   // projectiles (grenades, rockets) from logger frames, with a short tail
-  if (round.PR) {
+  if (round.PR && !POV) {
     const [pa] = frameAt(t);
     for (let k = Math.max(0, pa-6); k <= pa; k++) {
       const list = round.PR[k]; if (!list) continue;
@@ -4220,6 +4353,7 @@ function draw() {
     }
     cx.lineCap = 'butt'; cx.lineJoin = 'miter';
   }
+  if (POV) povGhosts();   // (v177: where he last saw those he lost sight of)
   // players (vehicles first in the list, so riders' names draw on top)
   const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map(), vehRad = new Map();   // (vehRad: a model's radius on the canvas)
   round.players.forEach((p,i) => { if (!p.vehicle) { const q = playerAt(i,t); if (q.alive && q.veh) { occupied.add(q.veh); if (!riders.has(q.veh)) riders.set(q.veh, teamOf(i, t)); } } });
@@ -4240,6 +4374,7 @@ function draw() {
   const eyeOn = new Map();
   const order = round.players.map((p, i) => i); if (sel !== null && sel < order.length) { order.splice(sel, 1); order.push(sel); }   // (the followed one on top)
   order.forEach(i => {
+    if (POV && !POV.known.has(i)) return;   // (v177: his view - only those he knew of)
     const p = round.players[i], q = playerAt(i,t), ca = inCrowd.has(i) && sel !== i ? CROWD_A : 1;
     if (!q.alive) {
       // wounded and waiting for a medic: a black disc with the game's revive bolt where he fell, in a ring of his team's
@@ -4489,6 +4624,7 @@ function draw() {
     };
     for (const e of round.events) {
       if (e.t > t) break;
+      if (POV && !povEvShown(e)) continue;   // (v177: his side's, or what he could see)
       if (e.type === 'throw' && e.path?.length && (t < e.t1 || (MISSILES.has(e.kind) && t < e.t1 + 1.5))) {
         // (v148, Sagara: "Не показувати лінію ракет і снарядів, а тільки самі снаряди і ракети (може трохи анімації)"; no
         // dotted line behind a grenade; artillery only as its explosions) - a guided missile (SRAW, Eryx, TOW, TV) as a dart
@@ -4551,6 +4687,7 @@ function draw() {
     // (most kills are 7-65 m away, so 0.02-0.4 s) with a short tracer; then its blast (splash) for 1.2 s
     for (const o of shotsOf(round)) {
       if (o.t - t > 3.2 || t - o.t > 2) continue;
+      if (POV && !povKnewAt(o.vi, o.t) && !povSeesPoint(o.x, o.y, null, o.t, POV_HEAR)) continue;   // (v177)
       if (o.fly == null) {   // where the gun was when it fired (the vehicle moves while the shell flies)
         let v = playerAt(o.vi, o.t); o.fly = 0;
         if (Number.isFinite(v.x)) { o.fly = Math.min(3, Math.max(0.02, Math.hypot(o.x - v.x, o.y - v.y) / o.speed)); const v0 = playerAt(o.vi, o.t - o.fly); if (Number.isFinite(v0.x)) v = v0;
@@ -4585,7 +4722,7 @@ function draw() {
     }
     cx.font = '700 14px ' + css('--font-display'); cx.lineWidth = 3; cx.strokeStyle = css('--bg');
     for (const [ki, r] of recent) {
-      const age = t - r.last; if (age > 3) continue;
+      const age = t - r.last; if (age > 3 || (POV && !POV.known.has(ki))) continue;
       let q = playerAt(ki, t); if (!q.alive) q = playerAt(ki, r.last);
       const [px, py] = toC(q.x, q.y), y = py - 17 - Math.min(1, age / 0.5) * 6;
       cx.globalAlpha = age > 2 ? 3 - age : 1;
@@ -4603,6 +4740,7 @@ function draw() {
     const mc = css('--medic');
     for (const e of round.events) {
       if (e.t > t) break;
+      if (POV && !povEvShown(e)) continue;   // (v177)
       const age = t - e.t;
       if (e.type === 'revive' && age <= 4 && e.x !== undefined) {
         const i = round.pidx.get(e.player), q = i !== undefined ? playerAt(i, t) : null;
@@ -4650,7 +4788,7 @@ function draw() {
   // (v134) the commander's UAV while it is up: where it flies (its track every 0.5 s), its last 6 s as a trail, in its
   // team's colour - the enemies under it are on that team's minimap meanwhile
   for (const u of round.raw?.uavs || []) {
-    if (t < u.t0 || t > u.t1 || !u.path.length) continue;
+    if (t < u.t0 || t > u.t1 || !u.path.length || (POV && u.team !== POV.tm)) continue;
     const P = u.path; let k = 1; while (k < P.length - 1 && P[k][0] < t) k++;
     const a = P[k - 1] || P[0], b = P[k] || a, f = b[0] > a[0] ? Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0]))) : 0;
     const [px, py] = toC(a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f), col = teamColor(u.team);
@@ -4663,7 +4801,7 @@ function draw() {
   // (v170) the commander's supply crates: from where it lands until it breaks or empties (its hit points: how much is
   // left), a box with the ammo sign and a ring of its 5 m reach
   for (const c of round.raw?.crates || []) {
-    if (t < c.t1 || t > c.until) continue;
+    if (t < c.t1 || t > c.until || (POV && !povSeesPoint(c.x, c.y, null, t, 15))) continue;
     const [px, py] = toC(c.x, c.y), rr = 5 * size / view.span, hp = c.hp ? seriesAt(c.hp, t)?.[1] ?? 100 : 100;
     cx.globalAlpha = 0.5; cx.strokeStyle = css('--accent'); cx.lineWidth = 1.2; cx.setLineDash([3, 3]); cx.beginPath(); cx.arc(px, py, Math.max(rr, 6), 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
     if (!drawIcon('mammo', px, py, 14)) { cx.fillStyle = css('--bg'); cx.fillRect(px - 6, py - 6, 12, 12); cx.strokeStyle = css('--accent'); cx.lineWidth = 1.5; cx.strokeRect(px - 6, py - 6, 12, 12); }
@@ -4671,6 +4809,7 @@ function draw() {
   }
   // (v170) where each commander's overhead (satellite) camera looks - its middle, while it moved in the last 20 s
   for (const c of round.raw?.cams || []) {
+    if (POV && c.team !== POV.tm) continue;
     const P = c.path; let k = -1; for (let j = 0; j < P.length && P[j][0] <= t; j++) k = j; if (k < 0 || t - P[k][0] > 20) continue;
     const [px, py] = toC(P[k][1], P[k][2]), col = teamColor(c.team);
     cx.globalAlpha = Math.max(0.35, 1 - (t - P[k][0]) / 20); cx.strokeStyle = col; cx.lineWidth = 1.6;
@@ -4686,7 +4825,7 @@ function draw() {
   if (opts.spots) {
     const yel = css('--spot'), last = new Map(), shown = [];
     for (const e of round.events) {
-      if (e.t > t) break; if (e.type !== 'spot' || t - e.t > SPOT_SHOW) continue;
+      if (e.t > t) break; if (e.type !== 'spot' || t - e.t > SPOT_SHOW || (POV && e.team !== POV.tm)) continue;   // (v177: his side's spots only)
       if (e.target != null) { const k = e.target + ':' + e.team, o = last.get(k); if (o !== undefined) shown[o] = null; last.set(k, shown.length); }
       shown.push(e);
     }
@@ -4982,9 +5121,10 @@ function panels(force) {
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
-      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button></div>`;
-    $('#clearSel').onclick = () => { sel = null; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
+      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button>${p.vehicle ? '' : `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what he knew in the game: his side, the enemies he had in sight (faded, for ${POV_MEMORY} s: where he last saw one), his side's spots (V)">His view</button>`}</div>`;
+    $('#clearSel').onclick = () => { sel = null; pov = false; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
     $('#selAhead').onclick = () => aheadFor(sel);
+    { const b = $('#selPov'); if (b) b.onclick = () => povSet(!pov); }
   }
   pcardSync(); statsCursor();
 }
@@ -5169,9 +5309,9 @@ $('#vFull').onclick = () => setFull(!mapbox.classList.contains('fs'));
 for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!(document.fullscreenElement || document.webkitFullscreenElement) && mapbox.classList.contains('fs')) setFull(false); });
 function pickAt(e) {
   const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = null, bd = 14;
-  round.players.forEach((p,i) => { const q = playerAt(i,t); if (!q.alive) return; const [px,py] = round._spread?.get(i) || toC(q.x,q.y); const d = Math.hypot(px-mx,py-my); if (d<bd){bd=d;best=i;} });   // (where he is drawn: spreadOut)
+  round.players.forEach((p,i) => { const q = playerAt(i,t); if (!q.alive || (POV && !POV.known.has(i))) return; const [px,py] = round._spread?.get(i) || toC(q.x,q.y); const d = Math.hypot(px-mx,py-my); if (d<bd){bd=d;best=i;} });   // (where he is drawn: spreadOut)
   sel = best; if (best!==null) { tab = teamOf(best, t) === 1 ? 1 : 0; $('#tab0').classList.toggle('on', tab===0); $('#tab1').classList.toggle('on', tab===1); }
-  else { $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; }
+  else { pov = false; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; }
   refresh(true);
 }
 
@@ -9032,6 +9172,9 @@ const LEGEND = [
   ['kills', () => 'Team kill', 'By a soldier who killed one of his own side', () => { cx.font = '700 11px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.lineJoin = 'round'; cx.strokeText('TK', 0, 0.5); cx.fillStyle = css('--tk'); cx.fillText('TK', 0, 0.5); }],
   [null, () => 'Out of bounds', 'Outside the combat area: OUT and the seconds he has left to get back', () => { lgSol(0, 1, teamColor(0), 0.5); cx.scale(0.55, 0.55); cx.beginPath(); cx.arc(0, 0, 21, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--outside'); cx.lineWidth = 2.6; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]); }],
   ['models', () => 'Vehicle', 'A dashed square in the colour of the side in it; grey: nobody in it', () => { cx.fillStyle = css('--veh-empty'); cx.strokeStyle = 'rgba(6,8,6,.6)'; cx.lineWidth = 1; cx.fillRect(-4.5, -8, 9, 16); cx.strokeRect(-4.5, -8, 9, 16); cx.fillStyle = 'rgba(6,8,6,.35)'; cx.fillRect(-3, -3, 6, 6); teamSquare(0, 0, 11, teamColor(1)); }],
+  ['pov', () => 'Last seen', 'His view: an enemy he lost sight of, where he last saw him (for ' + POV_MEMORY + ' s)', () => {
+    const col = teamColor(1); cx.globalAlpha = 0.35; cx.fillStyle = col; cx.beginPath(); cx.arc(0, 0, 8, 0, Math.PI * 2); cx.fill(); cx.globalAlpha = 0.9;
+    cx.strokeStyle = css('--bg'); cx.lineWidth = 3.5; cx.beginPath(); cx.arc(0, 0, 11, 0, Math.PI * 2); cx.stroke(); cx.strokeStyle = col; cx.lineWidth = 1.8; cx.setLineDash([3, 3]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; }],
   ['blasts', () => 'Explosion', 'Where a grenade, a rocket, a shell, C4 or a mine went off', () => { const g = cx.createRadialGradient(0, 0, 1, 0, 0, 11), b = css('--blast'); g.addColorStop(0, 'rgba(255,245,200,.95)'); g.addColorStop(0.35, rgbaOf(b, 0.85) || b); g.addColorStop(1, rgbaOf(b, 0) || 'transparent'); cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, 11, 0, Math.PI * 2); cx.fill(); }],
 ];
 let lgKey = '';
@@ -9042,8 +9185,8 @@ function legend() {
   const box = $('#mLegend'), on = !!(round && opts.legend);
   box.hidden = !on; if (!on) return;
   const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
-  const L = LEGEND.filter(([k]) => !k || opts[k]), d = (window.devicePixelRatio || 1) * lk;
-  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), opts.gameSol, opts.models, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
+  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() : opts[k])), d = (window.devicePixelRatio || 1) * lk;
+  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
     const cx0 = cx;
@@ -9204,6 +9347,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
+  if (e.code==='KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey && round) povSet(!pov);   // (v177: his view only)
   if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; popToggle($('#namBtn'), $('#namMenu'), false); layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
 // (v136) Tab held: the scoreboard (not while typing in a field)
