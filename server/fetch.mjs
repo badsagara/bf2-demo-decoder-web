@@ -28,6 +28,8 @@
 //   BF2R_FETCH_PAUSE      seconds between two downloads (default 1, to go easy on the game server's web page)
 //   BF2R_MIN_FREE_GB      stop downloading when the disk with data/ has less free space than this (default 3)
 // What was fetched is kept in data/.fetched.json, so a demo comes once even if ingest drops it as an empty round.
+// (v182) A demo listed on two pages (a clan's page and the game server's own) comes once: one by the same name and size
+// already fetched from the other page (or sent, or kept) is not downloaded again.
 import fs from 'node:fs';
 import path from 'node:path';
 import dgram from 'node:dgram';
@@ -65,6 +67,15 @@ const seenAt = (name, url) => seen[url] || (seen[name] && (!seen[name].from || h
 // the same second): then the server's address in front (1.2.3.4_auto_2026_10_15_20_00_00.bf2demo)
 const taken = new Set(Object.entries(seen).map(([k, v]) => v.file || (/^[\w.\-]+\.bf2demo$/i.test(k) ? k : null)).filter(Boolean));
 const fileFor = (name, url) => !taken.has(name) && !fs.existsSync(path.join(INC, name)) && !fs.existsSync(path.join(DEMOS, name)) ? name : hostOf(url).replace(/[^\w.-]+/g, '-') + '_' + name;
+// (v182) the same demo on two pages (a clan's page and the game server's own): before v182 downloaded from both, the second
+// under the address, and listed twice. Now a demo whose name is taken by one from another page (or one sent, or kept)
+// and that has the same size is that demo: not downloaded (data/.fetched.json: { skipped: 'copy', of }). The sizes of
+// the demo by that name: as fetched, and the files kept (incoming, demos, empty, .copies)
+const sizesOf = name => {
+  const L = Object.entries(seen).filter(([k, v]) => v && v.bytes && (v.file === name || (!v.file && k === name))).map(([, v]) => v.bytes);
+  for (const d of [INC, DEMOS, path.join(ROOT, 'data', 'empty'), path.join(ROOT, 'data', '.copies')]) { try { L.push(fs.statSync(path.join(d, name)).size); } catch (e) {} }
+  return [...new Set(L)].filter(b => b > 0);
+};
 
 // the day a demo was recorded: from its name (auto_2026_09_29_19_52_11.bf2demo), else from Last-Modified
 const nameDay = n => { const m = /(20\d\d)[_-](\d\d)[_-](\d\d)/.exec(n); return m ? `${m[1]}-${m[2]}-${m[3]}` : ''; };
@@ -139,19 +150,20 @@ function verdict(name, h) {
   return { why: null, size };
 }
 
-async function download(name, url, file) {
+async function download(name, url, file, twin = []) {
   // the headers first (HEAD); a web server that doesn't answer HEAD gets a GET, and the checks run on its headers
   const head = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30e3) });
   if (!head.ok && ![403, 405, 501].includes(head.status)) throw new Error(`HTTP ${head.status}`);
   let v = head.ok ? verdict(name, head.headers) : null;
   if (v?.why) return v.why;
+  if (v && twin.includes(v.size)) return 'copy';
   if (LIST && v) return { would: v.size };
   if (v && freeBytes() - (Number.isFinite(v.size) ? v.size : 0) < MIN_FREE) return 'full';
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30 * 60e3) });
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
   if (!v) {
     v = verdict(name, res.headers);
-    const stop = v.why || (LIST ? { would: v.size } : freeBytes() - (Number.isFinite(v.size) ? v.size : 0) < MIN_FREE ? 'full' : null);
+    const stop = v.why || (twin.includes(v.size) ? 'copy' : null) || (LIST ? { would: v.size } : freeBytes() - (Number.isFinite(v.size) ? v.size : 0) < MIN_FREE ? 'full' : null);
     if (stop) { await res.body.cancel().catch(() => {}); return stop; }
   }
   const part = path.join(INC, file + '.part');
@@ -160,6 +172,7 @@ async function download(name, url, file) {
     const got = fs.statSync(part).size, want = +(res.headers.get('content-length') || NaN);
     if (res.headers.get('content-encoding') == null && Number.isFinite(want) && got !== want) throw new Error(`cut off (${got} of ${want} bytes)`);
     if (!got) throw new Error('empty file');
+    if (twin.includes(got)) { fs.unlinkSync(part); return 'copy'; }   // (no size in the headers: told after)
     fs.renameSync(part, path.join(INC, file));   // (ingest skips .part names)
     return got;
   } catch (e) { try { fs.unlinkSync(part); } catch (e2) {} throw e; }
@@ -179,10 +192,10 @@ async function main() {
   const entries = (PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS).flatMap(expand);
   if (!entries.length) { log('no BF2R_FETCH_URLS set and none added on the admin page: nothing to fetch'); return; }
   if (!PROBE) { fs.mkdirSync(INC, { recursive: true }); fs.mkdirSync(path.dirname(STATE), { recursive: true }); }
-  const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, failed: 0, listed: 0, pages: 0 };
+  const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, copies: 0, failed: 0, listed: 0, pages: 0 };
   const report = () => LIST
-    ? log(`would download ${n.would} demos${n.wouldBytes ? ', ~' + mb(n.wouldBytes) : ''}; still being written ${n.busy}; skipped (BF2R_FETCH_SINCE / MIN_BYTES) ${n.skipped}; free on disk ${mb(freeBytes())}`)
-    : log(`fetched ${n.got} demos (${mb(n.bytes)}); still being written ${n.busy} (next run); skipped ${n.skipped}` + (n.failed ? `; failed ${n.failed} (tried again next run)` : ''));
+    ? log(`would download ${n.would} demos${n.wouldBytes ? ', ~' + mb(n.wouldBytes) : ''}; still being written ${n.busy}; skipped (BF2R_FETCH_SINCE / MIN_BYTES) ${n.skipped}${n.copies ? `; the same as one fetched from another page ${n.copies}` : ''}; free on disk ${mb(freeBytes())}`)
+    : log(`fetched ${n.got} demos (${mb(n.bytes)}); still being written ${n.busy} (next run); skipped ${n.skipped}` + (n.copies ? `; the same as one fetched from another page ${n.copies}` : '') + (n.failed ? `; failed ${n.failed} (tried again next run)` : ''));
   // 1. every page: what it lists that is new
   const todo = [];
   for (const entry of entries) {
@@ -203,7 +216,8 @@ async function main() {
   for (const { name, url } of todo) {
     if (MAX && n.got + n.would >= MAX) { log('limit of', MAX, 'per run reached (BF2R_FETCH_MAX); the rest next run'); break; }
     try {
-      const file = fileFor(name, url), r = await download(name, url, file);
+      const file = fileFor(name, url), r = await download(name, url, file, file === name ? [] : sizesOf(name));
+      if (r === 'copy') { if (!LIST) { seen[url] = { skipped: 'copy', of: name, at: new Date().toISOString() }; save(); } log('the same demo as', name, 'already fetched from another page (or sent): not downloaded again', `(${hostOf(url)})`); n.copies++; continue; }
       if (r === 'busy') { log('still being written:', name); n.busy++; continue; }
       if (r?.would !== undefined) { log('would download', name, Number.isFinite(r.would) ? mb(r.would) : ''); n.would++; if (Number.isFinite(r.would)) n.wouldBytes += r.would; continue; }
       if (r === 'full') { log(`stopped: less than ${(MIN_FREE / 2 ** 30).toFixed(1)} GB free on the disk (BF2R_MIN_FREE_GB); ${name} and older ones next run`); break; }
@@ -213,7 +227,7 @@ async function main() {
       if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
     } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
   }
-  if (LIST || n.got || n.busy || n.skipped || n.failed) report();
+  if (LIST || n.got || n.busy || n.skipped || n.copies || n.failed) report();
   // (when it last looked: for bf2replay-status)
   if (!LIST) { try { const f = path.join(ROOT, 'data', '.fetch-last.json'); fs.writeFileSync(f + '.tmp', JSON.stringify({ at: new Date().toISOString(), pages: n.pages, listed: n.listed, new: todo.length, got: n.got, busy: n.busy, failed: n.failed })); fs.renameSync(f + '.tmp', f); } catch (e) {} }
 }

@@ -45,8 +45,12 @@ const fileOf = n => path.join(RDIR, linkId(n).replace(/[^A-Za-z0-9._-]/g, '_') +
 // ---------- the archive ----------
 function pack() {
   if (!fs.existsSync(RDIR)) { log('nothing to pack: no', RDIR); return null; }
-  const files = fs.readdirSync(RDIR).filter(f => f.endsWith('.json.gz'));
-  const sum = { made: new Date().toISOString(), rounds: files.length, kinds: {}, maps: {}, pages: {}, errors: 0 };
+  // (v182) rounds taken off the list as copies of others (ingest.mjs, data/.copies.json: the same demo from two demo
+  // pages) stay out of the archive
+  let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) { /* none */ }
+  const copyFiles = new Set(Object.keys(copies).map(n => path.basename(fileOf(n))));
+  const files = fs.readdirSync(RDIR).filter(f => f.endsWith('.json.gz') && !copyFiles.has(f)), left = fs.readdirSync(RDIR).filter(f => copyFiles.has(f));
+  const sum = { made: new Date().toISOString(), rounds: files.length, copiesLeftOut: left.length, kinds: {}, maps: {}, pages: {}, errors: 0 };
   for (const f of files) {
     try {
       const d = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f))));
@@ -57,8 +61,9 @@ function pack() {
   fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(sum, null, 1));
   const tar = path.join(OUT, `bf2-analysis-${new Date().toISOString().slice(0, 10)}.tar`);
   const list = ['summary.json', 'rounds', ...['failed.json', 'run.json'].filter(f => fs.existsSync(path.join(OUT, f)))];
-  execFileSync('tar', ['-cf', tar, '-C', OUT, ...list]);
-  log(`archive: ${tar} (${(fs.statSync(tar).size / 2 ** 20).toFixed(1)} MB, ${files.length} rounds)`);
+  const ex = path.join(OUT, '.pack-exclude'); fs.writeFileSync(ex, left.map(f => 'rounds/' + f).join('\n') + '\n');
+  execFileSync('tar', ['-cf', tar, '-X', ex, '-C', OUT, ...list]); try { fs.unlinkSync(ex); } catch (e) {}
+  log(`archive: ${tar} (${(fs.statSync(tar).size / 2 ** 20).toFixed(1)} MB, ${files.length} rounds${left.length ? `; ${left.length} cop${left.length === 1 ? "y" : "ies"} of other rounds left out` : ''})`);
   return tar;
 }
 if (has('--pack')) { pack(); process.exit(0); }
@@ -121,7 +126,9 @@ async function newPage(first) {
   await page.waitForFunction(() => window.__bf2analyze && window.__bf2analyze.ready(), null, { timeout: 120000 });
   page._n = 0; return page;
 }
-const withTimeout = (p, ms, what) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ': over ' + Math.round(ms / 1000) + ' s')), ms))]);
+// (v182: the timer cleared when the round is done - before, each one held the run open for up to --timeout after the last
+// round, past systemd's time to stop: "State 'stop-sigterm' timed out. Killing")
+const withTimeout = (p, ms, what) => { let tm; return Promise.race([p, new Promise((_, rej) => { tm = setTimeout(() => rej(new Error(what + ': over ' + Math.round(ms / 1000) + ' s')), ms); })]).finally(() => clearTimeout(tm)); };
 let done = 0, kills = 0, hints = 0; const started = Date.now(), total = todo.length;
 const runInfo = { started: new Date().toISOString(), pid: process.pid, page: pageVer, jobs: JOBS, rounds: total, host: os.hostname(), mem: os.totalmem(), cpus: os.cpus().length };
 fs.writeFileSync(path.join(OUT, 'run.json'), JSON.stringify(runInfo, null, 1));
@@ -153,8 +160,10 @@ async function worker(w) {
   if (page) await page.context().close().catch(() => {});
 }
 await Promise.all(Array.from({ length: JOBS }, (_, w) => worker(w)));
-await browser.close(); server.close();
+await browser.close().catch(() => {}); server.closeAllConnections?.(); server.close();
 runInfo.ended = new Date().toISOString(); runInfo.done = done; runInfo.failed = Object.keys(failed).length; runInfo.kills = kills; runInfo.hints = hints;
 fs.writeFileSync(path.join(OUT, 'run.json'), JSON.stringify(runInfo, null, 1));
 log(`done: ${done} rounds (${kills} kills, ${hints} hints), ${Object.keys(failed).length} failed, ${Math.round((Date.now() - started) / 60000)} min`);
-if (!has('--no-pack') && !stopping) pack();
+// (v182) the archive also when stopped (analyze.sh stop): what is done so far, ready to send; started again, the run goes on
+if (!has('--no-pack')) { if (stopping) log('stopped: the archive of the rounds done so far'); try { pack(); } catch (e) { log('archive not made:', e.message); } }
+process.exit(0);   // (nothing left to wait for)

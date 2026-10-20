@@ -381,6 +381,8 @@ function writeShares(d, dec) {
     const desc = [won, mmss(s.duration), `${s.players} players`, `${s.kills} kills`, s.top ? `best: ${s.top.name} (${s.top.score})` : '', s.server].filter(Boolean).join(' · ');
     want.r.set(id, sharePage({ title: `${mapName(m)} · ${dayOf(s.date)}`, desc, image: ogImg(m), url: DOMAIN ? `${base}r/${id}` : '', go: x => `../#round=${encodeURIComponent(id)}${x}` }));
   }
+  // (v182) a copy taken off the list: its link (posted before) shows the kept round's preview and opens it
+  for (const [c, x] of Object.entries(copiesRead())) { const id = baseOf(c), of = baseOf(x.of || ''); if (!want.r.has(id) && want.r.has(of)) want.r.set(id, want.r.get(of)); }
   // players over all rounds (rounds.json is newest first: the first name seen is his latest)
   const P = new Map();
   for (const r of d.rounds) for (const p of r.sum?.P || []) {
@@ -607,6 +609,44 @@ function dropRound(idx, name, src) {
   const old = idx.rounds.findIndex(r => r.name === name); if (old >= 0) { aggMark(idx.rounds[old].sum); idx.rounds.splice(old, 1); }
   heatPut(name, null);
 }
+// ---------- (v182) the same round twice ----------
+// The same demo on two demo pages (a clan's page and the game server's own: fetch.mjs before v182 downloaded it from
+// both, the second under the server's address, 1.2.3.4_auto_2026_10_03_18_21_02.bf2demo) was two rounds on the site,
+// and every kill in them counted twice in the stats. One is kept - the plain name over the one with an address in front,
+// else the one listed first; the other's demo and decoded round go to data/.copies (not served; nothing is deleted: remove that
+// folder when you like), it leaves the list and the stats, and its link (/r/<the copy>) opens the kept round.
+// data/.copies.json: { copies: { "<copy>.bf2demo": { of: "<kept>.bf2demo", at, bytes } } }. The same round = the same
+// server, map, start (to the second), length, soldiers, kills and tickets.
+const COPIES_DIR = path.join(DATA, '.copies'), COPIES_FILE = path.join(DATA, '.copies.json');
+let COPIES = null;
+const copiesRead = () => { if (!COPIES) { try { COPIES = JSON.parse(fs.readFileSync(COPIES_FILE, 'utf8')).copies || {}; } catch (e) { COPIES = {}; } } return COPIES; };
+const copiesSave = () => { const f = COPIES_FILE; try { fs.writeFileSync(f + '.tmp', JSON.stringify({ copies: COPIES || {} }, null, 1)); fs.renameSync(f + '.tmp', f); } catch (e) { log('.copies.json not written:', e.message); } };
+const sameKey = s => s && !s.empty && s.date && s.server ? JSON.stringify([s.date, s.server, mapOf(s), Math.round((+s.duration || 0) * 10), s.players, s.kills, s.tickets || null]) : null;
+// of two listed rounds, the one to keep
+const keepOf = (a, b) => b.name.endsWith('_' + a.name) ? a : a.name.endsWith('_' + b.name) ? b : String(b.added || '') < String(a.added || '') ? b : a;
+function moveCopy(idx, name, src, of) {
+  fs.mkdirSync(COPIES_DIR, { recursive: true });
+  let bytes = null;
+  try { if (src && fs.existsSync(src)) { bytes = fs.statSync(src).size; fs.renameSync(src, path.join(COPIES_DIR, name)); } } catch (e) { log('could not move', name, '-', e.message); }
+  const base = baseOf(name);
+  for (const f of fs.readdirSync(DIRS.rounds)) if (f.startsWith(base + '.')) { try { fs.renameSync(path.join(DIRS.rounds, f), path.join(COPIES_DIR, f)); } catch (e) { log('could not move', f, '-', e.message); } }
+  const old = idx.rounds.findIndex(r => r.name === name); if (old >= 0) { aggMark(idx.rounds[old].sum); bytes ??= idx.rounds[old].bytes ?? null; idx.rounds.splice(old, 1); }
+  heatPut(name, null);
+  copiesRead()[name] = { of, at: new Date().toISOString(), bytes };
+}
+// every round listed twice (or more): the copies off the list - at the start of each run (the copies listed before v182)
+function dropCopies(idx) {
+  const by = new Map();
+  for (const r of idx.rounds) { const k = sameKey(r.sum); if (!k) continue; if (!by.has(k)) by.set(k, []); by.get(k).push(r); }
+  const moves = [];
+  for (const G of by.values()) if (G.length > 1) { const keep = G.reduce(keepOf); for (const r of G) if (r !== keep) moves.push([r.name, keep.name]); }
+  for (const [name, of] of moves) moveCopy(idx, name, path.join(DIRS.demos, name), of);
+  if (moves.length) {
+    copiesSave();
+    log(`${moves.length} round${moves.length === 1 ? '' : 's'} listed twice (the same demo from two demo pages): the cop${moves.length === 1 ? 'y' : 'ies'} moved to data/.copies and taken off the list, e.g. ${moves[0][0]} (the same as ${moves[0][1]})`);
+  }
+  return moves.length;
+}
 // the heavy part of a demo, also in a worker thread: decoded, summed up, packed (.bfr) - { sum, info, bfr } or { sum, drop }
 async function decodeWork(dec, src, name) {
   const { tl, hdr, info } = await decodeFile(dec, src, name), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
@@ -624,6 +664,9 @@ async function processDemo(dec, idx, src, name, { move, pre, t0 = Date.now(), no
     log(sum && !sum.empty ? `round with ${sum.players} player${sum.players === 1 ? '' : 's'} (not listed: BF2R_MIN_PLAYERS ${MIN_PLAYERS})` : 'empty round', name);
     return;
   }
+  // (v182) a new demo of a round already listed (the same demo from another demo page): kept in data/.copies, not listed
+  const twin = old < 0 && sameKey(sum) && idx.rounds.find(r => sameKey(r.sum) === sameKey(sum));
+  if (twin) { moveCopy(idx, name, src, twin.name); copiesSave(); log('the same round as', twin.name, '(another demo page): moved to data/.copies, not listed -', name); return; }
   const base = baseOf(name), bfrName = `${base}.${dec.hash}.bfr`;
   for (const f of fs.readdirSync(DIRS.rounds)) if (f.startsWith(base + '.') && f !== bfrName) fs.unlinkSync(path.join(DIRS.rounds, f));   // made by an older decoder
   const tmp = path.join(DIRS.rounds, bfrName + '.tmp');
@@ -742,6 +785,7 @@ async function main() {
     dropRound(idx, r.name, path.join(DIRS.demos, r.name)); changed = true;
     log(`round with ${r.sum.players} player${r.sum.players === 1 ? '' : 's'} taken off the list (BF2R_MIN_PLAYERS ${MIN_PLAYERS})`, r.name);
   }
+  if (dropCopies(idx)) changed = true;   // (v182: a round listed twice)
   // 1. new demos (and round logger files) from the game server(s); a name ending .part is still being uploaded
   let incoming = []; try { incoming = fs.readdirSync(INC); } catch (e) { log('no upload folder', INC); }
   const fresh = [];

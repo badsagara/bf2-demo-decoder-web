@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>BF2 Round Replay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -311,6 +312,12 @@ input[type=file] { display: none; }
 .tag.pov b { font-weight: 700; }
 .tag.pov button { font: 700 13px/1 var(--font-data); color: var(--fg); background: transparent; border: 1px solid var(--line); border-radius: 3px; width: 22px; height: 20px; cursor: pointer; padding: 0; }
 .tag.pov button:hover, .tag.pov button:focus-visible { border-color: var(--accent); color: var(--accent); }
+.tag.pov button.snd { width: 26px; display: inline-grid; place-items: center; }
+.tag.pov button.snd svg { display: block; }
+.tag.pov button.snd .x { display: none; }
+.tag.pov button.snd:not(.on) .w1, .tag.pov button.snd:not(.on) .w2 { display: none; }
+.tag.pov button.snd:not(.on) .x { display: inline; }
+.tag.pov button.snd.on { border-color: var(--accent); color: var(--accent); }
 .clock { font: 700 22px/1 var(--font-display); letter-spacing: .06em; }
 
 .side { display: grid; gap: 12px; min-width: 0; }
@@ -895,6 +902,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
       <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
       <button class="btn on" id="tLift" title="Soldiers up on a roof, an upper floor, a tower, a bridge or a ship's deck - 2 m or more over the ground or the sea under them: lifted over a shadow where they are, with a thin line down to it (the higher, the longer); 12 m or more up, the height by the shadow">Heights</button>
+      <button class="btn on" id="tSound" aria-pressed="true" title="His view (a soldier's or a crew's): the shots and explosions he could hear - rings where they are, an arrow at the map's edge for those off it; how far each carries from the game's sound files. Also the speaker in the tag over the map">Sounds</button>
       <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
       <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
       <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
@@ -977,7 +985,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v179';
+const APP_VERSION = 'v182';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1374,7 +1382,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -2562,11 +2570,14 @@ async function decodeGeo(meta, b64) {
     for (let cx_ = Math.floor(lo[0] / CELL); cx_ <= Math.floor(hi[0] / CELL); cx_++) for (let cy_ = Math.floor(lo[1] / CELL); cy_ <= Math.floor(hi[1] / CELL); cy_++) {
       const key = (cx_ + 2048) * 4096 + cy_ + 2048; let L = cells.get(key); if (!L) cells.set(key, L = []); L.push(i); }
   }
-  return { meshes, P, cells, CELL, mat, names: meta.names, mats: meta.mats, stamp: new Uint32Array(nP), pass: 0 };
+  // (v180) the materials bullets go through (meta.pen, from the game's material table; files before v180: none known)
+  const pen = new Uint8Array(meta.mats.length); for (const i of meta.pen || []) pen[i] = 1;
+  return { meshes, P, cells, CELL, mat, names: meta.names, mats: meta.mats, pen, penKnown: !!meta.pen, stamp: new Uint32Array(nP), pass: 0 };
 }
 // the first object the straight line from a to b (east, north, up) runs into between the shares e0 and e1 of the way:
-// { u (share), o (object), mat (material) } or null; any: the first one found, not the nearest
-function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any, skip) {
+// { u (share), o (object), mat (material), pen (bullets go through it) } or null; any: the first one found, not the
+// nearest; shoot (v180): as a bullet - through the materials it goes through (wood boards, thin metal, plastic, cloth...)
+function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any, skip, shoot) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, C = G.CELL; let best = null;
   const pass = ++G.pass, x0 = Math.floor(Math.min(ax, bx) / C), x1 = Math.floor(Math.max(ax, bx) / C), y0 = Math.floor(Math.min(ay, by) / C), y1 = Math.floor(Math.max(ay, by) / C);
   for (let cx_ = x0; cx_ <= x1; cx_++) for (let cy_ = y0; cy_ <= y1; cy_++) {
@@ -2591,7 +2602,8 @@ function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any, skip) {
         const sx = ox - V[i0], sy = oy - V[i0 + 1], sz = oz - V[i0 + 2], uu = (sx * hx + sy * hy + sz * hz) / det; if (uu < 0 || uu > 1) continue;
         const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, vv = (vx * qx + vy * qy + vz * qz) / det; if (vv < 0 || uu + vv > 1) continue;
         const t = (e2x * qx + e2y * qy + e2z * qz) / det; if (t < t0 || t > t1) continue;
-        best = { u: t, o: G.names[Q.nm], mat: G.mats[G.mat[M.f0 + f]] }; t1 = t;
+        const mi = G.mat[M.f0 + f]; if (shoot && G.pen[mi]) continue;
+        best = { u: t, o: G.names[Q.nm], mat: G.mats[mi], pen: !!G.pen[mi] }; t1 = t;
         if (any) return best;
       }
     }
@@ -2610,13 +2622,13 @@ function geoOff(D, G, tt) {
 // what the straight line from a to b runs into first, the first and last 0.9 m left out as in losBlocked: { u, what:
 // 'ground' | 'object' | 'tree', o, mat } or null (clear) - with the exact shapes (G), the terrain and tree trunks; at tt
 // without the breakable objects broken by then
-function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt) {
+function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy); if (L < 2 * LOS_END) return null;
   const e0 = LOS_END / L, e1 = 1 - e0; let best = null;
   const n = Math.ceil(L / D.hmStep * 2);
   for (let k = 1; k < n; k++) { const u = k / n; if (u < e0 || u > e1) continue; if (ah + dh * u < groundAt(D, ax + dx * u, ay + dy * u) - 0.15) { best = { u, what: 'ground' }; break; } }
   if (best && any) return best;
-  const h = geoHit(G, ax, ay, ah, bx, by, bh, e0, best ? best.u : e1, any, geoOff(D, G, tt)); if (h) { best = { ...h, what: 'object' }; if (any) return best; }
+  const h = geoHit(G, ax, ay, ah, bx, by, bh, e0, best ? best.u : e1, any, geoOff(D, G, tt), shoot); if (h) { best = { ...h, what: 'object' }; if (any) return best; }
   const v = vegHit(ax, ay, ah, bx, by, bh, true); if (v !== null && v >= e0 && v <= e1 && (!best || v < best.u)) best = { u: v, what: 'tree' };
   return best;
 }
@@ -3570,11 +3582,11 @@ function spotterOf(e) {
   }
   C.set(e, r); return r;
 }
-// is any of the 9 lines (as bodyLines) clear with the map's exact shapes (G)?
-function bodyClearExact(D, G, q, eye, j, o, tt) {
+// is any of the 9 lines (as bodyLines) clear with the map's exact shapes (G)? shoot (v180): for a bullet (exactHit)
+function bodyClearExact(D, G, q, eye, j, o, tt, shoot) {
   const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  for (const th of hs) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true, tt)) return true;
+  for (const th of hs) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true, tt, shoot)) return true;
   return false;
 }
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
@@ -4102,9 +4114,117 @@ function povTag() {
   const el = $('#povTag'); if (!el) return;
   if (!POV) { el.hidden = true; return; }
   el.hidden = false; const P0 = round.players[POV.s], nm = POV.veh ? mapNm(round, P0) + (POV.tm < 0 ? ' (empty)' : '') : P0.name, key = nm + '|' + POV.tm;
-  if (el.dataset.who !== key) { el.dataset.who = key; el.innerHTML = `<span>${POV.veh ? 'Crew\'s view' : 'His view'} · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); }
+  if (el.dataset.who !== key) { el.dataset.who = key; el.innerHTML = `<span>${POV.veh ? 'Crew\'s view' : 'His view'} · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povSnd" class="snd" title="Sounds he could hear: shots and explosions as rings where they are, an arrow at the map's edge for those off it (how far each carries: the game's sound files; footsteps not yet)">${SND_SVG}</button><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); $('#povSnd').onclick = () => sndSet(!opts.sound); }
+  const b = $('#povSnd'); if (b) { b.classList.toggle('on', !!opts.sound); b.setAttribute('aria-pressed', String(!!opts.sound)); b.setAttribute('aria-label', opts.sound ? 'Sounds on (click: off)' : 'Sounds off (click: on)'); }
 }
+// (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Filters ▾ Sounds
+const SND_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor" stroke="none"/><path class="w1" d="M11 5.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w2" d="M12.8 3.5a6.3 6.3 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+function sndSet(on) { opts.sound = !!on; try { localStorage.setItem('bf2rr.sound', opts.sound ? '1' : '0'); } catch (e) {} const tb = $('#tSound'); if (tb) { tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); } refresh(true); }
 function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); refresh(true); }
+// ---------- (v181) what he could hear (Sagara, todo 212: "Звуки в «His view» ... кнопку, щоб їх можна було вимикати ...
+// Постріли й вибухи з дальністю чутності з файлів гри показувати хвилями, а те, що поза екраном, — стрілкою на краю мапи.
+// Кроки ... поки без них") ----------
+// In his view (and a crew's), with the speaker on (the tag over the map, or Filters ▾ Sounds): shots - while somebody
+// holds a fire button, a ring every SND_PULSE s where he is (in a vehicle: where it is, its gun's sound) - and explosions
+// (grenades, rockets, missiles, C4, mines, claymores, shells; a vehicle blowing up), as rings spreading from where they
+// are, brighter and wider the louder they reached him; one off the screen: an arrow at the map's edge the way it came
+// from (an explosion's with how far). Not his own shots. How loud: the game's sound files - each weapon's third-person
+// fire sound (Objects_server.zip: halfVolumeDistance, volume; Common_server.zip Sound/audiotweak.con multiplies it -
+// 1.4 for most guns, 1.7 for SVD, M24, Type 88) and each explosion effect's (e_exp_grenade 20 m, e_exp_large 30,
+// e_exp_MineExp 19, e_exp_claymore 17, e_vexp_tank 30, e_vexp_humvee 18...): a sound at half volume at that distance
+// falls off as 1/d, its reference distance r0 = halfVolumeDistance x tweak / 2 x volume (M16A2 2.8 m, AK-47 4.2,
+// M249 / PKM 3.5, SVD / M24 8.5, M95 10, M9 3.5, silenced pistols 0.75-1.25, M2 HMG 5.3, APC cannons 7.6, tank guns
+// 10, artillery 15; grenade 10, mines 9.5, claymore 8.5, C4 / artillery shells / a tank blowing up 15). Heard while
+// r0 / d >= SND_T (-37 dB) - the one number the game's files don't give: so an M16A2 carries ~200 m, a sniper rifle
+// ~600, a grenade ~700, C4 ~1 km (to be set from the test in the game, todo 212a). Walls don't muffle them (as in the
+// game). Footsteps: not yet (todo 212a).
+const SND_T = 0.014, SND_WAVE = 0.9, SND_PULSE = 0.3, SND_ARROWS = 10;
+const SND_SHOT = [[/silenc/i, 1], [/M95/, 10], [/M24|SVD|QBU-88|M82A1/, 8.5], [/L96A1/, 5], [/M249|PKM|RPK|QBB-95|MG36|HK21/, 3.5], [/AK-47|G3\b|Type 85/, 4.2],
+  [/\bM9\b|QSZ-92|MR-444/, 3.5], [/MP5|MP7|P90|Bizon|HK53|AK-74U/, 2.1], [/Saiga|Jackhammer|11-87|Benelli|Norinco|DAO-12/, 2.8], [/SRAW|Eryx|RPG/, 4], [/grenade launcher|M203|GP-2|GP-3/, 1.5]];
+const SND_QUIET = /Knife|Defib|Medic bag|Ammo bag|Wrench|C4|Claymore|AT mine|Smoke|SIMRAD|grenade$|Flashbang|Parachute/;
+const SND_VEH = { tank: 10, apc: 7.6, aa: 7.5, light: 5.3 }, SND_AIR = 7.5, SND_WRECK = { tank: 15, apc: 9, aa: 12, light: 9 }, SND_WRECK_AIR = 15;
+const sndBlast = k => GRENADE_KINDS.has(k) ? 10 : MISSILES.has(k) ? 12.5 : SHELL_KINDS.has(k) || /C4/.test(k) ? 15 : /Claymore/.test(k) ? 8.5 : /mine/i.test(k) ? 9.5 : 10;
+// a shot's reference distance: soldier j's gun at tt (null: nothing that makes a sound)
+function heardShot(j, tt) {
+  const p = round.players[j], q = playerAt(j, tt); if (!q.alive) return null;
+  if (q.veh) { const v = round.players.findIndex(o => o.vehicle && o.name === q.veh); return v < 0 ? SND_VEH.light : airNames().has(q.veh) ? SND_AIR : SND_VEH[vehClass(v)] ?? SND_VEH.light; }
+  const w = inHands(j, tt), nm = w?.name || ''; if (!w || w.slot === 1 || w.slot >= 5 || (w.slot === 4 && !w.wid) || SND_QUIET.test(nm)) return null;   // (slot 4 unknown: a grenade's throw, most likely)
+  for (const [re, r0] of SND_SHOT) if (re.test(nm)) return r0;
+  return w.slot === 2 ? 3.5 : 2.8;
+}
+// the sounds reaching him at t: [{ x, y, kind: 'shot' | 'blast', age (s since it), lv (0 at the edge of hearing .. 1 at the
+// source), d, who }]
+function povSounds() {
+  const L = playerAt(POV.s, t); if (!L.alive || !Number.isFinite(L.x)) return [];
+  const out = [], mine = new Set(POV.veh ? povEyes(POV.s, t) : [POV.s]), add = (x, y, h, r0, kind, age, who) => {
+    const d = Math.max(0.5, Math.hypot(x - L.x, y - L.y, h != null && L.h != null ? h - L.h : 0)), g = r0 / Math.max(d, r0); if (g < SND_T) return;
+    out.push({ x, y, kind, age, lv: Math.log(g / SND_T) / Math.log(1 / SND_T), d, who });
+  };
+  // shots: the fire buttons held in the last SND_WAVE s (pulses every SND_PULSE s)
+  round.players.forEach((p, j) => {
+    if (p.vehicle || !p.fire || mine.has(j)) return;
+    const F = p.fire; let lo = 0, hi = F.length - 1, k = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (F[m][0] <= t) { k = m; lo = m + 1; } else hi = m - 1; }
+    for (let m = k; m >= 0 && t - F[m][0] < 120; m--) {
+      const [a, b] = F[m]; if (b < t - SND_WAVE) continue;
+      const last = a + Math.floor((Math.min(b, t) - a) / SND_PULSE) * SND_PULSE; if (last < t - SND_WAVE) continue;
+      const r0 = heardShot(j, Math.min(b, t)); if (r0 == null) break;
+      const q = playerAt(j, last), o = q.veh ? (() => { const v = round.players.findIndex(x => x.vehicle && x.name === q.veh); return v >= 0 ? playerAt(v, last) : q; })() : q;
+      if (Number.isFinite(o.x)) for (let tp = last; tp >= Math.max(a, t - SND_WAVE); tp -= SND_PULSE) add(o.x, o.y, o.h, r0, 'shot', t - tp, j);
+      break;
+    }
+  });
+  // explosions: blasts, and vehicles blowing up, in the last SND_WAVE s (x 1.5: a bigger, slower ring)
+  const W = SND_WAVE * 1.5, B = round._sndB || (round._sndB = round.events.filter(e => (e.type === 'blast' && e.x != null) || e.type === 'wreck').sort((a, b) => a.t - b.t));
+  let lo = 0, hi = B.length; while (lo < hi) { const m = (lo + hi) >> 1; if (B[m].t < t - W) lo = m + 1; else hi = m; }
+  for (let k = lo; k < B.length && B[k].t <= t; k++) {
+    const e = B[k];
+    if (e.type === 'blast') add(e.x, e.y, null, sndBlast(e.kind || ''), 'blast', t - e.t, null);
+    else { const v = round.pidx.get(e.vehicle); if (v === undefined) continue; const o = playerAt(v, e.t); if (!Number.isFinite(o.x)) continue; add(o.x, o.y, o.h, airNames().has(round.players[v].name) ? SND_WRECK_AIR : SND_WRECK[vehClass(v)] ?? 9, 'blast', t - e.t, v); }
+  }
+  return out;
+}
+// what covers the map's edges (its own panels: the tags, the top bar, the legend, the kill feed, the buttons): rects in
+// the map's pixels, a little wider - an arrow that would sit under one slides in towards him until it is clear
+function sndCovers() {
+  const cr = cv.getBoundingClientRect(), out = [];
+  for (const el of document.querySelectorAll('#mapbox .maphud > *, #mapbox .mapplay, #mapbox .fsfeed, #mapbox .mapctl, #mapbox .tabboard')) {
+    if (el.hidden || !el.offsetWidth || !el.offsetHeight || getComputedStyle(el).visibility === 'hidden') continue;
+    const r = el.getBoundingClientRect(); if (r.width * r.height > 0.5 * cr.width * cr.height || !r.width || !r.height) continue;
+    out.push([r.left - cr.left - 6, r.top - cr.top - 6, r.right - cr.left + 6, r.bottom - cr.top + 6]);
+  }
+  return out;
+}
+// the rings on the map; arrows at its edge for those off it (the loudest one each way, at most SND_ARROWS)
+function drawSounds(S) {
+  const pad = 16, arrows = new Map(), Lq = playerAt(POV.s, t), [lx0, ly0] = toC(Lq.x, Lq.y), covers = S.length ? sndCovers() : [];
+  const covered = (x, y) => covers.some(r => x >= r[0] && x <= r[2] && y >= r[1] && y <= r[3]);
+  const lx = lx0 >= 0 && lx0 <= size && ly0 >= 0 && ly0 <= sizeH ? lx0 : size / 2, ly = lx0 >= 0 && lx0 <= size && ly0 >= 0 && ly0 <= sizeH ? ly0 : sizeH / 2;
+  for (const s of S) {
+    const big = s.kind === 'blast', W = big ? SND_WAVE * 1.5 : SND_WAVE, f = s.age / W; if (f < 0 || f > 1) continue;
+    const [px, py] = toC(s.x, s.y), col = big ? css('--blast') : css('--fg'), a = (0.25 + 0.65 * s.lv) * (1 - f);
+    if (px >= pad && px <= size - pad && py >= pad && py <= sizeH - pad) {
+      const R = (big ? 8 : 5) + f * (big ? 18 + 40 * s.lv : 10 + 24 * s.lv);
+      cx.globalAlpha = a; cx.strokeStyle = col; cx.lineWidth = big ? 2.2 : 1.4; cx.beginPath(); cx.arc(px, py, R, 0, Math.PI * 2); cx.stroke();
+      if (big && R > 14) { cx.globalAlpha = a * 0.5; cx.beginPath(); cx.arc(px, py, R * 0.62, 0, Math.PI * 2); cx.stroke(); }
+      cx.globalAlpha = 1;
+    } else {   // (off the map: the way from him to it, binned by 15°)
+      const ang = Math.atan2(py - ly, px - lx), bin = Math.round(ang / (Math.PI / 12)), key = bin + '|' + s.kind, o = arrows.get(key);
+      const sc = (1 - f) * (0.4 + s.lv); if (!o || sc > o.sc) arrows.set(key, { ang, s, a, sc, col, big });
+    }
+  }
+  [...arrows.values()].sort((a, b) => b.sc - a.sc).slice(0, SND_ARROWS).forEach(({ ang, s, a, col, big }) => {
+    // where the line from him that way leaves the map (inset by pad)
+    const c = Math.cos(ang), n = Math.sin(ang), tx = c > 0 ? (size - pad - lx) / c : c < 0 ? (pad - lx) / c : Infinity, ty = n > 0 ? (sizeH - pad - ly) / n : n < 0 ? (pad - ly) / n : Infinity, u = Math.max(0, Math.min(tx, ty));
+    let uu = u; while (uu > 40 && covered(lx + c * uu, ly + n * uu)) uu -= 6;   // (not under a panel)
+    const ex = lx + c * uu, ey = ly + n * uu, k = (big ? 11 : 9) + 5 * s.lv;
+    cx.save(); cx.translate(ex, ey); cx.rotate(ang); cx.globalAlpha = Math.min(1, Math.max(0.55, a + 0.2));
+    cx.beginPath(); cx.moveTo(k, 0); cx.lineTo(-k * 0.6, -k * 0.7); cx.lineTo(-k * 0.25, 0); cx.lineTo(-k * 0.6, k * 0.7); cx.closePath();
+    cx.fillStyle = col; cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 3; cx.lineJoin = 'round'; cx.stroke(); cx.fill(); cx.restore();
+    if (big) { const lb = Math.round(s.d) + ' m'; cx.font = '600 9.5px ' + css('--font-data'); const w = cx.measureText(lb).width, bx = Math.max(4, Math.min(size - w - 4, ex - c * 22 - w / 2)), by = Math.max(12, Math.min(sizeH - 4, ey - n * 22 + 3));
+      cx.globalAlpha = Math.min(1, Math.max(0.55, a + 0.2)); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(lb, bx, by); cx.fillStyle = css('--fg'); cx.fillText(lb, bx, by); }
+    cx.globalAlpha = 1;
+  });
+}
 // ---------- (v179) up on a roof (Sagara: "як можна показати, що один солдат знаходиться вище рівня землі?" - "Тінь і
 // «ніжка»") ----------
 // A soldier on foot LIFT_MIN m or more over the ground or the sea under him (a roof, an upper floor, a tower, a bridge, a
@@ -4610,6 +4730,7 @@ function draw() {
       cx.fillStyle = css('--fg'); cx.fillText(s2, xx + 11, by + H - 5); xx += 11 + ws[k] + 6;
     });
   }
+  if (POV && opts.sound) drawSounds(povSounds());   // (v181: what he could hear)
   // the followed soldier's aim (any layers): where his crosshair meets something - somebody (a crosshair ring on him, his
   // name), a vehicle, a wall or the ground (a cross in a ring) - with how far, in its own colour (--aim) on a dark edge;
   // into the sky / past the fog nothing (v152, Sagara: "приберемо лінію прицілу, і залишимо тільки сам приціл" - no line
@@ -5004,7 +5125,7 @@ function drawTimeline() {
     if (sel === ln.i) { tx.fillStyle = 'rgba(226,181,71,.14)'; tx.fillRect(0, y, w, lh); }
     const col = teamColor(ln.team);
     if (TL.label) { tx.fillStyle = sel === ln.i ? css('--accent') : col; tx.font = '500 ' + Math.min(11, lh) + 'px ' + css('--font-data');
-      let nm = ln.name; while (nm.length > 3 && tx.measureText(nm).width > TL.label - 8) nm = nm.slice(0, -2) + '…';
+      let nm = ln.name; for (let k = nm.length - 2; k >= 2 && tx.measureText(nm).width > TL.label - 8; k--) nm = ln.name.slice(0, k) + '…';   // (v182: cut from the name itself - a page read in another encoding made '…' 3 letters, and the loop never ended)
       tx.fillText(nm, 4, y + lh/2); }
     tx.globalAlpha = .55;
     for (const [a, b, tm] of ln.segs) { const x1 = tlX(a, w), x2 = tlX(b, w); tx.fillStyle = teamColor(tm ?? ln.team); tx.fillRect(x1, y + lh*0.25, Math.max(1, x2-x1), Math.max(2, lh*0.5)); }
@@ -6048,10 +6169,15 @@ function jumpTo(h, keepSel) {
 //   20:37 / 21:23 of ~140 small-arms kills a round), exact 2.
 // - aim snap: in one step of the timeline (0.1 s) his view swung from 30 deg or more off the line to the victim to within
 //   5 deg of it, 5 m or more away, in the 1.5 s before the kill. The same rounds: 0-2 a round (the fastest 75 and 119 deg);
-//   the bots of test 13 none at range.
+//   the bots of test 13 none at range. (v182, todo 146: 1619 rounds of 8 servers, 116 thousand small-arms kills - one such
+//   snap comes with 1.8% of kills, in 30% of rounds, and nobody has more of them over all his rounds than chance gives;
+//   so only a soldier with SNAP_N or more in one round: 3 soldier-rounds of the 1619, two of them with the most unlikely
+//   headshots too)
 // - headshots: 6 or more kills with the hit part known (sniper rifles left out), and so many of them headshots that the
 //   rate of everyone else in this round (with a 20% prior worth 10 kills) would give that many less than once in 100.
-//   None in the three rounds (the highest 5 of 8, 11 of 27).
+//   None in the three rounds (the highest 5 of 8, 11 of 27). (v182, todo 146: once in 100 named someone in 6% of 1619
+//   rounds - with ~30 soldiers a round, chance alone does that; HS_P, once in 10,000: 14 soldier-rounds, 4 of them one
+//   soldier's with 85% of his kills to the head)
 // - team kills: every kill of a team mate, in a vehicle too (run over, a cannon, a charge).
 // - speed (v120, todo 111, Sagara's speedhack idea): a soldier on foot faster than the game lets one run (speedRuns).
 // v121 (Sagara: ways to catch the hacks of the cheat forums - nametags / ESP / minimap through walls, aimbots, unlimited
@@ -6072,7 +6198,7 @@ function jumpTo(h, keepSel) {
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
 const MELEE_REACH = { 5406: ['knife', 2.0], 5386: ['defibrillator', 2.8] }, MELEE_SLACK = 2.5;
 const LAUNCH_MIN = { Grenade: 0.7, SRAW: 4.0, Eryx: 4.2, Claymore: 0.6, 'LAV-25 TOW': 10, 'BTR-90 missile': 10, 'WZ551 missile': 10, TOW: 5, 'HJ-8': 5 };
 const SHOT_MIN = { 5038: 1.5, 5222: 1.5, 5073: 1.5, 5400: 1.0, 5478: 1.0, 5491: 1.0, 5483: 0.6, 5380: 0.6 };
@@ -6272,6 +6398,7 @@ const binTailLog = (k, n, p) => { if (k <= 0) return 1; if (p <= 0) return 0; if
 const TRACK_STEP = 0.2, TRACK_DEG = 3, TRACK_VDEG = 6, TRACK_T = 2, TRACK_TURN = 10;
 function wallTracks(R, done) {
   const D = losData(); if (!D) { done([]); return; }
+  const G = geoData(true);   // (v180: loaded before this runs - adminHints waits for it)
   const DEG = Math.PI / 180, fog = Math.min(150, fogRange()), out = [], sol = R.players.map((p, i) => p.vehicle ? -1 : i).filter(i => i >= 0);
   // (fired at a wall) each soldier's trigger presses, by start; a pointer each (the steps go forward in time)
   const trig = new Map(), tp = new Map(); for (const i of sol) { const F = (R.players[i].fire || []).filter(f => f[2] === 0).sort((a, b) => a[0] - b[0]); if (F.length) { trig.set(i, F); tp.set(i, 0); } }
@@ -6332,6 +6459,9 @@ function wallTracks(R, done) {
     const w = inHands(i, (r.t0 + r.t1) / 2); if (!WF_GUN(w)) return;
     let last = null; for (let tt = r.t0 - TRACK_STEP; tt >= r.t0 - 6; tt -= TRACK_STEP) if (seesAt(i, r.j, tt, 45)) { last = r.t0 - tt; break; }
     wfAll.push({ i, j: r.j, t: r.t0, dur, d: r.d, w: w.name, last });
+    // (v180) the exact shapes: a bullet's line to him clear - past a wall's end the grid closed, or only through what
+    // bullets go through (a board fence, thin metal): firing through cover at a man there, not at a wall
+    if (G && dur >= WF_T0) { const tm = (r.t0 + r.t1) / 2, a = playerAt(i, tm), b = playerAt(r.j, tm); if (a.alive && b.alive && a.h != null && b.h != null && bodyClearExact(D, G, a, a.h + EYE_H[stanceNow(R.players[i], tm) ?? 0], r.j, b, tm, G.penKnown)) { wfAll[wfAll.length - 1].thin = true; return; } }
     if (dur >= WF_T0 && (last === null || last > WF_PRE)) { if (!wfBy.has(i)) wfBy.set(i, []); wfBy.get(i).push({ t: r.t0, vs: R.players[r.j].id, dur, d: r.d, w: w.name, last, x: r.x, y: r.y }); } };
   const wfBy = new Map();   // soldier -> his bursts at hidden enemies he hadn't seen (WF_T0 s or more)
   const wfHints = () => { for (const [i, B] of wfBy) {
@@ -6344,7 +6474,11 @@ function wallTracks(R, done) {
   const runs = new Map();   // viewer -> { j, t0, t1, b0, b1, y0, y1, n, dmin }
   const close = i => { const r = runs.get(i); if (!r) return; runs.delete(i);
     const dur = r.t1 - r.t0, turn = angOff(r.b1, r.b0) / DEG, yt = angOff(r.y1, r.y0) / DEG;
-    if (dur >= TRACK_T && turn >= TRACK_TURN && yt >= TRACK_TURN * 0.7) out.push({ t: r.t0, kind: 'track', adm: true, actor: R.players[i].id, vs: R.players[r.j].id, dur, turn, d: r.dmin, x: r.x, y: r.y }); };
+    if (dur < TRACK_T || turn < TRACK_TURN || yt < TRACK_TURN * 0.7) return;
+    // (v180) the exact shapes: hidden on the 25 cm grid, but in clear sight at 3 or more of 5 moments of the run - the
+    // grid closed a gap he saw him through (bullets' materials still hide him: he can't see through boards)
+    if (G) { let seen = 0; for (let k = 0; k < 5; k++) { const tm = r.t0 + dur * k / 4, a = playerAt(i, tm), b = playerAt(r.j, tm); if (a.alive && b.alive && a.h != null && b.h != null && bodyClearExact(D, G, a, a.h + EYE_H[stanceNow(R.players[i], tm) ?? 0], r.j, b, tm)) seen++; } if (seen >= 3) return; }
+    out.push({ t: r.t0, kind: 'track', adm: true, actor: R.players[i].id, vs: R.players[r.j].id, dur, turn, d: r.dmin, x: r.x, y: r.y }); };
   const work = () => {
     if (R !== round) return;
     const t0 = performance.now();
@@ -6455,16 +6589,18 @@ function speedRuns(R) {
 //   6 rounds: 2 at most.
 // - Vehicle speed: over 3 s (every step under 120 m/s, alive, rising or falling 15 m at most, no blast within 25 m
 //   from 2 s before), faster than VSPD_X times the most its type made in the 6 rounds (VSPD_MAX: the 3 s top of
-//   1.6 million stretches; the types not seen there: by kind, VSPD_KIND).
+//   1.6 million stretches; the types not seen there: by kind, VSPD_KIND). (v182, todo 146: 1619 rounds - the RIB boat
+//   goes 28-35 m/s in a third of the rounds it is in, 1136 of the 1142 hints: its 12.7 from the 6 rounds was too low; 26.5
+//   now, 6 hints left)
 // - Through walls / floating (geoScan, in the background): see there.
 // - No trigger (v135): a bullet kill on foot (the kill message names where it hit) with every fire button of the killer
 //   up for the NOFIRE_T s before (the Player ghost sends each button going down and up). 9 rounds: every such kill
 //   within 0.07 s of a press (=FL= 20:37 Lagg_FM's "M4" kill from a TOW launcher's seat names no hit: left out).
 // - Outside the map (v135): OUT_T s or more on end outside the combat area, alive (the game counts the seconds and kills
 //   him when they run out: on 2F4Y.com's Dalian Plant after 14-17 s). 9 rounds: 114 stretches, 21 s the longest.
-const SPAWN_EARLY = 0.5, STAM_E = 2, STAM_H = 8, REACT_Q = 0.25, REACT_MIN = 4, REACT_N = 8, REACT_P = 0.001, STAM_T = 13, TELE_D = 15, TELE_GAP = 13, SPAWN_D = 25, DMG_HP = 25, IDLE_T = 240, FARM_N = 4, NOFIRE_T = 1.5, OUT_T = 25, SG_NEAR = 150, SG_R = 150;
-const VSPD_MAX = { ustnk_m1a2: 10.5, rutnk_t90: 10.5, tnk_type98: 10.4, apc_btr90: 18.3, usapc_lav25: 19.7, apc_wz551: 22.7, jep_vodnik: 21, usjep_hmmwv: 19.6, jeep_faav: 24.9, jep_paratrooper: 27.5, jep_mec_paratrooper: 27.5, boat_rib: 12.7, ahe_ah1z: 50.5, ahe_z10: 49.6, chthe_z8: 27, usthe_uh60: 31.7, air_f35b: 117.2, air_j10: 117.1 };
-const VSPD_KIND = { mtank: 10.5, maavehicle: 22.7, mapc: 22.7, mjeep: 27.5, mrib: 12.7, mattack_heli: 50.5, mtransport_heli: 40, mjet: 125 }, VSPD_X = 1.35, VSPD_T = 3;
+const SPAWN_EARLY = 0.5, STAM_E = 3.5, STAM_H = 13, REACT_Q = 0.25, REACT_MIN = 4, REACT_N = 8, REACT_P = 0.001, STAM_T = 13, TELE_D = 15, TELE_GAP = 13, SPAWN_D = 25, DMG_HP = 25, IDLE_T = 240, FARM_N = 4, NOFIRE_T = 1.5, OUT_T = 25, SG_NEAR = 150, SG_R = 150;
+const VSPD_MAX = { ustnk_m1a2: 10.5, rutnk_t90: 10.5, tnk_type98: 10.4, apc_btr90: 18.3, usapc_lav25: 19.7, apc_wz551: 22.7, jep_vodnik: 21, usjep_hmmwv: 19.6, jeep_faav: 24.9, jep_paratrooper: 27.5, jep_mec_paratrooper: 27.5, boat_rib: 26.5, ahe_ah1z: 50.5, ahe_z10: 49.6, chthe_z8: 27, usthe_uh60: 31.7, air_f35b: 117.2, air_j10: 117.1 };
+const VSPD_KIND = { mtank: 10.5, maavehicle: 22.7, mapc: 22.7, mjeep: 27.5, mrib: 26.5, mattack_heli: 50.5, mtransport_heli: 40, mjet: 125 }, VSPD_X = 1.35, VSPD_T = 3;
 function moreHints(R) {
   const out = [], { times: T, n, X, Y, HH, L, VT, DN, A, HP } = R, F = T.length, pid = id => R.pidx.get(id), ev = R.events, DEG = Math.PI / 180;
   const sold = R.players.map((p, i) => p.vehicle ? -1 : i).filter(i => i >= 0), vehs = R.players.map((p, j) => p.vehicle ? j : -1).filter(j => j >= 0);
@@ -6495,7 +6631,9 @@ function moreHints(R) {
     for (let k = 0; k < F; k++) { const e = k * n + i; bad[k + 1] = bad[k] + (!L[e] || VT[e] || (DN && DN[e]) ? 1 : 0); }
     // stamina (v170: with his sprint's stamina from the demo - players[].stam, 31 full, ~4 a second while he sprints -
     // the exact rules: sprint speed with it empty STAM_E s or more, or with it not going down STAM_H s or more (3 rounds,
-    // 120 soldiers: at most 0.7 s and 4.1 s); rounds without it: one sprint of STAM_T s or more)
+    // 120 soldiers: at most 0.7 s and 4.1 s); rounds without it: one sprint of STAM_T s or more. v182, todo 146: 1619
+    // rounds - on one server (SiC's infantry-only Karkand: its own sprint setting) 2-3.0 s with it empty in 103 of 106
+    // rounds, never elsewhere; not going down 8-11.9 s on every server, 111 times; so 3.5 s and 13 s: none left)
     const SM = R.players[i].stam; let si = 0, sv = 31, e0 = null, h0 = null, hv = 31;
     const exactOut = (how, t0, t1, k0, k1, v) => out.push({ t: t0, kind: 'stam', adm: true, actor: id, how, dur: t1 - t0, dist: path(i, k0, k1), sv: v, x: X[k0 * n + i], y: Y[k0 * n + i] });
     let run = null, dip = 0;
@@ -6907,7 +7045,10 @@ function objHints(R) {
       let last = null;
       for (const g of segs.sort((a, b) => a.t - b.t)) {
         if (g.t1 - g.t < 1) continue;
-        const fast = g.m >= Math.max(1, g.most + 1) - 0.15, off = !g.whole && g.m >= 0.6;   // (v170: a man's speed or more than the men in the zone give)
+        // (v170: a man's speed or more than the men in the zone give; v182, todo 146: not with nobody of his side in the zone -
+        // 450 of 555 such hints in 1619 rounds, 332 at two flags, Kubra Dam's Bridge Base and Daqing's Oil Cisterns: the
+        // zone as worked out here missing them, not a server's fast flag)
+        const fast = g.m >= Math.max(1, g.most + 1) - 0.15 && g.most >= 1, off = !g.whole && g.m >= 0.6;
         if (!fast && !off) continue;
         if (last && last.k === g.k && g.t - last.t1 < 10) { last.t1 = g.t1; last.m = Math.max(last.m, g.m); continue; }
         const f = R.flags[g.k], who = g.near.length ? R.players[g.near[0][1]].id : null;
@@ -7141,10 +7282,11 @@ function clayCapHints(R) {
 // (v170) his ping in ms at tt (the game's own, his Player ghost), and the most it was in [t0, t1]
 const pingAt = (p, tt) => { const q = seriesAt(p?.ping, tt); return q ? q[1] : null; };
 function pingPeak(p, t0, t1) { const L = p?.ping; if (!L) return null; let m = pingAt(p, t0); for (const q of L) { if (q[0] > t1) break; if (q[0] >= t0) m = Math.max(m ?? 0, q[1]); } return m; }
-const LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vspeed', 'wall', 'track']);
+const SNAP_N = 3, HS_P = 1e-4;   // (v182: see above)
+const LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vspeed', 'wall', 'thru', 'track']);
 function adminHints() {
   if (round._adm) return round._adm;
-  const R = round, pid = id => R.pidx.get(id), D = losData(), out = [], DEG = Math.PI / 180, hs = new Map();
+  const R = round, pid = id => R.pidx.get(id), D = losData(), out = [], DEG = Math.PI / 180, hs = new Map(), snaps = [];
   for (const e of R.events) {
     if (e.type !== 'kill' || e.killer === e.victim) continue;
     const ki = pid(e.killer), vi = pid(e.victim); if (ki === undefined || vi === undefined || R.players[ki].vehicle) continue;
@@ -7175,7 +7317,11 @@ function adminHints() {
           }
           if (k2 >= 7) {
             const ey = eyeOf(ki, q, tt), sv = o.veh ? 0 : stanceNow(R.players[vi], tt) ?? 0, by = exactHit(D, G, q.x, q.y, ey, o.x, o.y, o.h + (o.veh ? 0.9 : AIM_H[sv][1]), false, tt);
-            out.push({ t: e.t, kind: 'wall', adm: true, actor: e.killer, kill: e, hidden: clear2 ? k2 * 0.1 : null, by, x: e.x, y: e.y });
+            // (v180) only what bullets go through in the way (wood boards, thin metal, plastic, cloth - the game's material
+            // table): a bullet could get there - not "No line of sight" but "Through thin walls", listed apart (info)
+            let thru = false;
+            if (G.penKnown) for (let k3 = 0; k3 <= 6 && !thru; k3++) { const tq = tt - k3 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break; thru = bodyClearExact(D, G, a, eyeOf(ki, a, tq), vi, b, tq, true); }
+            out.push({ t: e.t, kind: thru ? 'thru' : 'wall', adm: true, ...(thru ? { info: true } : {}), actor: e.killer, kill: e, hidden: clear2 ? k2 * 0.1 : null, by, x: e.x, y: e.y });
           }
         }
       }
@@ -7188,17 +7334,18 @@ function adminHints() {
       const off1 = angOff(Math.atan2(b1.x - a1.x, b1.y - a1.y), a1.yaw) / DEG, off0 = angOff(Math.atan2(b0.x - a0.x, b0.y - a0.y), a0.yaw) / DEG;
       if (off0 >= 30 && off1 <= 5 && (!best || off0 - off1 > best.from - best.to)) best = { from: off0, to: off1, turn: angOff(a1.yaw, a0.yaw) / DEG, before: k * 0.1, dist: d1 };
     }
-    if (best) out.push({ t: e.t - best.before, kind: 'snap', adm: true, actor: e.killer, kill: e, ...best, x: e.x, y: e.y });
+    if (best) snaps.push({ t: e.t - best.before, kind: 'snap', adm: true, actor: e.killer, kill: e, ...best, x: e.x, y: e.y });
   }
+  { const by = new Map(); for (const h of snaps) by.set(h.actor, (by.get(h.actor) || 0) + 1); for (const h of snaps) if (by.get(h.actor) >= SNAP_N) out.push({ ...h, of: by.get(h.actor) }); }
   let N = 0, H = 0; for (const h of hs.values()) { N += h.n; H += h.head; }
   for (const [ki, h] of hs) {
     if (h.n < 6 || !h.first) continue;
     const p = (H - h.head + 2) / (N - h.n + 10);
-    if (binTail(h.head, h.n, p) < 0.01) out.push({ t: h.first.t, kind: 'hs', adm: true, actor: R.players[ki].id, head: h.head, n: h.n, others: p, w: [...h.w].sort((a, b) => b[1] - a[1]), x: h.first.x, y: h.first.y });
+    if (binTail(h.head, h.n, p) < HS_P) out.push({ t: h.first.t, kind: 'hs', adm: true, actor: R.players[ki].id, head: h.head, n: h.n, others: p, w: [...h.w].sort((a, b) => b[1] - a[1]), x: h.first.x, y: h.first.y });
   }
   for (const h of cheatHints(R)) out.push(h);
   if (R._tracks) for (const h of R._tracks) out.push(h);
-  else if (!R._trackRun && D) { R._trackRun = true; wallTracks(R, L => { if (R !== round) return; R._tracks = L; R._trackP = 1; R._adm = null; renderAdmin(); }); }
+  else if (!R._trackRun && D && geoData(true) !== undefined) { R._trackRun = true; wallTracks(R, L => { if (R !== round) return; R._tracks = L; R._trackP = 1; R._adm = null; renderAdmin(); }); }
   for (const h of moreHints(R)) out.push(h);
   for (const h of objHints(R)) out.push(h);
   for (const h of aimHints(R)) out.push(h);
@@ -7381,7 +7528,8 @@ if (/[?&]analyze\b/.test(location.search)) window.__bf2analyze = {
   }
 };
 // what stood between them (the line to his chest at the kill): an object and its material (some let bullets through:
-// thin metal, boards, cloth - by the material's name; the game's own list is not known here), the ground or a tree
+// thin metal, boards, cloth - v180: by the game's material table, the shapes' pen; before, by the material's name), the
+// ground or a tree
 const PEN_MAT = /penetr|pentrable|thin|cardboard|paper|cloth|carpet|canvas|fabric|particleboard|blinds|plastic|^wood$/;
 function wallBy(h) {
   if (h.rough) return ' (rough check: no exact shapes for this map)';
@@ -7389,7 +7537,7 @@ function wallBy(h) {
   if (b.what === 'ground') return ' · in the way: the ground (a hill or a slope)';
   if (b.what === 'tree') return ' · in the way: a tree trunk';
   const nm = s => esc(String(s || '').replace(/_/g, ' '));
-  return ` · in the way: ${nm(b.o)} (${nm(b.mat)}${PEN_MAT.test(b.mat || '') ? ' - bullets may go through' : ''})`;
+  return ` · in the way: ${nm(b.o)} (${nm(b.mat)}${(b.pen ?? PEN_MAT.test(b.mat || '')) ? ' - bullets go through' : ''})`;
 }
 // [badge, html line, plain text] of an admin hint
 // (v170) the hints about movement and aim say his ping then (the game's own): lag makes jumps, snaps and odd times
@@ -7402,7 +7550,7 @@ function admDescribe(h) {
 function admDescribe0(h) {
   const pn = id => { const i = round.pidx.get(id); return i === undefined ? '' : `<span class="t${teamOf(i, h.t)}">${esc(round.players[i].name)}</span>`; };
   const pt = id => hlName(id, h.t) || '', e = h.kill;
-  if (h.kind === 'hs') return [h.head + '/' + h.n, `<b>Headshots</b> ${pn(h.actor)} <span class="w">${h.head} of ${h.n} kills (the others in this round ${Math.round(h.others * 100)}%) · ${h.w.slice(0, 3).map(([w, c]) => esc(w || 'no weapon') + ' ' + c).join(', ')}</span>`, `Headshots: ${pt(h.actor)}, ${h.head} of ${h.n} kills`];
+  if (h.kind === 'hs') return [h.head + '/' + h.n, `<b>Headshots</b> ${pn(h.actor)} <span class="w">${h.head} of ${h.n} kills (the others in this round ${Math.round(h.others * 100)}%; by chance less than once in ${Math.round(1 / HS_P).toLocaleString('en')}) · ${h.w.slice(0, 3).map(([w, c]) => esc(w || 'no weapon') + ' ' + c).join(', ')}</span>`, `Headshots: ${pt(h.actor)}, ${h.head} of ${h.n} kills`];
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
   if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.crates ? `; at a supply crate ${h.crates} time${h.crates > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag, support or supply crate near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
@@ -7411,7 +7559,7 @@ function admDescribe0(h) {
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
   if (h.kind === 'speed') return [h.v.toFixed(0) + ' m/s', `<b>Speed</b> ${pn(h.actor)} <span class="w">on foot at up to ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s${h.n > 1 ? ' in ' + h.n + ' stretches over ' + Math.round(h.span) + ' s' : ''} (${Math.round(h.dist)} m, ${h.vavg.toFixed(1)} m/s on average) · the game's sprint is ${SPEED_RUN} m/s</span>`, `Speed: ${pt(h.actor)} ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s`];
   if (h.kind === 'react') return [h.q + '/' + h.n, `<b>Reaction</b> ${pn(h.actor)} <span class="w">${h.q} of ${h.n} kills within ${REACT_Q} s of first seeing the victim (the others in this round ${Math.round(h.others * 100)}%; his middle ${h.med.toFixed(1)} s) · a man needs about 0.2 s just to react</span>`, `Reaction: ${pt(h.actor)}, ${h.q} of ${h.n} kills within ${REACT_Q} s`];
-  if (h.kind === 'stam' && h.how) return [Math.round(h.dur) + ' s', `<b>Stamina</b> ${pn(h.actor)} <span class="w">${h.how === 'empty' ? `ran at sprint speed ${h.dur.toFixed(1)} s with his sprint used up (stamina 0 of 31) - the game stops the sprint then` : `sprinted ${h.dur.toFixed(1)} s with his stamina staying at ${h.sv} of 31 - it goes down ~4 a second while he sprints`} (${Math.round(h.dist)} m) · honest play: under 1 s / 4 s</span>`, `Stamina: ${pt(h.actor)} ${h.how === 'empty' ? 'sprinted with no stamina' : 'stamina not going down'} for ${h.dur.toFixed(1)} s`];
+  if (h.kind === 'stam' && h.how) return [Math.round(h.dur) + ' s', `<b>Stamina</b> ${pn(h.actor)} <span class="w">${h.how === 'empty' ? `ran at sprint speed ${h.dur.toFixed(1)} s with his sprint used up (stamina 0 of 31) - the game stops the sprint then` : `sprinted ${h.dur.toFixed(1)} s with his stamina staying at ${h.sv} of 31 - it goes down ~4 a second while he sprints`} (${Math.round(h.dist)} m) · honest play: up to 3 s on a server that lets him / 12 s</span>`, `Stamina: ${pt(h.actor)} ${h.how === 'empty' ? 'sprinted with no stamina' : 'stamina not going down'} for ${h.dur.toFixed(1)} s`];
   if (h.kind === 'stam') return [Math.round(h.dur) + ' s', `<b>Stamina</b> ${pn(h.actor)} <span class="w">sprinted ${h.dur.toFixed(1)} s on end (${Math.round(h.dist)} m) · the game's sprint runs out after 10 s</span>`, `Stamina: ${pt(h.actor)} sprinted ${h.dur.toFixed(1)} s`];
   if (h.kind === 'tele') return [Math.round(h.d) + ' m', `<b>Teleport</b> ${pn(h.actor)} <span class="w">on foot, ${Math.round(h.d0)} m in 0.1 s, moving normally before and after${h.n > 1 ? ' · ' + h.n + ' times in this round, up to ' + Math.round(h.d) + ' m' : ''}</span>`, `Teleport: ${pt(h.actor)} ${Math.round(h.d0)} m in 0.1 s`];
   if (h.kind === 'respawn') return [h.early.toFixed(1) + ' s', `<b>Early spawn</b> ${pn(h.actor)} <span class="w">came in ${h.early.toFixed(1)} s before the game let him: he died at ${fmt(h.died)}, and it said he could spawn at ${fmt(h.may)} (${Math.round(h.may - h.died)} s later)</span>`, `Early spawn: ${pt(h.actor)} ${h.early.toFixed(1)} s early`];
@@ -7439,8 +7587,9 @@ function admDescribe0(h) {
   if (h.kind === 'dmg') return [Math.round(h.hp) + '%', `<b>Damage</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">killed him inside ${esc(h.veh)} (${esc(VCLASS_NAME[h.cls] || h.cls)}, ${Math.round(h.hp)}% left 1 s before) with small arms - bullets don't reach the crew · ${tail}</span>`, `Damage: ${pt(e.killer)} → ${pt(e.victim)} in ${h.veh}`];
   if (h.kind === 'smoke') return ['smoke', `<b>Through smoke</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a dense smoke cloud between them for the 1 s before the kill · ${tail}</span>`, `Through smoke: ${pt(e.killer)} → ${pt(e.victim)}`];
   if (h.kind === 'fog') return [Math.round(h.d) + ' m', `<b>Beyond fog</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${Math.round(h.d)} m, the map's view distance is ${h.fog} m · ${tail}</span>`, `Beyond fog: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.d)} m`];
+  if (h.kind === 'thru') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>Through thin walls</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill, but only what bullets go through stood between them${wallBy(h)} - shooting through cover at a man he couldn't see · ${tail}</span>`, `Through thin walls: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
   if (h.kind === 'wall') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>No line of sight</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill${wallBy(h)} · ${tail}</span>`, `No line of sight: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
-  if (h.kind === 'snap') return [Math.round(h.from) + '°', `<b>Aim snap</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">his view swung onto him from ${Math.round(h.from)}° off to ${h.to.toFixed(1)}° in 0.1 s, ${Math.round(h.dist)} m away${h.before >= 0.05 ? ' · ' + h.before.toFixed(1) + ' s before the kill' : ' · at the kill'} · ${tail}</span>`, `Aim snap: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.from)}° in 0.1 s`];
+  if (h.kind === 'snap') return [Math.round(h.from) + '°', `<b>Aim snap</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">his view swung onto him from ${Math.round(h.from)}° off to ${h.to.toFixed(1)}° in 0.1 s, ${Math.round(h.dist)} m away${h.before >= 0.05 ? ' · ' + h.before.toFixed(1) + ' s before the kill' : ' · at the kill'}${h.of ? ` · ${h.of} such snaps of his this round` : ''} · ${tail}</span>`, `Aim snap: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.from)}° in 0.1 s`];
   if (h.kind === 'clay') return [h.dv != null ? Math.round(h.dv) + ' m' : '—', `<b>Claymore kill</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${h.dv != null ? `${m1(h.dv)} m from where the claymore lay` : 'where it lay is not known'}${h.flag ? ` · in ${esc(h.flag)}'s capture zone` : ''}${h.tk ? ' · a team kill' : ''} · ${tail}</span>`, `Claymore kill: ${pt(e.killer)} → ${pt(e.victim)}${h.flag ? ' at ' + h.flag : ''}`];
   if (h.kind === 'claycap') return [Math.round(h.d) + ' m', `<b>Claymore at a flag</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">the claymore lay ${Math.round(h.d)} m from ${esc(h.flag)}, inside its capture zone (${m1(h.r)} m round the pole, in 3D)${h.placed ? '' : ' - where it lay is not known: where he died'} · ${tail}</span>`, `Claymore at a flag: ${pt(e.killer)} → ${pt(e.victim)} at ${h.flag}`];
   return ['TK', `<b>Team kill</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${h.veh ? 'from ' + esc(h.veh) + (e.weapon ? ' · ' + esc(killWpn(e) || e.weapon) : '') : tail}</span>`, `Team kill: ${pt(e.killer)} → ${pt(e.victim)}`];
@@ -8122,12 +8271,14 @@ function drawSide() {
         g2.fillRect(xa, Y(zt), Math.max(1.5, xb - xa), (zt - z0) * k); g2.globalAlpha = 1;
       } } } }
   // lines of sight from his eye to the victim's head and chest
-  const ok = css('--medic'), bad = css('--hp-low'), hits = [], leafy = [];
+  const ok = css('--medic'), bad = css('--hp-low'), hits = [], leafy = [], thins = [];
   for (const th of [vHead, vChest]) {
-    const uw = G ? (exactHit(D, G, q.x, q.y, kEye, o.x, o.y, th, false, tt)?.u ?? null) : D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th, tt) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u); leafy.push(u != null && u === uv);
+    const xh = G ? exactHit(D, G, q.x, q.y, kEye, o.x, o.y, th, false, tt) : null, uw = G ? (xh?.u ?? null) : D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th, tt) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u);
+    // (v180) stopped by what bullets go through (a board, thin metal, plastic): amber, the bullet's own line on (dashed)
+    const thin = !!(xh && xh.pen && u === uw && !exactHit(D, G, q.x, q.y, kEye, o.x, o.y, th, true, tt, true) && (uv == null)); thins.push(thin); leafy.push(u != null && u === uv);
     const ax = X(0), ay = Y(kEye), bx = X(hd), by = Y(th), mx = u == null ? bx : ax + (bx - ax) * u, my = u == null ? by : ay + (by - ay) * u;
     g2.lineWidth = 1.5; g2.strokeStyle = ok; g2.setLineDash([]); g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(mx, my); g2.stroke();
-    if (u != null) { g2.strokeStyle = bad; g2.setLineDash([4, 3]); g2.beginPath(); g2.moveTo(mx, my); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); g2.lineWidth = 2; g2.beginPath(); g2.moveTo(mx - 4, my - 4); g2.lineTo(mx + 4, my + 4); g2.moveTo(mx + 4, my - 4); g2.lineTo(mx - 4, my + 4); g2.stroke(); }
+    if (u != null) { g2.strokeStyle = thin ? css('--accent') : bad; g2.setLineDash([4, 3]); g2.beginPath(); g2.moveTo(mx, my); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); g2.lineWidth = 2; g2.beginPath(); g2.moveTo(mx - 4, my - 4); g2.lineTo(mx + 4, my + 4); g2.moveTo(mx + 4, my - 4); g2.lineTo(mx - 4, my + 4); g2.stroke(); }
   }
   // where each looked up or down (drawn in this plane when he faced the other one; his view's height as a wedge)
   const face = (a, b) => angOff(Math.atan2(b.x - a.x, b.y - a.y), a.yaw);
@@ -8160,7 +8311,7 @@ function drawSide() {
   L.push(`${pn(ki)} → ${pn(vi)} <span class="w">· ${esc(killWpn(e)) || 'no weapon'} · ${Math.round(d3)} m${Math.abs(dh) >= 1 ? ` · ${Math.round(Math.abs(dh) * 10) / 10} m ${dh > 0 ? 'above' : 'below'} him` : ' · on one level'}${e.hit === 'head' ? ' · headshot' : ''}</span>`);
   if (D) {
     const [n] = bodyLines(D, q, kEye, vi, o, tt, G || null);
-    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? (exact ? ' (a shot through a fence, crate, boards or foliage - some let bullets through)' : ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)') : ''} · ${exact ? 'walls: the game\'s exact collision shapes' : 'walls: the 25 cm grid (the exact shapes are not loaded' + (G === undefined ? ' yet)' : ' for this map)')}</span>`);
+    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''}${thins.some(v => v) ? ' <span class="w">· only things bullets go through in the way (amber): a bullet gets there</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? (exact ? (thins.some(v => v) ? '' : ' (a shot through foliage, or a gap the shapes don\'t have)') : ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)') : ''} · ${exact ? 'walls: the game\'s exact collision shapes' : 'walls: the 25 cm grid (the exact shapes are not loaded' + (G === undefined ? ' yet)' : ' for this map)')}</span>`);
   } else L.push('<span class="w">Walls and hills are not known for this map: the ground is drawn straight between them.</span>');
   if (kFoot && q.pitch != null) L.push(`<span class="w">He looked</span> ${pitchText(q.pitch)}<span class="w">; the victim's chest was ${pitchText(need)} from his eyes${kFace >= Math.PI / 3 ? ` · he faced ${Math.round(kFace * 180 / Math.PI)}° to the side` : ''}</span>`);
   else if (!kFoot) L.push('<span class="w">Fired from a vehicle: where its gun pointed is not in the demo.</span>');
@@ -9209,6 +9360,9 @@ for (const [id, k, key] of [['tRelShade', 'relShade', 'bf2rr.relShade'], ['tRelA
   if (opts[k] && !opts.relief) $('#tRelief').click(); else { relSub(); refresh(true); }
 };
 relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend);
+// (v181) the sounds in his view: remembered
+try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
+{ const tb = $('#tSound'); tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); tb.onclick = () => sndSet(!opts.sound); }
 // how far ahead (the slider under "Next N s"): moving it turns the layer on
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
 $('#aheadT').addEventListener('input', () => {
@@ -9274,6 +9428,9 @@ const LEGEND = [
   ['pov', () => 'Last seen', 'His view: an enemy he lost sight of, where he last saw him (for ' + POV_MEMORY + ' s)', () => {
     const col = teamColor(1); cx.globalAlpha = 0.35; cx.fillStyle = col; cx.beginPath(); cx.arc(0, 0, 8, 0, Math.PI * 2); cx.fill(); cx.globalAlpha = 0.9;
     cx.strokeStyle = css('--bg'); cx.lineWidth = 3.5; cx.beginPath(); cx.arc(0, 0, 11, 0, Math.PI * 2); cx.stroke(); cx.strokeStyle = col; cx.lineWidth = 1.8; cx.setLineDash([3, 3]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; }],
+  ['sound', () => 'Heard: shots', 'His view: somebody firing that he could hear (how far a gun carries: the game\'s sound files) - brighter and wider the louder', () => { cx.strokeStyle = css('--fg'); cx.lineWidth = 1.4; for (const [r, a] of [[4, 1], [8, 0.6], [12, 0.3]]) { cx.globalAlpha = a; cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.stroke(); } cx.globalAlpha = 1; }],
+  ['sound', () => 'Heard: explosion', 'His view: an explosion he could hear (grenade, rocket, C4, mine, shell, a vehicle blowing up)', () => { cx.strokeStyle = css('--blast'); cx.lineWidth = 2; for (const [r, a] of [[6, 0.9], [11, 0.45]]) { cx.globalAlpha = a; cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); cx.stroke(); } cx.globalAlpha = 1; }],
+  ['sound', () => 'Heard off the map', 'His view: a shot or an explosion he could hear off the screen - an arrow at the edge, the way it came from (an explosion: how far)', () => { const k = 8; cx.beginPath(); cx.moveTo(k, 0); cx.lineTo(-k * 0.6, -k * 0.7); cx.lineTo(-k * 0.25, 0); cx.lineTo(-k * 0.6, k * 0.7); cx.closePath(); cx.fillStyle = css('--blast'); cx.strokeStyle = 'rgba(6,8,6,.8)'; cx.lineWidth = 2; cx.stroke(); cx.fill(); }],
   ['blasts', () => 'Explosion', 'Where a grenade, a rocket, a shell, C4 or a mine went off', () => { const g = cx.createRadialGradient(0, 0, 1, 0, 0, 11), b = css('--blast'); g.addColorStop(0, 'rgba(255,245,200,.95)'); g.addColorStop(0.35, rgbaOf(b, 0.85) || b); g.addColorStop(1, rgbaOf(b, 0) || 'transparent'); cx.fillStyle = g; cx.beginPath(); cx.arc(0, 0, 11, 0, Math.PI * 2); cx.fill(); }],
 ];
 let lgKey = '';
@@ -9284,8 +9441,8 @@ function legend() {
   const box = $('#mLegend'), on = !!(round && opts.legend);
   box.hidden = !on; if (!on) return;
   const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
-  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() : opts[k])), d = (window.devicePixelRatio || 1) * lk;
-  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.lift, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
+  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() : k === 'sound' ? povOn() && opts.sound : opts[k])), d = (window.devicePixelRatio || 1) * lk;
+  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.lift, opts.sound, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
     const cx0 = cx;
@@ -12943,7 +13100,10 @@ async function fetchBytes(url, onP) {
 let serverData = null, pendingLink = null;
 // a link names a round by its demo's name without .bf2demo (#round=auto_2026_09_29_19_52_11&t=300&p=name)
 const linkId = n => String(n || '').replace(/\.bf2demo$/i, '');
-const findSrv = want => want && session && session.server ? session.rounds.find(x => x.status === 'done' && linkId(x.name) === linkId(want)) : null;
+// (v182) a round taken off the list as a copy of another (the same demo from two demo pages: the copy's name has the game
+// server's address in front, 1.2.3.4_auto_...): its link opens the kept one
+const findSrv = want => { if (!want || !session || !session.server) return null; const id = linkId(want), done = session.rounds.filter(x => x.status === 'done');
+  return done.find(x => linkId(x.name) === id) || done.find(x => id.endsWith('_' + linkId(x.name)) || linkId(x.name).endsWith('_' + id)) || null; };
 async function openServerRound(r) {
   if (decodeJob) { decodeJob.cancelled = true; if (decodeJob.stop) decodeJob.stop(); }
   const job = decodeJob = { cancelled: false, stop: null }, t0 = performance.now(), name = r.name;
