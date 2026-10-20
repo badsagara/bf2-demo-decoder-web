@@ -531,6 +531,14 @@ sudo bash /srv/bf2replay/repo/server/analyze.sh pack     # архів того, 
 Після `start` можна додати параметри `analyze.mjs`: `--jobs 2`, `--limit 500`, `--maps strike_at_karkand`,
 `--min-players 6`, `--since 2026-10-01`, `--fresh` (зробити знову вже зроблені раунди, напр. після нової версії сторінки).
 
+v178 інакше рахує, хто кого бачить (висота очей як у грі, ще 3 точки тіла) і має нові стіни на Operation Road Rage і
+Midnight Sun. Це міняє в аналізі колонки видимості вбивств (`react`, `eng`, `losK`, `losX`, `pitchErr`) і підказки, що
+на ній стоять; приціл (`err`), прапори, споти, швидкості й решта — ті самі. Якщо сайт оновився, поки аналіз іде,
+раунди після оновлення вже з v178 (скільки яких — `pages` у `summary.json`). Щоб видимість була вся з v178: коли
+перший прогін закінчиться і архів буде забрано, ще раз на частині раундів, напр. найновіших 600:
+`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --limit 600`, і окремо ці дві мапи:
+`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --maps operationroadrage,midnight_sun`.
+
 Архів на Mac (у Terminal на Mac; адресу VPS показує `status`):
 
 ```bash

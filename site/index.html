@@ -894,6 +894,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
       <button class="btn on" id="tView" title="What the soldier you follow sees (79° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
       <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
+      <button class="btn on" id="tLift" title="Soldiers up on a roof, an upper floor, a tower, a bridge or a ship's deck - 2 m or more over the ground or the sea under them: lifted over a shadow where they are, with a thin line down to it (the higher, the longer); 12 m or more up, the height by the shadow">Heights</button>
       <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
       <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
       <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
@@ -913,7 +914,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -976,7 +977,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v177';
+const APP_VERSION = 'v179';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1373,7 +1374,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -2620,8 +2621,12 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt) {
   return best;
 }
 // eye height by stance, over the soldier's position (which is 1.0 m over his feet, standing, crouching or prone alike:
-// =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest)
-const EYE_H = [0.65, 0.05, -0.55], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75]];
+// =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest).
+// (v178) The eye as the game has its camera (soldiers' poseCameraPosition: stand 0.47, crouch -0.05, prone -0.63 over that
+// point; before: 0.65 / 0.05 / -0.55). Checked on 918 small-arms kills of 9 rounds: where the killer's view passes the
+// victim does not change with the distance (no angle error) and from a crouching / prone killer it comes 0.38 / 1.02 m
+// lower than from a standing one at the same kind of target (the game's 0.52 / 1.10 fit better than 0.60 / 1.20)
+const EYE_H = [0.47, -0.05, -0.63], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75]];
 // (in a vehicle: his seat's camera, seatView; 1.5 m over the vehicle's position where that is not known)
 const eyeOf = (i, q, tt) => q.eye != null ? q.eye : q.veh ? (seatView(i, tt)?.eye ?? q.h + 1.5) : q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
 // ---------- smoke (sight lines) ----------
@@ -2674,14 +2679,20 @@ function canSee(i, j, tt, V) {
   if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return false;
   const D = losData(); if (!D) return null;
   if (q.h == null || o.h == null) return null;
-  const eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[stanceNow(round.players[j], tt) ?? 0];
+  const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[st];
   if (eye == null) return null;
   const G = geoData(true);
-  for (const th of pts) {
-    if (losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, o.x, o.y, o.h + th, true, tt))) continue;
-    if (!vehBlocks(q.x, q.y, eye, o.x, o.y, o.h + th, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
-  }
-  return false;
+  const clear = (bx, by, bh) => !(losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt)))
+    && !vehBlocks(q.x, q.y, eye, bx, by, bh, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, bx, by, bh);
+  for (const th of pts) if (clear(o.x, o.y, o.h + th)) return true;
+  if (o.veh) return false;
+  // (v178) both blocked: a man at a corner or half behind cover still shows a shoulder or his hips - his chest 0.3 m to
+  // each side across the line, and his hips (standing or crouching). 918 small-arms kills of 9 rounds: the killer "could
+  // not see" his victim at the shot in 39 with the two points, 25 with these (most of the rest: through a wooden fence,
+  // cardboard boxes, thin metal - which bullets go through - or a bush); ~1.7 times the work
+  const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, sx = -dy / L * 0.3, sy = dx / L * 0.3;
+  if (clear(o.x + sx, o.y + sy, o.h + pts[1]) || clear(o.x - sx, o.y - sy, o.h + pts[1])) return true;
+  return st < 2 && clear(o.x, o.y, o.h + pts[1] - 0.45);
 }
 // ---------- what a soldier sees ----------
 // Vehicles stand in the way too: tanks, APCs, AA vehicles and closed jeeps as boxes from their 3D models (rest pose, the
@@ -3122,7 +3133,7 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
 // The line his crosshair runs along - on foot his view, at a gun its barrel (a vehicle followed: its main gun), yaw and
 // pitch from the demo - from his eye until it meets somebody (a soldier as an upright column 0.35 m round, from his
 // feet to the top of his head as he stands, crouches or lies), a vehicle (its box from the model; others a column 1.3 m
-// round, aircraft 2 m), a wall or roof (the 25 cm grid), the ground or the sea; looking into the sky or past all of it,
+// round, aircraft 2 m), a wall or roof (the map's exact shapes; the 25 cm grid until they are loaded), the ground or the sea; looking into the sky or past all of it,
 // it ends at the fog limit. Soldiers riding in a vehicle count as the vehicle. The demo's aim is not that sharp (kills:
 // the line from the killer's eye to the victim's chest passes a median 1.7° from his view - the records come every
 // 0.1-0.2 s, the bullets spread): somebody he has in clear sight within AIM_TOL° of the line (to his body column) counts
@@ -3172,18 +3183,25 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
     if (l != null && l < best.l) best = { l, kind: pl.vehicle ? 'vehicle' : 'soldier', j };
   });
   // the ground, the sea, walls and roofs nearer than that
-  const D = losData();
+  // (v178: with the map's exact shapes loaded, walls and roofs are found on them - the grid fills whole 25 cm cells, so the
+  // line stopped short of window frames, wall ends and parapets; the grid until they are in)
+  const D = losData(), G = D && !flat ? geoData(true) : null;
   if (D && !flat) {
-    const S = D.gStep, T = D.T, wl = WATER[mapKey()] ?? -1e9, OFF = brkOff(D, tt);
+    const S = D.gStep, T = D.T, wl = WATER[mapKey()] ?? -1e9, OFF = G ? null : brkOff(D, tt);
     for (let l = 0.6; l < best.l; l += 0.2) {
       const x = q.x + ux * l, y = q.y + uy * l, h = e0 + uh * l, g = groundAt(D, x, y);
       if (h < g || h < wl) { best = { l, kind: g >= wl ? 'ground' : 'water', j: null }; break; }
+      if (G) continue;
       const cx_ = Math.floor((x - D.gX0) / S), cy_ = Math.floor((y - D.gY0) / S);
       if (cx_ < 0 || cy_ < 0 || cx_ >= D.gW || cy_ >= D.gH) continue;
       const k = D.tile[((cy_ / T) | 0) * D.tW + ((cx_ / T) | 0)]; if (k < 0) continue;
       const c = k * T * T + (cy_ % T) * T + (cx_ % T), h10 = h * 10; let hit = false;
       for (let m = D.cs[c]; m < D.cs[c + 1]; m++) if (D.sp[2 * m] <= h10 && h10 <= D.sp[2 * m + 1] && !(OFF && spanOut(OFF, m))) { hit = true; break; }
       if (hit) { best = { l, kind: 'wall', j: null }; break; }
+    }
+    if (G) {   // (no further than 100 m over his eye: nothing stands that high)
+      const L = Math.min(best.l, uh > 0.01 ? 100 / uh : Infinity);
+      if (L > 0.6) { const h = geoHit(G, q.x, q.y, e0, q.x + ux * L, q.y + uy * L, e0 + uh * L, 0.6 / L, 1, false, geoOff(D, G, tt)); if (h) best = { l: h.u * L, kind: 'wall', j: null }; }
     }
     const u = vegHit(q.x, q.y, e0, q.x + ux * best.l, q.y + uy * best.l, e0 + uh * best.l, true);   // (a tree trunk)
     if (u !== null && u * best.l >= 0.6) best = { l: u * best.l, kind: 'tree', j: null };
@@ -3200,7 +3218,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
       if (!flat && o.h != null && q.pitch != null) { const [z0, z1] = bodyCol(j, o, ot), a0 = Math.atan2(z0 - e0, dd), a1 = Math.atan2(z1 - e0, dd); offV = (pt < a0 ? a0 - pt : pt > a1 ? pt - a1 : 0) * 180 / Math.PI; zt = Math.min(z1, Math.max(z0, e0 + Math.tan(pt) * dd)); }
       const off = Math.hypot(offH, offV); if (off > tol || (pick && off >= pick.off)) return;
       if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return;
-      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, ot) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !losBlocked(D, q.x, q.y, e0, o.x, o.y, z, tt) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
+      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, ot) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !(losBlocked(D, q.x, q.y, e0, o.x, o.y, z, tt) && !(G && !exactHit(D, G, q.x, q.y, e0, o.x, o.y, z, true, tt))) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
       const dn = Math.hypot(n.x - q.x, n.y - q.y); pick = { j, off, l: Math.hypot(dn, (zt - e0)), x: n.x, y: n.y, h: zt, d: dn };
     });
     if (pick) return { x: pick.x, y: pick.y, h: pick.h, l: pick.l, d: pick.d, kind: 'soldier', j: pick.j, off: pick.off, from: q };
@@ -3965,11 +3983,17 @@ function spreadOut() {
 // didn't know; the other side's grenades, rockets, shells, charges and bags he couldn't see (an explosion: in his field
 // of view, or within POV_HEAR m); supply crates he couldn't see; the front line. The panels (kill feed, scoreboard,
 // highlights, hints) stay as they are - the game's kill messages reach everyone. Following another soldier takes the view
-// over to him; a vehicle followed, or none: the whole map again. Not known here: what the UAV shows his side (its range
-// is not in the game files we have), what he heard.
+// over to him; none followed: the whole map again. (v179) A vehicle followed: "Crew's view" - all its riders saw, each
+// from his seat's camera (as they change: who rides it at the moment); empty, only the vehicle itself. Not known here:
+// what the UAV shows his side (its range is not in the game files we have), what he heard.
 let pov = false, POV = null;
 const POV_MEMORY = 3, POV_STEP = 0.2, POV_HEAR = 40;
-const povOn = () => !!(pov && round && sel !== null && round.players[sel] && !round.players[sel].vehicle);
+const povOn = () => !!(pov && round && sel !== null && round.players[sel]);
+// (v179, Sagara: "додай можливість his view для техніки") whose eyes count: a soldier's own; a vehicle's - the soldiers
+// riding it at tt (each from his seat's camera), none while it stands empty
+const povEyes = (s, tt) => round.players[s].vehicle ? (povRiders(tt).get(round.players[s].name) || []) : [s];
+// the side whose view it is: his; a vehicle's - its crew's (-1 while empty)
+const povTeam = (s, tt) => { if (!round.players[s].vehicle) return teamOf(s, tt); const E = povEyes(s, tt); return E.length ? teamOf(E[0], tt) : -1; };
 // the soldiers riding each vehicle at tt: vehicle name -> [rows]
 function povRiders(tt) {
   const M = new Map(); round.players.forEach((p, i) => { if (p.vehicle) return; const q = playerAt(i, tt); if (q.alive && q.veh) { if (!M.has(q.veh)) M.set(q.veh, []); M.get(q.veh).push(i); } }); return M;
@@ -3977,6 +4001,7 @@ function povRiders(tt) {
 // whom soldier s had in sight at tt: player rows - soldiers (on foot or riding), vehicles ridden by one he sees or seen
 // themselves (in his field of view, out to the fog limit, nothing in between)
 function povSeen(s, tt) {
+  if (round.players[s].vehicle) { const out = new Set(); for (const e of povEyes(s, tt)) for (const j of povSeen(e, tt)) out.add(j); return out; }   // (v179: its crew - all they saw)
   const out = new Set(), V = viewOf(s, tt); if (!V) return out;
   for (const o of inViewOf(s, tt) || []) if (o.seen !== false) out.add(o.i);
   const who = V.who ?? s, R = viewRange(), rid = povRiders(tt);
@@ -4006,21 +4031,22 @@ const povSpotted = (i, tt, tm) => (povSpots(tm).get(i) || []).some(a => a <= tt 
 // what the followed soldier knows at tt: known (row -> 'self' | 'ally' | 'seen' | 'spot'), mem (row -> when he last saw
 // one he no longer knows of)
 function povFrame(tt) {
-  const s = sel, tm = teamOf(s, tt), known = new Map([[s, 'self']]), mem = new Map(), rid = povRiders(tt), vrow = new Map();
-  round.players.forEach((p, i) => { if (p.vehicle) vrow.set(p.name, i); else if (i !== s && teamOf(i, tt) === tm) known.set(i, 'ally'); });
-  for (const [vn, L] of rid) { const j = vrow.get(vn); if (j !== undefined && L.some(i => known.has(i))) known.set(j, 'ally'); }   // (his side's vehicles, his own)
+  const s = sel, tm = povTeam(s, tt), known = new Map([[s, 'self']]), mem = new Map(), rid = povRiders(tt), vrow = new Map();
+  if (round.players[s].vehicle) for (const e of rid.get(round.players[s].name) || []) known.set(e, 'self');   // (v179: a vehicle - its crew)
+  round.players.forEach((p, i) => { if (p.vehicle) vrow.set(p.name, i); else if (!known.has(i) && tm >= 0 && teamOf(i, tt) === tm) known.set(i, 'ally'); });
+  for (const [vn, L] of rid) { const j = vrow.get(vn); if (j !== undefined && !known.has(j) && L.some(i => known.has(i))) known.set(j, 'ally'); }   // (his side's vehicles, his own)
   for (const i of povSeen(s, tt)) if (!known.has(i)) known.set(i, 'seen');
   for (const [i] of povSpots(tm)) if (!known.has(i) && povSpotted(i, tt, tm)) known.set(i, 'spot');
   // a known vehicle's riders, a known rider's vehicle
   for (const [vn, L] of rid) { const j = vrow.get(vn); if (j === undefined) continue; if (known.has(j)) { for (const i of L) if (!known.has(i)) known.set(i, known.get(j)); } else { const k = L.find(i => known.has(i)); if (k !== undefined) known.set(j, known.get(k)); } }
   for (let g = Math.floor(tt / POV_STEP + 1e-6) * POV_STEP; g > tt - POV_MEMORY - 1e-6 && g >= 0; g -= POV_STEP)
     for (const i of povSeenAt(s, +g.toFixed(1))) if (!known.has(i) && !mem.has(i) && playerAt(i, tt).alive) mem.set(i, +g.toFixed(1));
-  return { s, tm, known, mem };
+  return { s, tm, known, mem, veh: !!round.players[s].vehicle };
 }
 // did he know of row i at an earlier moment (the marks of events): himself, his side (a vehicle: one of his side in it),
 // one he had in sight then, or one his side had spotted
 function povKnewAt(i, tt) {
-  if (!POV) return true; if (i === undefined) return false; if (i === POV.s) return true;
+  if (!POV) return true; if (i === undefined) return false; if (i === POV.s || (POV.veh && povEyes(POV.s, tt).includes(i))) return true;
   const p = round.players[i];
   if (p.vehicle) { if ((povRiders(tt).get(p.name) || []).some(k => k === POV.s || teamOf(k, tt) === POV.tm)) return true; }
   else if (teamOf(i, tt) === POV.tm) return true;
@@ -4030,12 +4056,16 @@ const povOwn = (by, tt) => { if (!POV) return true; const i = by == null ? undef
 // could he see a place at tt: in his field of view, out to the fog limit, the ground's line clear (h: the height there -
 // null: in view is enough); within near m always
 function povSeesPoint(x, y, h, tt, near = 0) {
-  if (!POV) return true; const V = viewOf(POV.s, tt); if (!V || !Number.isFinite(x)) return false;
+  if (!POV) return true; if (POV.veh) return povEyes(POV.s, tt).some(e => seesPointFrom(e, x, y, h, tt, near));   // (v179: a vehicle's crew)
+  return seesPointFrom(POV.s, x, y, h, tt, near);
+}
+function seesPointFrom(s, x, y, h, tt, near) {
+  const V = viewOf(s, tt); if (!V || !Number.isFinite(x)) return false;
   const dx = x - V.x, dy = y - V.y, d = Math.hypot(dx, dy); if (d <= near) return true;
   if (d > viewRange() || angOff(Math.atan2(dx, dy), V.yaw) > VIEW_HALF) return false;
   if (smokeBlocks(V.x, V.y, x, y, tt)) return false;
   const D = losData(); if (!D || V.h == null) return true;
-  const eye = V.eye ?? eyeOf(V.who ?? POV.s, V, tt), z = h ?? groundAt(D, x, y) + 0.3;
+  const eye = V.eye ?? eyeOf(V.who ?? s, V, tt), z = h ?? groundAt(D, x, y) + 0.3;
   return eye == null || !losBlocked(D, V.x, V.y, eye, x, y, z, tt);
 }
 // a C4 / claymore / mine: his side's, or where he could see it (on a vehicle: the vehicle known to him)
@@ -4071,10 +4101,36 @@ function povGhosts() {
 function povTag() {
   const el = $('#povTag'); if (!el) return;
   if (!POV) { el.hidden = true; return; }
-  el.hidden = false; const nm = round.players[POV.s].name;
-  if (el.dataset.who !== nm) { el.dataset.who = nm; el.innerHTML = `<span>His view · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); }
+  el.hidden = false; const P0 = round.players[POV.s], nm = POV.veh ? mapNm(round, P0) + (POV.tm < 0 ? ' (empty)' : '') : P0.name, key = nm + '|' + POV.tm;
+  if (el.dataset.who !== key) { el.dataset.who = key; el.innerHTML = `<span>${POV.veh ? 'Crew\'s view' : 'His view'} · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); }
 }
-function povSet(on) { pov = !!on; if (pov && !povOn()) toast(sel === null ? 'Follow a soldier first: click one on the map' : 'His view is for a soldier, not a vehicle'); refresh(true); }
+function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); refresh(true); }
+// ---------- (v179) up on a roof (Sagara: "як можна показати, що один солдат знаходиться вище рівня землі?" - "Тінь і
+// «ніжка»") ----------
+// A soldier on foot LIFT_MIN m or more over the ground or the sea under him (a roof, an upper floor, a tower, a bridge, a
+// ship's deck; in the air) is drawn lifted on the screen - LIFT_0 px and LIFT_PX px a metre more, at most LIFT_MAX (2 m:
+// 15 px, 4 m: 20, 8 m: 29, 12.5 m+: 40; his disc is 10 px round, so the line always shows) - over a shadow where he is,
+// a thin line from it up to him; from LIFT_LABEL m up (the line no longer tells) his height by the shadow. His field
+// of view and aim line start where he is (the shadow). The card says it too: "· 6 m over the ground".
+const LIFT_MIN = 2, LIFT_0 = 10, LIFT_PX = 2.4, LIFT_MAX = 40, LIFT_LABEL = 12;
+// how high soldier i (q: playerAt) stands over the ground or the sea under him (m; his feet are 1.0 m under his
+// position), or null: in a vehicle, dead, or the map's heights not known
+function overGround(i, q) {
+  if (round.players[i].vehicle || q.veh || !q.alive || q.h == null || !Number.isFinite(q.x)) return null;
+  const D = losData(); if (!D) return null;
+  return q.h - 1.0 - Math.max(groundAt(D, q.x, q.y), WATER[mapKey()] ?? -1e9);
+}
+const liftPx = hg => hg == null || hg < LIFT_MIN ? 0 : Math.min(LIFT_MAX, Math.round(LIFT_0 + hg * LIFT_PX));
+// the shadow at (px, py) and the line up to his marker, up px over it (col: his side's)
+function drawLift(px, py, up, hg, col) {
+  cx.fillStyle = 'rgba(0,0,0,.5)'; cx.beginPath(); cx.ellipse(px, py, 6.5, 3.4, 0, 0, Math.PI * 2); cx.fill();
+  const top = py - up + 9;
+  if (top < py - 1) {
+    cx.lineCap = 'round'; cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.8; cx.lineWidth = 3.4; cx.beginPath(); cx.moveTo(px, py); cx.lineTo(px, top); cx.stroke();
+    cx.strokeStyle = col; cx.globalAlpha = 1; cx.lineWidth = 1.5; cx.stroke(); cx.lineCap = 'butt';
+  }
+  if (hg >= LIFT_LABEL) { const lb = Math.round(hg) + ' m'; cx.font = '600 9.5px ' + css('--font-data'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(lb, px + 8, py + 4); cx.fillStyle = css('--fg'); cx.fillText(lb, px + 8, py + 4); }
+}
 function draw() {
   if (!round) return;
   POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) povTag();   // (v177: his view only)
@@ -4368,6 +4424,7 @@ function draw() {
   // (spreadOut); a tag with how many there are by side over each closed crowd (after the markers)
   const { spread, crowds } = spreadOut();
   round._spread = spread;
+  const lifted = new Map(); round._lift = lifted;   // (v179: row -> px his marker is lifted by)
   const inCrowd = new Set(); for (const c of crowds) for (const i of c.m) inCrowd.add(i);
   let selHand = null;
   // (v152, Sagara: "приберемо рожевий": no sight lines to the enemies he sees any more - an eye over each of them, below)
@@ -4405,6 +4462,8 @@ function draw() {
         cx.fillStyle = col0; cx.strokeStyle = css('--bg'); cx.lineWidth = 1; cx.beginPath(); cx.arc(px, py, 2.6, 0, Math.PI * 2); cx.fill(); cx.stroke(); cx.globalAlpha = 1; }
       px = sp[0]; py = sp[1];
     } }
+    // (v179) up on a roof, a floor, a deck: lifted over his shadow
+    { const hg = !p.vehicle && opts.lift ? overGround(i, q) : null, up = liftPx(hg); if (up) { cx.globalAlpha = ca; drawLift(px, py, up, hg, teamColor(teamOf(i, t))); cx.globalAlpha = 1; py -= up; lifted.set(i, up); } }
     // an enemy the followed soldier sees: an eye over him (after his marker, below; v152 - no pink glow)
     const seenEn = inView && inView.has(i) && inView.get(i) !== false && sel !== i && !p.vehicle && teamOf(i, t) !== teamOf(selView?.who ?? sel, t);
     // a vehicle takes the colour of the team inside it; empty (nobody known to be in it) it is grey
@@ -4565,7 +4624,7 @@ function draw() {
       let lab = null, lx = ax, ly = ay;
       if (hitP) {   // whom it is on: a crosshair ring round him (ticks up, down and to the sides), his side's colour inside it
         const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t));
-        const [tx, ty] = o.vehicle ? toC(playerAt(al.j, t).x, playerAt(al.j, t).y) : spread.get(al.j) || toC(playerAt(al.j, t).x, playerAt(al.j, t).y);
+        const [tx, ty0] = o.vehicle ? toC(playerAt(al.j, t).x, playerAt(al.j, t).y) : spread.get(al.j) || toC(playerAt(al.j, t).x, playerAt(al.j, t).y), ty = ty0 - (o.vehicle ? 0 : lifted.get(al.j) || 0);   // (v179: lifted - round his marker)
         const r = o.vehicle ? Math.max(15, (vehRad.get(o.name) || 12) * 0.95) : 15, tk = 7;
         const ring = () => { cx.beginPath(); cx.arc(tx, ty, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a2 = k * Math.PI / 2, c2 = Math.cos(a2), s2 = Math.sin(a2); cx.moveTo(tx + c2 * (r - 3), ty + s2 * (r - 3)); cx.lineTo(tx + c2 * (r + tk), ty + s2 * (r + tk)); } };
         cx.lineCap = 'round'; ring(); cx.strokeStyle = ink; cx.lineWidth = 7; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 3.4; cx.stroke(); cx.lineCap = 'butt';
@@ -4772,10 +4831,10 @@ function draw() {
       } else if (e.type === 'bag' && e.x !== undefined) {
         // in flight along its path, then where it lies until its id went to a new object (BAG_SHOW s at most); rounds
         // decoded before v124: 10 s where it was thrown
-        const end = e.tl !== undefined ? Math.min(e.gone ?? Infinity, e.tl + BAG_SHOW) : e.t + 10; if (t > end) continue;
+        const use = e.tl !== undefined ? bagUse(round).get(e) : null, end = e.tl !== undefined ? Math.min(e.gone ?? Infinity, e.tl + BAG_SHOW, use?.t ?? Infinity) : e.t + 10; if (t > end) continue;   // (v179: a medic bag: until taken)
         let bx = e.x, bz = e.y;
         if (e.path && t < e.tl) { const P = e.path; let k = 1; while (k < P.length - 1 && P[k][0] < t) k++; const a = P[k - 1], b = P[k], u = b[0] > a[0] ? Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0]))) : 1; bx = a[1] + (b[1] - a[1]) * u; bz = a[2] + (b[2] - a[2]) * u; }
-        const [px, py] = toC(bx, bz); cx.globalAlpha = Math.max(0.15, Math.min(1, (end - t) / 6));
+        const [px, py] = toC(bx, bz); cx.globalAlpha = use && use.t === end ? 1 : Math.max(0.15, Math.min(1, (end - t) / 6));   // (taken: there until it is)
         if (!drawIcon(e.kind === 'ammo' ? 'mammo' : 'mmedic', px, py, 13)) {
           cx.fillStyle = css('--bg'); cx.fillRect(px - 5, py - 5, 10, 10);
           cx.strokeStyle = e.kind === 'ammo' ? css('--accent') : mc; cx.lineWidth = 1.5; cx.strokeRect(px - 5, py - 5, 10, 10);
@@ -4838,7 +4897,7 @@ function draw() {
         const vk = round.players[i].vehicle ? vehIconKey(round.players[i]) : null;
         r = round.players[i].vehicle ? (vk && GAME.icons[vk] ? Math.max(16, Math.max(GAME.icons[vk][2], GAME.icons[vk][3]) * 1.8) / 2 + 4 : 18) : 15;
       } else if (e.x != null) q = { x: e.x, y: e.y }; else continue;
-      const [px, py] = toC(q.x, q.y);
+      const [px, py0] = toC(q.x, q.y), py = py0 - (i !== undefined && !round.players[i].vehicle ? round._lift?.get(i) || 0 : 0);   // (v179: round a lifted soldier's marker)
       const sp = round.meta.source === 'demo' && age < SPOT_LABEL ? spotterOf(e) : null;
       if (sp) {   // a dashed line from the spotter to it (fainter when only probably him; from both of two)
         for (const [k, al] of [[sp.i, sp.sure ? 0.6 : 0.4], ...(sp.alt ? [[sp.alt.i, 0.4]] : [])]) {
@@ -5106,7 +5165,7 @@ function panels(force) {
     const longest = round.events.filter(e => e.t <= t && e.type === 'kill' && e.killer === p.id && e.victim !== p.id && e.dist !== undefined).reduce((b, e) => !b || e.dist > b.dist ? e : b, null);
     const lastDeath = round.events.filter(e=>e.t<=t && e.type==='kill' && e.victim===p.id && !(e.revived && e.revived <= t)).pop();
     const status = p.vehicle ? (q.hp === null ? 'In play' : q.hp <= 0 ? 'Destroyed' : `Hit points ${Math.round(q.hp)}%`)
-      : q.alive ? 'Alive' + ((p.chute || []).some(([a, b]) => a <= t && t < b) ? ' · on a parachute' : '') + (q.hp !== null && !q.veh ? ` · health ${Math.max(0, Math.round(q.hp))}%` : '') + (firingNow(p, t) ? ' · firing' : '') + (outsideNow(p, t) !== null ? ` · <span class="outs">outside the combat area ${outsideNow(p, t)} s</span>` : '')
+      : q.alive ? 'Alive' + ((p.chute || []).some(([a, b]) => a <= t && t < b) ? ' · on a parachute' : '') + (q.hp !== null && !q.veh ? ` · health ${Math.max(0, Math.round(q.hp))}%` : '') + ((hg => hg != null && hg >= LIFT_MIN ? ` · ${Math.round(hg)} m over the ground` : '')(overGround(sel, q))) + (firingNow(p, t) ? ' · firing' : '') + (outsideNow(p, t) !== null ? ` · <span class="outs">outside the combat area ${outsideNow(p, t)} s</span>` : '')
         : q.down ? 'Wounded, waiting for a medic' + (downSecs(p, t) !== null ? ` · ${downSecs(p, t)} s left` : '') : 'Dead' + (spawnIn(p, t) !== null ? (spawnIn(p, t) > 0 ? ` · can spawn in ${Math.ceil(spawnIn(p, t))} s` : ' · can spawn') : '');
     const medicTxt = (RV.get(p.id) || HL.get(p.id)) ? `<dt>Medic</dt><dd>${RV.get(p.id)||0} revives · ${HL.get(p.id)||0} heals</dd>` : '';
     const repTxt = RP.get(p.id) ? `<dt>Engineer</dt><dd>${RP.get(p.id)} repairs</dd>` : '';
@@ -5121,7 +5180,7 @@ function panels(force) {
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
-      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button>${p.vehicle ? '' : `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what he knew in the game: his side, the enemies he had in sight (faded, for ${POV_MEMORY} s: where he last saw one), his side's spots (V)">His view</button>`}</div>`;
+      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button>${p.vehicle ? `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what its crew knew in the game: their side, the enemies any of them had in sight from his seat (faded, for ${POV_MEMORY} s: where they last saw one), their side's spots (V)">Crew's view</button>` : `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what he knew in the game: his side, the enemies he had in sight (faded, for ${POV_MEMORY} s: where he last saw one), his side's spots (V)">His view</button>`}</div>`;
     $('#clearSel').onclick = () => { sel = null; pov = false; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
     $('#selAhead').onclick = () => aheadFor(sel);
     { const b = $('#selPov'); if (b) b.onclick = () => povSet(!pov); }
@@ -5309,7 +5368,7 @@ $('#vFull').onclick = () => setFull(!mapbox.classList.contains('fs'));
 for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { if (!(document.fullscreenElement || document.webkitFullscreenElement) && mapbox.classList.contains('fs')) setFull(false); });
 function pickAt(e) {
   const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = null, bd = 14;
-  round.players.forEach((p,i) => { const q = playerAt(i,t); if (!q.alive || (POV && !POV.known.has(i))) return; const [px,py] = round._spread?.get(i) || toC(q.x,q.y); const d = Math.hypot(px-mx,py-my); if (d<bd){bd=d;best=i;} });   // (where he is drawn: spreadOut)
+  round.players.forEach((p,i) => { const q = playerAt(i,t); if (!q.alive || (POV && !POV.known.has(i))) return; const [px,py] = round._spread?.get(i) || toC(q.x,q.y), up = round._lift?.get(i) || 0; const d = Math.min(Math.hypot(px-mx,py-up-my), up ? Math.hypot(px-mx,py-my) + 4 : Infinity); if (d<bd){bd=d;best=i;} });   // (v179: lifted - his marker, or his shadow)   // (where he is drawn: spreadOut)
   sel = best; if (best!==null) { tab = teamOf(best, t) === 1 ? 1 : 0; $('#tab0').classList.toggle('on', tab===0); $('#tab1').classList.toggle('on', tab===1); }
   else { pov = false; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; }
   refresh(true);
@@ -6060,6 +6119,42 @@ function ammoBags(R, i, t0, t1) {
     for (let tt = a; tt <= e; tt += 0.2) { const q = playerAt(i, tt); if (q.alive && !q.veh && Number.isFinite(q.x) && Math.hypot(q.x - b.x, q.y - b.y) < r) { n++; break; } }
   }
   return n;
+}
+// (v179, Sagara: "медик кидає під себе аптечку ... але рівень життя не збільшується") A thrown medic bag (the game's
+// medikit_Projectile: ReplenishDetonationComp, triggerRadius 1 m, replenishingStrength 100, armingDelay 2 s; at most 5
+// a medic in the world, maxProjectilesInWorld) heals a soldier who comes within 1 m of it to full and is used up then;
+// it can't be taken in its first 2 s. The demo has no "picked up": the decoder kept it on the map until its object id
+// went to a new object (=FL= 20:37: 10-28 s after he took it). Here it is gone where a soldier within BAG_TAKE m of it
+// jumps to full health (from under 95 to 99+ from one frame to the next; the kit in a medic's hands heals ~1 a tenth of a
+// second, ammo.abilityRadius 4 m), from 2 s after the throw - and, a medic's 6th bag thrown, his oldest still lying goes.
+// (20:37: 14 bags thrown at the feet of a hurt medic - 13 healed him to full 1.5-3 s after the throw, mostly at 2.2 s;
+// one landed 1.3 m off and did not; the health was right, the bag stayed on the map.) -> Map(bag event -> { t: when it
+// went, i: who took it (row), or null: the 6th thrown })
+const BAG_ARM = 2, BAG_TAKE = 2, BAG_MAX = 5;
+function bagUse(R) {
+  if (R._bagUse && R._bagUse.F === R.times.length) return R._bagUse;
+  const M = new Map(), byMedic = new Map(), T = R.times, F = T.length, n = R.n ?? R.players.length, X = R.X, Y = R.Y, HP = R.HP, Lv = R.L;
+  const fr = tt => { let lo = 0, hi = F - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= tt) lo = m; else hi = m - 1; } return lo; };
+  const foot = R.players.map((p, j) => p.vehicle ? -1 : j).filter(j => j >= 0);
+  for (const b of R.events) {
+    if (b.type !== 'bag' || b.kind !== 'medic' || b.tl === undefined) continue;
+    if (b.by != null) { if (!byMedic.has(b.by)) byMedic.set(b.by, []); byMedic.get(b.by).push(b); }
+    if (!F || !HP) continue;
+    const from = b.t + BAG_ARM, to = Math.min(b.gone ?? Infinity, b.tl + BAG_SHOW, T[F - 1]);
+    for (let f = Math.max(1, fr(from)); f < F && T[f] <= to; f++) {
+      let got = -1;
+      for (const j of foot) { const e = f * n + j; if (Lv[e] && HP[e] >= 99 && HP[e - n] < 95 && Math.abs(X[e] - b.x) <= BAG_TAKE && Math.abs(Y[e] - b.y) <= BAG_TAKE && Math.hypot(X[e] - b.x, Y[e] - b.y) <= BAG_TAKE) { got = j; break; } }
+      if (got >= 0) { M.set(b, { t: T[f], i: got }); break; }
+    }
+  }
+  for (const L of byMedic.values()) {   // (the 6th: his oldest still lying goes)
+    L.sort((a, b) => a.t - b.t);
+    for (let k = BAG_MAX; k < L.length; k++) {
+      const t6 = L[k].t, lying = L.slice(0, k).filter(b => !(M.get(b)?.t <= t6) && !(b.gone <= t6) && b.tl + BAG_SHOW > t6);
+      if (lying.length >= BAG_MAX) M.set(lying[0], { t: t6, i: null });
+    }
+  }
+  M.F = F; return (R._bagUse = M);
 }
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
@@ -9104,7 +9199,7 @@ $('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 
 $('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tFire:'fire', tSpawnG:'spawns', tOrders:'orders', tView:'view', tWalls:'walls', tRelief:'relief', tFront:'front', tAhead:'ahead', tLegend:'legend' };
+const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tFire:'fire', tSpawnG:'spawns', tOrders:'orders', tView:'view', tWalls:'walls', tLift:'lift', tRelief:'relief', tFront:'front', tAhead:'ahead', tLegend:'legend' };
 Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } if (k === 'legend') { try { localStorage.setItem('bf2rr.legend', opts.legend ? '1' : '0'); } catch (e) {} } if (k === 'ahead') { if (aheadOnly.size) opts.ahead = true; aheadAll(opts.ahead); return; } refresh(true); });
 $('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front);
 // (v155) the relief's parts: turning one on turns the relief on too
@@ -9171,6 +9266,10 @@ const LEGEND = [
     cx.strokeStyle = 'rgba(235,235,225,.75)'; cx.lineWidth = 4; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.95)'; cx.lineWidth = 2; cx.stroke(); cx.lineCap = 'butt'; }],
   ['kills', () => 'Team kill', 'By a soldier who killed one of his own side', () => { cx.font = '700 11px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.lineJoin = 'round'; cx.strokeText('TK', 0, 0.5); cx.fillStyle = css('--tk'); cx.fillText('TK', 0, 0.5); }],
   [null, () => 'Out of bounds', 'Outside the combat area: OUT and the seconds he has left to get back', () => { lgSol(0, 1, teamColor(0), 0.5); cx.scale(0.55, 0.55); cx.beginPath(); cx.arc(0, 0, 21, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--outside'); cx.lineWidth = 2.6; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]); }],
+  ['lift', () => 'Up high', 'On a roof, an upper floor, a tower, a bridge or a deck - 2 m or more over the ground: raised over his shadow, a line down to it (12 m or more: the height by the shadow)', () => {
+    cx.fillStyle = 'rgba(0,0,0,.5)'; cx.beginPath(); cx.ellipse(0, 8, 5, 2.6, 0, 0, Math.PI * 2); cx.fill();
+    cx.lineCap = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(0, 8); cx.lineTo(0, -2); cx.stroke(); cx.strokeStyle = teamColor(0); cx.lineWidth = 1.4; cx.stroke(); cx.lineCap = 'butt';
+    lgSol(0, -4, teamColor(0), 0.5); }],
   ['models', () => 'Vehicle', 'A dashed square in the colour of the side in it; grey: nobody in it', () => { cx.fillStyle = css('--veh-empty'); cx.strokeStyle = 'rgba(6,8,6,.6)'; cx.lineWidth = 1; cx.fillRect(-4.5, -8, 9, 16); cx.strokeRect(-4.5, -8, 9, 16); cx.fillStyle = 'rgba(6,8,6,.35)'; cx.fillRect(-3, -3, 6, 6); teamSquare(0, 0, 11, teamColor(1)); }],
   ['pov', () => 'Last seen', 'His view: an enemy he lost sight of, where he last saw him (for ' + POV_MEMORY + ' s)', () => {
     const col = teamColor(1); cx.globalAlpha = 0.35; cx.fillStyle = col; cx.beginPath(); cx.arc(0, 0, 8, 0, Math.PI * 2); cx.fill(); cx.globalAlpha = 0.9;
@@ -9186,7 +9285,7 @@ function legend() {
   box.hidden = !on; if (!on) return;
   const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
   const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() : opts[k])), d = (window.devicePixelRatio || 1) * lk;
-  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
+  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.lift, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
     const cx0 = cx;
