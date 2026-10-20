@@ -610,6 +610,7 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .kpi .kl { display: block; font: 500 11px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .kpi .kv { display: block; font: 700 25px/1.15 var(--font-display); letter-spacing: .02em; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .ks { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi.kodd { border-color: var(--hp-low); } .kpi.kodd .ks { color: var(--hp-low); }   /* (v183: headshots far above what his weapons give) */
 .kpi[data-wrap] .ks { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }   /* (v154: who and by whom, on two lines) */
 .card h2 .w { font: 400 11px var(--font-data); letter-spacing: .06em; text-transform: none; margin-left: 6px; }
 /* one table of the soldiers: Main columns always, the other groups when picked */
@@ -985,7 +986,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v182';
+const APP_VERSION = 'v183';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -5546,11 +5547,25 @@ const mapNm = (R, p) => p.vehicle ? mapNames(R).lab.get(p.name) ?? p.name : p.na
 const mapTxt = (R, s) => { const M = mapNames(R); M.re.lastIndex = 0; return String(s).replace(M.re, M.sub); };
 const mapHtml = (R, h) => h.replace(/>([^<]+)</g, (m, s) => '>' + mapTxt(R, s) + '<');
 function killWpn(e) {
-  const w = e.weapon || '', vp = e.kv ? round.players[round.pidx.get(e.kv)] : null;
+  const vp = e.kv ? round.players[round.pidx.get(e.kv)] : null;
+  let w = e.weapon || '';
+  if (!w) { const g = killGuess(e); if (g && (!vp || g !== vp.name.replace(/ \d+$/, ''))) w = g; }   // (v183: the killer's blast by him)
   if (!vp) return w;
   const head = vp.name.replace(/ \d+$/, '').split(' ')[0];
   const g = w.startsWith(head + ' ') ? w.slice(head.length + 1) : w.replace(/ \((US|MEC|China)\)$/, '');
   return g ? vp.name + ' · ' + g : vp.name;
+}
+// (v183, todo 219) the weapon of a kill the game names none for (8% of the 493 thousand kills of the analysis of 1619
+// rounds - every one of them with the victim in a vehicle: the crew going down with it): the killer's own blast that went
+// off within KW_R m of where the victim was (vx, vy: his vehicle's place) in the KW_T s before (SRAW, Eryx, AT mine, C4, a
+// TOW, a vehicle's missile), else the killer's vehicle (kvName); '' when neither. blasts: the round's blast events.
+// The server's summary (ingest.mjs) takes this function from here, as it takes killCause.
+function killWeaponGuess(e, blasts, vx, vy, kvName) {
+  if (e.weapon) return e.weapon;
+  let best = null;
+  if (Number.isFinite(vx) && Number.isFinite(vy)) for (const b of blasts) { if (b.by !== e.killer || b.t < e.t - 3 || b.t > e.t + 0.6) continue; if (Math.hypot(b.x - vx, b.y - vy) < 15 && (!best || b.t > best.t)) best = b; }
+  if (best) return String(best.name || best.kind || '');
+  return kvName ? String(kvName).replace(/ \d+$/, '') : '';
 }
 // what a kill counts as: a vehicle's gun when the killer sat in a vehicle (or the weapon is one), else by the weapon
 function killCause(e, killerInVeh) {
@@ -6581,7 +6596,9 @@ function speedRuns(R) {
 //   most) or in his vehicle.
 // - Damage: a soldier on foot kills someone inside a tank, an APC or an AA vehicle (closed in: bullets don't reach
 //   him) with small arms, the vehicle with DMG_HP % or more left 1 s before (a burning wreck going off is put on the
-//   last one to hit it). 6 rounds: none (small-arms kills from jeeps and boats: their gunners sit in the open).
+//   last one to hit it). 6 rounds: none (small-arms kills from jeeps and boats: their gunners sit in the open). (v183) Of
+//   a tank or an AA vehicle only its driver: the cupola's gunner is out in the open too (the vehicles' .tweak files:
+//   seatInformation - a soldier seen in the seat; APCs have none such).
 // - Idle: alive on foot, not moving 1 m nor turning 2° for IDLE_T s or more (AFK - a commander at his screen stands
 //   still too). Left out: a stretch that ends in a jump (the decoder kept his last place while he was in a vehicle).
 // - Kill farming: the same killer kills the same victim FARM_N times or more while the victim stood still (moved under
@@ -6598,7 +6615,7 @@ function speedRuns(R) {
 //   within 0.07 s of a press (=FL= 20:37 Lagg_FM's "M4" kill from a TOW launcher's seat names no hit: left out).
 // - Outside the map (v135): OUT_T s or more on end outside the combat area, alive (the game counts the seconds and kills
 //   him when they run out: on 2F4Y.com's Dalian Plant after 14-17 s). 9 rounds: 114 stretches, 21 s the longest.
-const SPAWN_EARLY = 0.5, STAM_E = 3.5, STAM_H = 13, REACT_Q = 0.25, REACT_MIN = 4, REACT_N = 8, REACT_P = 0.001, STAM_T = 13, TELE_D = 15, TELE_GAP = 13, SPAWN_D = 25, DMG_HP = 25, IDLE_T = 240, FARM_N = 4, NOFIRE_T = 1.5, OUT_T = 25, SG_NEAR = 150, SG_R = 150;
+const SPAWN_START = 10, SPAWN_EARLY = 0.5, STAM_E = 3.5, STAM_H = 13, REACT_Q = 0.25, REACT_MIN = 4, REACT_N = 8, REACT_P = 0.001, STAM_T = 13, TELE_D = 15, TELE_GAP = 13, SPAWN_D = 25, DMG_HP = 25, IDLE_T = 240, FARM_N = 4, NOFIRE_T = 1.5, OUT_T = 25, SG_NEAR = 150, SG_R = 150;
 const VSPD_MAX = { ustnk_m1a2: 10.5, rutnk_t90: 10.5, tnk_type98: 10.4, apc_btr90: 18.3, usapc_lav25: 19.7, apc_wz551: 22.7, jep_vodnik: 21, usjep_hmmwv: 19.6, jeep_faav: 24.9, jep_paratrooper: 27.5, jep_mec_paratrooper: 27.5, boat_rib: 26.5, ahe_ah1z: 50.5, ahe_z10: 49.6, chthe_z8: 27, usthe_uh60: 31.7, air_f35b: 117.2, air_j10: 117.1 };
 const VSPD_KIND = { mtank: 10.5, maavehicle: 22.7, mapc: 22.7, mjeep: 27.5, mrib: 26.5, mattack_heli: 50.5, mtransport_heli: 40, mjet: 125 }, VSPD_X = 1.35, VSPD_T = 3;
 function moreHints(R) {
@@ -6707,7 +6724,9 @@ function moreHints(R) {
     let k = fr(ts), g = 0; while (k < F - 1 && T[k] < ts + 0.15) k++; while (g < 10 && !L[k * n + i] && k < F - 1) { k++; g++; }
     const e = k * n + i; if (!L[e] || VT[e]) continue;
     const x = X[e], y = Y[e], tm = teamOf(i, ts + 0.3);
-    const held = SGS.filter(q => q.t0 <= ts + 0.1 && (q.t1 === null || q.t1 > ts) && [-3, -1.5, 0, 0.3].some(d => sgTeam(q, ts + d) === tm));
+    // (v183, todo 220: 95 of the 130 Spawn hints of 1619 rounds came in the round's first 5 s - the groups get their sides
+    // a moment after the first spawns; there a group created or given his side up to 6 s later counts)
+    const start = ts < SPAWN_START, held = SGS.filter(q => q.t0 <= ts + (start ? 6 : 0.1) && (q.t1 === null || q.t1 > ts) && (start ? [-3, -1.5, 0, 0.3, 1, 2, 4, 6] : [-3, -1.5, 0, 0.3]).some(d => sgTeam(q, ts + d) === tm));
     let sd = Infinity, how = 'map';
     if (SPP) { for (let m = 0; m < SPP.length; m += 2) if (!SGS.length || held.some(q => Math.hypot(q.x - SPP[m], q.y - SPP[m + 1]) <= SG_NEAR)) sd = Math.min(sd, Math.hypot(SPP[m] - x, SPP[m + 1] - y)); if (SGS.length) how = 'held'; if (sd <= SPAWN_D) continue; }
     else { for (const q of held) sd = Math.min(sd, Math.hypot(q.x - x, q.y - y)); how = 'groups'; if (sd <= SG_R) continue; }
@@ -6732,7 +6751,10 @@ function moreHints(R) {
     const ki = pid(e.killer), vi = pid(e.victim); if (vi === undefined) continue;
     if (ki !== undefined && !R.players[ki].vehicle && killCause(e, false) === 'small' && !/knife|defib/i.test(e.weapon || '')) {
       const q = playerAt(ki, e.t - 0.15), o = playerAt(vi, e.t - 0.15), j = o.veh ? vehIdx(o.veh) : undefined;
-      if (!q.veh && j !== undefined && vehClass(j) !== 'light') { const hp = HP ? HP[fr(e.t - 1) * n + j] : NaN; if (hp >= DMG_HP) out.push({ t: e.t, kind: 'dmg', adm: true, actor: e.killer, kill: e, veh: o.veh, cls: vehClass(j), hp, x: e.x, y: e.y }); }
+      // (v183, todo 223: in a tank or an AA vehicle only the driver is closed in - the cupola's gunner sits out in the open,
+      // seatInformation in its .tweak; 1619 rounds: 258 of 264 such hints were tanks', 6 AA vehicles')
+      const shut = j !== undefined && (vehClass(j) === 'apc' || (R.DR && R.DR[fr(e.t - 0.15) * n + vi] === 1));
+      if (!q.veh && j !== undefined && vehClass(j) !== 'light' && shut) { const hp = HP ? HP[fr(e.t - 1) * n + j] : NaN; if (hp >= DMG_HP) out.push({ t: e.t, kind: 'dmg', adm: true, actor: e.killer, kill: e, veh: o.veh, cls: vehClass(j), hp, x: e.x, y: e.y }); }
       // (v135) no trigger: his fire buttons all up for the NOFIRE_T s before a bullet kill on foot (his Player ghost)
       const KP = R.players[ki];
       if (KP.fire && !q.veh && e.hit) { let last = -Infinity; for (const f of KP.fire) { if (f[0] > e.t + 0.05) break; last = Math.max(last, Math.min(f[1], e.t)); } const gap = e.t - last; if (gap > NOFIRE_T && KP.fire.some(f => f[0] < e.t && f[0] > e.t - 600)) out.push({ t: e.t, kind: 'nofire', adm: true, actor: e.killer, kill: e, gap, x: e.x, y: e.y }); }
@@ -7085,6 +7107,7 @@ function objHints(R) {
       er.sort((a, b) => a - b); P.errs.push({ e, er: er[er.length >> 1], v: best.j }); if (e.path.some(p => p.length > 3)) P.nose = true;
     }
     let N = 0, H = 0; for (const P of per.values()) if (P.tv) { N += P.n; H += P.hits; }
+    R._tvStat = [...per.values()].filter(P => P.tv).map(P => [P.i, P.n, P.hits]);   // (v183, todo 224: every TV gunner's missiles and hits, for the analysis)
     for (const P of per.values()) {
       const ms = P.errs.map(x => x.er).sort((a, b) => a - b), mid = ms.length ? ms[ms.length >> 1] : null, why = [];
       // (v170: with the nose's own heading the angles come out finer - 5 rounds, 37 gunners: the lowest middle of one
@@ -7380,6 +7403,7 @@ const ANALYZE_COLS = {
   J: ['player', 't', 'd', 'dt', 'ping', 'near'],
   S: ['t', 'spotter', 'p', 'target', 'cmdr'],
   V: ['vehicle', 'n', 'max', 'p99', 'p90'],
+  T: ['player', 'n', 'hits'],   // (v183: each TV missile gunner - from an aircraft - his missiles and hits)
   notes: { err: 'deg off the victim, 21 values: 2.0 s before the kill .. the kill (null: not known)', losK: 'records of 0.1 s back to a clear sight line on the grid (0: clear at the kill); 100 + k: none found in the k checked',
     losX: 'the same with the exact shapes (only when losK >= 3)', press: 's from the fire press that fired it to the kill', fog: 'distance / the map fog limit',
     near: 'bits: 1 a spawn, 2 a revive, 4 in a vehicle, within 5 s; 8 his last place held 0.8 s or more before (a gap in his records)', eng: 'first / even / second / ambush / blind' }
@@ -7499,7 +7523,7 @@ function analysisDump(R) {
     };
   });
   return { v: ANALYZE_V, page: APP_VERSION, cols: ANALYZE_COLS, name: $('#srcLabel').textContent, map: mapKey(), meta: R.meta, stats: R.raw?.stats || null, dur: arnd(R.duration, 1),
-    K, H, P, S, F: Fl, J, V, D: Dc, errs, ms: Math.round(performance.now() - t0) };
+    K, H, P, S, F: Fl, J, V, T: R._tvStat || [], D: Dc, errs, ms: Math.round(performance.now() - t0) };
 }
 if (/[?&]analyze\b/.test(location.search)) window.__bf2analyze = {
   v: ANALYZE_V, page: APP_VERSION,
@@ -7716,9 +7740,21 @@ function killFacing(vat, kat, t) {
 function heatKill(e) {
   const R = round, ki = R.pidx.get(e.killer), vi = R.pidx.get(e.victim); if (vi === undefined || e.killer === e.victim) return null;
   const kq = ki !== undefined ? playerAt(ki, e.t - 0.05) : null, vq = playerAt(vi, e.t);
+  const w = e.weapon || killGuess(e);
   const r1 = v => Math.round(v * 10) / 10, fc = ki !== undefined ? killFacing(tt => playerAt(vi, tt), tt => playerAt(ki, tt), e.t) : [null, null];
   return [r1(e.x ?? vq.x), r1(e.y ?? vq.y), kq && kq.alive ? r1(kq.x) : null, kq && kq.alive ? r1(kq.y) : null, R.teams[teamOf(vi, e.t)]?.name || '', ki !== undefined ? R.teams[teamOf(ki, e.t)]?.name || '' : '',
-    killCause(e, !!(kq && kq.veh)), e.weapon || '', ki !== undefined ? R.players[ki].name.trim() : '', R.players[vi].name.trim(), fc[0], fc[1]];
+    killCause(e, !!(kq && kq.veh)), w, ki !== undefined ? R.players[ki].name.trim() : '', R.players[vi].name.trim(), fc[0], fc[1], HIT_CODE[e.hit] || null];
+}
+// (v183) [12] where the killing shot hit: h head, b body, l a limb (null: not said - explosions, vehicles)
+const HIT_CODE = { head: 'h', body: 'b', limb: 'l' };
+// the weapon of a kill the game names none for, in this round (killWeaponGuess: the killer's blast by the victim, or his
+// vehicle)
+function killGuess(e) {
+  const R = round; if (e.weapon) return e.weapon;
+  const B = R._blastL || (R._blastL = R.events.filter(x => x.type === 'blast' && x.x != null));
+  const vi = R.pidx.get(e.victim), o = vi !== undefined ? playerAt(vi, e.t - 0.15) : null, j = o && o.veh ? vehIdx(o.veh) : undefined, v = j !== undefined ? playerAt(j, e.t - 0.15) : null;
+  const vx = v && Number.isFinite(v.x) ? v.x : e.x ?? o?.x, vy = v && Number.isFinite(v.y) ? v.y : e.y ?? o?.y, kp = e.kv ? R.players[R.pidx.get(e.kv)] : null;
+  return killWeaponGuess(e, B, vx, vy, kp ? kp.name : '');
 }
 // ---------- movement ----------
 // From the soldier's velocity (decoded with his position): standing still, walking, running (~3.5-3.9 m/s), sprinting
@@ -12713,7 +12749,26 @@ function aggPlayer(nick, R, ptsOf) {
   const W = new Map(), A = new Map();
   for (const x of R) for (const q of x.r.sum.P || []) { const kk = nickOf(q.name); if (kk === nick || /^Player \d+$/.test(kk)) continue; const M = q.team === x.p.team ? W : A; M.set(kk, (M.get(kk) || 0) + 1); }
   const withL = [...W].sort((a, b) => b[1] - a[1]), vsL = [...A].sort((a, b) => b[1] - a[1] || ((vicN.get(b[0]) || 0) + (kilN.get(b[0]) || 0)) - ((vicN.get(a[0]) || 0) + (kilN.get(a[0]) || 0)));
-  return { n, nMine: mine.length, wpn, vic, kil, kinds: aggGroup(mine, q => q[6]), withL, vsL, died: aggDied(onMe) };
+  return { n, nMine: mine.length, wpn, vic, kil, kinds: aggGroup(mine, q => q[6]), withL, vsL, died: aggDied(onMe), hsx: aggHeads(mine) };
+}
+// (v183, todo 221) his headshots against what his weapons give everyone: the share of small-arms kills to the head is
+// each weapon's own (HS_W, 145 thousand kills of the analysis of 1619 rounds of 8 servers, todo 146: sniper rifles ~0.47,
+// L85A1 0.29 ... MP5 0.19, Jackhammer 0.15; a weapon not there: HS_DEF). From the kills with the hit part known (q[12]:
+// rounds summed up since v183). { n, head, exp: heads his weapons would give, lo: log10 of the odds of so many by chance }
+const HS_MIN = 30, HS_ODD = -6;   // (the player page: from 30 such kills; far above at odds under 1 in a million)
+const HS_W = {"G36E": 0.212, "L96A1": 0.474, "AK-101": 0.258, "L85A1": 0.29, "DAO-12": 0.215, "M16A2": 0.222, "P90": 0.2, "AK-47 (no GL)": 0.215, "SVD Dragunov": 0.371, "RPK-74": 0.218, "M95": 0.466, "M24": 0.469, "M4": 0.214, "PKM": 0.201, "Jackhammer": 0.154, "G36C": 0.201, "SCAR-L": 0.225, "MP5": 0.19, "M249 SAW": 0.218, "Remington 11-87": 0.195, "M9 silenced": 0.194, "QBU-88": 0.34, "PP-19 Bizon": 0.203, "G3": 0.214, "Type 85": 0.188, "AK-47": 0.22, "MG36": 0.2, "M9": 0.218, "F2000": 0.247, "MP7": 0.182, "AK-74U": 0.21, "Norinco 982": 0.216, "Saiga 12": 0.227, "MR-444": 0.234, "MR-444 silenced": 0.207, "QSZ-92": 0.235, "AK + GP-25": 0.232, "QBZ-95": 0.193, "QSZ-92 silenced": 0.222, "QBB-95": 0.186, "FAMAS": 0.214}, HS_DEF = 0.23;
+function aggHeads(mine) {
+  let n = 0, head = 0, exp = 0;
+  for (const q of mine) { if (q[6] !== 'small' || !q[12] || /knife|defib/i.test(q[7] || '')) continue; n++; if (q[12] === 'h') head++; exp += HS_W[q[7]] ?? HS_DEF; }
+  return n ? { n, head, exp: Math.round(exp * 10) / 10, lo: Math.round(aggTail10(head, n, exp / n) * 10) / 10 } : null;
+}
+// log10 of P(X >= k), X ~ Binomial(n, p) (summed in logs: odds like 1e-80 stay numbers)
+function aggTail10(k, n, p) {
+  if (k <= 0) return 0; if (p <= 0) return -Infinity; if (p >= 1) return 0;
+  const lp = Math.log(p), lq = Math.log(1 - p), L = []; let lc = 0, m = -Infinity;
+  for (let j = 1; j <= n; j++) { lc += Math.log((n - j + 1) / j); if (j >= k) { const v = lc + j * lp + (n - j) * lq; L.push(v); if (v > m) m = v; } }
+  let sm = 0; for (const v of L) sm += Math.exp(v - m);
+  return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // (v136) "how he gets killed": his deaths by enemies ([kill, map]) - how often he didn't see his killer (q[11]), which way it
 // came from (q[10]), how far (dn of them known, dmid the middle one, dB: how many in each of DIST_B), what with, where on
@@ -12838,6 +12893,13 @@ function renderPlayerPage() {
   if (need.length) loadHeat(need.map(x => x.r.sum.map)).then(() => { if (ppage.nick === nick) renderPlayerPage(); });
   const AG = S ? S.AG : aggPlayer(nick, R, ptsOf), mine = { length: AG.nMine };   // (v165: the same code as the server's data/players/<nick>.json)
   const { wpn, vic, kil, withL, vsL, kinds } = AG, vicN = new Map(vic), kilN = new Map(kil);
+  // (v183, todo 221) headshots against what his weapons give everyone (aggHeads), from HS_MIN kills with the hit part known
+  { const x = AG.hsx, ti = tiles.findIndex(t => t.includes('>Headshots<'));
+    if (x && x.n >= HS_MIN && ti >= 0) {
+      const pc = v => Math.round(v * 100) + '%', odd = x.lo <= HS_ODD, chance = x.lo > -1 ? 'well within chance' : `by chance about once in ${x.lo > -6 ? Math.round(10 ** -x.lo).toLocaleString('en') : '10^' + Math.floor(-x.lo)}`;
+      const tip = `${x.head} of his ${x.n} small-arms kills with the hit part known were to the head (${pc(x.head / x.n)}). With the same weapons everyone gets ${pc(x.exp / x.n)} (~${Math.round(x.exp)}): so many is ${chance}. Each weapon's share: 145 thousand kills of 1619 rounds.`;
+      tiles[ti] = `<div class="kpi${odd ? ' kodd' : ''}" data-wrap title="${esc(tip)}"><span class="kl">Headshots</span><span class="kv">${hs}</span><span class="ks">${pc(x.head / x.n)} of kills · his weapons give ${pc(x.exp / x.n)}${odd ? ' - far above' : ''}</span></div>`;
+    } }
   const pl = kk => `<button class="plink" data-nick="${esc(kk)}" title="His page">${esc(names.get(kk) || kk)}</button>`;
   const vsb = kk => `<button class="vsb" data-vs="${esc(kk)}" title="${esc(name)} and ${esc(names.get(kk) || kk)} side by side">vs</button>`;
   const list = (rows, f, cap) => rows.length ? `<ul class="plist">${rows.slice(0, cap || 8).map(f).join('')}</ul>${rows.length > (cap || 8) ? `<p class="stnote">${rows.length - (cap || 8)} more</p>` : ''}` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`;

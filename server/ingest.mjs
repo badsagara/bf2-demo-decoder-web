@@ -89,7 +89,26 @@ function loadDecoder() {
     try { clipFns = new Function('readHeader', `const DEMO_LEAD = ${lead[1]};\n` + parts.join('\n') + '\nreturn { unsqueezeDemo, clipByName };')(mod.readHeader); }
     catch (e) { log('clips: the page\'s unsqueezeDemo did not load:', e.message); }
   }
-  return { ...mod, ...clipFns, hash };
+  // (v183) a kill's weapon when the game names none (killWeaponGuess: the killer's blast by the victim, or his vehicle) -
+  // for the summary's kills; out of the hash too (a change to it sums the rounds up again: SUM_V)
+  let killWeaponGuess = null; const kw = fnText('function killWeaponGuess(');
+  if (kw) { try { killWeaponGuess = new Function(kw + '\nreturn killWeaponGuess;')(); } catch (e) { log('killWeaponGuess did not load:', e.message); } }
+  return { ...mod, ...clipFns, killWeaponGuess, hash };
+}
+// (v183) the decoded round file back: { name, info, tl } (as the page's bfrParse) - to sum a round up again without
+// decoding its demo (SUM_V)
+function bfrRead(file) {
+  const u8 = zlib.gunzipSync(fs.readFileSync(file));
+  if (u8.toString('latin1', 0, 4) !== 'BFR1') throw new Error('not a decoded round');
+  const hl = u8.readUInt32LE(4), base = (8 + hl + 7) & ~7;
+  const TA = { Float32Array, Float64Array, Int8Array, Int16Array, Int32Array, Uint8Array, Uint16Array, Uint32Array, Uint8ClampedArray };
+  return JSON.parse(u8.toString('utf8', 8, 8 + hl), (k, v) => {
+    if (v && typeof v === 'object' && !Array.isArray(v)) {
+      if (v.$ta) { const [type, off, len] = v.$ta, T = TA[type]; const b = u8.buffer.slice(u8.byteOffset + base + off, u8.byteOffset + base + off + len * T.BYTES_PER_ELEMENT); return new T(b); }
+      if (v.$n) return Number(v.$n);
+    }
+    return v;
+  });
 }
 
 // ---------- decoded round file (.bfr) ----------
@@ -114,7 +133,12 @@ function bfrBuild(obj) {
 }
 
 // ---------- the round's numbers for the rounds list (the same as the page's rounds panel works out) ----------
-function summarize(tl, hdr, killCause) {
+// (v183) SUM_V: how a round is summed up (summarize); a round summed up by an older one is summed up again from its .bfr
+// (2: the kills' hit part [12] and the weapon guessed where the game names none [7] - the player page's headshots
+// against his weapons, todo 219 / 221)
+const SUM_V = 2;
+function summarize(tl, hdr, dec) {
+  const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
   const P0 = tl.players, pidx = new Map(P0.map((p, i) => [p.id, i]));
   const teamIn = (p, tt) => { const L = p.teams; if (!L || !L.length) return p.team; let tm = L[0][1]; for (const [ts, x] of L) { if (ts > tt + 0.05) break; tm = x; } return tm; };
@@ -175,12 +199,15 @@ function summarize(tl, hdr, killCause) {
   const top = P.slice().sort((a, b) => b.score - a.score)[0];
   // the kills for the heatmap of all rounds on the map: [victim x, y, killer x, y, victim's side, killer's side, kind, weapon, killer, victim,
   // from the front / side / behind, unseen] (the last two: v136)
-  const r1 = v => Math.round(v * 10) / 10;
+  const r1 = v => Math.round(v * 10) / 10, HIT = { head: 'h', body: 'b', limb: 'l' };
+  const blasts = ev.filter(e => e.type === 'blast' && e.x != null), vehOf = new Map(P0.map((p, i) => [p.vehicle ? p.name : null, i]));
+  const wOf = e => { if (e.weapon || !guess) return e.weapon || ''; const vi = pidx.get(e.victim), o = vi !== undefined ? at(vi, e.t - 0.15) : null, j = o && o.veh ? vehOf.get(o.veh) : undefined, v = j !== undefined ? at(j, e.t - 0.15) : null;
+    const kp = e.kv ? P0[pidx.get(e.kv)] : null; return guess(e, blasts, v && Number.isFinite(v.x) ? v.x : e.x ?? o?.x, v && Number.isFinite(v.y) ? v.y : e.y ?? o?.y, kp ? kp.name : ''); };
   const pts = kills.map(e => {
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (vi === undefined || e.killer === e.victim) return null;
     const kq = ki !== undefined ? at(ki, e.t - 0.05) : null, vq = at(vi, e.t), fc = ki !== undefined ? facing(vi, ki, e.t) : [null, null];
     return [r1(e.x ?? vq.x), r1(e.y ?? vq.y), kq && kq.alive ? r1(kq.x) : null, kq && kq.alive ? r1(kq.y) : null, tl.teams[team(vi, e.t)]?.name || '', ki !== undefined ? tl.teams[team(ki, e.t)]?.name || '' : '',
-      killCause(e, !!(kq && kq.veh)), e.weapon || '', ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim(), fc[0], fc[1]];
+      killCause(e, !!(kq && kq.veh)), wOf(e), ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim(), fc[0], fc[1], HIT[e.hit] || null];
   }).filter(Boolean);
   const map = hdr ? (hdr.fields[2].split('/').pop() || hdr.fields[2]) : String(tl.meta.map || '');
   return { date: hdr ? hdr.fields[1] : '', map, server: hdr ? hdr.fields[0] : '', duration: dur, empty: !P.length, players: P.length, kills: kills.length,
@@ -649,7 +676,7 @@ function dropCopies(idx) {
 }
 // the heavy part of a demo, also in a worker thread: decoded, summed up, packed (.bfr) - { sum, info, bfr } or { sum, drop }
 async function decodeWork(dec, src, name) {
-  const { tl, hdr, info } = await decodeFile(dec, src, name), sum = tl ? summarize(tl, hdr, dec.killCause) : null;
+  const { tl, hdr, info } = await decodeFile(dec, src, name), sum = tl ? summarize(tl, hdr, dec) : null;
   if (!tl || sum.empty || sum.players < MIN_PLAYERS) return { sum, drop: true };
   return { sum, info, bfr: bfrBuild({ name, info, tl }) };
 }
@@ -672,7 +699,7 @@ async function processDemo(dec, idx, src, name, { move, pre, t0 = Date.now(), no
   const tmp = path.join(DIRS.rounds, bfrName + '.tmp');
   fs.writeFileSync(tmp, bfr); fs.renameSync(tmp, path.join(DIRS.rounds, bfrName));
   if (move) fs.renameSync(src, path.join(DIRS.demos, name));
-  const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum };
+  const entry = { name, demo: 'demos/' + name, bfr: 'rounds/' + bfrName, bytes: info.bytes, bfrBytes: bfr.length, decoder: dec.hash, sumV: SUM_V, added: old >= 0 ? idx.rounds[old].added : new Date().toISOString(), sum };
   heatPut(name, entry.sum);
   if (old >= 0) aggMark(idx.rounds[old].sum); aggMark(entry.sum);   // (v165: their players' and maps' stats)
   if (old >= 0) idx.rounds[old] = entry; else idx.rounds.push(entry);
@@ -815,6 +842,23 @@ async function main() {
   if (fullDue) writeIndex(idx, dec);
   // (v153) a post about each new round in Discord / Telegram, when the admin page (or bf2replay.conf) says where
   if (NEW_ROUNDS.length) { try { const { notifyRounds } = await import('./notify.mjs'); await notifyRounds(NEW_ROUNDS.splice(0)); } catch (e) { log('round posts:', e.message); } }
+  // 1b. (v183) rounds summed up by an older summarize (SUM_V): summed up again from their decoded round (.bfr), without
+  // decoding the demo (~0.5 s a round) - once for every round after the update; stopped by a site update or SIGTERM, the
+  // rest at the next run
+  { const old = idx.rounds.filter(r => (r.sumV || 1) < SUM_V && r.bfr && r.sum && !r.sum.empty);
+    if (old.length && !siteChanged()) {
+      const t0 = Date.now(); let k = 0, bad = 0;
+      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (summary version ${SUM_V}: the kills' hit part, a weapon where the game names none) from the decoded rounds - no decoding`);
+      for (const r of old) {
+        if (siteChanged()) { log(`the site was updated: ${old.length - k} rounds left to sum up again at the next run`); break; }
+        try { const B = bfrRead(path.join(DATA, r.bfr)), sum = summarize(B.tl, B.info?.hdr || null, dec); aggMark(r.sum); r.sum = sum; heatPut(r.name, sum); aggMark(sum); }
+        catch (e) { bad++; log('not summed up again:', r.name, '-', e.message); }
+        r.sumV = SUM_V; changed = true; k++;
+        if (k % 250 === 0 && k < old.length) { const el = (Date.now() - t0) / 1000; log(`summed up ${k} of ${old.length} again, ~${hm(el / k * (old.length - k))} left`); writeIndex(idx, dec, true); }
+      }
+      writeIndex(idx, dec); log(`summed up ${k} rounds again in ${hm((Date.now() - t0) / 1000)}${bad ? `, ${bad} could not be read (kept as they were)` : ''}`);
+    }
+  }
   // 2. after a site update: rounds made by another decoder are decoded again from their demo
   if ((args.has('--reprocess') || args.has('--rebuild')) && siteChanged()) log('the site was updated: decoding again is left for the next run (the new code)');
   else if (args.has('--reprocess') || args.has('--rebuild')) {
