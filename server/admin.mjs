@@ -8,6 +8,11 @@
 // logs. (v186) Which old demos ingest.mjs removes to save room (data/.demos.json, demos.mjs: their rounds stay), with what
 // would go before it is saved, the demos to keep whatever the rest says, and the copies of rounds (data/.copies) removed on
 // request. Nothing here deletes a round.
+// (v196) The servers' admins: accounts made here by the site's owner (data/.admin-users.json: a name, a scrypt hash of the
+// password, the game servers whose rounds he sees), who log in on a round's Admin tab (the page: same login, the name
+// filled in) and get only that: the admins' part of the page (server/admin-round.js, cut out of the public page by
+// splitpage.mjs) and the private files of the analysis (data/.admin: the players' hint cards, Glitch spot, the headshot
+// odds). Everything else here is the owner's (an empty name and the password of --set-password).
 //
 //   node admin.mjs                  the admin server (bf2replay-admin.service, as bf2replay): http://127.0.0.1:8781,
 //                                   Caddy sends /admin* to it
@@ -54,6 +59,15 @@ function checkPass(pw) {
   const j = readPass(); if (!j || typeof pw !== 'string' || pw.length > 200) return false;
   const want = Buffer.from(j.hash, 'base64'), got = kdf(pw, j.salt, { N: j.N || KDF.N, r: j.r || KDF.r, p: j.p || KDF.p, len: want.length });
   return want.length === got.length && crypto.timingSafeEqual(want, got);
+}
+// (v196) the servers' admins: { users: { name: { salt, hash, N, r, p, servers: [game server names], created, by, last } } }
+const USERS_FILE = path.join(DATA, '.admin-users.json'), USER_RE = /^[A-Za-z0-9_.-]{2,32}$/;
+const readUsers = () => { const j = readJson(USERS_FILE, null); return j && j.users && typeof j.users === 'object' ? j : { users: {} }; };
+const writeUsers = j => { const tmp = USERS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, USERS_FILE); };
+function checkUser(name, pw) {
+  const u = readUsers().users[name]; if (!u || !u.salt || !u.hash || typeof pw !== 'string' || pw.length > 200) { kdf('x', 'AAAAAAAAAAAAAAAAAAAAAA=='); return null; }   // (as long either way)
+  const want = Buffer.from(u.hash, 'base64'), got = kdf(pw, u.salt, { N: u.N || KDF.N, r: u.r || KDF.r, p: u.p || KDF.p, len: want.length });
+  return want.length === got.length && crypto.timingSafeEqual(want, got) ? u : null;
 }
 async function setPassword() {
   const ask = async q => {
@@ -171,7 +185,7 @@ async function state() {
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
     units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
     sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
-    settings, password: !!readPass(), notify: notifyState(), decode: decodeState(), demos: demoState(), analysis: analysisState()
+    settings, password: !!readPass(), users: usersState(), servers: knownServers(), notify: notifyState(), decode: decodeState(), demos: demoState(), analysis: analysisState()
   };
 }
 // (v162) how many demos ingest.mjs decodes at once: BF2R_JOBS from /etc/bf2replay.conf when set (it wins), else the
@@ -220,7 +234,7 @@ function jobsSet(b) {
 // ---------- (v192) the background analysis (analyze.mjs --auto, bf2replay-hints): how far it is ----------
 // The rounds it looks at (6+ soldiers, not copies) against those done with the page's hint rules now (HINTS_V; the round
 // files' rules: analysis/.hv.json), the last run's pace and so when all are done; the glitch grids (analysis/glitch/
-// summary.json, glitch.mjs); the players' hint cards (data/stats/hints.json). Worked out at most every 30 s.
+// summary.json, glitch.mjs); the players' hint cards (data/.admin/hints.json). Worked out at most every 30 s.
 let anCache = { at: 0, v: null }, hvPage = { mt: 0, v: 0, ver: '' };
 // (v193) a run of analyze.mjs still going (a pid of a run that ended without saying so may be another program's by now)
 const alive = pid => { if (!pid) return false; try { return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('analyze.mjs'); } catch (e) { if (fs.existsSync('/proc/self')) return false; try { process.kill(pid, 0); return true; } catch (e2) { return false; } } };
@@ -241,7 +255,11 @@ function archives() {
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 function pageVer() { pageHintsV(); return hvPage.ver; }
-function pageHintsV() { const f = path.join(SITE, 'index.html'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return 0; } if (mt !== hvPage.mt) { let v = 0, ver = ''; try { const t = fs.readFileSync(f, 'utf8'); v = +((/const HINTS_V = (\d+)/.exec(t) || [])[1] || 0); ver = (/const APP_VERSION = '(v\d+)'/.exec(t) || [])[1] || ''; } catch (e) {} hvPage = { mt, v, ver }; } return hvPage.v; }
+function pageHintsV() {   // (v196: HINTS_V is in the admins' part of the page, server/admin-round.js)
+  const f = path.join(SITE, 'index.html'), g = path.join(HERE, 'admin-round.js'); let mt = 0; try { mt = fs.statSync(f).mtimeMs + fs.statSync(g).mtimeMs; } catch (e) { return 0; }
+  if (mt !== hvPage.mt) { let v = 0, ver = ''; try { const t = fs.readFileSync(f, 'utf8'), a = fs.readFileSync(g, 'utf8'); v = +((/const HINTS_V = (\d+)/.exec(a) || /const HINTS_V = (\d+)/.exec(t) || [])[1] || 0); ver = (/const APP_VERSION = '(v\d+)'/.exec(t) || [])[1] || ''; } catch (e) {} hvPage = { mt, v, ver }; }
+  return hvPage.v;
+}
 function analysisState() {
   if (anCache.v && Date.now() - anCache.at < (anCache.v.pack?.on || anCache.v.running ? 5e3 : 30e3)) return anCache.v;
   const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
@@ -253,7 +271,7 @@ function analysisState() {
   const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
   const left = Math.max(0, R.length - cur), perRun = auto?.rounds || 40, cycle = secs != null ? secs / Math.max(1, auto.done) * perRun + 300 : null;
   const pw = fs.existsSync(path.join(ROOT, 'analyze', 'node_modules', 'playwright', 'package.json'));
-  const gl = readJson(path.join(OUTD, 'glitch', 'summary.json'), null), hc = readJson(path.join(DATA, 'stats', 'hints.json'), null);
+  const gl = readJson(path.join(OUTD, 'glitch', 'summary.json'), null), hc = readJson(path.join(DATA, '.admin', 'hints.json'), null);
   const set = readJson(path.join(OUTD, '.auto-set.json'), {}) || {}, note = readJson(path.join(OUTD, 'auto-note.json'), null);
   const pk = readJson(path.join(OUTD, '.pack.json'), null), packing = !!(pk && !pk.ended && alive(pk.pid));
   const v = { hv: HV, total: R.length, cur, old, none: Math.max(0, R.length - cur - old), failed: Object.keys(failed).length, auto: auto ? { started: auto.started, ended: auto.ended || null, done: auto.done || 0, rounds: auto.rounds || 0, jobs: auto.jobs || 1, boost: !!auto.boost, failed: auto.failed || 0, secs } : null,
@@ -524,6 +542,106 @@ function sendArchive(req, res, name) {
   const rs = fs.createReadStream(f, { start: a, end: z }); rs.on('error', () => res.destroy()); res.on('close', () => rs.destroy()); rs.pipe(res);
   if (!a) log('analysis archive downloaded:', name, 'from', clientIp(req));
 }
+// (v197) a round for its Admin tab: what the page can't know - where its demo came from and when, its copies, the
+// analysis of it, whether its demo is kept or goes (demos.mjs). A server's admin: only his servers' rounds
+const jsonByMt = new Map();   // (files read again only when they change: .fetched.json can be big)
+function readJsonMt(f, d) { let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return d; } const c = jsonByMt.get(f); if (c && c.mt === mt) return c.v; const v = readJson(f, d); jsonByMt.set(f, { mt, v }); return v; }
+const anFileOf = n => String(n || '').replace(/\.bf2demo$/i, '').replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz';
+let planCache = { at: 0, v: null };
+function demoPlanNow() { if (planCache.v && Date.now() - planCache.at < 60e3) return planCache.v; const I = demoInputs(), plan = demoPlan({ ...I, policy: demoPolicy(DATA, opt) }); planCache = { at: Date.now(), v: new Map(plan.remove.map(x => [x.name, x.why])) }; return planCache.v; }
+function roundInfo(name, s) {
+  const r = roundOf(name); if (!r || !r.sum) return { ok: false, msg: 'no such round' };
+  if ((s.role || 'owner') !== 'owner' && !(s.servers || []).includes(r.sum.server)) return { ok: false, msg: 'not one of the servers of your account' };
+  const F = readJsonMt(path.join(DATA, '.fetched.json'), {}) || {}, C = readJsonMt(path.join(DATA, '.copies.json'), {})?.copies || {};
+  const last = u => { try { return decodeURIComponent(String(u).split('?')[0].split('/').pop() || ''); } catch (e) { return ''; } };
+  const got = Object.entries(F).filter(([u, v]) => last(u) === r.name || (v && v.of === r.name)).map(([u, v]) => ({ url: u, at: v?.at || null, bytes: v?.bytes ?? null, skipped: v?.skipped || null }));
+  const copies = Object.entries(C).filter(([, v]) => v && v.of === r.name).map(([n, v]) => ({ name: n, at: v.at || null, bytes: v.bytes ?? null }));
+  const OUTD = path.join(ROOT, 'analysis'), af = path.join(OUTD, 'rounds', anFileOf(r.name)), hv = (readJsonMt(path.join(OUTD, '.hv.json'), {}) || {})[anFileOf(r.name)];
+  const failed = (readJsonMt(path.join(OUTD, 'failed.json'), {}) || {})[r.name] || null; let aAt = null; try { aAt = fs.statSync(af).mtime.toISOString(); } catch (e) {}
+  const dp = path.join(DATA, r.demo || ('demos/' + r.name)), here = !!r.demo && fs.existsSync(dp), goes = here ? demoPlanNow().get(r.name) || null : null;
+  const keep = readJson(path.join(DATA, DEMOS_FILE), {})?.keep || {};
+  return { ok: true, name: r.name, server: r.sum.server, added: r.added || null, bytes: r.bytes ?? null, decoder: r.decoder || null, siteDecoder: siteDecoder().hash, sumV: r.sumV ?? null,
+    bfr: r.bfr ? { file: r.bfr, bytes: sizeOf(path.join(DATA, r.bfr)) } : null,
+    demo: { here, bytes: here ? sizeOf(dp) : null, goes, kept: !!keep[r.name] || !!keep[linkId(r.name)] },
+    listed: sourceList(DATA).get(r.name) || null, got, copies, copyOf: C[r.name]?.of || null,
+    analysis: { at: aAt, hv: hv ?? null, hvNow: pageHintsV(), failed } };
+}
+// (v198) the admins' review: marks on a round's hints (checked / a false alarm / suspicious), notes on a round and on a
+// player (every admin sees them), the trusted players (not highlighted: the owner's for every server, a server admin's
+// for his servers). data/.admin/review: rounds/<round>.json { marks: { key: { state, by, at, note } }, notes: [...] },
+// players/<nick>.json { nick, notes: [...] }, trusted.json { nicks: { nick: { by, at, why, servers } } }
+const REV = path.join(DATA, '.admin', 'review'), REV_STATES = ['ok', 'false', 'sus'];
+const nickSlugS = nick => { const n = String(nick), s = n.replace(/[^A-Za-z0-9_.-]+/g, '_'); if (s === n) return s; let h = 0x811c9dc5; for (const ch of n) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619) >>> 0; } return s + '-' + h.toString(16).padStart(8, '0').slice(0, 6); };   // (the page's nickSlug)
+const revRoundFile = name => path.join(REV, 'rounds', linkId(name).replace(/[^A-Za-z0-9._-]/g, '_') + '.json');
+const revPlayerFile = nick => path.join(REV, 'players', nickSlugS(nick) + '.json');
+const revWrite = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); writeJson(f, v); };
+const whoOf = s => s.user || 'owner', isOwner = s => (s.role || 'owner') === 'owner';
+const txt = (v, n) => String(v ?? '').replace(/\r/g, '').trim().slice(0, n);
+function revRound(s, name) {
+  const r = roundOf(name); if (!r || !r.sum) return { err: 'no such round' };
+  if (!isOwner(s) && !(s.servers || []).includes(r.sum.server)) return { err: 'not one of the servers of your account' };
+  return { r };
+}
+function trustedFor(server) { const T = readJson(path.join(REV, 'trusted.json'), {})?.nicks || {}, out = {}; for (const [n, e] of Object.entries(T)) if (!e.servers || !server || e.servers.includes(server)) out[n] = e; return out; }
+function revGet(b, s) {
+  const { r, err } = revRound(s, b.round); if (err) return { ok: false, msg: err };
+  const R = readJson(revRoundFile(r.name), {}) || {}, P = {};
+  for (const n of (Array.isArray(b.nicks) ? b.nicks : []).slice(0, 256).map(x => String(x).slice(0, 64))) { const j = readJson(revPlayerFile(n), null); if (j?.notes?.length) P[n] = j.notes; }
+  return { ok: true, round: r.name, marks: R.marks || {}, notes: R.notes || [], players: P, trusted: trustedFor(r.sum.server), me: whoOf(s), owner: isOwner(s) };
+}
+function revMark(b, s) {
+  const { r, err } = revRound(s, b.round); if (err) return { ok: false, msg: err };
+  const key = txt(b.key, 300), st = b.state == null ? null : String(b.state); if (!key) return { ok: false, msg: 'which hint?' };
+  if (st !== null && !REV_STATES.includes(st)) return { ok: false, msg: 'checked, false or sus' };
+  const f = revRoundFile(r.name), R = readJson(f, {}) || {}; R.marks = R.marks || {};
+  if (st === null) delete R.marks[key]; else R.marks[key] = { state: st, by: whoOf(s), at: new Date().toISOString(), ...(b.note ? { note: txt(b.note, 1000) } : {}), ...(b.what ? { what: txt(b.what, 400), t: +b.t || 0 } : {}) };
+  revWrite(f, R); log(`review: ${whoOf(s)} marked ${key} in ${r.name}: ${st || 'cleared'}`);
+  return { ok: true, msg: st === null ? 'mark cleared' : st === 'ok' ? 'marked: checked, nothing there' : st === 'false' ? 'marked: a false alarm' : 'marked: suspicious' };
+}
+function revNote(b, s) {
+  const me = whoOf(s), now = new Date().toISOString(); let f, J, about;
+  if (b.round) { const { r, err } = revRound(s, b.round); if (err) return { ok: false, msg: err }; f = revRoundFile(r.name); J = readJson(f, {}) || {}; about = r.name; }
+  else if (b.nick) { const n = txt(b.nick, 64); if (!n) return { ok: false, msg: 'which player?' }; f = revPlayerFile(n); J = readJson(f, null) || { nick: n }; about = n; }
+  else return { ok: false, msg: 'a round or a player' };
+  J.notes = Array.isArray(J.notes) ? J.notes : [];
+  if (b.remove) { const i = J.notes.findIndex(x => x.id === b.remove); if (i < 0) return { ok: false, msg: 'no such note' }; if (J.notes[i].by !== me && !isOwner(s)) return { ok: false, msg: 'only its writer (or the site\'s owner) removes a note' }; J.notes.splice(i, 1); revWrite(f, J); return { ok: true, msg: 'note removed' }; }
+  const t = txt(b.text, 2000); if (!t) return { ok: false, msg: 'an empty note' };
+  J.notes.push({ id: crypto.randomBytes(6).toString('hex'), by: me, at: now, text: t, ...(b.nick && b.inRound ? { round: txt(b.inRound, 200) } : {}) });
+  if (J.notes.length > 500) J.notes = J.notes.slice(-500);
+  revWrite(f, J); log(`review: ${me} wrote a note on ${about}`); return { ok: true, msg: 'note saved' };
+}
+function revTrusted(b, s) {
+  const n = txt(b.nick, 64); if (!n) return { ok: false, msg: 'which player?' };
+  const f = path.join(REV, 'trusted.json'), J = readJson(f, {}) || {}; J.nicks = J.nicks || {}; const cur = J.nicks[n], me = whoOf(s);
+  if (b.on && cur && cur.by !== me && !isOwner(s)) return { ok: false, msg: `${n}: already trusted (by ${cur.by})` };
+  if (b.on) { J.nicks[n] = { by: me, at: new Date().toISOString(), why: txt(b.why, 300), servers: isOwner(s) ? null : (s.servers || []) }; revWrite(f, J); log(`review: ${me} trusts ${n}`); return { ok: true, msg: `${n}: trusted${isOwner(s) ? '' : ' (on your servers)'} - his hints are not highlighted` }; }
+  if (!cur) return { ok: false, msg: 'not on the list' };
+  if (cur.by !== me && !isOwner(s)) return { ok: false, msg: `on the list by ${cur.by}: only he (or the site's owner) takes him off` };
+  delete J.nicks[n]; revWrite(f, J); log(`review: ${me} no more trusts ${n}`); return { ok: true, msg: `${n}: no more trusted` };
+}
+// (v196) the servers' admins: made, changed (password, servers) and removed by the owner; a change ends their logins
+function usersState() {
+  const U = readUsers().users;
+  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], created: u.created || null, last: u.last || null, by: u.by || null, in: [...sessions.values()].some(x => x.user === name && Date.now() < x.exp) })).sort((a, b) => a.name.localeCompare(b.name));
+}
+function knownServers() { const S = new Set(); for (const r of index().rounds || []) if (r.sum && !r.sum.empty && r.sum.server) S.add(r.sum.server); return [...S].sort(); }
+function userSet(b) {
+  const name = String(b.name || '').trim(); if (!USER_RE.test(name) || name.toLowerCase() === 'owner') return { ok: false, msg: 'a name: 2-32 letters, digits, . _ - (not "owner")' };
+  const j = readUsers(), u = j.users[name], said = [];
+  if (!u && !b.password) return { ok: false, msg: 'a password for the new account' };
+  const o = u ? { ...u } : { created: new Date().toISOString(), by: 'owner', servers: [] };
+  if (b.password) { const pw = String(b.password); if (pw.length < 8 || pw.length > 200) return { ok: false, msg: 'the password: at least 8 characters' }; const salt = crypto.randomBytes(16).toString('base64'); Object.assign(o, { salt, hash: kdf(pw, salt).toString('base64'), N: KDF.N, r: KDF.r, p: KDF.p, pwSet: new Date().toISOString() }); said.push(u ? 'password changed' : 'made'); }
+  if (Array.isArray(b.servers)) { o.servers = [...new Set(b.servers.map(x => String(x).slice(0, 300)).filter(Boolean))]; said.push(`servers: ${o.servers.length ? o.servers.join(', ') : 'none'}`); }
+  if (!said.length) return { ok: false, msg: 'nothing to change' };
+  j.users[name] = o; writeUsers(j);
+  if (u && b.password) for (const [k, x] of sessions) if (x.user === name) sessions.delete(k);   // (a new password: logged out)
+  log(`round admin ${name}:`, said.join(', ')); return { ok: true, msg: `${name}: ${said.join(' · ')}` };
+}
+function userRemove(b) {
+  const name = String(b.name || ''), j = readUsers(); if (!j.users[name]) return { ok: false, msg: 'no such account' };
+  delete j.users[name]; writeUsers(j); for (const [k, x] of sessions) if (x.user === name) sessions.delete(k);
+  log(`round admin ${name}: removed`); return { ok: true, msg: `${name}: removed (logged out)` };
+}
 // the demos that could not be decoded (data/bad) back into the queue: the ingest service's path unit sees them at once
 function retryBad() {
   let n = 0, skipped = 0;
@@ -563,6 +681,11 @@ function send(res, code, body, type = 'application/json; charset=utf-8') {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
 }
+// (v196) a file to a logged-in admin: never cached, nothing else about it said
+function sendFile(res, f, type) {
+  let b; try { b = fs.readFileSync(f); } catch (e) { return send(res, 404, { error: 'not found' }); }
+  res.writeHead(200, { 'Content-Type': type, 'Content-Length': b.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' }); res.end(b);
+}
 const bodyOf = req => new Promise((ok, no) => { let s = ''; req.on('data', c => { s += c; if (s.length > 1e5) { no(new Error('too big')); req.destroy(); } }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch (e) { no(e); } }); req.on('error', no); });
 // (a POST must come from the page itself: the same host, and the header only a script on the page sends)
 const sameSite = req => { const o = req.headers.origin, h = req.headers['x-forwarded-host'] || req.headers.host; if (req.headers['x-bf2r'] !== '1') return false; if (!o) return true; try { return new URL(o).host === h; } catch (e) { return false; } };
@@ -576,18 +699,33 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && !sameSite(req)) return send(res, 403, { error: 'not from the admin page' });
     if (what === 'login' && req.method === 'POST') {
       const wait = blocked(ip); if (wait) return send(res, 429, { error: `too many wrong passwords: try again in ${wait} min` });
-      if (!readPass()) return send(res, 503, { error: 'no password set yet: on the VPS run  sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' });
-      const b = await bodyOf(req);
-      if (!checkPass(b.password)) { const now = Date.now(); fails.set(ip, [...(fails.get(ip) || []), now]); allFails.push(now); log('wrong admin password from', ip); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: 'wrong password' }); }
+      const b = await bodyOf(req), user = String(b.user || '').trim();
+      if (!user && !readPass()) return send(res, 503, { error: 'no password set yet: on the VPS run  sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' });
+      // (v196) no name: the site's owner; a name: one of the servers' admins (accounts made on this page)
+      const u = user ? (USER_RE.test(user) ? checkUser(user, b.password) : null) : null;
+      if (user ? !u : !checkPass(b.password)) { const now = Date.now(); fails.set(ip, [...(fails.get(ip) || []), now]); allFails.push(now); log('wrong admin password from', ip, user ? `(${user})` : ''); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: user ? 'wrong name or password' : 'wrong password' }); }
       fails.delete(ip);
-      const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now(); sessions.set(tok, { exp: now + SESSION_H * 3600e3, seen: now, ip });
+      const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now();
+      sessions.set(tok, { exp: now + SESSION_H * 3600e3, seen: now, ip, user: user || null, role: user ? 'admin' : 'owner' });
       for (const [k, s] of sessions) if (now > s.exp) sessions.delete(k);
-      setCookie(req, res, tok, SESSION_H * 3600); log('admin logged in from', ip); return send(res, 200, { ok: true });
+      if (user) { try { const j = readUsers(); if (j.users[user]) { j.users[user].last = new Date().toISOString(); writeUsers(j); } } catch (e) {} }
+      setCookie(req, res, tok, SESSION_H * 3600); log(user ? `admin ${user} logged in from` : 'admin logged in from', ip); return send(res, 200, { ok: true, role: user ? 'admin' : 'owner' });
     }
     const s = sessionOf(req);
-    if (what === 'me') return send(res, 200, { in: !!s, password: !!readPass() });
+    // (v196) a server's admin: his servers (as they are now: changed or removed here, his login goes with it)
+    if (s && s.role !== 'owner') { const u = readUsers().users[s.user]; if (!u) { sessions.delete(s.tok); return what === 'me' ? send(res, 200, { in: false, password: !!readPass() }) : send(res, 401, { error: 'log in first' }); } s.servers = Array.isArray(u.servers) ? u.servers : []; }
+    if (what === 'me') return send(res, 200, { in: !!s, password: !!readPass(), round: !!s, user: s ? s.user || 'owner' : null, role: s ? s.role || 'owner' : null, servers: s && s.role !== 'owner' ? s.servers : null });
     if (!s) return send(res, 401, { error: 'log in first' });
     if (what === 'logout' && req.method === 'POST') { sessions.delete(s.tok); setCookie(req, res, 'x'.repeat(20), 0); return send(res, 200, { ok: true }); }
+    // (v196) what a server's admin may have too: the admins' part of the page, the analysis's private files
+    if (what === 'admin.js' && req.method === 'GET') return sendFile(res, path.join(HERE, 'admin-round.js'), 'text/javascript; charset=utf-8');
+    if (what.startsWith('data/') && req.method === 'GET') { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..')) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
+    if (what === 'round' && req.method === 'GET') return send(res, 200, roundInfo(url.searchParams.get('name'), s));   // (v197)
+    if (req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what)) {   // (v198: any admin, his servers' rounds)
+      const b = await bodyOf(req);
+      return send(res, 200, what === 'review-get' ? revGet(b, s) : what === 'review-mark' ? revMark(b, s) : what === 'review-note' ? revNote(b, s) : revTrusted(b, s));
+    }
+    if ((s.role || 'owner') !== 'owner') return send(res, 403, { error: 'this account is for the rounds\' Admin tab only', round: true });
     if (what === 'state' && req.method === 'GET') return send(res, 200, await state());
     if (what === 'log' && req.method === 'GET') return send(res, 200, await journal(url.searchParams.get('unit') || 'all', +url.searchParams.get('n')));
     if (what === 'analysis-file' && (req.method === 'GET' || req.method === 'HEAD')) return sendArchive(req, res, url.searchParams.get('name'));
@@ -607,6 +745,8 @@ const server = http.createServer(async (req, res) => {
     if (what === 'demos-keep') return send(res, 200, demosKeep(b));
     if (what === 'copies-delete') return send(res, 200, copiesDelete());
     if (what === 'analysis') return send(res, 200, await analysisAct(b));
+    if (what === 'user-set') return send(res, 200, userSet(b));
+    if (what === 'user-remove') return send(res, 200, userRemove(b));
     if (what === 'notify-test') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--test', b.server));
     if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
     if (what === 'notify-last') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--last', b.server));

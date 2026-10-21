@@ -12,10 +12,10 @@
 #   sudo bash .../analyze.sh hints                            (v185) the hints over every player's rounds written now
 #   sudo bash .../analyze.sh glitch                           (v185) every decoded round into the maps' grids of places
 #                                                             stood, at once (~0.5 s a round; no browser), then the
-#                                                             glitch spots (data/stats/glitch)
+#                                                             glitch spots (data/.admin/glitch)
 # (v185) Without any of this, bf2replay-hints.timer runs analyze.mjs --auto in the background, 5 minutes after each run
 # ends: 150 decoded rounds into the glitch grids, then 40 rounds in the page (once Playwright is installed by "start":
-# the new rounds, then those done by older hint rules), then the player pages' hints card (data/stats/hints). It waits
+# the new rounds, then those done by older hint rules), then the player pages' hints card (data/.admin/hints). It waits
 # while a run of this script is going. (v193) The admin page's Background analysis card runs it now, does all rounds
 # at once (as "start" would, run after run), pauses it, and makes and downloads the archive (named with the site's
 # version: bf2-analysis-<date>-<version>.tar).

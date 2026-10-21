@@ -85,6 +85,9 @@ a.btn { display: inline-block; text-decoration: none; } a.btn.primary { backgrou
   .pedt label { grid-template-columns: 1fr; } .ptab td:last-child, .ptab th:last-child { width: 3em; } .dcard .dcrow { grid-template-columns: 1fr !important; } }
 .nsrv .nparts { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); } .nsrv .nparts > summary { color: var(--fg); }
 .nsrv .nrow label.ck { display: flex; gap: 6px; align-items: center; min-width: 7.5em; font-weight: 600; } .nsrv .nrow input[type=number] { width: 4.5em; }
+/* (v196) the servers' admins */
+.urow { border-top: 1px solid var(--line); padding: 8px 0; } .urow:first-child { border-top: 0; } .usrv { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; } .usrv label.ck { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
+.ufrm { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); } .ufrm .usrv { flex: 1 1 100%; } .tag.ok { color: var(--ok); border-color: var(--ok); }
 [hidden] { display: none !important; }
 td.mono { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
@@ -207,6 +210,18 @@ td.mono { overflow-wrap: anywhere; }
     <details style="margin-top:8px"><summary>Where to get these</summary><p class="muted">Discord: the channel's settings (the gear) → Integrations → Webhooks → New Webhook → Copy Webhook URL. A channel a server: a webhook each.<br>Telegram: write to @BotFather, /newbot, copy the token it gives (one bot is enough for every server); add the bot to each group (or as an admin of each channel). The chat: @channelname for a public channel; for a group, its id - send a message in it, open https://api.telegram.org/bot&lt;token&gt;/getUpdates and take "chat":{"id": -100…}.<br>A server is known by the name in its demos: if its admins rename it, the new name shows here as a new server, not posted until set up.<br>Kept on the VPS only (data/.notify.json, which the web server never serves); here only the last 4 characters of the secrets show. In /etc/bf2replay.conf BF2R_TELEGRAM_TOKEN and BF2R_NOTIFY_MIN_PLAYERS win over these.</p></details>
   </section>
 
+  <section class="card wide" aria-labelledby="hU">
+    <h2 id="hU">Servers' admins</h2>
+    <p class="muted" style="margin:0 0 8px">Accounts for the admins of the game servers: each logs in on a round's <b>Admin</b> tab on the site (his name and password) and sees the hints of his servers' rounds there - nothing of this page. You log in there with an empty name and this page's password, and see every server's.</p>
+    <div id="uList"></div>
+    <form class="ufrm" id="uForm" autocomplete="off">
+      <input id="uName" placeholder="name (letters, digits, . _ -)" aria-label="Account name" spellcheck="false" autocomplete="off">
+      <input id="uPw" type="password" placeholder="password (8+)" aria-label="Password" autocomplete="new-password">
+      <button type="submit" class="primary">Add</button>
+      <div class="usrv" id="uSrv" aria-label="His servers"></div>
+    </form>
+  </section>
+
   <section class="card wide" aria-labelledby="hL">
     <h2 id="hL">Log</h2>
     <div class="row">
@@ -248,6 +263,8 @@ function toast(msg, ok = true) { const t = $('#toast'); t.textContent = msg; t.c
 // ---- logging in ----
 function showLogin(msg) { $('#app').hidden = true; $('#login').hidden = false; $('#loginMsg').textContent = msg || ''; $('#pw').focus(); stopPoll(); }
 function showApp() { $('#login').hidden = true; $('#app').hidden = false; refresh(); loadLog(); startPoll(); }
+// (v196) a server admin's login (made for the rounds' Admin tab): nothing here for him
+function showRoundOnly(j) { stopPoll(); $('#app').hidden = true; $('#login').hidden = false; for (const el of $('#loginForm').querySelectorAll('input, button, label')) el.hidden = true; $('#loginMsg').className = 'msg'; $('#loginMsg').innerHTML = `Logged in as <b>${esc(j.user || '')}</b>: this account is for the rounds' <b>Admin</b> tab on the site, not this page. <a href="/">The site</a> · <button type="button" id="roOut">Log out</button>`; $('#roOut').onclick = async () => { try { await api('logout', {}); } catch (e) {} location.reload(); }; }
 $('#loginForm').addEventListener('submit', async e => {
   e.preventDefault(); const b = e.submitter || $('#loginForm button'); b.disabled = true; $('#loginMsg').textContent = '';
   try { const j = await api('login', { password: $('#pw').value }); if (j.ok) { $('#pw').value = ''; showApp(); } else $('#loginMsg').textContent = j.error || 'could not log in'; }
@@ -333,6 +350,7 @@ function render() {
   renderJobs();
   renderDemos();
   renderAnalysis();
+  renderUsers();
   $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
 }
 // (v162) how many demos are decoded at once: the choice, the machine, what is being decoded now, how fast each number went
@@ -414,6 +432,29 @@ $('#anBox').addEventListener('click', e => {
   if (d === 'pack' && (S.analysis?.archives || []).some(a => !a.part) && !confirm('Make a new archive? It takes as much room again as the rounds; an older one can be removed after.')) return;
   act('analysis', { do: d, file: b.dataset.file }, b);
 });
+// (v196) the servers' admins: a row each (his servers as checkboxes, a new password, remove); the form adds one
+let uDirty = false;
+function srvBoxes(sel, name) { return (S.servers || []).map(sv => `<label class="ck"><input type="checkbox" data-sv="${esc(sv)}"${sel.includes(sv) ? ' checked' : ''}> ${esc(sv)}</label>`).join('') || '<span class="muted">no servers in the rounds yet</span>'; }
+function renderUsers() {
+  const U = S.users || [], box = $('#uList');
+  if (!uDirty && !box.contains(document.activeElement)) box.innerHTML = U.length ? U.map(u => `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.in ? '<span class="tag ok">logged in now</span>' : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
+    + `<input type="password" data-f="pw" placeholder="new password" aria-label="New password for ${esc(u.name)}" autocomplete="new-password" style="width:11em"><button type="button" data-a="pw">Set</button><button type="button" class="danger" data-a="rm">Remove</button></div>`
+    + `<div class="usrv">${srvBoxes(u.servers)}</div><div class="row"><button type="button" data-a="srv">Save his servers</button><span class="muted">${u.servers.length ? u.servers.length + ' server' + (u.servers.length === 1 ? '' : 's') : '<span class="warn">no server: he sees nothing</span>'}</span></div></div>`).join('') : '<div class="muted">no accounts yet</div>';
+  const f = $('#uSrv'); if (!f.contains(document.activeElement) && !f.dataset.touched) f.innerHTML = srvBoxes([]);
+}
+$('#uList').addEventListener('change', () => { uDirty = true; });
+$('#uList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return; const row = b.closest('.urow'), name = row.dataset.u;
+  if (b.dataset.a === 'rm') { if (confirm(`Remove the account ${name}? He is logged out.`)) act('user-remove', { name }, b).then(() => { uDirty = false; }); }
+  if (b.dataset.a === 'pw') { const pw = row.querySelector('[data-f=pw]').value; if (pw.length < 8) { toast('the password: at least 8 characters', false); return; } act('user-set', { name, password: pw }, b).then(j => { if (j && j.ok) { row.querySelector('[data-f=pw]').value = ''; uDirty = false; } }); }
+  if (b.dataset.a === 'srv') act('user-set', { name, servers: [...row.querySelectorAll('input[data-sv]:checked')].map(x => x.dataset.sv) }, b).then(j => { if (j && j.ok) uDirty = false; });
+});
+$('#uSrv').addEventListener('change', () => { $('#uSrv').dataset.touched = '1'; });
+$('#uForm').addEventListener('submit', e => {
+  e.preventDefault(); const name = $('#uName').value.trim(), password = $('#uPw').value, servers = [...document.querySelectorAll('#uSrv input[data-sv]:checked')].map(x => x.dataset.sv);
+  if (!name || !password) { toast('a name and a password', false); return; }
+  act('user-set', { name, password, servers }, e.submitter).then(j => { if (j && j.ok) { $('#uName').value = ''; $('#uPw').value = ''; delete $('#uSrv').dataset.touched; } });
+});
 // (v186) demos: what takes the room, which old ones go (data/.demos.json; ingest.mjs removes them), the keep list
 let dmDirty = false, dmPreview = null;
 const dayStr = ms => ms ? new Date(ms).toISOString().slice(0, 10) : '';
@@ -454,7 +495,7 @@ $('#dmForm').addEventListener('submit', e => { e.preventDefault(); act('demos-se
 $('#dmPrev').onclick = async () => { const b = $('#dmPrev'); b.disabled = true; try { const j = await api('demos-preview', dmVals()); if (j.ok) { dmPreview = j.plan; render(); } else toast(j.msg || j.error || 'no', false); } catch (e) { toast(e.message, false); } finally { b.disabled = false; } };
 $('#dmNow').onclick = () => { if (dmDirty && !confirm('The changes are not saved: remove by the saved settings?')) return; act('start', { unit: 'ingest' }, $('#dmNow')); };
 $('#dmKeepForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#dmKeepIn').value.trim(); if (!v) return; act('demos-keep', { round: v }, e.submitter).then(j => { if (j && j.ok) $('#dmKeepIn').value = ''; }); });
-async function refresh() { try { const j = await api('state'); if (j.error) return; S = j; render(); } catch (e) {} }
+async function refresh() { try { const j = await api('state'); if (j.error) { if (j.round) showRoundOnly(await api('me')); return; } S = j; render(); } catch (e) {} }
 async function act(what, body, btn) {
   if (btn) btn.disabled = true;
   let j = null;
@@ -647,7 +688,7 @@ function startPoll() { stopPoll(); pS = setInterval(() => { if (!document.hidden
 function stopPoll() { clearInterval(pS); clearInterval(pL); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) refresh(); });
 
-api('me').then(j => { if (j.in) showApp(); else showLogin(j.password === false ? 'No password set yet. On the VPS: sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' : ''); }).catch(() => showLogin('The admin service does not answer.'));
+api('me').then(j => { if (j.in) { if (j.role && j.role !== 'owner') showRoundOnly(j); else showApp(); } else showLogin(j.password === false ? 'No password set yet. On the VPS: sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' : ''); }).catch(() => showLogin('The admin service does not answer.'));
 })();
 </script>
 </body>

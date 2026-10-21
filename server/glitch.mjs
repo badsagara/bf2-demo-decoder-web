@@ -10,7 +10,7 @@
 //   - once a map has GL_ROUNDS rounds in the grid, a stay is a hint when no one but him stood within a cell of it (the
 //     27 cells round each of its cells), and GL_K or more other players stood in the same columns 5-40 m above or below.
 // Files: analysis/glitch/<map>.json (the map's grid and rounds done), analysis/glitch/stays.json (the stays not yet
-// ruled out: a stay once someone else stood there is dropped for good), data/stats/glitch/<map>.json (the page's:
+// ruled out: a stay once someone else stood there is dropped for good), data/.admin/glitch/<map>.json (v196; data/stats/glitch before) (the page's:
 // { gv, map, rounds, at, hits: { round: [[player id, name, t0, t1, x, y, h, others, up, down]] } }).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -122,7 +122,7 @@ function judge(G, stay) {
 
 // the whole step: new rounds into the grids (at most `budget` of them), then the hints of every map
 export function aggGlitch({ DATA, OUT, rounds, nickOf, budget = 150, minRounds = GL_ROUNDS, log = console.log }) {
-  const GD = path.join(OUT, 'glitch'), SD = path.join(DATA, 'stats', 'glitch'); fs.mkdirSync(GD, { recursive: true }); fs.mkdirSync(SD, { recursive: true });
+  const GD = path.join(OUT, 'glitch'), SD = path.join(DATA, '.admin', 'glitch');   // (v196: the admins' - data/.admin, handed over by admin.mjs after a login) fs.mkdirSync(GD, { recursive: true }); fs.mkdirSync(SD, { recursive: true });
   const SF = path.join(GD, 'stays.json'); let stays = {}; try { const d = JSON.parse(fs.readFileSync(SF, 'utf8')); if (d.v === GLITCH_V) stays = d.rounds || {}; } catch (e) {}
   const mapOf = r => String(r.sum?.map || '').toLowerCase(), byMap = new Map();
   for (const r of rounds) { const m = mapOf(r); if (!m || !r.bfr) continue; if (!byMap.has(m)) byMap.set(m, []); byMap.get(m).push(r); }

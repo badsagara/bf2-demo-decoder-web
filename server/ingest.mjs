@@ -44,6 +44,7 @@ const CONF_JOBS = Math.max(0, Math.floor(+opt('BF2R_JOBS', '0')) || 0);
 // page's other demo settings - demos.mjs; the decoded round stays)
 const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30, RAW_AUTOCLEAN = opt('BF2R_RAW_AUTOCLEAN', '1') !== '0';   // (a nearly full disk: step 4)
 const SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
+const HERE = path.dirname(new URL(import.meta.url).pathname);   // (v196: server/admin-round.js is read from here)
 const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), logs: path.join(DATA, 'logs'), empty: path.join(DATA, 'empty'), bad: path.join(DATA, 'bad') };
 // (v166) rounds.json is what the site loads on every visit: a short line a round (no players' lines, no kills); the whole
 // list - what this script works from - is data/.rounds-full.json, and every round's kills are in data/.kills/<map>.json
@@ -325,7 +326,10 @@ function loadAgg() {
     const html = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8'), L = html.split('\n');
     const g = L.find(l => l.startsWith('const GAME = ')), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end'));
     if (!g || a < 0 || b < a) return null;   // (an older page: no stats)
-    const code = L.slice(a, b).join('\n');
+    // (v196) and the admins' part of it (his headshots against what his weapons give: server/admin-round.js, between
+    // "// @agg-admin-begin" and "// @agg-admin-end" - cut out of the public page by splitpage.mjs)
+    let more = ''; try { const A = fs.readFileSync(path.join(HERE, 'admin-round.js'), 'utf8').split('\n'), x = A.indexOf('// @agg-admin-begin'), y = A.indexOf('// @agg-admin-end'); if (x >= 0 && y > x) more = A.slice(x + 1, y).join('\n'); } catch (e) {}
+    const code = L.slice(a, b).join('\n') + (more ? '\n' + more : '');
     const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug, aggRecs: typeof aggRecs === "function" ? aggRecs : null, REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null };')();   // (v192: and the records)
     return { fns, v: crypto.createHash('sha1').update(g).update(code).update(STATS_FORMAT).digest('hex').slice(0, 10) };
   } catch (e) { log('stats: the page\'s code did not load:', e.message); return null; }
@@ -344,13 +348,16 @@ function writeStats(d) {
   const F = AGG.fns, t0 = Date.now();
   const RS = F.aggRounds(d.rounds.map(r => ({ name: r.name, sum: r.sum })));
   const ptsOf = r => HEAT.get(String(r.sum?.map || '').toLowerCase())?.get(r.name) || null;   // (as the page's ptsOf)
-  const byNick = F.aggByNick(RS), PD = path.join(STATS, 'players'), MD = path.join(STATS, 'maps'), TD = path.join(STATS, 'table');
+  const byNick = F.aggByNick(RS), AD = path.join(DATA, '.admin', 'players'), PD = path.join(STATS, 'players'), MD = path.join(STATS, 'maps'), TD = path.join(STATS, 'table');
   // players
   const nicks = full ? [...byNick.keys()] : [...aggTouch.nicks];
   for (const nick of nicks) {
     const R = byNick.get(nick), f = path.join(PD, F.nickSlug(nick) + '.json');
-    if (!R) { try { fs.unlinkSync(f); } catch (e) {} continue; }
-    statsWrite(f, { v: AGG.v, nick, rounds: R.map(x => [x.r.name, x.p]), agg: F.aggPlayer(nick, R, ptsOf) });
+    if (!R) { try { fs.unlinkSync(f); } catch (e) {} try { fs.unlinkSync(path.join(AD, F.nickSlug(nick) + '.json')); } catch (e) {} continue; }
+    // (v196) what is the admins' (his headshots against what his weapons give) apart: data/.admin/players
+    const { hsx, ...agg } = F.aggPlayer(nick, R, ptsOf), af = path.join(AD, F.nickSlug(nick) + '.json');
+    statsWrite(f, { v: AGG.v, nick, rounds: R.map(x => [x.r.name, x.p]), agg });
+    if (hsx) statsWrite(af, { v: AGG.v, nick, hsx }); else { try { fs.unlinkSync(af); } catch (e) {} }
   }
   // maps
   const mapKey = r => String(r.sum.map || '').toLowerCase(), maps = full ? [...new Set(RS.map(mapKey))] : [...aggTouch.maps];
@@ -366,7 +373,7 @@ function writeStats(d) {
   for (const sv of srvs) statsWrite(path.join(TD, F.nickSlug(sv) + '.json'), { v: AGG.v, server: sv, rows: F.aggTable(F.aggRounds(RS, sv)) });
   if (full) {   // (files of players, maps and servers no longer there)
     const keepP = new Set([...byNick.keys()].map(n => F.nickSlug(n) + '.json')), keepM = new Set([...new Set(RS.map(mapKey))].map(m => F.nickSlug(m || '_') + '.json')), keepT = new Set(srvs.map(sv => F.nickSlug(sv) + '.json'));
-    for (const [dir, keep] of [[PD, keepP], [MD, keepM], [TD, keepT]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
+    for (const [dir, keep] of [[PD, keepP], [AD, keepP], [MD, keepM], [TD, keepT]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
   }
   const at = new Date().toISOString(); fs.writeFileSync(STATS_STATE, JSON.stringify({ v: AGG.v, at }));
   d.stats = { v: AGG.v, at };
@@ -997,7 +1004,22 @@ async function main() {
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)
   try { writeWww(idx, dec); } catch (e) { log('pages for search engines not written:', e.message); }
 }
+// (v196) the analysis's files for the admins (the players' hint cards, Glitch spot) were public in data/stats until v196:
+// moved to data/.admin (which the web server keeps to itself; admin.mjs hands them to a logged-in admin). Where the new
+// place has them already, the old ones go to data/.admin/.old-stats (nothing removed)
+function movePrivate() {
+  const A = path.join(DATA, '.admin');
+  for (const f of ['hints.json', 'hints', 'glitch']) {
+    const from = path.join(STATS, f); if (!fs.existsSync(from)) continue;
+    try {
+      fs.mkdirSync(A, { recursive: true }); let to = path.join(A, f);
+      if (fs.existsSync(to)) { fs.mkdirSync(path.join(A, '.old-stats'), { recursive: true }); to = path.join(A, '.old-stats', f + '-' + Date.now()); }
+      fs.renameSync(from, to); log(`data/stats/${f} -> ${path.relative(DATA, to)} (the admins' now)`);
+    } catch (e) { log(`data/stats/${f} not moved:`, e.message); }
+  }
+}
 if (isMainThread) {
+  movePrivate();
   process.on('SIGTERM', () => {   // (v163: systemctl stop, the service's time limit) the round list first, then out
     log('stopped: writing the round list first');
     try { if (FLUSH) FLUSH(); } catch (e) { log('the round list not written:', e.message); }

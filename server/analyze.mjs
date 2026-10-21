@@ -27,10 +27,11 @@
 //                                   or all rounds now (no 40 a run, as many at once as analyze.sh would) - a run takes
 //                                   new rounds for up to 95 minutes (the service's limit is 2 h), the next one goes on
 //                                   5 minutes later; what each run did: analysis/auto-note.json
-//     --hints                       only the hints over every player's rounds: data/stats/hints.json (each hint's share
-//                                   of soldier-rounds) and data/stats/hints/<nick>.json (the player page's card)
+//     --hints                       only the hints over every player's rounds: data/.admin/hints.json (each hint's share
+//                                   of soldier-rounds) and data/.admin/hints/<nick>.json (the player page's card; v196:
+//                                   the admins' - data/stats before)
 //     --glitch [N]                  only the glitch spots (glitch.mjs; no browser): N new rounds (default every one) into
-//                                   the maps' grids of places stood (analysis/glitch), then data/stats/glitch/<map>.json;
+//                                   the maps' grids of places stood (analysis/glitch), then data/.admin/glitch/<map>.json;
 //                                   --auto does 150 a run first (--glitch-rounds N)
 //
 // It needs Playwright and its Chromium once: sudo bash server/analyze.sh start (installs it in $BF2R_ROOT/analyze). The site's files
@@ -61,7 +62,7 @@ const fileOf = n => path.join(RDIR, linkId(n).replace(/[^A-Za-z0-9._-]/g, '_') +
 // (v193) named with the site's version (bf2-analysis-<date>-<version>.tar) and with <name>.tar.json beside it: what is in
 // it (summary.json's numbers: rounds, the page versions and hint rules they were done with, the decoders); the glitch
 // spots' files too (analysis/glitch: the stays, the maps' grids while they are under 300 MB together, and the page's
-// data/stats/glitch, data/stats/hints.json). Made as .part and renamed when done; analysis/.pack.json says how it went
+// data/.admin/glitch, data/.admin/hints.json - data/stats before v196). Made as .part and renamed when done; analysis/.pack.json says how it went
 // (the admin page shows it)
 const PACKF = path.join(OUT, '.pack.json'), GRIDS_MAX = 300 * 2 ** 20;
 function pack() {
@@ -75,7 +76,7 @@ function pack() {
     const copyFiles = new Set(Object.keys(copies).map(n => path.basename(fileOf(n))));
     const all = fs.readdirSync(RDIR), files = all.filter(f => f.endsWith('.json.gz') && !copyFiles.has(f)), left = all.filter(f => copyFiles.has(f));
     let page = ''; try { page = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8'); } catch (e) {}
-    const site = (/const APP_VERSION = '(v\d+)'/.exec(page) || [])[1] || 'v0', hvNow = +((/const HINTS_V = (\d+)/.exec(page) || [])[1] || 0);
+    const site = (/const APP_VERSION = '(v\d+)'/.exec(page) || [])[1] || 'v0', hvNow = pageHv();
     const sum = { made: new Date().toISOString(), site, hvNow, rounds: files.length, copiesLeftOut: left.length, kinds: {}, maps: {}, pages: {}, hv: {}, decoders: {}, errors: 0 };
     for (const f of files) {
       try {
@@ -93,7 +94,7 @@ function pack() {
       for (const f of gf) if (!grids.includes(f) || gb <= GRIDS_MAX) gl.push('glitch/' + f);
       sum.glitch = { files: gl.length, grids: grids.length, gridsBytes: gb, gridsIn: gb <= GRIDS_MAX };
     }
-    for (const f of ['stats/hints.json', 'stats/glitch']) if (fs.existsSync(path.join(DATA, f))) gData.push(f);
+    for (const f of ['.admin/hints.json', '.admin/glitch']) if (fs.existsSync(path.join(DATA, f))) gData.push(f);
     fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(sum, null, 1));
     const name = `bf2-analysis-${sum.made.slice(0, 10)}-${site}.tar`, tar = path.join(OUT, name);
     const list = ['summary.json', 'rounds', ...['failed.json', 'run.json', 'auto.json', 'auto-note.json'].filter(f => fs.existsSync(path.join(OUT, f))), ...gl];
@@ -117,13 +118,15 @@ if (has('--pack')) { try { pack(); } catch (e) { log('archive not made:', e.mess
 
 // ---------- (v185, todo 226) the hints over every player's rounds ----------
 // From the rounds done with the page's hint rules (HINTS_V): for each soldier on the field 60 s or more, which hints
-// named him; everyone's share of soldier-rounds with each (data/stats/hints.json) and each player's rounds with each,
-// with up to 5 of the newest such rounds (data/stats/hints/<nick slug>.json, nicks as the stats' own: the page's
+// named him; everyone's share of soldier-rounds with each (data/.admin/hints.json) and each player's rounds with each,
+// with up to 5 of the newest such rounds (data/.admin/hints/<nick slug>.json, nicks as the stats' own: the page's
 // nickOf / nickSlug). A summary of each round file is kept in analysis/.hints-cache.json (by its time), so a run reads
 // only the new ones.
 const AUTO = has('--auto');
 const pageText = () => fs.readFileSync(path.join(SITE, 'index.html'), 'utf8');
-const pageHv = () => +((/const HINTS_V = (\d+)/.exec(pageText()) || [])[1] || 0);
+// (v196: the hint rules are the admins' part of the page - server/admin-round.js - no more in site/index.html)
+const admText = () => { try { return fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'admin-round.js'), 'utf8'); } catch (e) { return ''; } };
+const pageHv = () => +((/const HINTS_V = (\d+)/.exec(admText() || pageText()) || [])[1] || 0);
 function aggFns() {
   const L = pageText().split('\n'), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end')), g = L.find(l => l.startsWith('const GAME = '));
   if (!g || a < 0 || b < a) return null;
@@ -186,7 +189,7 @@ function aggHints() {
     }
   }
   for (const k of Object.keys(kinds)) kinds[k][1] = sr;
-  const SD = path.join(DATA, 'stats'), HD = path.join(SD, 'hints'); fs.mkdirSync(HD, { recursive: true });
+  const SD = path.join(DATA, '.admin'), HD = path.join(SD, 'hints'); fs.mkdirSync(HD, { recursive: true });   // (v196: the admins' - admin.mjs hands them over after a login)
   const put = (f, v) => { const t = JSON.stringify(v); let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {} if (old !== t) { fs.writeFileSync(f + '.tmp', t); fs.renameSync(f + '.tmp', f); return 1; } return 0; };
   let wrote = 0; const keep = new Set();
   for (const [nick, o] of P) { if (!Object.keys(o.k).length) continue; const fn = F.nickSlug(nick) + '.json'; keep.add(fn); wrote += put(path.join(HD, fn), { hv: HV, nick, name: o.name, rounds: o.rounds, k: o.k, ex: o.ex }); }
@@ -271,10 +274,13 @@ if (!todo.length) { if (!has('--no-pack')) pack(); process.exit(0); }
 const RUNF = path.join(OUT, AUTO ? 'auto.json' : 'run.json');   // (v185: the background run its own, so a manual run is told apart)
 
 // ---------- the site's files, served to the browser here ----------
+const HERE_DIR = path.dirname(new URL(import.meta.url).pathname);
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.css': 'text/css', '.woff2': 'font/woff2' };
 const server = http.createServer((req, res) => {
   let u = decodeURIComponent(new URL(req.url, 'http://x').pathname); if (u.endsWith('/')) u += 'index.html';
-  const base = u.startsWith('/data/') ? DATA : SITE, rel = u.startsWith('/data/') ? u.slice(6) : u.slice(1);
+  // (v196) the admins' part of the page and the analysis's private files, as admin.mjs hands them to a logged-in admin
+  const PRIV = path.join(DATA, '.admin'), adm = u === '/admin/api/admin.js', priv = u.startsWith('/admin/api/data/');
+  const base = adm ? HERE_DIR : priv ? PRIV : u.startsWith('/data/') ? DATA : SITE, rel = adm ? 'admin-round.js' : priv ? u.slice(16) : u.startsWith('/data/') ? u.slice(6) : u.slice(1);
   const f = path.normalize(path.join(base, rel));
   if (!f.startsWith(base + path.sep) || rel.split('/').some(s => s.startsWith('.'))) { res.writeHead(404); res.end(); return; }
   fs.stat(f, (err, st) => {
