@@ -402,16 +402,23 @@ function cardPost(entry, F, on) {
 // card's fields there), each side a column. The card's title, line under it, stripe, map picture and bottom line.
 const ROW_SKIP = new Set(['best', 'board', 'records', 'server']);
 const sameKill = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
-function rowOf(k, H, on) {
+function rowOf(k, H, on) {   // (v211) { v: the number, who: { L: names, more }, ex: what goes after the number }
   const o = H[k]; if (!o) return null;
-  const who = x => Array.isArray(x.who) ? x.who.join(', ') + (x.more ? ` +${x.more}` : '') : String(x.who ?? ''), wp = w => w ? ` (${w})` : '';
+  const W = x => Array.isArray(x.who) ? { L: x.who.map(String), more: x.more || 0 } : { L: [String(x.who ?? '')], more: 0 }, one = t => ({ L: [t], more: 0 }), wp = w => w ? `(${w})` : '';
+  const who = x => whoText(W(x), Infinity);
   if (k === 'longest' && LONG_KEYS.some(q => on[q] && sameKill(H[q], H.longest))) return null;
-  if (k === 'longest' || LONG_KEYS.includes(k)) return [`${o.d} m`, who(o) + wp(o.w)];
-  if (k === 'kd') return [String(o.r), `${who(o)} (${o.k}/${o.d})`];
-  if (k === 'flags') return [String(o.n), `${who(o)} (${o.cap} cap, ${o.neu} neut)`];
-  if (k === 'first') return [mmss(o.t), `${who(o)} → ${o.vic}${wp(o.w)}`];
-  if (k === 'last') return [mmss(o.t), `${o.vic} by ${who(o)}${o.tk ? ' (team kill' + (o.w ? ', ' + o.w : '') + ')' : wp(o.w)}`];
-  return o.n === undefined ? null : [String(o.n), who(o)];
+  if (k === 'longest' || LONG_KEYS.includes(k)) return { v: `${o.d} m`, who: W(o), ex: wp(o.w) };
+  if (k === 'kd') return { v: String(o.r), who: W(o), ex: `(${o.k}/${o.d})` };
+  if (k === 'flags') return { v: String(o.n), who: W(o), ex: `(${o.cap} cap, ${o.neu} neut)` };
+  if (k === 'first') return { v: mmss(o.t), who: W(o), ex: `→ ${o.vic}${o.w ? ` (${o.w})` : ''}` };   // (the killer in the column, his victim after)
+  if (k === 'last') return { v: mmss(o.t), who: one(String(o.vic ?? '')), ex: `by ${who(o)}${o.tk ? ` (team kill${o.w ? ', ' + o.w : ''})` : o.w ? ` (${o.w})` : ''}` };   // (the one killed in the column)
+  return o.n === undefined ? null : { v: String(o.n), who: W(o), ex: '' };
+}
+// the names of a row, in at most max letters: a tie shortened to its first names and "+N" (A, B +3)
+function whoText(W, max) {
+  const all = W.L.join(', ') + (W.more ? ` +${W.more}` : ''); if (all.length <= max) return all;
+  for (let n = W.L.length - 1; n >= 1; n--) { const t = W.L.slice(0, n).join(', ') + ` +${W.L.length - n + W.more}`; if (t.length <= max) return t; }
+  return W.L[0] + (W.L.length > 1 || W.more ? ` +${W.L.length - 1 + W.more}` : '');
 }
 // a table in a code block: the first column left (at most 20 letters), the middle ones right, the last as it is; a
 // string among the rows: a line of its own (a heading). No markdown inside; no ` (it would end the block). A row
@@ -427,35 +434,42 @@ function wrapLast(t, at) {
   if (cur) out.push(cur);
   return out.join('\n' + ' '.repeat(at));
 }
-export function monoTable(head, rows) {
+export function monoTable(head, rows, sep = '  ') {
   const n = head.length, R = rows.filter(Array.isArray), cb = t => String(t ?? '').replace(/`/g, 'ˋ').replace(/\n/g, ' ');
   const w = head.map((h, i) => Math.max(h.length, ...R.map(r => cb(r[i]).length)));
   w[0] = Math.min(w[0], LBL_MAX);
-  const at = w.slice(0, n - 1).reduce((a, x) => a + x + 2, 0);   // (where the last column starts)
+  const at = w.slice(0, n - 1).reduce((a, x) => a + x + sep.length, 0);   // (where the last column starts)
   const fit = (t, i) => i === 0 ? (t.length > w[0] ? t.slice(0, w[0] - 1) + '.' : t.padEnd(w[0])) : i === n - 1 ? wrapLast(t, at) : t.padStart(w[i]);
-  const line = r => r.map((t, i) => fit(cb(t), i)).join('  ').trimEnd();
-  const out = [line(head), w.map((x, i) => '-'.repeat(i === n - 1 ? Math.min(x, 24) : x)).join('  ')];   // (plain - and .: a font without ─ … would put the columns out)
+  const line = r => r.map((t, i) => fit(cb(t), i)).join(sep).trimEnd();
+  const out = [line(head), w.map((x, i) => '-'.repeat(i === n - 1 ? Math.min(x, 24) : x)).join(sep.replace(/ /g, '-'))];   // (plain - and .: a font without ─ … would put the columns out)
   for (const r of rows) out.push(Array.isArray(r) ? line(r) : cb(r));
   return '```\n' + out.join('\n') + '\n```';
 }
-// (v210, Sagara: "the numbers bold, and a | between the name and the number") the rows as Discord text: the name in
-// monospace up to its | (so the |s and the numbers line up), the number bold, then the player - `On foot        |` **20** |
-// name. Markdown has no bold inside a code block (and Discord's ANSI blocks show as codes on phones), so this is not one:
-// the name padded with no-break spaces (never squeezed), the rest in the app's own font. F.mono: the table as before (v208)
-const NBSP = '\u00a0';
-export function boldRows(rows) {
-  const R = rows.filter(Array.isArray), w = Math.min(LBL_MAX, Math.max(1, ...R.map(r => String(r[0] ?? '').length)));
-  const lab = t => { t = String(t ?? '').replace(/`/g, 'ˋ').replace(/\n/g, ' '); if (t.length > w) t = t.slice(0, w - 1) + '.'; return '`' + t + NBSP.repeat(w - t.length) + NBSP + '|`'; };
-  return rows.map(r => !Array.isArray(r) ? `*${escDc(r)}*` : `${lab(r[0])} **${escDc(r[1])}** ${r.slice(2).map(x => '\\| ' + escDc(x)).join(' ')}`).join('\n');
+// (v210, Sagara: "the numbers bold, and a | between the name and the number"; v211: "the | at one place in every row,
+// by the longest nick, and the numbers at one level too") the rows as Discord text: the name and the player in
+// monospace, each padded to the longest (no-break spaces: never squeezed), a | after each - so the |s stand in one
+// column and the numbers start at one place - then the number bold and what goes with it (the weapon, was, ...):
+// `On foot       | =SWE= =BRANDONMARTIN= |` **20**. Markdown has no bold inside code (and Discord's ANSI blocks show as
+// codes on phones), so the number is out of it. A player wider than WHO_MAX: a tie shortened (A, B +3), a name cut.
+// F.mono: all of it in one code block (v208), the |s too, nothing bold
+const NBSP = '\u00a0', WHO_MAX = 26;
+const codeText = t => String(t ?? '').replace(/`/g, 'ˋ').replace(/\n/g, ' ');
+export function alignedRows(rows) {
+  const R = rows.filter(r => r && typeof r === 'object');
+  const lw = Math.min(LBL_MAX, Math.max(1, ...R.map(r => codeText(r.label).length))), ww = Math.min(WHO_MAX, Math.max(1, ...R.map(r => codeText(whoText(r.who, Infinity)).length)));
+  const cell = (t, w) => { t = codeText(t); if (t.length > w) t = t.slice(0, w - 1) + '.'; return t + NBSP.repeat(w - t.length); };
+  return rows.map(r => !r || typeof r !== 'object' ? `*${escDc(r)}*` : '`' + cell(r.label, lw) + ' | ' + cell(whoText(r.who, ww), ww) + ' |` **' + escDc(r.v) + '**' + (r.ex ? ' ' + escDc(r.ex) : '')).join('\n');
 }
+const monoRows = rows => rows.map(r => !r || typeof r !== 'object' ? r : [r.label, r.v, whoText(r.who, Infinity) + (r.ex ? ' ' + r.ex : '')]);   // (first blood: "A → B (gun)", last killed: "B by A (gun)")
 const PER_HEAD = { ever: 'All time', month: 'Last 30 days', week: 'Last 7 days' };
 function recTable(list, mono) {
   const A = aggFns(), rows = []; let per = '';
   for (const r of list) {
     if (r.per !== per) { per = r.per; rows.push(PER_HEAD[per] || per); }
-    rows.push([A?.REC_SHORT?.[r.k] || r.name, recNum(r, r.v), mono ? recNum(r, r.prev) : `was ${recNum(r, r.prev)}`, r.who + (r.w ? ` (${r.w})` : '')]);
+    const label = A?.REC_SHORT?.[r.k] || r.name;
+    rows.push(mono ? [label, recNum(r, r.v), recNum(r, r.prev), r.who + (r.w ? ` (${r.w})` : '')] : { label, who: { L: [r.who], more: 0 }, v: recNum(r, r.v), ex: `${r.w ? `(${r.w}) ` : ''}(was ${recNum(r, r.prev)})` });
   }
-  return mono ? monoTable(['Record', 'Now', 'Was', 'Player'], rows) : boldRows(rows);
+  return mono ? monoTable(['Record', 'Now', 'Was', 'Player'], rows, ' | ') : alignedRows(rows);
 }
 function tablePost(entry, F, on) {
   const s = entry.sum, H = s.hl || {}, V = itemVals(entry, on), vars = varsOf(entry, V), E = {};
@@ -465,13 +479,13 @@ function tablePost(entry, F, on) {
   const intro = tpl(F.intro, vars, 'discord'), blocks = [], rows = []; let at = -1;
   for (const k of F.order) {
     if (!on[k]) continue;
-    if (!ROW_SKIP.has(k)) { const r = rowOf(k, H, on); if (r) { if (at < 0) { at = blocks.length; blocks.push(null); } rows.push([F.labels[k] || TLABEL[k] || LABEL[k], ...r]); } continue; }
+    if (!ROW_SKIP.has(k)) { const r = rowOf(k, H, on); if (r) { if (at < 0) { at = blocks.length; blocks.push(null); } rows.push({ label: F.labels[k] || TLABEL[k] || LABEL[k], ...r }); } continue; }
     if (k === 'board' || !V[k]) continue;
     if (k === 'records') blocks.push(`**${escDc(labelOf(F, k))}**\n${recTable(V.records.list, F.mono)}`);
     else blocks.push(V[k].vm ? `**${escDc(labelOf(F, k))}**\n${escDc(V[k].vm)}` : `**${escDc(labelOf(F, k))}:** ${escDc(V[k].v)}`);
   }
   // (Discord's limit for a card's text, 4096: the table's last rows go first)
-  const desc = () => [intro, ...blocks.map((b, i) => i === at ? (rows.length ? (F.mono ? monoTable(['Kill', 'Result', 'Player'], rows) : boldRows(rows)) : '') : b)].filter(Boolean).join('\n');
+  const desc = () => [intro, ...blocks.map((b, i) => i === at ? (rows.length ? (F.mono ? monoTable(['Kill', 'Result', 'Player'], monoRows(rows), ' | ') : alignedRows(rows)) : '') : b)].filter(Boolean).join('\n');
   while (desc().length > 4090 && rows.length) rows.pop();
   const d = desc(); if (d) E.description = cut(d, 4096);
   const fields = [];

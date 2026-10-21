@@ -73,7 +73,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 (`site/`, `server/`, `README.md`…). На Mac:
 
 ```bash
-V=v210   # номер версії з назви архіву
+V=v212   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -223,6 +223,10 @@ SUM_V 11 (INSTALL, розділ 15).
 раунду (INSTALL, розділ 5). У пості-таблиці числа **жирні**, з `|` (або, як було, рівні моноширинні стовпці). Вибухівка
 розділена: **гранати**, **підствольник**, **C4** окремо (міни й клеймори — як були), «Explosives» прибрано — у постах,
 Highlights, Records і підсумках; SUM_V 12.
+З v211 — у пості-таблиці назва й гравець моноширинним, кожне до найдовшого, з `|` після кожного: розділювачі в усіх
+рядках на одному місці, жирні числа — з одного рівня (INSTALL, розділ 15).
+З v212 — виправлено **Make an archive** в адмінці («Cannot access 'pageHv' before initialization»: архів аналізу не
+робився з v193) і створення папок Glitch spot на новому встановленні.
 
 ### Перевірити локально перед push
 

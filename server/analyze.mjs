@@ -123,10 +123,12 @@ if (has('--pack')) { try { pack(); } catch (e) { log('archive not made:', e.mess
 // nickOf / nickSlug). A summary of each round file is kept in analysis/.hints-cache.json (by its time), so a run reads
 // only the new ones.
 const AUTO = has('--auto');
-const pageText = () => fs.readFileSync(path.join(SITE, 'index.html'), 'utf8');
+// (v212: function declarations - set before the module runs: pack() with --pack, above, uses pageHv; as consts they
+// were not yet there - "Cannot access 'pageHv' before initialization", the admin page's "Make an archive")
+function pageText() { return fs.readFileSync(path.join(SITE, 'index.html'), 'utf8'); }
 // (v196: the hint rules are the admins' part of the page - server/admin-round.js - no more in site/index.html)
-const admText = () => { try { return fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'admin-round.js'), 'utf8'); } catch (e) { return ''; } };
-const pageHv = () => +((/const HINTS_V = (\d+)/.exec(admText() || pageText()) || [])[1] || 0);
+function admText() { try { return fs.readFileSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'admin-round.js'), 'utf8'); } catch (e) { return ''; } }
+function pageHv() { return +((/const HINTS_V = (\d+)/.exec(admText() || pageText()) || [])[1] || 0); }
 function aggFns() {
   const L = pageText().split('\n'), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end')), g = L.find(l => l.startsWith('const GAME = '));
   if (!g || a < 0 || b < a) return null;

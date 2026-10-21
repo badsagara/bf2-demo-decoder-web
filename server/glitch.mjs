@@ -122,7 +122,8 @@ function judge(G, stay) {
 
 // the whole step: new rounds into the grids (at most `budget` of them), then the hints of every map
 export function aggGlitch({ DATA, OUT, rounds, nickOf, budget = 150, minRounds = GL_ROUNDS, log = console.log }) {
-  const GD = path.join(OUT, 'glitch'), SD = path.join(DATA, '.admin', 'glitch');   // (v196: the admins' - data/.admin, handed over by admin.mjs after a login) fs.mkdirSync(GD, { recursive: true }); fs.mkdirSync(SD, { recursive: true });
+  const GD = path.join(OUT, 'glitch'), SD = path.join(DATA, '.admin', 'glitch');   // (v196: the admins' - data/.admin, handed over by admin.mjs after a login)
+  fs.mkdirSync(GD, { recursive: true }); fs.mkdirSync(SD, { recursive: true });   // (v212: were inside the comment above since v196 - a new install had no such folders)
   const SF = path.join(GD, 'stays.json'); let stays = {}; try { const d = JSON.parse(fs.readFileSync(SF, 'utf8')); if (d.v === GLITCH_V) stays = d.rounds || {}; } catch (e) {}
   const mapOf = r => String(r.sum?.map || '').toLowerCase(), byMap = new Map();
   for (const r of rounds) { const m = mapOf(r); if (!m || !r.bfr) continue; if (!byMap.has(m)) byMap.set(m, []); byMap.get(m).push(r); }
