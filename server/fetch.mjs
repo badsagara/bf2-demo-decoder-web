@@ -30,6 +30,11 @@
 // What was fetched is kept in data/.fetched.json, so a demo comes once even if ingest drops it as an empty round.
 // (v182) A demo listed on two pages (a clan's page and the game server's own) comes once: one by the same name and size
 // already fetched from the other page (or sent, or kept) is not downloaded again.
+// (v186, demos.mjs) Every run also notes which of the demos it fetched each page still lists (data/.source-list.json: a
+// demo removed to save room can come back from there), and downloads again the rounds ingest.mjs asks for
+// (data/.refetch.json: made by an older decoder, their demo gone): as many a run as the admin page says, each once for
+// each decoder (data/.refetch-done.json), into upload/incoming under the round's own name - decoded anew, and its demo
+// goes again by the admin page's settings.
 import fs from 'node:fs';
 import path from 'node:path';
 import dgram from 'node:dgram';
@@ -50,6 +55,7 @@ const MIN_BYTES = +opt('BF2R_FETCH_MIN_BYTES', '0') || 0;
 const PAUSE = Math.max(0, +opt('BF2R_FETCH_PAUSE', '1') || 0);
 const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30;
 const INC = path.join(ROOT, 'upload', 'incoming'), STATE = path.join(ROOT, 'data', '.fetched.json');
+const SOURCE_LIST = path.join(ROOT, 'data', '.source-list.json'), REFETCH = path.join(ROOT, 'data', '.refetch.json'), REFETCH_DONE = path.join(ROOT, 'data', '.refetch-done.json');
 const LIST = process.argv.includes('--list'), PROBE = process.argv.includes('--probe');
 const PROBE_ADDR = PROBE ? process.argv.slice(process.argv.indexOf('--probe') + 1).filter(a => !a.startsWith('--')) : [];
 const DEMOS = path.join(ROOT, 'data', 'demos');
@@ -188,6 +194,31 @@ function expand(entry) {
 // when a demo was recorded, for the order: its name's date and time (auto_2026_10_15_21_00_00), else its name
 const whenKey = n => { const m = /(20\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)/.exec(n); return m ? m.slice(1).join('') : n; };
 
+// (v186) the rounds ingest.mjs wants downloaded again (data/.refetch.json): each once for each decoder, as many a run as
+// it says, while there is room (BF2R_MIN_FREE_GB, as for new demos)
+async function refetch() {
+  let R = null; try { R = JSON.parse(fs.readFileSync(REFETCH, 'utf8')); } catch (e) { return; }
+  const want = Array.isArray(R?.want) ? R.want : []; if (!want.length) return;
+  let done = {}; try { done = JSON.parse(fs.readFileSync(REFETCH_DONE, 'utf8')); } catch (e) {}
+  const per = Math.max(1, Math.min(500, +R.perRun || 20)), saveDone = () => { const t = REFETCH_DONE + '.tmp'; fs.writeFileSync(t, JSON.stringify(done)); fs.renameSync(t, REFETCH_DONE); };
+  let got = 0, bytes = 0, failed = 0;
+  for (const { name, url } of want) {
+    if (got + failed >= per) break;
+    if (!/^[\w.\-]+\.bf2demo$/i.test(name) || !/^https?:\/\//i.test(url || '')) continue;
+    if (done[name]?.hash === R.hash) continue;   // (tried for this decoder already: it failed, or ingest has not got to it)
+    if (fs.existsSync(path.join(INC, name)) || fs.existsSync(path.join(DEMOS, name))) continue;
+    try {
+      const r = await download(name, url, name);
+      if (r === 'full') { log(`downloading again stopped: less than ${(MIN_FREE / 2 ** 30).toFixed(1)} GB free (BF2R_MIN_FREE_GB)`); break; }
+      if (typeof r !== 'number') { done[name] = { hash: R.hash, at: new Date().toISOString(), failed: String(r?.why || r) }; failed++; saveDone(); continue; }
+      done[name] = { hash: R.hash, at: new Date().toISOString(), bytes: r }; saveDone(); got++; bytes += r;
+      seen[url] = { ...(seen[url] || {}), file: name, bytes: r, from: url, at: seen[url]?.at || new Date().toISOString(), again: new Date().toISOString() }; save();
+      if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
+    } catch (e) { done[name] = { hash: R.hash, at: new Date().toISOString(), failed: e.message }; failed++; saveDone(); log('could not download again', name, '-', e.message); }
+  }
+  if (got || failed) log(`downloaded again to decode anew: ${got} demo${got === 1 ? '' : 's'} (${mb(bytes)})${failed ? `, ${failed} failed` : ''}; ${Math.max(0, want.length - got - failed)} left (${per} a run, the admin page)`);
+}
+
 async function main() {
   const entries = (PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS).flatMap(expand);
   if (!entries.length) { log('no BF2R_FETCH_URLS set and none added on the admin page: nothing to fetch'); return; }
@@ -197,7 +228,7 @@ async function main() {
     ? log(`would download ${n.would} demos${n.wouldBytes ? ', ~' + mb(n.wouldBytes) : ''}; still being written ${n.busy}; skipped (BF2R_FETCH_SINCE / MIN_BYTES) ${n.skipped}${n.copies ? `; the same as one fetched from another page ${n.copies}` : ''}; free on disk ${mb(freeBytes())}`)
     : log(`fetched ${n.got} demos (${mb(n.bytes)}); still being written ${n.busy} (next run); skipped ${n.skipped}` + (n.copies ? `; the same as one fetched from another page ${n.copies}` : '') + (n.failed ? `; failed ${n.failed} (tried again next run)` : ''));
   // 1. every page: what it lists that is new
-  const todo = [];
+  const todo = [], listedNow = {};
   for (const entry of entries) {
     const src = await source(entry);
     if (!src.page) { log(src.label, '-', src.note); continue; }
@@ -207,6 +238,7 @@ async function main() {
     if (PROBE) { const names = [...found.keys()].sort((x, y) => whenKey(x).localeCompare(whenKey(y))); log(where, '-', found.size, 'demos listed', names.length ? `(oldest: ${names[0]}, newest: ${names[names.length - 1]})` : ''); continue; }
     const fresh = [...found].filter(([nm, u]) => !seenAt(nm, u) && !(SINCE && nameDay(nm) && nameDay(nm) < SINCE));
     n.listed += found.size; n.pages++;
+    if (!LIST) { const F = {}; for (const [nm, u] of found) { const v = seenAt(nm, u), f = v ? (v.file || (v.skipped === 'copy' ? v.of : v.skipped ? null : nm)) : null; if (f) F[f] = u; } listedNow[src.page] = { at: new Date().toISOString(), files: F }; }
     if (fresh.length || LIST) log(where, '-', found.size, 'demos listed,', fresh.length, 'new');
     for (const [name, url] of fresh) todo.push({ name, url });
   }
@@ -228,6 +260,15 @@ async function main() {
     } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
   }
   if (LIST || n.got || n.busy || n.skipped || n.copies || n.failed) report();
+  if (!LIST) {
+    // (v186) which fetched demos each page lists now (a page not read this run keeps what it listed before, for a week)
+    try {
+      let SL = {}; try { SL = JSON.parse(fs.readFileSync(SOURCE_LIST, 'utf8')); } catch (e) {}
+      const hosts = { ...(SL.hosts || {}), ...listedNow }; for (const [k, h] of Object.entries(hosts)) if (!(Date.now() - Date.parse(h.at || 0) < 7 * 86400e3)) delete hosts[k];   // (a page not read for a week: gone)
+      const tmp = SOURCE_LIST + '.tmp'; fs.writeFileSync(tmp, JSON.stringify({ at: new Date().toISOString(), hosts })); fs.renameSync(tmp, SOURCE_LIST);
+    } catch (e) { log('the list of what the pages hold not written:', e.message); }
+    await refetch();
+  }
   // (when it last looked: for bf2replay-status)
   if (!LIST) { try { const f = path.join(ROOT, 'data', '.fetch-last.json'); fs.writeFileSync(f + '.tmp', JSON.stringify({ at: new Date().toISOString(), pages: n.pages, listed: n.listed, new: todo.length, got: n.got, busy: n.busy, failed: n.failed })); fs.renameSync(f + '.tmp', f); } catch (e) {} }
 }

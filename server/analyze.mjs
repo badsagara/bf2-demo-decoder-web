@@ -96,6 +96,7 @@ let hvIdx = null;
 const hvLoad = () => { if (!hvIdx) { try { hvIdx = JSON.parse(fs.readFileSync(HVI, 'utf8')); } catch (e) { hvIdx = {}; } } return hvIdx; };
 const hvSave = () => { if (hvIdx) { try { fs.writeFileSync(HVI + '.tmp', JSON.stringify(hvIdx)); fs.renameSync(HVI + '.tmp', HVI); } catch (e) {} } };
 const hvOf = f => { const I = hvLoad(); if (I[f] !== undefined) return I[f]; let v = 0; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).hv || 0; } catch (e) {} return (I[f] = v); };
+const NOT_SUS = new Set(['tk', 'claycap', 'clay', 'idle', 'spotspam', 'outside']);
 function aggHints() {
   const F = aggFns(), HV = pageHv(); if (!F || !HV) { log('hints: the page has no hint rules version (HINTS_V)'); return; }
   if (!fs.existsSync(RDIR)) return;
@@ -109,13 +110,16 @@ function aggHints() {
     if (!f.endsWith('.json.gz') || skip.has(f) || (listed && !listed.has(f))) continue;
     let st; try { st = fs.statSync(path.join(RDIR, f)); } catch (e) { continue; }
     let c = cache[f];
-    if (!c || c.mt !== st.mtimeMs) {
+    if (!c || c.mt !== st.mtimeMs || c.cv !== 2) {
       try {
         const d = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))); read++;
         const pc = Object.fromEntries((d.cols?.P || []).map((n, i) => [n, i])), byI = new Map(), pl = [];
         for (const r of d.P || []) { if ((r[pc.aliveS] || 0) < 60) continue; byI.set(r[pc.i], pl.length); pl.push(String(r[pc.name] || '').trim()); }
         const hc = new Map(); for (const h of d.H || []) { const j = byI.get(h.actor); if (j === undefined) continue; const k = j + '|' + h.kind; hc.set(k, (hc.get(k) || 0) + 1); }
-        c = cache[f] = { mt: st.mtimeMs, hv: d.hv || 0, name: d.round?.name || d.name, date: d.meta?.date || '', pl, h: [...hc].map(([k, n]) => { const [j, kind] = k.split('|'); return [+j, kind, n]; }) };
+        // (v186) the round's hints for admins (as the page's own count in "For admins": not the information ones, team kills,
+        // claymores at a flag, idle, spot spam, out of bounds, unsure artillery) - its demo is kept for them (demos.mjs)
+        const sus = [...new Set((d.H || []).filter(h => h && !h.info && !NOT_SUS.has(h.kind) && !(h.kind === 'arty' && !h.sure)).map(h => h.kind))];
+        c = cache[f] = { cv: 2, mt: st.mtimeMs, hv: d.hv || 0, name: d.round?.name || d.name, date: d.meta?.date || '', pl, sus, h: [...hc].map(([k, n]) => { const [j, kind] = k.split('|'); return [+j, kind, n]; }) };
         hvLoad()[f] = d.hv || 0;
       } catch (e) { continue; }
     }
@@ -150,6 +154,9 @@ function aggHints() {
   for (const [nick, o] of P) { if (!Object.keys(o.k).length) continue; const fn = F.nickSlug(nick) + '.json'; keep.add(fn); wrote += put(path.join(HD, fn), { hv: HV, nick, name: o.name, rounds: o.rounds, k: o.k, ex: o.ex }); }
   for (const f of fs.readdirSync(HD)) if (f.endsWith('.json') && !keep.has(f)) { try { fs.unlinkSync(path.join(HD, f)); } catch (e) {} }
   put(path.join(SD, 'hints.json'), { hv: HV, at: new Date().toISOString(), rounds, soldierRounds: sr, players: P.size, kinds });
+  // (v186) every round looked at, with its hints for admins: which demos to keep (demos.mjs; ingest.mjs, the admin page)
+  { const HR = {}; for (const c of Object.values(out)) if (c.name) HR[c.name] = c.sus || [];
+    const t = path.join(DATA, '.hint-rounds.json'); try { fs.writeFileSync(t + '.tmp', JSON.stringify({ at: new Date().toISOString(), rounds: HR })); fs.renameSync(t + '.tmp', t); } catch (e) { log('hint rounds not written:', e.message); } }
   log(`hints over every player's rounds: ${rounds} rounds (hint rules ${HV}), ${P.size} players, ${keep.size} with hints (${wrote} files written)${read ? `, ${read} round files read` : ''}`);
 }
 if (has('--hints')) { aggHints(); process.exit(0); }

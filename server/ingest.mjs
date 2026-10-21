@@ -28,6 +28,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { compactIndex, expandIndex } from './roundsidx.mjs';
+import { demoPolicy, demoPlan, hintRounds, sourceList, refetchWanted, REFETCH_FILE, DEMOS_LAST_FILE } from './demos.mjs';
 
 // ---------- settings ----------
 const conf = {};
@@ -39,7 +40,8 @@ const MIN_PLAYERS = Math.max(1, Math.floor(+opt('BF2R_MIN_PLAYERS', '2') || 2));
 // (v162) how many demos at once: see the top. AUTO_JOBS: the cores, the memory at ~1.2 GB a demo, at most 4
 const AUTO_JOBS = Math.min(4, os.cpus().length || 1, Math.max(1, Math.floor(os.totalmem() / (1.2 * 2 ** 30)))), JOBS_MAX = 16;
 const CONF_JOBS = Math.max(0, Math.floor(+opt('BF2R_JOBS', '0')) || 0);
-const RAW_KEEP_DAYS = +opt('BF2R_RAW_KEEP_DAYS', '0');       // delete the demo itself after so many days (0: never); the decoded round stays
+// (BF2R_RAW_KEEP_DAYS: delete the demo itself after so many days; v186: by when the round was played, with the admin
+// page's other demo settings - demos.mjs; the decoded round stays)
 const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30, RAW_AUTOCLEAN = opt('BF2R_RAW_AUTOCLEAN', '1') !== '0';   // (a nearly full disk: step 4)
 const SITE = path.join(ROOT, 'site'), DATA = path.join(ROOT, 'data'), INC = path.join(ROOT, 'upload', 'incoming');
 const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), logs: path.join(DATA, 'logs'), empty: path.join(DATA, 'empty'), bad: path.join(DATA, 'bad') };
@@ -138,8 +140,8 @@ function bfrBuild(obj) {
 // ---------- the round's numbers for the rounds list (the same as the page's rounds panel works out) ----------
 // (v183) SUM_V: how a round is summed up (summarize); a round summed up by an older one is summed up again from its .bfr
 // (2: the kills' hit part [12] and the weapon guessed where the game names none [7] - the player page's headshots
-// against his weapons, todo 219 / 221)
-const SUM_V = 2;
+// against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs)
+const SUM_V = 3;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -212,9 +214,35 @@ function summarize(tl, hdr, dec) {
     return [r1(e.x ?? vq.x), r1(e.y ?? vq.y), kq && kq.alive ? r1(kq.x) : null, kq && kq.alive ? r1(kq.y) : null, tl.teams[team(vi, e.t)]?.name || '', ki !== undefined ? tl.teams[team(ki, e.t)]?.name || '' : '',
       killCause(e, !!(kq && kq.veh)), wOf(e), ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim(), fc[0], fc[1], HIT[e.hit] || null];
   }).filter(Boolean);
+  // (v187) the round's highlights for the posts about it (notify.mjs: each a part the admin page turns on or off for
+  // Discord and Telegram): the most kills of each kind (enemies only), the longest kills, the first and the last, with
+  // ties - { n, who: [up to 3 names], more } / { d, who, w, vic } / { who, vic, w, t, tk }
+  const hl = {};
+  { const SNIPER = /^(M24|SVD|L96A1|M95|Type 88|SV-?98)\b|sniper/i, K = [];
+    for (const e of kills) {
+      const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || P0[ki].vehicle) continue;
+      const kq = at(ki, e.t - 0.05), vq = at(vi, e.t - 0.05), w = wOf(e) || '', cause = killCause({ ...e, weapon: w }, !!kq.veh);
+      let d = e.dist; if (d === undefined && kq.alive) { const k = frameAt(e.t); if (k >= 0) { const a = k * n + ki, b = k * n + vi; d = Math.round(Math.hypot(C.X[a] - C.X[b], C.Y[a] - C.Y[b], C.HH[a] - C.HH[b])); } }
+      K.push({ t: e.t, k: P0[ki].name.trim(), v: P0[vi].name.trim(), w, raw: e.weapon || '', cause, kv: !!kq.veh, vv: !!vq.veh, tk: team(ki, e.t) === team(vi, e.t), d: Number.isFinite(d) ? d : null, head: e.hit === 'head', placed: PLACED.has(e.wid) || /claymore|mine\b|^C4$/i.test(w) });
+    }
+    const E = K.filter(x => !x.tk);
+    const most = (key, f) => { const c = new Map(); for (const x of E) if (f(x)) c.set(x.k, (c.get(x.k) || 0) + 1); let n = 0; for (const v of c.values()) n = Math.max(n, v); if (!n) return; const who = [...c].filter(([, v]) => v === n).map(([k]) => k); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
+    most('foot', x => !x.kv); most('veh', x => x.kv); most('clay', x => /claymore/i.test(x.w)); most('hs', x => x.head); most('knife', x => /knife/i.test(x.w));
+    most('atInf', x => x.cause === 'at' && !x.kv && !x.vv); most('road', x => x.kv && !x.raw && !x.vv); most('expl', x => x.cause === 'expl');
+    const far = (key, f) => { let b = null; for (const x of E) if (x.d != null && !x.placed && f(x) && (!b || x.d > b.d)) b = x; if (b) hl[key] = { d: b.d, who: b.k, w: b.w, vic: b.v }; };
+    // (the commander's artillery - "M777 shell" - is no small arm; a kill with no weapon named is no record)
+    const ARTY = /shell|artillery/i;
+    far('atLong', x => x.cause === 'at' && !x.kv); far('smallLong', x => x.cause === 'small' && !x.kv && !SNIPER.test(x.w) && !ARTY.test(x.w)); far('snipLong', x => !x.kv && SNIPER.test(x.w)); far('longest', x => (!!x.raw || x.cause === 'at') && !ARTY.test(x.w));   // (a crew killed with no weapon named: only a launcher's guess counts)
+    if (E.length) { const x = E[0]; hl.first = { who: x.k, vic: x.v, w: x.w, t: Math.round(x.t) }; }
+    if (K.length) { const x = K[K.length - 1]; hl.last = { who: x.k, vic: x.v, w: x.w, t: Math.round(x.t), tk: x.tk }; }
+    const best = (key, f, min = 1) => { let n = 0; for (const p of P) n = Math.max(n, f(p) || 0); if (n < min) return; const who = P.filter(p => (f(p) || 0) === n).map(p => p.name); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
+    best('streak', p => p.streak, 2); best('rev', p => p.rev); best('heal', p => p.heal); best('rep', p => p.rep);
+    { let b = null; for (const p of P) if (p.k >= 10) { const r = p.k / Math.max(1, p.d); if (!b || r > b.r) b = { r, who: p.name, k: p.k, d: p.d }; } if (b) hl.kd = { r: Math.round(b.r * 100) / 100, who: b.who, k: b.k, d: b.d }; }
+    { let b = null; for (const i of sold) { const L = (P0[i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')), cap = L.filter(q => /captured/i.test(q[2])).length; if (L.length && (!b || L.length > b.n)) b = { n: L.length, cap, neu: L.length - cap, who: P0[i].name.trim() }; } if (b) hl.flags = b; }
+  }
   const map = hdr ? (hdr.fields[2].split('/').pop() || hdr.fields[2]) : String(tl.meta.map || '');
   return { date: hdr ? hdr.fields[1] : '', map, server: hdr ? hdr.fields[0] : '', duration: dur, empty: !P.length, players: P.length, kills: kills.length,
-    teams: tl.teams.map(x => x.name), tickets, winner, top: top ? { name: top.name, score: top.score, team: top.team } : null, P, pts };
+    teams: tl.teams.map(x => x.name), tickets, winner, top: top ? { name: top.name, score: top.score, team: top.team } : null, P, pts, hl };
 }
 
 // ---------- one demo ----------
@@ -355,7 +383,7 @@ function writeIndexLight(d, dec) {
 }
 // (v166) the whole list for this script, the short one for the site: each round without its players' lines (P) and kills
 // (v176: and compact - an array a round, roundsidx.mjs: ~3 times smaller)
-const slimSum = x => { if (!x) return x; const { P, pts, ...rest } = x; return rest; };
+const slimSum = x => { if (!x) return x; const { P, pts, hl, ...rest } = x; return rest; };   // (v187: and the posts' highlights)
 function writeLists(d) {
   const put = (f, text) => { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); };
   put(FULL_INDEX, JSON.stringify(d));
@@ -851,7 +879,7 @@ async function main() {
   { const old = idx.rounds.filter(r => (r.sumV || 1) < SUM_V && r.bfr && r.sum && !r.sum.empty);
     if (old.length && !siteChanged()) {
       const t0 = Date.now(); let k = 0, bad = 0;
-      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (summary version ${SUM_V}: the kills' hit part, a weapon where the game names none) from the decoded rounds - no decoding`);
+      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (summary version ${SUM_V}: ${SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
       for (const r of old) {
         if (siteChanged()) { log(`the site was updated: ${old.length - k} rounds left to sum up again at the next run`); break; }
         try { const B = bfrRead(path.join(DATA, r.bfr)), sum = summarize(B.tl, B.info?.hdr || null, dec); aggMark(r.sum); r.sum = sum; heatPut(r.name, sum); aggMark(sum); }
@@ -867,7 +895,10 @@ async function main() {
   else if (args.has('--reprocess') || args.has('--rebuild')) {
     const all = args.has('--rebuild') ? fs.readdirSync(DIRS.demos).filter(f => /\.bf2demo(\.gz)?$/i.test(f)) : idx.rounds.filter(r => r.decoder !== dec.hash).map(r => r.name);
     if (args.has('--rebuild')) idx.rounds = idx.rounds.filter(r => all.includes(r.name) || fs.existsSync(path.join(DATA, r.bfr)));
-    const names = all.filter(name => { if (fs.existsSync(path.join(DIRS.demos, name))) return true; log('no demo left for', name, '(kept as it was)'); return false; });
+    const gone = [], names = all.filter(name => { if (fs.existsSync(path.join(DIRS.demos, name))) return true; gone.push(name); return false; });
+    // (v186: one line for them all - with demos removed there can be thousands; downloaded again by fetch.mjs while their
+    // page lists them: step 3)
+    if (gone.length) log(`${gone.length} round${gone.length === 1 ? '' : 's'} with no demo left: kept as ${gone.length === 1 ? 'it was' : 'they were'} (${gone.slice(0, 3).join(', ')}${gone.length > 3 ? ', …' : ''})`);
     if (names.length) {
       // (newest rounds first: rounds.json lists them so; several at once in worker threads, decodeAll; progress kept in
       // rounds.json)
@@ -887,27 +918,37 @@ async function main() {
     }
     if (idx.reprocess) { const P = idx.reprocess; delete idx.reprocess; changed = true; writeProgress({ ...P, left: 0, end: new Date().toISOString() }); }   // (the tag: done)
   }
-  // 3. demos older than BF2R_RAW_KEEP_DAYS go (the decoded round stays and still opens)
-  if (RAW_KEEP_DAYS > 0) {
-    const limit = Date.now() - RAW_KEEP_DAYS * 86400e3;
-    for (const r of idx.rounds) {
-      const f = path.join(DIRS.demos, r.name);
-      if (r.demo && fs.existsSync(f) && fs.statSync(f).mtimeMs < limit) { fs.unlinkSync(f); delete r.demo; changed = true; log('demo removed (kept', RAW_KEEP_DAYS, 'days):', r.name); }
+  // 3. (v186, demos.mjs) the demos that go: older than the admin page's days, over its limit (the least needed first), on
+  // a nearly full disk (under BF2R_MIN_FREE_GB + 2 GB free, BF2R_RAW_AUTOCLEAN: until 2 GB more than that are free - so new
+  // rounds keep coming; fetch.mjs stops downloading under BF2R_MIN_FREE_GB). Never one the admin page keeps, nor one of a
+  // round made by an older decoder (decoded again from it first). Their rounds stay and open as before; the page offers
+  // to open your own copy for a clip for the game.
+  { const free = () => { try { const st = fs.statfsSync(DATA); return st.bavail * st.bsize; } catch (e) { return Infinity; } };
+    const P = demoPolicy(DATA, opt), H = hintRounds(DATA), S = sourceList(DATA), has = r => !!r.demo && fs.existsSync(path.join(DIRS.demos, r.name));
+    const short = RAW_AUTOCLEAN && MIN_FREE > 0 ? Math.max(0, MIN_FREE + 2 * 2 ** 30 - free()) : 0;
+    const plan = demoPlan({ rounds: idx.rounds, policy: P, hash: dec.hash, hints: H, source: S, has, emergency: short });
+    const LF = path.join(DATA, DEMOS_LAST_FILE); let last = null; try { last = JSON.parse(fs.readFileSync(LF, 'utf8')); } catch (e) {}
+    if (plan.over !== !!last?.over) {   // (said once, when it starts or stops being so)
+      if (plan.over) log(`the demos kept (recent ${plan.kept.recent}, with hints ${plan.kept.hinted}, on the keep list ${plan.kept.pinned}, to decode again ${plan.kept.pending}) take more than the ${P.maxGB} GB limit`);
+      last = { ...(last || {}), over: plan.over }; writeJsonF(LF, last);
     }
-  }
-  // 4. a nearly full disk (under BF2R_MIN_FREE_GB + 2 GB free): the oldest demos go (their rounds stay and still open, as
-  // with BF2R_RAW_KEEP_DAYS, but can't be decoded again after a site update) until 2 GB more than that are free - so new
-  // rounds keep coming (fetch.mjs stops downloading under BF2R_MIN_FREE_GB). BF2R_RAW_AUTOCLEAN=0: never.
-  const free = () => { try { const st = fs.statfsSync(DATA); return st.bavail * st.bsize; } catch (e) { return Infinity; } };
-  if (RAW_AUTOCLEAN && MIN_FREE > 0 && free() < MIN_FREE + 2 * 2 ** 30) {
-    const old = idx.rounds.filter(r => r.demo && fs.existsSync(path.join(DIRS.demos, r.name))).map(r => [r, fs.statSync(path.join(DIRS.demos, r.name)).mtimeMs]).sort((a, b) => a[1] - b[1]);
-    let n = 0, bytes = 0;
-    for (const [r] of old) {
-      if (free() >= MIN_FREE + 2 * 2 ** 30) break;
-      const f = path.join(DIRS.demos, r.name); try { bytes += fs.statSync(f).size; fs.unlinkSync(f); delete r.demo; changed = true; n++; } catch (e) {}
+    if (plan.remove.length) {
+      const by = {}; let n = 0, bytes = 0;
+      for (const x of plan.remove) {
+        const r = idx.rounds.find(q => q.name === x.name); if (!r) continue;
+        try { const f = path.join(DIRS.demos, r.name), b = sizeOf(f); fs.unlinkSync(f); delete r.demo; changed = true; n++; bytes += b; by[x.why] = (by[x.why] || 0) + 1; } catch (e) { log('demo not removed:', x.name, '-', e.message); }
+      }
+      const W = { age: `older than ${P.keepDays} days`, limit: `over the ${P.maxGB} GB limit`, disk: 'the disk nearly full' };
+      log(`demos removed: ${n} (${bytes >= 2 ** 30 ? (bytes / 2 ** 30).toFixed(1) + ' GB' : Math.round(bytes / 2 ** 20) + ' MB'}; ${Object.entries(by).map(([k, v]) => `${v} ${W[k]}`).join(', ')}; ${plan.back} can be downloaded again from their page) - their rounds stay`);
+      writeJsonF(LF, { at: new Date().toISOString(), n, bytes, by, back: plan.back, names: plan.remove.slice(0, 20).map(x => x.name), free: free(), over: plan.over, total: (last?.total || 0) + n, totalBytes: (last?.totalBytes || 0) + bytes });
     }
-    if (n) log(`disk nearly full: removed the ${n} oldest demos (${(bytes / 2 ** 30).toFixed(1)} GB; their rounds stay), ${(free() / 2 ** 30).toFixed(1)} GB free now`);
-    else if (free() < MIN_FREE) log(`disk nearly full (${(free() / 2 ** 30).toFixed(1)} GB free) and no demos left to remove: new rounds wait (BF2R_MIN_FREE_GB ${MIN_FREE / 2 ** 30})`);
+    if (short > 0 && free() < MIN_FREE) log(`disk nearly full (${(free() / 2 ** 30).toFixed(1)} GB free) and no demos left to remove: new rounds wait (BF2R_MIN_FREE_GB ${MIN_FREE / 2 ** 30})`);
+    // (v186, todo 230) the rounds the decoder has changed for whose demo is gone: downloaded again by fetch.mjs while
+    // their page lists them (the admin page's "download again"), decoded as a new demo would be, and their demo goes again
+    const want = P.refetch ? refetchWanted({ rounds: idx.rounds, hash: dec.hash, source: S, has }) : [];
+    const RF = path.join(DATA, REFETCH_FILE); let had = null; try { had = JSON.parse(fs.readFileSync(RF, 'utf8')); } catch (e) {}
+    if (want.length || had?.want?.length) writeJsonF(RF, { at: new Date().toISOString(), hash: dec.hash, perRun: P.refetchPerRun, want });
+    if (want.length && (!had || had.want?.length !== want.length)) log(`${want.length} round${want.length === 1 ? '' : 's'} to decode again whose demo is gone: downloaded again from their page (${P.refetchPerRun} a run)`);
   }
   if (changed || idx.moved || !idx.heat || !fs.existsSync(INDEX) || !fs.existsSync(FULL_INDEX)) writeIndex(idx, dec);
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)

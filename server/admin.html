@@ -46,6 +46,18 @@ pre { margin: 8px 0 0; padding: 10px; background: var(--bg); border: 1px solid v
 .jobs table { margin-top: 6px; font-size: 12.5px; } .jobs td.n, .jobs th.n { text-align: right; font-variant-numeric: tabular-nums; }
 .jobs tr.best td { color: var(--ok); } .jobs tr.cur td:first-child::after { content: ' ◂ now'; color: var(--accent); }
 details summary { cursor: pointer; color: var(--muted); }
+/* (v187) what goes in a post */
+.pitems { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pit td, .pit th { padding: 4px 6px; } .pit .c { text-align: center; width: 6.5em; } .pit td.w { color: var(--muted); font-size: 12.5px; } .pit tr.grp td { color: var(--accent); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding-top: 10px; border-top: 0; }
+.pvc { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; } .pvt { margin-top: 4px; padding: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; }
+@media (max-width: 640px) { .pvc { grid-template-columns: 1fr; } .pit td.w { display: none; } }
+/* (v186) demos: what to keep */
+.du td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .du td { padding: 4px 6px; }
+.dmform { display: grid; gap: 8px; margin: 12px 0 4px; padding-top: 10px; border-top: 1px solid var(--line); }
+.dmform label { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; } .dmform input[type=number] { width: 5.5em; }
+.dmform .w { color: var(--muted); font-size: 12.5px; } .dmform label.ck { flex-wrap: nowrap; align-items: flex-start; } .dmform label.ck input { margin-top: 3px; flex: none; }
+.dmplan { margin-top: 10px; padding: 10px 12px; background: var(--panel-2); border-radius: 4px; } .dmplan .row { margin: 2px 0; }
+.dmkeep { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 [hidden] { display: none !important; }
 td.mono { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
@@ -107,6 +119,27 @@ td.mono { overflow-wrap: anywhere; }
     <div class="row muted" id="fLast"></div>
   </section>
 
+  <section class="card wide" aria-labelledby="hDm">
+    <h2 id="hDm">Demos: what to keep</h2>
+    <p class="muted" style="margin:0 0 8px">A round on the site lives in its decoded file (data/rounds): the map, the stats, the hints, the player pages. Its demo, 4-5 times bigger, is needed only to decode it again when the decoder changes and for a clip for the game. Old demos can go - their rounds stay and open as before.</p>
+    <table class="du"><tbody id="dmDu"></tbody></table>
+    <div class="row muted" id="dmGone"></div>
+    <form class="dmform" id="dmForm">
+      <label><span>Keep the demos of the last</span><input id="dmDays" type="number" min="0" max="3650" step="1" aria-label="Days"><span>days</span><span class="w" id="dmDaysW">by when the round was played · 0: no demo goes for its age</span></label>
+      <label><span>Demos may take at most</span><input id="dmGB" type="number" min="0" step="1" aria-label="GB"><span>GB</span><span class="w">over it the least needed go first: those their page still lists, then the oldest · 0: no limit</span></label>
+      <label class="ck"><input id="dmHint" type="checkbox"><span>Keep the demos of rounds with hints for admins <span class="w" id="dmHintW"></span></span></label>
+      <label class="ck"><input id="dmRef" type="checkbox"><span>When the decoder changes, download a removed demo again from its page (while the page lists it), decode it anew and remove it again</span></label>
+      <label style="padding-left:24px"><span>at most</span><input id="dmRefN" type="number" min="1" max="500" step="1" aria-label="Demos downloaded again a run"><span>demos a run</span><span class="w">(each time new demos are looked for)</span></label>
+      <div class="row"><button type="button" id="dmPrev">What would go?</button><button type="submit" class="primary">Save</button><button type="button" id="dmNow" title="Decode waiting demos and apply the saved settings now (it also runs by itself every 2 min)">Remove now</button><span class="muted">never removed: a demo on the keep list below, nor one of a round still to be decoded again</span></div>
+    </form>
+    <div class="dmplan" id="dmPlan"></div>
+    <div class="dmkeep">
+      <div class="row"><b>Keep these demos</b><span class="muted">whatever the settings say (a round admins will want a clip for the game of)</span></div>
+      <div id="dmKeepList"></div>
+      <form class="addsrc" id="dmKeepForm"><input id="dmKeepIn" placeholder="a round: its name, its link (…/r/auto_2026_10_18_20_28_05) or id" aria-label="Round to keep the demo of" autocomplete="off" spellcheck="false"><button type="submit" class="primary">Keep its demo</button></form>
+    </div>
+  </section>
+
   <section class="card wide" aria-labelledby="hS">
     <h2 id="hS">Services</h2>
     <table id="unitsT"><thead><tr><th>Service</th><th>State</th><th>Last run</th><th>Next</th><th></th></tr></thead><tbody id="units"></tbody></table>
@@ -127,7 +160,7 @@ td.mono { overflow-wrap: anywhere; }
 
   <section class="card wide" aria-labelledby="hN">
     <h2 id="hN">Posts about new rounds</h2>
-    <p class="muted" style="margin:0 0 8px">Each new round in a Discord channel and / or a Telegram chat: the map, who won, the best three and the link (the chat shows the map under it). Rounds downloaded in a batch (recorded more than 12 h before) and clips are not posted.</p>
+    <p class="muted" style="margin:0 0 8px">Each new round in a Discord channel and / or a Telegram chat: the map, who won and the link (the chat shows the map under it), with what you pick below. Rounds downloaded in a batch (recorded more than 12 h before) and clips are not posted.</p>
     <div id="nState"></div>
     <form class="addsrc" id="nDcForm">
       <input id="nDc" type="password" autocomplete="new-password" spellcheck="false" placeholder="Discord webhook: https://discord.com/api/webhooks/…" aria-label="Discord webhook address">
@@ -142,6 +175,13 @@ td.mono { overflow-wrap: anywhere; }
       <label class="muted">Rounds with <input id="nMin" type="number" min="1" max="64" style="width:4.5em" aria-label="Fewest players"> players or more</label><button type="button" id="nMinSave">Save</button>
       <span style="flex:1"></span><button type="button" id="nTest">Send a test post</button><button type="button" id="nLast">Post the newest round</button>
     </div>
+    <div class="pitems">
+      <div class="row"><b>What goes in a post</b><span class="muted">for Discord and Telegram apart · the map, when, who won, players and kills and the link always · a part shows only when the round has it</span></div>
+      <table class="pit"><thead><tr><th>Part</th><th class="c">Discord</th><th class="c">Telegram</th></tr></thead><tbody id="nItems"></tbody></table>
+      <div class="row" style="margin-top:8px"><button type="button" class="primary" id="nItemsSave">Save</button><button type="button" id="nAllOn">All on</button><button type="button" id="nAllOff">All off</button>
+        <span style="flex:1"></span><input id="nPrevRound" placeholder="a round (name or link) - empty: the newest" aria-label="Round to preview" autocomplete="off" spellcheck="false" style="flex:0 1 260px"><button type="button" id="nPrev">Preview</button></div>
+      <div class="pvw" id="nPrevOut" hidden><div class="muted" id="nPrevWhat"></div><div class="pvc"><div><b>Discord</b><div class="pvt" id="nPrevDc"></div></div><div><b>Telegram</b><div class="pvt" id="nPrevTg"></div></div></div></div>
+    </div>
     <details style="margin-top:8px"><summary>Where to get these</summary><p class="muted">Discord: the channel's settings (the gear) → Integrations → Webhooks → New Webhook → Copy Webhook URL.<br>Telegram: write to @BotFather, /newbot, copy the token it gives; add the bot to your group (or as an admin of your channel). The chat: @channelname for a public channel; for a group, its id - send a message in it, open https://api.telegram.org/bot&lt;token&gt;/getUpdates and take "chat":{"id": -100…}.<br>Kept on the VPS only (data/.notify.json, which the web server never serves); here only the last 4 characters show. In /etc/bf2replay.conf BF2R_DISCORD_WEBHOOK, BF2R_TELEGRAM_TOKEN, BF2R_TELEGRAM_CHAT and BF2R_NOTIFY_MIN_PLAYERS win over these.</p></details>
   </section>
 
@@ -149,7 +189,7 @@ td.mono { overflow-wrap: anywhere; }
     <h2 id="hL">Log</h2>
     <div class="row">
       <select id="logUnit" aria-label="Which service">
-        <option value="all">all services</option><option value="ingest">ingest (new demos)</option><option value="reprocess">reprocess (old rounds again)</option><option value="rebuild">rebuild (all again)</option><option value="fetch">fetch (downloads)</option><option value="update">update (GitHub)</option><option value="backup">backup</option><option value="admin">admin page</option>
+        <option value="all">all services</option><option value="ingest">ingest (new demos)</option><option value="reprocess">reprocess (old rounds again)</option><option value="rebuild">rebuild (all again)</option><option value="fetch">fetch (downloads)</option><option value="update">update (GitHub)</option><option value="backup">backup</option><option value="hints">hints (background analysis)</option><option value="admin">admin page</option>
       </select>
       <select id="logN" aria-label="How many lines"><option>60</option><option selected>150</option><option>400</option></select>
       <button type="button" id="logGo">Refresh</button>
@@ -202,7 +242,7 @@ const UNIT_ROWS = [
   ['fetch', 'Download new demos', 'Fetch now', 'from the demo pages and game servers below'],
   ['update', 'Update from GitHub', 'Update now', 'the site and the server scripts (it looks every minute by itself)'],
   ['backup', 'Back up', 'Back up now', 'the round list, logs and settings into /srv/bf2replay/backup (Sundays by itself)'],
-  ['hints', 'Hints over all rounds', 'Run now', 'a few rounds in the page, then each player\'s hints card (every 15 min by itself; needs analyze.sh start once)'],
+  ['hints', 'Hints over all rounds', 'Run now', 'glitch spots, a few rounds in the page, then each player\'s hints card (5 min after each run by itself; the page part needs analyze.sh start once)'],
 ];
 function render() {
   if (!S) return;
@@ -265,8 +305,10 @@ function render() {
     for (const b of document.querySelectorAll('#nState [data-nrm]')) b.onclick = () => { if (confirm(`Stop posting to ${b.dataset.nrm === 'discord' ? 'Discord' : 'Telegram'}?`)) act('notify-set', b.dataset.nrm === 'discord' ? { discord: '' } : { tgToken: '', tgChat: '' }, b); };
     if (document.activeElement !== $('#nMin')) $('#nMin').value = N.minPlayers;
     const any = (N.discord || (N.tgToken && N.tgChat)); $('#nTest').disabled = !any; $('#nLast').disabled = !any;
+    renderItems(N);
   }
   renderJobs();
+  renderDemos();
   $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
 }
 // (v162) how many demos are decoded at once: the choice, the machine, what is being decoded now, how fast each number went
@@ -303,6 +345,46 @@ function renderJobs() {
   if ($('#jobsSave')) $('#jobsSave').onclick = () => { const v = +$('#jobsSel').value; act('jobs-set', { jobs: v }, $('#jobsSave')).then(j => { if (j && j.ok) jobsPick = null; }); };
   if ($('#jobsReset')) $('#jobsReset').onclick = () => { if (confirm('Clear the measured speeds? They are measured again from the next demos.')) act('jobs-set', { reset: true }, $('#jobsReset')); };
 }
+// (v186) demos: what takes the room, which old ones go (data/.demos.json; ingest.mjs removes them), the keep list
+let dmDirty = false, dmPreview = null;
+const dayStr = ms => ms ? new Date(ms).toISOString().slice(0, 10) : '';
+function planHtml(p, what) {
+  if (!p) return '';
+  const W = { age: 'older than the days', limit: 'over the limit', disk: 'the disk nearly full' }, k = p.kept;
+  const head = p.n ? `<div class="row"><b>${what}: ${p.n} demo${p.n === 1 ? '' : 's'} go (${mb(p.bytes)})</b><span class="muted">${Object.entries(p.by).map(([w, n]) => `${n} ${W[w] || w}`).join(', ')}${p.back ? ` · ${p.back} of them their page still lists (they can come back)` : ''}</span></div>` : `<div class="row"><b>${what}: no demo goes</b></div>`;
+  const kept = `<div class="row muted">demos now: ${p.demos} (${mb(p.total)})${p.n ? ` → ${mb(p.after)}` : ''} · kept: ${k.recent} recent, ${k.hinted} with hints, ${k.waiting} not looked at yet, ${k.pinned} on the keep list, ${k.pending} to decode again</div>`;
+  const over = p.over ? '<div class="row warn">the demos kept take more than the limit by themselves</div>' : '';
+  const list = p.names.length ? `<details><summary>which (${p.names.length < p.n ? 'the first ' + p.names.length : 'all'})</summary><div class="mono">${p.names.map(x => `${esc(x.name)} <span class="muted">${dayStr(x.at)} · ${mb(x.bytes)}${x.back ? ' · on its page' : ''}</span>`).join('<br>')}</div></details>` : '';
+  return head + kept + over + list;
+}
+function renderDemos() {
+  const D = S.demos; if (!D) return;
+  const U = D.du || {}, row = (name, k, extra = '') => U[k] && (U[k].n || U[k].b) ? `<tr><td>${name}</td><td class="n">${U[k].n ? U[k].n.toLocaleString('en') + ' files' : ''}</td><td class="n">${mb(U[k].b)}</td><td class="act">${extra}</td></tr>` : '';
+  $('#dmDu').innerHTML = row('Demos <span class="muted">data/demos</span>', 'demos') + row('Decoded rounds <span class="muted">data/rounds</span>', 'rounds')
+    + row('Copies of rounds <span class="muted">data/.copies: the same demo from two pages</span>', 'copies', '<button type="button" class="danger" id="dmCopies">Remove</button>')
+    + row('Empty rounds <span class="muted">data/empty</span>', 'empty') + row('Failed demos <span class="muted">data/bad</span>', 'bad') + row('Waiting <span class="muted">upload/incoming</span>', 'incoming')
+    + row('Old rounds <span class="muted">data/old-*: redownload.sh</span>', 'old') + row('Lists, stats, kills <span class="muted">data/…</span>', 'other')
+    + row('Analysis <span class="muted">analysis/: rounds, archives, glitch grids</span>', 'analysis') + row('Its browser <span class="muted">analyze/: Playwright</span>', 'playwright') + row('Backups <span class="muted">backup/</span>', 'backup');
+  if ($('#dmCopies')) $('#dmCopies').onclick = () => { if (confirm(`Remove the copies of rounds (data/.copies, ${mb(U.copies.b)})? They are the same demos as rounds on the site; the links to them keep opening those rounds.`)) act('copies-delete', {}, $('#dmCopies')); };
+  const R = D.refetch;
+  $('#dmGone').innerHTML = `rounds without a demo: ${D.gone}${D.gone ? ` (${D.back} their page still lists)` : ''}${R && R.want ? ` · <span class="warn">downloading again for the new decoder: ${R.want} left</span>` : ''}${D.last && D.last.at ? ` · last removed ${ago(D.last.at)}: ${D.last.n} (${mb(D.last.bytes)})${D.last.total ? `, in all ${D.last.total} (${mb(D.last.totalBytes || 0)})` : ''}` : ''}${D.autoclean ? '' : ' · <span class="warn">BF2R_RAW_AUTOCLEAN=0: a full disk removes nothing</span>'}`;
+  const P = D.policy, form = $('#dmForm');
+  if (!dmDirty && !form.contains(document.activeElement)) {
+    $('#dmDays').value = P.keepDays; $('#dmDays').disabled = !!P.keepDaysConf; $('#dmGB').value = P.maxGB; $('#dmHint').checked = P.keepHinted; $('#dmRef').checked = P.refetch; $('#dmRefN').value = P.refetchPerRun;
+  }
+  $('#dmDaysW').innerHTML = P.keepDaysConf ? `<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS: remove it there to choose here">BF2R_RAW_KEEP_DAYS</span>` : 'by when the round was played · 0: no demo goes for its age';
+  const H = D.hints; $('#dmHintW').textContent = H.alive ? `the background analysis has looked at ${H.rounds} rounds; one it has not looked at yet waits for it` : H.rounds ? `the analysis looked at ${H.rounds} rounds (not running now: the others count as without hints)` : 'the background analysis (Hints over all rounds) has not looked at any round yet';
+  $('#dmPlan').innerHTML = dmPreview ? planHtml(dmPreview, 'With these (not saved yet)') + '<div class="row"><button type="button" id="dmPrevX" style="padding:2px 8px">Back to the saved ones</button></div>' : planHtml(D.plan, 'With the saved settings, at the next run');
+  if ($('#dmPrevX')) $('#dmPrevX').onclick = () => { dmPreview = null; dmDirty = false; render(); };
+  $('#dmKeepList').innerHTML = D.keep.length ? D.keep.map(k => `<div class="src"><span class="u mono">${esc(k.name)}</span>${k.here ? '' : '<span class="tag">not on the site</span>'}<span class="tag">since ${esc(String(k.at || '').slice(0, 10))}</span><button type="button" class="danger" data-unkeep="${esc(k.name)}">Remove</button></div>`).join('') : '<div class="muted">none</div>';
+  for (const b of document.querySelectorAll('#dmKeepList [data-unkeep]')) b.onclick = () => act('demos-keep', { round: b.dataset.unkeep, on: false }, b);
+}
+const dmVals = () => ({ ...(S?.demos?.policy?.keepDaysConf ? {} : { keepDays: +$('#dmDays').value }), maxGB: +$('#dmGB').value, keepHinted: $('#dmHint').checked, refetch: $('#dmRef').checked, refetchPerRun: +$('#dmRefN').value });
+$('#dmForm').addEventListener('input', () => { dmDirty = true; });
+$('#dmForm').addEventListener('submit', e => { e.preventDefault(); act('demos-set', dmVals(), e.submitter).then(j => { if (j && j.ok) { dmDirty = false; dmPreview = null; } }); });
+$('#dmPrev').onclick = async () => { const b = $('#dmPrev'); b.disabled = true; try { const j = await api('demos-preview', dmVals()); if (j.ok) { dmPreview = j.plan; render(); } else toast(j.msg || j.error || 'no', false); } catch (e) { toast(e.message, false); } finally { b.disabled = false; } };
+$('#dmNow').onclick = () => { if (dmDirty && !confirm('The changes are not saved: remove by the saved settings?')) return; act('start', { unit: 'ingest' }, $('#dmNow')); };
+$('#dmKeepForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#dmKeepIn').value.trim(); if (!v) return; act('demos-keep', { round: v }, e.submitter).then(j => { if (j && j.ok) $('#dmKeepIn').value = ''; }); });
 async function refresh() { try { const j = await api('state'); if (j.error) return; S = j; render(); } catch (e) {} }
 async function act(what, body, btn) {
   if (btn) btn.disabled = true;
@@ -318,6 +400,38 @@ async function look(what, body, btn) {
 $('#srcForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#srcIn').value.trim(); if (!v) return; act('source-add', { url: v }, e.submitter).then(j => { if (j && j.ok) $('#srcIn').value = ''; }); });
 $('#srcProbe').onclick = () => { const v = $('#srcIn').value.trim(); if (!v) { $('#srcIn').focus(); return; } look('probe', { url: v }, $('#srcProbe')); };
 $('#fetchList').onclick = () => look('fetch-list', {}, $('#fetchList'));
+// (v187) what goes in a post, for each app: a checkbox a part (kept while being changed over the 5 s refreshes)
+let nDirty = false;
+const GROUPS = { best: 'The round', foot: 'Most kills', atLong: 'Longest kill', streak: 'Streak, K/D', rev: 'Most', first: 'First and last' };
+function renderItems(N) {
+  if (!N.items || nDirty) return;
+  $('#nItems').innerHTML = N.items.map(it => `${GROUPS[it.k] ? `<tr class="grp"><td colspan="3">${GROUPS[it.k]}</td></tr>` : ''}<tr><td>${esc(it.name)} <span class="muted" style="font-size:12px">${esc(it.what)}</span></td>${['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(it.k)}" aria-label="${esc(it.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${N.lines?.[app]?.[it.k] !== false ? ' checked' : ''}></td>`).join('')}</tr>`).join('');
+}
+const itemVals = () => { const L = { discord: {}, telegram: {} }; for (const c of document.querySelectorAll('#nItems input[data-app]')) L[c.dataset.app][c.dataset.k] = c.checked; return L; };
+$('#nItems').addEventListener('change', () => { nDirty = true; });
+$('#nItemsSave').onclick = () => act('notify-set', { lines: itemVals() }, $('#nItemsSave')).then(j => { if (j && j.ok) nDirty = false; });
+for (const [id, v] of [['#nAllOn', true], ['#nAllOff', false]]) $(id).onclick = () => { for (const c of document.querySelectorAll('#nItems input[data-app]')) c.checked = v; nDirty = true; };
+// the preview: each app's text drawn as it shows it (bold; Discord's \ escapes gone) - built as text, never as HTML
+function drawPost(box, text, app) {
+  box.textContent = '';
+  const parts = app === 'discord' ? text.split(/(\*\*[\s\S]*?\*\*)/) : text.split(/(<b>[\s\S]*?<\/b>)/);
+  const plain = t => app === 'discord' ? t.replace(/\\([\\*_~`|>#\[\]()@-])/g, '$1') : t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  for (const p of parts) {
+    if (!p) continue;
+    const bold = app === 'discord' ? /^\*\*[\s\S]*\*\*$/.test(p) : /^<b>[\s\S]*<\/b>$/.test(p);
+    if (bold) { const b = document.createElement('b'); b.textContent = plain(app === 'discord' ? p.slice(2, -2) : p.slice(3, -4)); box.appendChild(b); }
+    else box.appendChild(document.createTextNode(plain(p)));
+  }
+}
+$('#nPrev').onclick = async () => {
+  const b = $('#nPrev'); b.disabled = true;
+  try {
+    const j = await api('notify-preview', { round: $('#nPrevRound').value.trim() || undefined, lines: itemVals() });
+    if (!j.ok) { toast(j.msg || j.error || 'no', false); return; }
+    $('#nPrevOut').hidden = false; $('#nPrevWhat').innerHTML = `<span class="mono">${esc(j.round)}</span> · with the boxes as they are now (saved or not)${j.hl ? '' : ' · <span class="warn">this round was summed up before v187: no highlights yet (the server adds them within minutes after the update)</span>'}`;
+    drawPost($('#nPrevDc'), j.discord, 'discord'); drawPost($('#nPrevTg'), j.telegram, 'telegram');
+  } catch (e) { toast(e.message, false); } finally { b.disabled = false; }
+};
 // round posts (v153)
 $('#nDcForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#nDc').value.trim(); if (!v) { $('#nDc').focus(); return; } act('notify-set', { discord: v }, e.submitter).then(j => { if (j && j.ok) $('#nDc').value = ''; }); });
 $('#nTgForm').addEventListener('submit', e => { e.preventDefault(); const t = $('#nTgT').value.trim(), c = $('#nTgC').value.trim(); if (!t && !c) { $('#nTgT').focus(); return; } const b = {}; if (t) b.tgToken = t; if (c) b.tgChat = c; act('notify-set', b, e.submitter).then(j => { if (j && j.ok) { $('#nTgT').value = ''; $('#nTgC').value = ''; } }); });

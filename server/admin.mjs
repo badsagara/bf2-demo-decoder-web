@@ -5,7 +5,9 @@
 // failed again, fetch new demos now, update from GitHub, back up; add and remove game servers / demo pages to fetch from
 // (and check one first); where new rounds are posted (Discord / Telegram: notify.mjs); how many demos are decoded at once
 // (v162: data/.ingest.json, with how fast each number went - to pick the best for this machine); read the services'
-// logs. Nothing here deletes a demo or a round.
+// logs. (v186) Which old demos ingest.mjs removes to save room (data/.demos.json, demos.mjs: their rounds stay), with what
+// would go before it is saved, the demos to keep whatever the rest says, and the copies of rounds (data/.copies) removed on
+// request. Nothing here deletes a round.
 //
 //   node admin.mjs                  the admin server (bf2replay-admin.service, as bf2replay): http://127.0.0.1:8781,
 //                                   Caddy sends /admin* to it
@@ -23,8 +25,9 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
-import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE } from './notify.mjs';
+import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts } from './notify.mjs';
 import { expandIndex } from './roundsidx.mjs';
+import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -168,7 +171,7 @@ async function state() {
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
     units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
     sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
-    settings, password: !!readPass(), notify: notifyState(), decode: decodeState()
+    settings, password: !!readPass(), notify: notifyState(), decode: decodeState(), demos: demoState()
   };
 }
 // (v162) how many demos ingest.mjs decodes at once: BF2R_JOBS from /etc/bf2replay.conf when set (it wins), else the
@@ -214,10 +217,86 @@ function jobsSet(b) {
   const conf = Math.max(0, Math.floor(+opt('BF2R_JOBS', '0')) || 0);
   return { ok: true, msg: (n ? `${n} at once` : `automatic (${autoJobs()} at once here)`) + (conf ? ` - but BF2R_JOBS=${conf} in /etc/bf2replay.conf wins: remove it there` : ': from the next demo on (also while decoding now)') };
 }
+// ---------- (v186, todo 230) the demos: what takes the room, which old ones go (demos.mjs) ----------
+// the room each part of /srv/bf2replay takes (walked at most once a minute: thousands of files)
+let duCache = { at: 0, v: null };
+function duAll() {
+  if (duCache.v && Date.now() - duCache.at < 60e3) return duCache.v;
+  const walk = (d, depth = 0) => { let n = 0, b = 0; for (const f of listDir(d)) { const p = path.join(d, f); let st; try { st = fs.lstatSync(p); } catch (e) { continue; } if (st.isDirectory()) { if (depth < 4) { const w = walk(p, depth + 1); n += w.n; b += w.b; } } else if (st.isFile()) { n++; b += st.size; } } return { n, b }; };
+  const parts = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'), copies: path.join(DATA, '.copies'), empty: path.join(DATA, 'empty'), bad: BAD, incoming: INC, analysis: path.join(ROOT, 'analysis'), playwright: path.join(ROOT, 'analyze'), backup: path.join(ROOT, 'backup') };
+  const v = {}; for (const [k, d] of Object.entries(parts)) v[k] = walk(d);
+  { const w = walk(DATA); let inParts = 0; for (const k of ['demos', 'rounds', 'copies', 'empty', 'bad']) inParts += v[k].b; v.other = { n: 0, b: Math.max(0, w.b - inParts) }; }
+  for (const f of listDir(DATA).filter(f => /^old-/.test(f))) { const w = walk(path.join(DATA, f)); v.old = { n: (v.old?.n || 0) + w.n, b: (v.old?.b || 0) + w.b }; }
+  duCache = { at: Date.now(), v }; return v;
+}
+const demoInputs = () => ({ rounds: index().rounds || [], hash: siteDecoder().hash, hints: hintRounds(DATA), source: sourceList(DATA) });
+function planOut(plan) {
+  const by = {}; for (const x of plan.remove) by[x.why] = (by[x.why] || 0) + 1;
+  return { n: plan.remove.length, bytes: plan.remove.reduce((s, x) => s + x.bytes, 0), by, back: plan.back, kept: plan.kept, demos: plan.demos, total: plan.bytes, after: plan.after, over: plan.over,
+    names: plan.remove.slice(0, 15).map(x => ({ name: x.name, bytes: x.bytes, at: x.at, back: x.back, why: x.why })) };
+}
+function demoState() {
+  const P = demoPolicy(DATA, opt), I = demoInputs(), R = I.rounds;
+  const plan = demoPlan({ ...I, policy: P });
+  const gone = R.filter(r => !r.demo && r.sum && !r.sum.empty), back = gone.filter(r => I.source.has(r.name)).length;
+  const rf = readJson(path.join(DATA, REFETCH_FILE), null), byName = new Set(R.map(r => linkId(r.name)));
+  return {
+    policy: { keepDays: P.keepDays, keepDaysConf: P.keepDaysConf, maxGB: P.maxGB, keepHinted: !!P.keepHinted, refetch: !!P.refetch, refetchPerRun: P.refetchPerRun, set: P.set },
+    keep: Object.entries(P.keep).map(([n, at]) => ({ name: n, at, here: byName.has(linkId(n)) })),
+    du: duAll(), plan: planOut(plan), gone: gone.length, back, hints: { alive: I.hints.alive, at: I.hints.at, rounds: I.hints.rounds.size },
+    source: I.source.size, refetch: rf ? { want: (rf.want || []).length, at: rf.at } : null, last: readJson(path.join(DATA, DEMOS_LAST_FILE), null),
+    autoclean: opt('BF2R_RAW_AUTOCLEAN', '1') !== '0', minFree: (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30
+  };
+}
+const demoFields = (b, P) => {
+  const o = {}, bad = [];
+  if (b.keepDays !== undefined) { const n = Math.floor(+b.keepDays); if (n >= 0 && n <= 3650) o.keepDays = n; else bad.push('days: 0 to 3650'); }
+  if (b.maxGB !== undefined) { const n = +b.maxGB; if (n >= 0 && n <= 1e5) o.maxGB = Math.round(n * 10) / 10; else bad.push('GB: 0 or more'); }
+  if (b.keepHinted !== undefined) o.keepHinted = !!b.keepHinted;
+  if (b.refetch !== undefined) o.refetch = !!b.refetch;
+  if (b.refetchPerRun !== undefined) { const n = Math.floor(+b.refetchPerRun); if (n >= 1 && n <= 500) o.refetchPerRun = n; else bad.push('a run: 1 to 500'); }
+  return { o, bad };
+};
+function demosPreview(b) {
+  const P = demoPolicy(DATA, opt), { o, bad } = demoFields(b, P); if (bad.length) return { ok: false, msg: bad.join(', ') };
+  const Q = { ...P, ...o }; if (P.keepDaysConf) Q.keepDays = P.keepDaysConf;
+  return { ok: true, plan: planOut(demoPlan({ ...demoInputs(), policy: Q })) };
+}
+function demosSet(b) {
+  const f = path.join(DATA, DEMOS_FILE), cur = readJson(f, {}) || {}, { o, bad } = demoFields(b, demoPolicy(DATA, opt)); if (bad.length) return { ok: false, msg: bad.join(', ') };
+  const v = { ...cur, ...o, set: new Date().toISOString() }; writeJson(f, v); duCache.at = 0;
+  log('demo settings:', JSON.stringify({ keepDays: v.keepDays, maxGB: v.maxGB, keepHinted: v.keepHinted, refetch: v.refetch, refetchPerRun: v.refetchPerRun }));
+  const conf = Math.max(0, Math.floor(+opt('BF2R_RAW_KEEP_DAYS', '0')) || 0);
+  return { ok: true, msg: 'saved: ingest applies them at its next run (within 2 min, or "Remove now")' + (conf && o.keepDays !== undefined ? ` - but BF2R_RAW_KEEP_DAYS=${conf} in /etc/bf2replay.conf wins for the days: remove it there` : '') };
+}
+// a round by its name, its link (https://…/r/<id>, …#round=<id>) or id
+function roundOf(s) {
+  s = String(s || '').trim(); if (!s) return null;
+  const m = /(?:\/r\/|[#&?]round=)([^&#?\s/]+)/.exec(s); let id = m ? decodeURIComponent(m[1]) : s.split('/').pop();
+  id = linkId(id); return (index().rounds || []).find(r => linkId(r.name) === id) || null;
+}
+function demosKeep(b) {
+  const f = path.join(DATA, DEMOS_FILE), cur = readJson(f, {}) || {}, keep = { ...(cur.keep || {}) };
+  if (b.on === false) { const k = Object.keys(keep).find(n => linkId(n) === linkId(b.round)); if (!k) return { ok: false, msg: 'not on the list' }; delete keep[k]; writeJson(f, { ...cur, keep }); log('demo no longer kept:', k); return { ok: true, msg: `${k}: off the list (its demo goes by the settings)` }; }
+  const r = roundOf(b.round); if (!r) return { ok: false, msg: 'no such round on the site: its name (auto_2026_10_18_20_28_05), its link or id' };
+  if (keep[r.name]) return { ok: false, msg: 'already on the list' };
+  keep[r.name] = new Date().toISOString(); writeJson(f, { ...cur, keep }); log('demo kept:', r.name);
+  return { ok: true, msg: `${r.name}: its demo stays${r.demo ? '' : ' - it is gone already (it comes back only if "download again" brings it for a new decoder)'}` };
+}
+// the copies of rounds (v182: the same demo from two demo pages - data/.copies): removed, the list of them stays
+function copiesDelete() {
+  const d = path.join(DATA, '.copies'); let n = 0, bytes = 0;
+  for (const f of listDir(d)) { const p = path.join(d, f); try { const st = fs.lstatSync(p); if (!st.isFile()) continue; fs.unlinkSync(p); n++; bytes += st.size; } catch (e) {} }
+  const sz = bytes >= 2 ** 30 ? (bytes / 2 ** 30).toFixed(1) + ' GB' : Math.round(bytes / 2 ** 20) + ' MB';
+  duCache.at = 0; log('copies of rounds removed:', n, 'files,', sz);
+  return { ok: true, msg: `${n} file${n === 1 ? '' : 's'} removed (${sz}); the links to those copies still open the same rounds` };
+}
+
 // (v153) the round posts (notify.mjs): where to, with the secrets shown only by their last 4 characters
 function notifyState() {
   const N = notifySettings(), tail = v => v ? '…' + v.slice(-4) : '';
-  return { discord: tail(N.discord), discordConf: N.discordConf, tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, tgChat: N.tgChat, tgChatConf: N.tgChatConf, minPlayers: N.minPlayers, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim() };
+  return { discord: tail(N.discord), discordConf: N.discordConf, tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, tgChat: N.tgChat, tgChatConf: N.tgChatConf, minPlayers: N.minPlayers, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
+    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what })), lines: N.lines };   // (v187: what goes in a post, for each app)
 }
 function notifySet(b) {
   const ch = {}, said = [];
@@ -228,10 +307,24 @@ function notifySet(b) {
     if (c && !TG_CHAT_RE.test(c)) return { ok: false, msg: 'not a Telegram chat: its id (-100… for a group or channel) or @channelname' };
     ch.telegram = {}; if (t !== undefined) ch.telegram.token = t; if (c !== undefined) ch.telegram.chat = c; said.push(t === '' && c === '' ? 'Telegram removed' : 'Telegram saved');
   }
+  if (b.lines !== undefined) {   // (v187) { discord: { key: bool }, telegram: { key: bool } }
+    const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {};
+    for (const app of ['discord', 'telegram']) { const o = b.lines?.[app]; if (!o || typeof o !== 'object') continue; L[app] = {}; for (const [k, v] of Object.entries(o)) if (keys.has(k)) L[app][k] = !!v; }
+    if (!Object.keys(L).length) return { ok: false, msg: 'nothing to change' };
+    ch.lines = L; said.push('what goes in a post saved');
+  }
   if (b.minPlayers !== undefined) { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; ch.minPlayers = n; said.push(`rounds with ${n}+ players`); }
   if (!said.length) return { ok: false, msg: 'nothing to change' };
   saveNotify(ch); log('round posts:', said.join(', '));
   return { ok: true, msg: said.join(' · ') };
+}
+// (v187) the post about a round as Discord and Telegram would get it, nothing sent: the newest round, or the one named
+function notifyPreview(b) {
+  const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty);
+  const r = b.round ? roundOf(b.round) : R.sort((x, y) => String(y.sum.date).localeCompare(String(x.sum.date)))[0];
+  if (!r || !r.sum) return { ok: false, msg: b.round ? 'no such round on the site' : 'no rounds yet' };
+  const N = notifySettings(), T = postTexts(r, b.lines ? { ...N, lines: { discord: { ...N.lines.discord, ...(b.lines.discord || {}) }, telegram: { ...N.lines.telegram, ...(b.lines.telegram || {}) } } } : N);
+  return { ok: true, round: r.name, hl: !!r.sum.hl, ...T };
 }
 async function notifyRun(arg) {
   const r = await run(NODE, [path.join(HERE, 'notify.mjs'), arg], { timeout: 45e3 });
@@ -282,7 +375,7 @@ async function fetchLook(args, timeout) {
   return { ok: r.code === 0, out: (r.out + (r.err ? '\n' + r.err : '')).trim().slice(-20000) || '(no answer)' };
 }
 async function journal(u, n) {
-  if (!['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'admin', 'all'].includes(u)) return { ok: false, out: 'unknown service' };
+  if (!['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'hints', 'admin', 'all'].includes(u)) return { ok: false, out: 'unknown service' };
   const who = u === 'all' ? ['-u', 'bf2replay-*'] : ['-u', `bf2replay-${u}`];
   const r = await run(JOURNALCTL, [...who, '-n', String(Math.max(10, Math.min(500, n || 120))), '--no-pager', '-o', 'short-iso'], { timeout: 15e3 });
   const out = (r.out || r.err).trim();
@@ -333,7 +426,12 @@ const server = http.createServer(async (req, res) => {
     if (what === 'fetch-list') return send(res, 200, await fetchLook(['--list'], 180e3));
     if (what === 'notify-set') return send(res, 200, notifySet(b));
     if (what === 'jobs-set') return send(res, 200, jobsSet(b));
+    if (what === 'demos-set') return send(res, 200, demosSet(b));
+    if (what === 'demos-preview') return send(res, 200, demosPreview(b));
+    if (what === 'demos-keep') return send(res, 200, demosKeep(b));
+    if (what === 'copies-delete') return send(res, 200, copiesDelete());
     if (what === 'notify-test') return send(res, 200, await notifyRun('--test'));
+    if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
     if (what === 'notify-last') return send(res, 200, await notifyRun('--last'));
     return send(res, 404, { error: 'not found' });
   } catch (e) { log('error:', e.stack || e.message); try { send(res, 500, { error: e.message }); } catch (e2) {} }
