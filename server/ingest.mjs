@@ -141,8 +141,9 @@ function bfrBuild(obj) {
 // (v183) SUM_V: how a round is summed up (summarize); a round summed up by an older one is summed up again from its .bfr
 // (2: the kills' hit part [12] and the weapon guessed where the game names none [7] - the player page's headshots
 // against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs; 4, v188:
-// and the mines' kills, as the site's Round stats has them; 5, v190: the kill streaks on foot and in vehicles apart)
-const SUM_V = 5;
+// and the mines' kills, as the site's Round stats has them; 5, v190: the kill streaks on foot and in vehicles apart; 6,
+// v192: each soldier's own of them, P[].x, for the records over many rounds)
+const SUM_V = 6;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -248,6 +249,25 @@ function summarize(tl, hdr, dec) {
     best('rev', p => p.rev); best('heal', p => p.heal); best('rep', p => p.rep);
     { let b = null; for (const p of P) if (p.k >= 10) { const r = p.k / Math.max(1, p.d); if (!b || r > b.r) b = { r, who: p.name, k: p.k, d: p.d }; } if (b) hl.kd = { r: Math.round(b.r * 100) / 100, who: b.who, k: b.k, d: b.d }; }
     { let b = null; for (const i of sold) { const L = (P0[i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')), cap = L.filter(q => /captured/i.test(q[2])).length; if (L.length && (!b || L.length > b.n)) b = { n: L.length, cap, neu: L.length - cap, who: P0[i].name.trim() }; } if (b) hl.flags = b; }
+    // (v192) each soldier's own of the same (P[].x, the zeros left out): the records pages over many rounds - the site's
+    // Records, his player page, the map's page (the page's @agg: aggRecs, aggBests) - take each soldier's best, not only
+    // the round's. kn knife, cl claymores, mi mines, ai launchers on infantry, rd run over, ex explosives (counts); al
+    // launcher, sl small arms, sn sniper rifle, lg any weapon ([m, weapon]); sf / sv streaks on foot / in vehicles; fl flags
+    const X = new Map(), xo = i => { let o = X.get(i); if (!o) X.set(i, o = {}); return o; }, inc = (i, k) => { const o = xo(i); o[k] = (o[k] || 0) + 1; };
+    for (const x of E) {
+      if (/knife/i.test(x.w)) inc(x.ki, 'kn'); if (/claymore/i.test(x.w)) inc(x.ki, 'cl'); if (/\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)) inc(x.ki, 'mi');
+      if (x.cause === 'at' && !x.kv && !x.vv) inc(x.ki, 'ai'); if (x.kv && !x.raw && !x.vv) inc(x.ki, 'rd'); if (x.cause === 'expl') inc(x.ki, 'ex');
+      if (x.d == null || x.placed) continue;
+      const up = k => { const o = xo(x.ki); if (!o[k] || x.d > o[k][0]) o[k] = [x.d, x.w]; };
+      if (x.cause === 'at' && !x.kv) up('al'); if (x.cause === 'small' && !x.kv && !SNIPER.test(x.w) && !ARTY.test(x.w)) up('sl'); if (!x.kv && SNIPER.test(x.w)) up('sn'); if ((!!x.raw || x.cause === 'at') && !ARTY.test(x.w)) up('lg');
+    }
+    for (const i of sold) for (const [k, veh] of [['sf', false], ['sv', true]]) {
+      const L = E.filter(x => x.ki === i && x.kv === veh), D = deathsOf.get(i) || []; let cur = 0, b = 0;
+      for (const [, isK] of L.map(x => [x.t, 1]).concat(D.map(t => [t, 0])).sort((a, c) => a[0] - c[0] || c[1] - a[1])) { if (isK) b = Math.max(b, ++cur); else cur = 0; }
+      if (b >= 2) xo(i)[k] = b;
+    }
+    for (const i of sold) { const n = (P0[i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')).length; if (n) xo(i).fl = n; }
+    const byName = new Map(P.map(p => [p.name, p])); for (const [i, o] of X) { const p = byName.get(P0[i].name.trim()); if (p && Object.keys(o).length) p.x = o; }
   }
   const map = hdr ? (hdr.fields[2].split('/').pop() || hdr.fields[2]) : String(tl.meta.map || '');
   return { date: hdr ? hdr.fields[1] : '', map, server: hdr ? hdr.fields[0] : '', duration: dur, empty: !P.length, players: P.length, kills: kills.length,
@@ -306,7 +326,7 @@ function loadAgg() {
     const g = L.find(l => l.startsWith('const GAME = ')), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end'));
     if (!g || a < 0 || b < a) return null;   // (an older page: no stats)
     const code = L.slice(a, b).join('\n');
-    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug };')();
+    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug, aggRecs: typeof aggRecs === "function" ? aggRecs : null, REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null };')();   // (v192: and the records)
     return { fns, v: crypto.createHash('sha1').update(g).update(code).update(STATS_FORMAT).digest('hex').slice(0, 10) };
   } catch (e) { log('stats: the page\'s code did not load:', e.message); return null; }
 }
@@ -508,12 +528,12 @@ ${body}
 </body></html>
 `;
 }
-const WWW_VER = 2;   // (raise when the pages change: they are all written again; 2: records)
+const WWW_VER = 3;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights)
 function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
   // (and the day: the records page's week and month move on)
-  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added])])).digest('hex'), stampF = path.join(WWW, '.stamp');
+  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV])])).digest('hex'), stampF = path.join(WWW, '.stamp');
   try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
   const mapName = m => dec.GAME?.maps?.[m]?.name || m;
   const idOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
@@ -617,7 +637,14 @@ ${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n
   const PER = [['week', 'The last 7 days', 7], ['month', 'The last 30 days', 30], ['ever', 'All rounds', Infinity]];
   const recSection = ([key, title, days]) => {
     const L = R.filter(r => days === Infinity || when(r) > today - days * 86400e3); if (!L.length) return `<h2>${escH(title)}</h2><p class="mute">No rounds.</p>`;
-    const rows = REC.map(([k, name, fmt]) => {
+    // (v192) with the page's records (aggRecs over REC_KEYS: the highlights too - streaks on foot and in vehicles, the
+    // longest kill with a launcher / small arms / a sniper rifle, knife, claymores, mines, run over, flags...); an older
+    // page: the first nine as before
+    const RA = AGG?.fns?.aggRecs, RK = AGG?.fns?.REC_KEYS, RBN = new Map(L.map(r => [r.name, r]));
+    const rows = RA && RK ? (() => { const A = RA(L); return RK.map(([k, name, unit]) => { const top = A[k]; if (!top) return '';
+      const val = (v, w) => unit === 'm' ? `<b>${v} m</b>${w ? ` <span class="mute">${escH(w)}</span>` : ''}` : `<b>${escH(k === 'kd' ? Number(v).toFixed(2) : String(v))}</b>`;
+      return `<tr><th>${escH(name)}</th>${top.map(([v, nm, rn, w], i) => `<td${i ? ' class="mute"' : ''}>${val(v, w)} ${plink(nm)}<br>${RBN.has(rn) ? rlink(RBN.get(rn)) : ''}</td>`).join('')}${'<td></td>'.repeat(3 - top.length)}</tr>`; }).join('\n'); })()
+      : REC.map(([k, name, fmt]) => {
       const all = []; for (const r of L) for (const p of r.sum.P || []) { if (/^Player \d+$/.test(nickOf(p.name))) continue; const v = recVal(p, k); if (v > 0) all.push({ v, p, r }); }
       all.sort((a, b) => b.v - a.v || when(a.r) - when(b.r)); const top = all.slice(0, 3);
       return top.length ? `<tr><th>${escH(name)}</th>${top.map((x, i) => `<td${i ? ' class="mute"' : ''}><b>${escH(String(fmt(x.v)))}</b> ${plink(x.p.name)}<br>${rlink(x.r)}</td>`).join('')}${'<td></td>'.repeat(3 - top.length)}</tr>` : '';

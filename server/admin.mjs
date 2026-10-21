@@ -171,7 +171,7 @@ async function state() {
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
     units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
     sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
-    settings, password: !!readPass(), notify: notifyState(), decode: decodeState(), demos: demoState()
+    settings, password: !!readPass(), notify: notifyState(), decode: decodeState(), demos: demoState(), analysis: analysisState()
   };
 }
 // (v162) how many demos ingest.mjs decodes at once: BF2R_JOBS from /etc/bf2replay.conf when set (it wins), else the
@@ -217,6 +217,30 @@ function jobsSet(b) {
   const conf = Math.max(0, Math.floor(+opt('BF2R_JOBS', '0')) || 0);
   return { ok: true, msg: (n ? `${n} at once` : `automatic (${autoJobs()} at once here)`) + (conf ? ` - but BF2R_JOBS=${conf} in /etc/bf2replay.conf wins: remove it there` : ': from the next demo on (also while decoding now)') };
 }
+// ---------- (v192) the background analysis (analyze.mjs --auto, bf2replay-hints): how far it is ----------
+// The rounds it looks at (6+ soldiers, not copies) against those done with the page's hint rules now (HINTS_V; the round
+// files' rules: analysis/.hv.json), the last run's pace and so when all are done; the glitch grids (analysis/glitch/
+// summary.json, glitch.mjs); the players' hint cards (data/stats/hints.json). Worked out at most every 30 s.
+let anCache = { at: 0, v: null }, hvPage = { mt: 0, v: 0 };
+function pageHintsV() { const f = path.join(SITE, 'index.html'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return 0; } if (mt !== hvPage.mt) { let v = 0; try { v = +((/const HINTS_V = (\d+)/.exec(fs.readFileSync(f, 'utf8')) || [])[1] || 0); } catch (e) {} hvPage = { mt, v }; } return hvPage.v; }
+function analysisState() {
+  if (anCache.v && Date.now() - anCache.at < 30e3) return anCache.v;
+  const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
+  const copies = readJson(path.join(DATA, '.copies.json'), {})?.copies || {}, fileOf = n => String(n || '').replace(/\.bf2demo$/i, '').replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz';
+  const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty && r.bfr && !copies[r.name] && !((r.sum.players ?? 0) < 6));
+  let cur = 0, old = 0; for (const r of R) { const v = hv[fileOf(r.name)]; if (v === undefined) continue; if (v >= HV) cur++; else old++; }
+  const auto = readJson(path.join(OUTD, 'auto.json'), null), run = readJson(path.join(OUTD, 'run.json'), null);
+  const runOn = !!(run && !run.ended && run.pid && fs.existsSync('/proc/' + run.pid)), autoOn = !!(auto && !auto.ended && auto.pid && fs.existsSync('/proc/' + auto.pid));
+  const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
+  const left = Math.max(0, R.length - cur), perRun = auto?.rounds || 40, cycle = secs != null ? secs / Math.max(1, auto.done) * perRun + 300 : null;
+  const pw = fs.existsSync(path.join(ROOT, 'analyze', 'node_modules', 'playwright', 'package.json'));
+  const gl = readJson(path.join(OUTD, 'glitch', 'summary.json'), null), hc = readJson(path.join(DATA, 'stats', 'hints.json'), null);
+  const v = { hv: HV, total: R.length, cur, old, none: Math.max(0, R.length - cur - old), failed: Object.keys(failed).length, auto: auto ? { started: auto.started, ended: auto.ended || null, done: auto.done || 0, failed: auto.failed || 0, secs } : null,
+    running: autoOn ? 'auto' : runOn ? 'manual' : null, eta: left && cycle ? Math.round(left / perRun * cycle) : left ? null : 0, playwright: pw, off: opt('BF2R_HINTS', '1') === '0',
+    glitch: gl ? { at: gl.at, minRounds: gl.minRounds, maps: gl.maps, left: gl.left, stays: gl.stays, hints: gl.hints } : null, cards: hc ? { at: hc.at, rounds: hc.rounds, players: hc.players } : null };
+  anCache = { at: Date.now(), v }; return v;
+}
+
 // ---------- (v186, todo 230) the demos: what takes the room, which old ones go (demos.mjs) ----------
 // the room each part of /srv/bf2replay takes (walked at most once a minute: thousands of files)
 let duCache = { at: 0, v: null };

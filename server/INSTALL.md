@@ -636,6 +636,10 @@ systemctl list-timers bf2replay-hints.timer              # коли наступ
 sudo bash /srv/bf2replay/repo/server/analyze.sh hints    # картки гравців заново зараз
 ```
 
+(v192) Як далеко він — в адмінці, картка **Background analysis**: скільки раундів пройдено поточними правилами (і
+скільки старішими / ще ні), останній прохід, коли все закінчиться, скільки мап уже мають 30+ раундів у сітці Glitch spot.
+Коли там близько 100% — `analyze.sh pack` і архів Claude (todo 227).
+
 Вимкнути фон зовсім — `BF2R_HINTS=0` у `/etc/bf2replay.conf` (картки й Glitch spot лишаються такими, як були). В
 адмін-сторінці — рядок «Hints over all rounds» з кнопкою «Run now».
 

@@ -160,6 +160,9 @@ export function aggGlitch({ DATA, OUT, rounds, nickOf, budget = 150, minRounds =
   }
   for (const f of fs.readdirSync(SD)) if (f.endsWith('.json') && !keepF.has(f)) { try { fs.unlinkSync(path.join(SD, f)); } catch (e) {} }
   const ready = [...byMap.keys()].filter(m => G(m).rounds.length >= minRounds).length;
+  // (v192) for the admin page: how far the grids are (without reading them: they are megabytes each)
+  try { const sm = { at: new Date().toISOString(), v: GLITCH_V, minRounds, maps: Object.fromEntries([...byMap.keys()].sort().map(m => [m, G(m).rounds.length])), left: todo.length - done, stays: left, hints: nh };
+    fs.writeFileSync(path.join(GD, 'summary.json.tmp'), JSON.stringify(sm)); fs.renameSync(path.join(GD, 'summary.json.tmp'), path.join(GD, 'summary.json')); } catch (e) {}
   log(`glitch spots: ${done} new rounds into the grids${failed ? ` (${failed} unreadable)` : ''}${todo.length > done ? `, ${todo.length - done} to go` : ''} (${((Date.now() - t0) / 1000).toFixed(0)} s); ${ready} of ${byMap.size} maps with ${minRounds}+ rounds; ${left} stays left to check (${dropped} ruled out now), ${nh} hints`);
   return { done, left: todo.length - done, hints: nh };
 }

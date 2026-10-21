@@ -665,6 +665,7 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .plife .cur { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
 .plifeax { display: flex; justify-content: space-between; gap: 8px; font: 400 10px var(--font-data); color: var(--muted); margin-top: 3px; }
 .pcols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 16px; }
+.kpis.recs .kv { font-size: 21px; } .kpis.recs .ks a { color: inherit; } .rectab th { font-weight: 500; white-space: nowrap; } .rectab td { vertical-align: top; } .rectab td b { white-space: nowrap; }   /* (v192: records) */
 @media (max-width: 1100px) { .pcols { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .pcols { grid-template-columns: minmax(0, 1fr); } }
 .plist { list-style: none; margin: 0; padding: 0; font-size: 13px; }
@@ -1012,7 +1013,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v191';
+const APP_VERSION = 'v192';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -12939,7 +12940,7 @@ function aggPlayer(nick, R, ptsOf) {
   const W = new Map(), A = new Map();
   for (const x of R) for (const q of x.r.sum.P || []) { const kk = nickOf(q.name); if (kk === nick || /^Player \d+$/.test(kk)) continue; const M = q.team === x.p.team ? W : A; M.set(kk, (M.get(kk) || 0) + 1); }
   const withL = [...W].sort((a, b) => b[1] - a[1]), vsL = [...A].sort((a, b) => b[1] - a[1] || ((vicN.get(b[0]) || 0) + (kilN.get(b[0]) || 0)) - ((vicN.get(a[0]) || 0) + (kilN.get(a[0]) || 0)));
-  return { n, nMine: mine.length, wpn, vic, kil, kinds: aggGroup(mine, q => q[6]), withL, vsL, died: aggDied(onMe), hsx: aggHeads(mine) };
+  return { n, nMine: mine.length, wpn, vic, kil, kinds: aggGroup(mine, q => q[6]), withL, vsL, died: aggDied(onMe), hsx: aggHeads(mine), pb: aggBests(R) };   // (v192: his best)
 }
 // (v183, todo 221) his headshots against what his weapons give everyone: the share of small-arms kills to the head is
 // each weapon's own (HS_W, 145 thousand kills of the analysis of 1619 rounds of 8 servers, todo 146: sniper rifles ~0.47,
@@ -12974,11 +12975,42 @@ function aggDied(onMe) {
     wL: [...W].sort((a, b) => b[1] - a[1]), wh: [...where].sort((a, b) => b[1] - a[1]) };
 }
 // a map's page from its rounds (newest first): who killed most there, what with
+// (v192) records over many rounds - the site's Records page (ingest.mjs), the player page (his best), the map page: from
+// each soldier's line of each round's summary (P: k, kVeh, hs, rev, heal, rep, score; x, v192: his highlights - rounds
+// summed up before v192 have no x and count only for the first ones). [key, name, unit ('m': a distance with a weapon)]
+const REC_KEYS = [['k', 'Most kills'], ['foot', 'Most kills on foot'], ['kVeh', 'Most kills from vehicles'], ['hs', 'Most headshots'],
+  ['sf', 'Longest streak on foot'], ['sv', 'Longest streak in vehicles'], ['lg', 'Longest kill', 'm'], ['al', 'Longest launcher kill', 'm'], ['sl', 'Longest small-arms kill', 'm'], ['sn', 'Longest sniper kill', 'm'],
+  ['kn', 'Most knife kills'], ['cl', 'Most claymore kills'], ['mi', 'Most mine kills'], ['ai', 'Most soldiers killed with launchers'], ['rd', 'Most run over'], ['ex', 'Most explosive kills'],
+  ['rev', 'Most revives'], ['heal', 'Most heals'], ['rep', 'Most repairs'], ['fl', 'Most flags taken'], ['score', 'Best score'], ['kd', 'Best K/D (10 kills or more)']];
+// one soldier's value in one round for a key: [value, weapon] (0: none)
+function recVal(p, k) {
+  if (k === 'foot') return [Math.max(0, (p.k || 0) - (p.kVeh || 0))];
+  if (k === 'kd') return [p.k >= 10 ? Math.round(p.k / Math.max(1, p.d) * 100) / 100 : 0];
+  const v = p.x?.[k] ?? p[k]; return Array.isArray(v) ? v : [v || 0];
+}
+// the best n of each key over rounds R (round entries): { key: [[value, name, round name, weapon], ...] } - a tie: the
+// earlier round first
+function aggRecs(R, n = 3) {
+  const out = {};
+  for (const [k] of REC_KEYS) {
+    const all = [];
+    for (const r of R) for (const p of r.sum?.P || []) { if (/^Player \d+$/.test(nickOf(p.name))) continue; const [v, w] = recVal(p, k); if (v > 0) all.push([v, p.name, r.name, w || '', String(r.sum.date || '')]); }
+    all.sort((a, b) => b[0] - a[0] || a[4].localeCompare(b[4]));
+    if (all.length) out[k] = all.slice(0, n).map(x => x.slice(0, 4));
+  }
+  return out;
+}
+// his best of each key over his rounds R ({ r, p }): { key: [value, round name, weapon] }
+function aggBests(R) {
+  const out = {};
+  for (const [k] of REC_KEYS) { let b = null; for (const x of R) { const [v, w] = recVal(x.p, k); if (v > 0 && (!b || v > b[0] || (v === b[0] && String(x.r.sum.date) < b[3]))) b = [v, x.r.name, w || '', String(x.r.sum.date || '')]; } if (b) out[k] = b.slice(0, 3); }
+  return out;
+}
 function aggMap(R, ptsOf) {
   const nicks = new Map(); for (const r of R) for (const p of r.sum.P || []) { const k = nickOf(p.name); if (/^Player \d+$/.test(k)) continue; const o = nicks.get(k) || { name: p.name, n: 0, k: 0, d: 0 }; o.n++; o.k += p.k; o.d += p.d; nicks.set(k, o); }
   let n = 0; const all = []; for (const r of R) { const L = ptsOf(r); if (L) n++; for (const q of L || []) if (q[8] !== q[9]) all.push(q); }
   const own = all.filter(q => !(q[4] && q[4] === q[5])), wpn = aggGroup(own, q => q[7] || 'no weapon');
-  return { n, players: nicks.size, top: [...nicks].sort((x, y) => y[1].k - x[1].k).slice(0, 10), wpn, wn: wpn.reduce((x, y) => x + y[1], 0), kinds: aggGroup(own, q => q[6]) };
+  return { n, players: nicks.size, top: [...nicks].sort((x, y) => y[1].k - x[1].k).slice(0, 10), wpn, wn: wpn.reduce((x, y) => x + y[1], 0), kinds: aggGroup(own, q => q[6]), rec: aggRecs(R) };   // (v192: the map's records)
 }
 // @agg-end
 function sessRoundsByDate(srv) { return session ? aggRounds(session.rounds.filter(r => r.status === 'done'), srv) : []; }
@@ -13019,6 +13051,22 @@ function statsHints(nick, redraw) {
   return M.data && M.data.hv === HINTS_V ? { me: M.data, all: A.data } : undefined;
 }
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
+// (v192) records over many rounds (aggRecs / aggBests, the same as the site's Records page): a round's day and a link
+// to it; his best in one round (the player page) and the map's best three (the map page)
+const recRound = nm => { const r = session?.server ? srvRound(nm) : (session?.rounds || []).find(x => x.name === nm); const d = r?.sum?.date; return `<a href="#round=${encodeURIComponent(linkId(nm))}" title="Open the round">${esc(d ? dayName(dayKey(d)) : linkId(nm))}</a>`; };
+const recValTxt = (k, unit, v, w) => unit === 'm' ? `${v} m${w ? ` <span class="w">${esc(w)}</span>` : ''}` : k === 'kd' ? Number(v).toFixed(2) : String(v);
+const REC_SHORT = { k: 'Kills', foot: 'Kills on foot', kVeh: 'Kills from vehicles', hs: 'Headshots', sf: 'Streak on foot', sv: 'Streak in vehicles', lg: 'Longest kill', al: 'Launcher kill', sl: 'Small-arms kill', sn: 'Sniper kill',
+  kn: 'Knife kills', cl: 'Claymore kills', mi: 'Mine kills', ai: 'Launchers on infantry', rd: 'Run over', ex: 'Explosive kills', rev: 'Revives', heal: 'Heals', rep: 'Repairs', fl: 'Flags taken', score: 'Score', kd: 'K/D (10+ kills)' };
+function bestsCard(pb) {
+  if (!pb || !Object.keys(pb).length) return '';
+  const T = REC_KEYS.filter(([k]) => pb[k]).map(([k, name, unit]) => { const [v, nm, w] = pb[k]; return `<div class="kpi"><span class="kl">${esc(REC_SHORT[k] || name)}</span><span class="kv">${unit === 'm' ? v + ' m' : k === 'kd' ? Number(v).toFixed(2) : v}</span><span class="ks">${unit === 'm' && w ? esc(w) + ' · ' : ''}${recRound(nm)}</span></div>`; });
+  return `<section class="card"><h2>His best in one round <span class="w">over all his rounds · a day opens that round</span></h2><div class="kpis recs">${T.join('')}</div></section>`;
+}
+function recsCard(rec, title) {
+  if (!rec || !Object.keys(rec).length) return '';
+  const rows = REC_KEYS.filter(([k]) => rec[k]).map(([k, name, unit]) => `<tr><th>${esc(name)}</th>${rec[k].map(([v, nm, rn, w], i) => `<td${i ? ' class="w"' : ''}><b>${recValTxt(k, unit, v, w)}</b> <button class="plink" data-nick="${esc(nickOf(nm))}" title="His page">${esc(nm)}</button><br>${recRound(rn)}</td>`).join('')}${'<td></td>'.repeat(3 - rec[k].length)}</tr>`).join('');
+  return `<section class="card"><h2>${title} <span class="w">the best in one round</span></h2><div class="stscroll"><table class="sttab rectab"><thead><tr><th></th><th>1st</th><th>2nd</th><th>3rd</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
 function hintsCard(H, nick) {
   if (!H) return '';
   const label = new Map(ADM_KINDS), rows = [];
@@ -13142,6 +13190,7 @@ function renderPlayerPage() {
       <div><h3>Killed by</h3>${list(kil, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">×${c}</span></li>`)}</div>
     </div>${kinds.length ? `<p class="pkdline">${kinds.map(([c, v]) => `${esc(KN[c] || c)} <b>${Math.round(v / mine.length * 100)}%</b>`).join(' · ')}</p>` : ''}</section>
     ${howDied(AG.died, list, share)}
+    ${bestsCard(AG.pb)}
     ${S ? hintsCard(statsHints(nick, () => { if (ppage.nick === nick && !ppage.vs && !ppage.map) renderPlayerPage(); }), nick) : ''}
     <section class="card"><div class="pcols">
       <div><h3>Played with <span class="w">rounds on his side</span></h3>${list(withL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c}</span>${vsb(kk)}</li>`, 10)}</div>
@@ -13299,6 +13348,7 @@ function renderMapPage() {
       <div><h3>Killed with</h3>${wpn.length ? `<ul class="plist">${wpn.slice(0, 10).map(([w, c]) => `<li><span class="wi">${weaponIcon(widOf(w), w) || ''}</span><span class="nmc">${esc(w)}<span class="pbar" style="width:${Math.max(4, Math.round(c / wn * 100))}%"></span></span><span class="n">${c}</span></li>`).join('')}</ul>` : `<p class="empty">${need.length ? 'Loading…' : 'None.'}</p>`}</div>
       <div><h3>By kind of weapon</h3>${wn ? `<ul class="plist">${AG.kinds.map(([c, v]) => `<li><span class="nmc">${esc(KN[c] || c)}<span class="pbar" style="width:${Math.max(4, Math.round(v / wn * 100))}%"></span></span><span class="n">${Math.round(v / wn * 100)}%</span></li>`).join('')}</ul>` : '<p class="empty">None.</p>'}</div>
     </div></section>
+    ${recsCard(AG.rec, 'Records on this map')}
     <section class="card"><h2>Rounds <span class="w">newest first · a row opens the round</span></h2>
       <div class="stscroll"><table class="sttab pprounds"><thead><tr><th>Started</th>${srvs.length > 1 ? '<th>Server</th>' : ''}<th class="n">Length</th><th class="n">Players</th><th class="n">Tickets</th><th>Won</th><th class="n">Kills</th><th>Best score</th></tr></thead><tbody>
       ${shown.map((r, i) => { const s = r.sum; return `<tr data-i="${i}"><td>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</td>${srvs.length > 1 ? `<td>${esc(s.server || '')}</td>` : ''}<td class="n">${s.duration ? fmt(s.duration) : ''}</td><td class="n">${s.players}</td><td class="n">${tkCell(s)}</td><td>${s.winner != null ? `<span class="t${s.winner}">${esc(s.teams[s.winner])}</span>` : '–'}</td><td class="n">${s.kills}</td><td>${s.top ? `<span class="t${s.top.team}">${esc(s.top.name)}</span> <span class="w">${s.top.score}</span>` : ''}</td></tr>`; }).join('')}

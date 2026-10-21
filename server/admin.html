@@ -146,6 +146,12 @@ td.mono { overflow-wrap: anywhere; }
     <div class="muted" id="sysNote" hidden></div>
   </section>
 
+  <section class="card wide" aria-labelledby="hAn">
+    <h2 id="hAn">Background analysis</h2>
+    <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, a few at a time, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. When it is near 100%, an archive of it is what Claude needs to set the thresholds: <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh pack</span>.</p>
+    <div id="anBox"></div>
+  </section>
+
   <section class="card wide" aria-labelledby="hF">
     <h2 id="hF">Where demos come from</h2>
     <div id="srcList"></div>
@@ -309,6 +315,7 @@ function render() {
   }
   renderJobs();
   renderDemos();
+  renderAnalysis();
   $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
 }
 // (v162) how many demos are decoded at once: the choice, the machine, what is being decoded now, how fast each number went
@@ -344,6 +351,23 @@ function renderJobs() {
   for (const b of box.querySelectorAll('[data-stoprun]')) b.onclick = () => stopRun(b.dataset.stoprun, b);
   if ($('#jobsSave')) $('#jobsSave').onclick = () => { const v = +$('#jobsSel').value; act('jobs-set', { jobs: v }, $('#jobsSave')).then(j => { if (j && j.ok) jobsPick = null; }); };
   if ($('#jobsReset')) $('#jobsReset').onclick = () => { if (confirm('Clear the measured speeds? They are measured again from the next demos.')) act('jobs-set', { reset: true }, $('#jobsReset')); };
+}
+// (v192) the background analysis: how far, the last run, when all is done; the glitch grids; the hint cards
+function renderAnalysis() {
+  const A = S.analysis, box = $('#anBox'); if (!A) { box.innerHTML = ''; return; }
+  const pc = A.total ? Math.floor(100 * A.cur / A.total) : 0, L = [];
+  if (A.off) L.push('<div class="row warn">BF2R_HINTS=0 in /etc/bf2replay.conf: the background analysis is off</div>');
+  L.push(`<div class="row"><span class="big">${pc}%</span><span class="muted">${A.cur} of ${A.total} rounds (6+ soldiers, not copies) looked at with the page's hint rules now (${A.hv})${A.old ? ` · ${A.old} with older ones` : ''}${A.none ? ` · ${A.none} not yet` : ''}${A.failed ? ` · <span class="warn">${A.failed} failed</span>` : ''}</span></div><div class="bar"><i style="width:${pc}%"></i></div>`);
+  if (!A.playwright) L.push('<div class="row warn">the page part needs its browser once: <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh start</span> (only the glitch grids are made until then)</div>');
+  const au = A.auto, run = A.running === 'auto' ? '<b class="ok">running now</b>' : A.running === 'manual' ? '<b class="ok">analyze.sh start is running</b> (the background one waits for it)' : '';
+  if (au || run) L.push(`<div class="row muted">${run ? run + ' · ' : ''}${au && au.ended ? `last run ${ago(au.ended)}: ${au.done} round${au.done === 1 ? '' : 's'}${au.secs != null ? ` in ${hm(au.secs)}` : ''}${au.failed ? `, ${au.failed} failed` : ''}` : ''}${A.eta ? ` · all done in about ${hm(A.eta)}` : A.eta === 0 && A.total ? ' · <span class="ok">all done</span>' : ''}</div>`);
+  const G = A.glitch;
+  if (G) { const M = Object.entries(G.maps || {}), ready = M.filter(([, n]) => n >= G.minRounds);
+    L.push(`<div class="row"><b>Glitch spot</b><span class="muted">${ready.length} of ${M.length} maps have ${G.minRounds}+ rounds in their grid${G.left ? ` · ${G.left} rounds still to add` : ''} · ${G.stays} stays left to check · ${G.hints} hint${G.hints === 1 ? '' : 's'} · ${ago(G.at)}</span></div>`
+      + `<details><summary>the maps</summary><div class="mono" style="font-size:12px">${M.sort((a, b) => b[1] - a[1]).map(([m, n]) => `<span class="${n >= G.minRounds ? 'ok' : 'muted'}">${esc(m)} ${n}</span>`).join(' · ')}</div></details>`); }
+  else L.push('<div class="row muted">Glitch spot: no grids yet (the first background run makes them, or <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh glitch</span>)</div>');
+  const C = A.cards; L.push(C ? `<div class="row muted">players' hint cards: ${C.players} players from ${C.rounds} rounds, written ${ago(C.at)}</div>` : '<div class="row muted">players\' hint cards: not written yet</div>');
+  box.innerHTML = L.join('');
 }
 // (v186) demos: what takes the room, which old ones go (data/.demos.json; ingest.mjs removes them), the keep list
 let dmDirty = false, dmPreview = null;
