@@ -144,8 +144,10 @@ function bfrBuild(obj) {
 // against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs; 4, v188:
 // and the mines' kills, as the site's Round stats has them; 5, v190: the kill streaks on foot and in vehicles apart; 6,
 // v192: each soldier's own of them, P[].x, for the records over many rounds; 7, v201: the kills' distances - a throw only
-// for a kill by what it is, todo 245; 8, v202: a soldier's longest kill without the commander's artillery)
-const SUM_V = 8;
+// for a kill by what it is, todo 245; 8, v202: a soldier's longest kill without the commander's artillery; 9, v204: the
+// records of each group of weapons - hand-held, anti-tank rockets, vehicles, anti-air guns, rockets, air-to-air, todo 250;
+// 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251)
+const SUM_V = 10;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -176,7 +178,8 @@ function summarize(tl, hdr, dec) {
   const THROW_FOR = { Grenade: /grenade|^GP-\d|^M203$/i, SRAW: /SRAW|RPG/i, Eryx: /Eryx/i, TOW: /TOW|HJ-8|missile/i, 'TV missile': /missile|Hellfire|Maverick|HJ-8/i, 'D-30 shell': /artillery/i, 'M777 shell': /artillery/i };
   const PLACED = new Set([5367, 5460, 5359]), thrown = ev.filter(e => e.type === 'throw' && e.path?.length && THROW_FOR[e.kind]);
   for (const e of kills) {
-    if (e.dist !== undefined || e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
+    delete e.dist;   // (v204: a round summed up again from its .bfr has the distances of the code that decoded it - worked out again)
+    if (e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
     const a = k * n + ki, b = k * n + vi, endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - C.X[b], q[2] - C.Y[b]); };
     let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && THROW_FOR[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
@@ -241,6 +244,25 @@ function summarize(tl, hdr, dec) {
     const far = (key, f) => { let b = null; for (const x of E) if (x.d != null && !x.placed && f(x) && (!b || x.d > b.d)) b = x; if (b) hl[key] = { d: b.d, who: b.k, w: b.w, vic: b.v }; };
     // (the commander's artillery - "M777 shell" - is no small arm; a kill with no weapon named is no record)
     const ARTY = /shell|artillery/i;
+    // (v204, Sagara: records apart for hand-held weapons - no sniper rifles -, anti-tank rockets - hand-held and on a stand
+    // -, vehicles, anti-air guns, anti-air rockets from the ground and air-to-air missiles) a kill's group by its weapon's
+    // name (the killer may sit in a vehicle or at a stand: x.cause says 'veh' then); none for artillery, placed charges, the
+    // knife; REC_N: its most-kills key, REC_D: its longest-kill key (as the page's REC_KEYS)
+    // (v205: hand-held anti-tank rockets, the launchers on a stand and the tank cannons apart)
+    const AT_RKT = /^(SRAW|Eryx|RPG-7)$/i, AT_STAND = /^(TOW|HJ-8 launcher)$/i, TANK_GUN = /^(M1A2|T-90|Type 98|Challenger 2|Leopard 2A6) cannon$/i, AA_GUN = /^(Tunguska cannon|Type 95 AA guns|M6 Linebacker cannon|Phalanx)$/i;
+    const AA_GND = /^(Igla AA|Stinger AA|M6 Stinger|Tunguska SA-19|Type 95 QW-2|Sea Sparrow)$/i, A2A = /Sidewinder|Archer missile|^Eurofighter missiles$/i;
+    const VEH_W = /Maverick|Hellfire|Kedge|minigun|cannons?\b|bombs|rockets|missile|HMG|mounted|Coaxial|Firing port/i;
+    const recGroup = x => {
+      if (x.placed || ARTY.test(x.w)) return null;
+      if (AA_GUN.test(x.w)) return 'ag'; if (AA_GND.test(x.w)) return 'ar'; if (A2A.test(x.w)) return 'aa'; if (AT_RKT.test(x.w)) return 'at'; if (AT_STAND.test(x.w)) return 'st'; if (TANK_GUN.test(x.w)) return 'tc';
+      if (!x.raw) return x.kv ? 'veh' : null;   // (no weapon named - a vehicle's name guessed for it: not hand-held)
+      const c = killCause({ weapon: x.w }, false);
+      if (c === 'small') return /knife|defib/i.test(x.w) ? null : VEH_W.test(x.w) ? 'veh' : SNIPER.test(x.w) ? 'sn' : 'hh';
+      if (c === 'at') return 'at';
+      if (c === 'veh' || c === 'emp') return 'veh';
+      return null;
+    };
+    var REC_N = { hh: 'hk', at: 'atk', st: 'stk', tc: 'tck', veh: 'vk', ag: 'agk', ar: 'ark', aa: 'aak' }, REC_D = { hh: 'sl', sn: 'sn', at: 'al', st: 'stl', tc: 'tcl', veh: 'vl', ag: 'agl', ar: 'arl', aa: 'aal' };
     far('atLong', x => x.cause === 'at' && !x.kv); far('smallLong', x => x.cause === 'small' && !x.kv && !SNIPER.test(x.w) && !ARTY.test(x.w)); far('snipLong', x => !x.kv && SNIPER.test(x.w)); far('longest', x => (!!x.raw || x.cause === 'at') && !ARTY.test(x.w));   // (a crew killed with no weapon named: only a launcher's guess counts)
     if (E.length) { const x = E[0]; hl.first = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t) }; }
     if (K.length) { const x = K[K.length - 1]; hl.last = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t), tk: x.tk }; }   // (times: whole seconds down, as the site shows them)
@@ -264,9 +286,10 @@ function summarize(tl, hdr, dec) {
     for (const x of E) {
       if (/knife/i.test(x.w)) inc(x.ki, 'kn'); if (/claymore/i.test(x.w)) inc(x.ki, 'cl'); if (/\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)) inc(x.ki, 'mi');
       if (x.cause === 'at' && !x.kv && !x.vv) inc(x.ki, 'ai'); if (x.kv && !x.raw && !x.vv) inc(x.ki, 'rd'); if (x.cause === 'expl') inc(x.ki, 'ex');
+      const g = recGroup(x); if (REC_N[g]) inc(x.ki, REC_N[g]);
       if (x.d == null || x.placed) continue;
       const up = k => { const o = xo(x.ki); if (!o[k] || x.d > o[k][0]) o[k] = [x.d, x.w]; };
-      if (x.cause === 'at' && !x.kv) up('al'); if (x.cause === 'small' && !x.kv && !SNIPER.test(x.w) && !ARTY.test(x.w)) up('sl'); if (!x.kv && SNIPER.test(x.w)) up('sn'); if ((!!x.raw || x.cause === 'at') && !ARTY.test(x.w)) up('lg');
+      if (REC_D[g] && (g !== 'veh' || x.raw)) up(REC_D[g]); if ((!!x.raw || x.cause === 'at') && !ARTY.test(x.w)) up('lg');
     }
     for (const i of sold) for (const [k, veh] of [['sf', false], ['sv', true]]) {
       const L = E.filter(x => x.ki === i && x.kv === veh), D = deathsOf.get(i) || []; let cur = 0, b = 0;

@@ -1054,7 +1054,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v203';
+const APP_VERSION = 'v205';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1362,8 +1362,13 @@ function normalize(d) {
   // gun), else from where the killer was at the kill
   const PLACED = new Set(Object.values(CHARGE_WEAPON)), thrown = events.filter(e => e.type === 'throw' && e.path?.length && THROW_FOR[e.kind]);
   const frameAt = tt => { if (!F || times[0] > tt) return -1; let lo = 0, hi = F - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (times[m] <= tt) lo = m; else hi = m - 1; } return lo; };
+  // (v204) a decoded round's file (.bfr) has each kill's distance as the code that decoded it worked it out (ingest.mjs
+  // summarize writes it into the events): worked out again here, always - only a logger's file keeps its own
+  const again = d.meta?.source === 'demo';
   for (const e of events) {
-    if (e.type !== 'kill' || e.dist !== undefined || e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
+    if (e.type !== 'kill') continue;
+    if (again) delete e.dist;
+    if (e.dist !== undefined || e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
     const a = k * n + ki, b = k * n + vi;
     const endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - X[b], q[2] - Y[b]); };   // (of several - shells - the one that came down by the victim)
@@ -11857,7 +11862,15 @@ function aggDied(onMe) {
 // each soldier's line of each round's summary (P: k, kVeh, hs, rev, heal, rep, score; x, v192: his highlights - rounds
 // summed up before v192 have no x and count only for the first ones). [key, name, unit ('m': a distance with a weapon)]
 const REC_KEYS = [['k', 'Most kills'], ['foot', 'Most kills on foot'], ['kVeh', 'Most kills from vehicles'], ['hs', 'Most headshots'],
-  ['sf', 'Longest streak on foot'], ['sv', 'Longest streak in vehicles'], ['lg', 'Longest kill', 'm'], ['al', 'Longest launcher kill', 'm'], ['sl', 'Longest small-arms kill', 'm'], ['sn', 'Longest sniper kill', 'm'],
+  ['sf', 'Longest streak on foot'], ['sv', 'Longest streak in vehicles'], ['lg', 'Longest kill', 'm'],
+  // (v204, Sagara: "records apart for anti-air guns, anti-air rockets, vehicles, hand-held weapons and anti-tank rockets":
+  // each its longest kill and its most kills in a round - ingest.mjs summarize sorts the kills, recGroup)
+  ['sl', 'Hand-held weapons: longest kill (no sniper rifles)', 'm'], ['hk', 'Hand-held weapons: most kills (no sniper rifles)'], ['sn', 'Sniper rifles: longest kill', 'm'],
+  // (v205, Sagara: "tank, anti-tank and hand-held apart") hand-held anti-tank rockets, the launchers on a stand, tank cannons
+  ['al', 'Hand-held anti-tank rockets: longest kill', 'm'], ['atk', 'Hand-held anti-tank rockets: most kills'], ['stl', 'Anti-tank launchers on a stand (TOW, HJ-8): longest kill', 'm'], ['stk', 'Anti-tank launchers on a stand (TOW, HJ-8): most kills'],
+  ['tcl', 'Tank cannons: longest kill', 'm'], ['tck', 'Tank cannons: most kills'], ['vl', 'Vehicles: longest kill (tank cannons and anti-air apart)', 'm'], ['vk', 'Vehicles: most kills (tank cannons and anti-air apart)'],
+  ['agl', 'Anti-air guns: longest kill', 'm'], ['agk', 'Anti-air guns: most kills'], ['arl', 'Anti-air rockets from the ground: longest kill', 'm'], ['ark', 'Anti-air rockets from the ground: most kills'],
+  ['aal', 'Air-to-air missiles: longest kill', 'm'], ['aak', 'Air-to-air missiles: most kills'],
   ['kn', 'Most knife kills'], ['cl', 'Most claymore kills'], ['mi', 'Most mine kills'], ['ai', 'Most soldiers killed with launchers'], ['rd', 'Most run over'], ['ex', 'Most explosive kills'],
   ['rev', 'Most revives'], ['heal', 'Most heals'], ['rep', 'Most repairs'], ['fl', 'Most flags taken'], ['score', 'Best score'], ['kd', 'Best K/D (10 kills or more)']];
 // one soldier's value in one round for a key: [value, weapon] (0: none)
@@ -11916,7 +11929,8 @@ function statsPlayer(nick, redraw) {
 // to it; his best in one round (the player page) and the map's best three (the map page)
 const recRound = nm => { const r = session?.server ? srvRound(nm) : (session?.rounds || []).find(x => x.name === nm); const d = r?.sum?.date; return `<a href="#round=${encodeURIComponent(linkId(nm))}" title="Open the round">${esc(d ? dayName(dayKey(d)) : linkId(nm))}</a>`; };
 const recValTxt = (k, unit, v, w) => unit === 'm' ? `${v} m${w ? ` <span class="w">${esc(w)}</span>` : ''}` : k === 'kd' ? Number(v).toFixed(2) : String(v);
-const REC_SHORT = { k: 'Kills', foot: 'Kills on foot', kVeh: 'Kills from vehicles', hs: 'Headshots', sf: 'Streak on foot', sv: 'Streak in vehicles', lg: 'Longest kill', al: 'Launcher kill', sl: 'Small-arms kill', sn: 'Sniper kill',
+const REC_SHORT = { k: 'Kills', foot: 'Kills on foot', kVeh: 'Kills from vehicles', hs: 'Headshots', sf: 'Streak on foot', sv: 'Streak in vehicles', lg: 'Longest kill', sl: 'Hand-held kill', hk: 'Hand-held kills', sn: 'Sniper kill', al: 'Hand-held anti-tank kill', atk: 'Hand-held anti-tank kills', stl: 'TOW / HJ-8 kill', stk: 'TOW / HJ-8 kills', tcl: 'Tank cannon kill', tck: 'Tank cannon kills', vl: 'Vehicle kill', vk: 'Vehicle kills',
+  agl: 'Anti-air gun kill', agk: 'Anti-air gun kills', arl: 'Anti-air rocket kill', ark: 'Anti-air rocket kills', aal: 'Air-to-air kill', aak: 'Air-to-air kills',
   kn: 'Knife kills', cl: 'Claymore kills', mi: 'Mine kills', ai: 'Launchers on infantry', rd: 'Run over', ex: 'Explosive kills', rev: 'Revives', heal: 'Heals', rep: 'Repairs', fl: 'Flags taken', score: 'Score', kd: 'K/D (10+ kills)' };
 function bestsCard(pb) {
   if (!pb || !Object.keys(pb).length) return '';
