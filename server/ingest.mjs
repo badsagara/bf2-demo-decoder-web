@@ -510,8 +510,9 @@ main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}h1{font:700 28px/1.15
 .sub{color:#8b9a89;margin:0 0 14px}.go{display:inline-block;margin:6px 0 14px;padding:8px 14px;border-radius:4px;background:#e2b547;color:#17130a;font-weight:600}.go:hover{text-decoration:none;filter:brightness(1.08)}
 .wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:6px 10px;border-bottom:1px solid #2b3830;text-align:left;white-space:nowrap}th{color:#8b9a89;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.t0{color:#ff6b4f}.t1{color:#5ea8ff}.mute{color:#8b9a89}.pic{float:right;width:min(220px,38vw);margin:0 0 12px 16px;border-radius:4px;border:1px solid #2b3830}
-.months{display:flex;flex-wrap:wrap;gap:6px 14px}h3{font-size:14px;margin:16px 0 6px;color:#8b9a89}table.rec tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:#dde4d6;white-space:normal;min-width:170px;vertical-align:top}table.rec td{vertical-align:top;line-height:1.35}footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:#8b9a89;font-size:13px}`;
-function wwwPage({ title, desc, canon, body, abs }) {
+.months{display:flex;flex-wrap:wrap;gap:6px 14px}h3{font-size:14px;margin:16px 0 6px;color:#8b9a89}table.rec tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:#dde4d6;white-space:normal;min-width:170px;vertical-align:top}table.rec td{vertical-align:top;line-height:1.35}footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:#8b9a89;font-size:13px}
+.find{margin:0 0 12px}.find input{font:14px system-ui,sans-serif;color:#dde4d6;background:#151c17;border:1px solid #2b3830;border-radius:4px;padding:7px 10px;width:min(320px,100%)}.find input:focus{outline:2px solid #e2b547;outline-offset:1px}tr[hidden]{display:none}`;
+function wwwPage({ title, desc, canon, body, abs, script }) {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escH(title)} · BF2 Round Replay</title>
@@ -525,10 +526,15 @@ ${abs ? `<link rel="canonical" href="${escH(abs + canon.replace(/^\//, ''))}">\n
 ${body}
 </main>
 <footer>Battlefield 2 rounds from the Battle Recorder, decoded: every round can be watched on the map in <a href="/">BF2 Round Replay</a>.</footer>
-</body></html>
+${script ? `<script>${script}</script>\n` : ''}</body></html>
 `;
 }
-const WWW_VER = 3;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights)
+// (v193) the players page: "Find a player" hides the rows whose names have it not (the page works without it too)
+const WWW_FIND = `(function(){var f=document.getElementById('find'),c=document.getElementById('fcount'),no=document.getElementById('fnone'),R=[].slice.call(document.querySelectorAll('#pl tbody tr'));
+function go(){var q=f.value.trim().toLowerCase(),n=0;R.forEach(function(r){var on=!q||r.getAttribute('data-f').indexOf(q)>=0;r.hidden=!on;if(on)n++;});c.textContent=q?n+' of '+R.length:'';no.hidden=!q||n>0;if(q&&!n)no.textContent='No player has \u201c'+f.value.trim()+'\u201d in his name.';try{history.replaceState(null,'',q?'#'+encodeURIComponent(f.value.trim()):location.pathname);}catch(e){}}
+f.oninput=go;f.onkeydown=function(e){if(e.key==='Enter'){var v=R.filter(function(r){return!r.hidden;});if(v.length===1)location.href=v[0].querySelector('a').href;}};
+if(location.hash.length>1){try{f.value=decodeURIComponent(location.hash.slice(1));}catch(e){}go();}})();`;
+const WWW_VER = 4;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights; 4, v193: Find a player)
 function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
@@ -590,9 +596,10 @@ ${side(0, sides[0])}${side(1, sides[1])}` }));
   const PL = [...P.values()].sort((a, b) => b.rounds.length - a.rounds.length || b.k - a.k);
   files.set('players/index.html', wwwPage({ abs, canon: '/players/', title: 'Battlefield 2 players', desc: `${PL.length} Battlefield 2 players: rounds, kills, deaths, K/D.`,
     body: `<h1>Players</h1><p class="sub">${PL.length} players over ${R.length} rounds, most rounds first. One player under several clan tags is one row.</p>
-<div class="wrap"><table><thead><tr><th>Player</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">Score</th><th>Last played</th></tr></thead><tbody>
-${PL.map(a => `<tr><td><a href="/players/${escH(nickSlug(a.nick))}.html">${escH(a.name)}</a></td><td class="n">${a.rounds.length}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.score}</td><td class="mute">${escH(dayOf(a.rounds[0].r.sum.date).replace(/, \d\d:\d\d$/, ''))}</td></tr>`).join('\n')}
-</tbody></table></div>` }));
+<p class="find"><input type="search" id="find" placeholder="Find a player" aria-label="Find a player" autocomplete="off" spellcheck="false"> <span class="mute" id="fcount" aria-live="polite"></span></p>
+<div class="wrap"><table id="pl"><thead><tr><th>Player</th><th class="n">Rounds</th><th class="n">Won</th><th class="n">Kills</th><th class="n">Deaths</th><th class="n">K/D</th><th class="n">Score</th><th>Last played</th></tr></thead><tbody>
+${PL.map(a => `<tr data-f="${escH([a.nick, ...a.names].join(' ').toLowerCase())}"><td><a href="/players/${escH(nickSlug(a.nick))}.html">${escH(a.name)}</a></td><td class="n">${a.rounds.length}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.score}</td><td class="mute">${escH(dayOf(a.rounds[0].r.sum.date).replace(/, \d\d:\d\d$/, ''))}</td></tr>`).join('\n')}
+</tbody></table></div><p class="mute" id="fnone" hidden></p>`, script: WWW_FIND }));
   for (const a of PL) {
     const slug = nickSlug(a.nick), maps = new Map(); for (const { r } of a.rounds) maps.set(mk(r.sum), (maps.get(mk(r.sum)) || 0) + 1);
     const aka = [...a.names].filter(x => x !== a.name);

@@ -72,7 +72,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 розпаковувались обидва в ту саму папку.) На Mac:
 
 ```bash
-V=v192   # номер версії з назви архіву
+V=v193   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -163,6 +163,11 @@ flag на Kubra Dam — Bridge Base рахує тих, хто під мосто�
 7 днів / 30 днів / усі), на сторінці гравця — «His best in one round», на сторінці мапи — «Records on this map». В адмінці —
 картка Background analysis: скільки раундів фоновий аналіз уже пройшов, коли закінчить, як ідуть сітки Glitch spot.
 Підсумки раундів ще раз перераховуються з `.bfr`, статистика пишеться заново.
+З v193 — пошук гравця (Find a player) у вкладці Players · all rounds і на сторінці /players/: рядки, де в імені (чи
+нікові) є набране; Enter при одному збігу відкриває його сторінку. В адмінці, картка Background analysis: кнопки Run now,
+All rounds now (без обмеження 40 раундів, кілька одночасно, прохід за проходом, поки все не пройде), Pause / Go on;
+видно, що робить прохід зараз і що зробив останній. Там же — архів для Claude: Make the archive і Download, назва з
+версією сайту (`bf2-analysis-<дата>-v193.tar`), у таблиці — якими версіями сторінки й правилами підказок пройдені раунди.
 
 ### Перевірити локально перед push
 

@@ -221,21 +221,46 @@ function jobsSet(b) {
 // The rounds it looks at (6+ soldiers, not copies) against those done with the page's hint rules now (HINTS_V; the round
 // files' rules: analysis/.hv.json), the last run's pace and so when all are done; the glitch grids (analysis/glitch/
 // summary.json, glitch.mjs); the players' hint cards (data/stats/hints.json). Worked out at most every 30 s.
-let anCache = { at: 0, v: null }, hvPage = { mt: 0, v: 0 };
-function pageHintsV() { const f = path.join(SITE, 'index.html'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return 0; } if (mt !== hvPage.mt) { let v = 0; try { v = +((/const HINTS_V = (\d+)/.exec(fs.readFileSync(f, 'utf8')) || [])[1] || 0); } catch (e) {} hvPage = { mt, v }; } return hvPage.v; }
+let anCache = { at: 0, v: null }, hvPage = { mt: 0, v: 0, ver: '' };
+// (v193) a run of analyze.mjs still going (a pid of a run that ended without saying so may be another program's by now)
+const alive = pid => { if (!pid) return false; try { return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('analyze.mjs'); } catch (e) { if (fs.existsSync('/proc/self')) return false; try { process.kill(pid, 0); return true; } catch (e2) { return false; } } };
+const dirBytes = d => { let b = 0; for (const f of listDir(d)) b += sizeOf(path.join(d, f)); return b; };
+// (v193) the archives in analysis/ (analyze.mjs --pack): name, size, when, and what is in each (its .tar.json beside it -
+// for an archive made before v193, summary.json read out of it once, in the background, and kept as its .tar.json)
+const ARCH_RE = /^bf2-analysis-[A-Za-z0-9._-]+\.tar$/;
+let archBusy = false;
+function archives() {
+  const OUTD = path.join(ROOT, 'analysis'), out = [];
+  for (const f of listDir(OUTD)) {
+    const part = f.endsWith('.tar.part'), name = part ? f.slice(0, -5) : f; if (!ARCH_RE.test(name)) continue;
+    let st; try { st = fs.statSync(path.join(OUTD, f)); } catch (e) { continue; }
+    const j = part ? null : readJson(path.join(OUTD, f + '.json'), null);
+    if (!part && !j && !archBusy) { archBusy = true; run('tar', ['-xOf', path.join(OUTD, f), '--occurrence=1', 'summary.json'], { timeout: 120e3 }).then(r => { let sum = null; try { sum = JSON.parse(r.out); } catch (e) {} try { writeJson(path.join(OUTD, f + '.json'), { file: f, bytes: st.size, old: true, ...(sum || { unknown: true }) }); } catch (e) {} archBusy = false; anCache.at = 0; }); }
+    out.push({ file: f, part, bytes: st.size, at: st.mtime.toISOString(), site: j?.site || (/-(v\d+)\.tar$/.exec(name) || [])[1] || null, rounds: j?.rounds ?? null, pages: j?.pages || null, hv: j?.hv || null, hvNow: j?.hvNow ?? null, made: j?.made || null, glitch: j?.glitch || null, old: !!j?.old, unknown: !!j?.unknown });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+function pageVer() { pageHintsV(); return hvPage.ver; }
+function pageHintsV() { const f = path.join(SITE, 'index.html'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return 0; } if (mt !== hvPage.mt) { let v = 0, ver = ''; try { const t = fs.readFileSync(f, 'utf8'); v = +((/const HINTS_V = (\d+)/.exec(t) || [])[1] || 0); ver = (/const APP_VERSION = '(v\d+)'/.exec(t) || [])[1] || ''; } catch (e) {} hvPage = { mt, v, ver }; } return hvPage.v; }
 function analysisState() {
-  if (anCache.v && Date.now() - anCache.at < 30e3) return anCache.v;
+  if (anCache.v && Date.now() - anCache.at < (anCache.v.pack?.on || anCache.v.running ? 5e3 : 30e3)) return anCache.v;
   const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
   const copies = readJson(path.join(DATA, '.copies.json'), {})?.copies || {}, fileOf = n => String(n || '').replace(/\.bf2demo$/i, '').replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz';
   const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty && r.bfr && !copies[r.name] && !((r.sum.players ?? 0) < 6));
   let cur = 0, old = 0; for (const r of R) { const v = hv[fileOf(r.name)]; if (v === undefined) continue; if (v >= HV) cur++; else old++; }
   const auto = readJson(path.join(OUTD, 'auto.json'), null), run = readJson(path.join(OUTD, 'run.json'), null);
-  const runOn = !!(run && !run.ended && run.pid && fs.existsSync('/proc/' + run.pid)), autoOn = !!(auto && !auto.ended && auto.pid && fs.existsSync('/proc/' + auto.pid));
+  const runOn = !!(run && !run.ended && alive(run.pid)), autoOn = !!(auto && !auto.ended && alive(auto.pid));
   const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
   const left = Math.max(0, R.length - cur), perRun = auto?.rounds || 40, cycle = secs != null ? secs / Math.max(1, auto.done) * perRun + 300 : null;
   const pw = fs.existsSync(path.join(ROOT, 'analyze', 'node_modules', 'playwright', 'package.json'));
   const gl = readJson(path.join(OUTD, 'glitch', 'summary.json'), null), hc = readJson(path.join(DATA, 'stats', 'hints.json'), null);
-  const v = { hv: HV, total: R.length, cur, old, none: Math.max(0, R.length - cur - old), failed: Object.keys(failed).length, auto: auto ? { started: auto.started, ended: auto.ended || null, done: auto.done || 0, failed: auto.failed || 0, secs } : null,
+  const set = readJson(path.join(OUTD, '.auto-set.json'), {}) || {}, note = readJson(path.join(OUTD, 'auto-note.json'), null);
+  const pk = readJson(path.join(OUTD, '.pack.json'), null), packing = !!(pk && !pk.ended && alive(pk.pid));
+  const v = { hv: HV, total: R.length, cur, old, none: Math.max(0, R.length - cur - old), failed: Object.keys(failed).length, auto: auto ? { started: auto.started, ended: auto.ended || null, done: auto.done || 0, rounds: auto.rounds || 0, jobs: auto.jobs || 1, boost: !!auto.boost, failed: auto.failed || 0, secs } : null,
+    set: { paused: set.paused || null, boost: set.boost || null }, note, site: pageVer(),
+    pack: pk ? { started: pk.started, ended: pk.ended || null, file: pk.file || null, bytes: pk.bytes || 0, error: pk.error || null, on: packing, dead: !pk.ended && !packing } : null,
+    archives: archives(), roundsBytes: dirBytes(path.join(OUTD, 'rounds')),
+    manual: run ? { started: run.started, ended: run.ended || null, on: runOn, done: run.done || 0, rounds: run.rounds || 0 } : null,
     running: autoOn ? 'auto' : runOn ? 'manual' : null, eta: left && cycle ? Math.round(left / perRun * cycle) : left ? null : 0, playwright: pw, off: opt('BF2R_HINTS', '1') === '0',
     glitch: gl ? { at: gl.at, minRounds: gl.minRounds, maps: gl.maps, left: gl.left, stays: gl.stays, hints: gl.hints } : null, cards: hc ? { at: hc.at, rounds: hc.rounds, players: hc.players } : null };
   anCache = { at: Date.now(), v }; return v;
@@ -373,6 +398,74 @@ async function startUnit(u) {
   const why = (r.err || r.out).trim().split('\n').pop();
   return { ok: false, msg: `could not start bf2replay-${u}: ${why || 'error ' + r.code}${/password|sudoers|not allowed/i.test(why) ? ' (the permission comes with units.sh: wait a minute after the update, or run sudo bash /srv/bf2replay/repo/server/units.sh)' : ''}` };
 }
+// (v193) the background analysis from the admin page (analysis/.auto-set.json, read by analyze.mjs --auto before and
+// between rounds): run now; all rounds now (no 40 a run; as many at once as analyze.sh would) until all are done; pause
+// (the rounds being done are finished first) and go on; make the archive (analyze.mjs --pack, in the background: a few
+// minutes) and remove one
+const AND = () => path.join(ROOT, 'analysis');
+function anSet(f) { const F = path.join(AND(), '.auto-set.json'), o = readJson(F, {}) || {}; f(o); for (const k of Object.keys(o)) if (o[k] == null) delete o[k]; fs.mkdirSync(AND(), { recursive: true }); writeJson(F, o); anCache.at = 0; return o; }
+async function analysisAct(b) {
+  const what = String(b.do || ''), now = new Date().toISOString();
+  anCache.at = 0; const A = analysisState(), busy = A.running === 'auto';
+  if (what === 'run' || what === 'resume') {
+    anSet(o => { o.paused = null; });
+    if (A.running === 'manual') return { ok: true, msg: 'analyze.sh start is running: the background analysis goes on after it' };
+    const r = await startUnit('hints'); if (!r.ok) return r;
+    return { ok: true, msg: busy ? 'it is running already: it goes on' : 'started: first the glitch grids (a minute or two), then the rounds in the page' };
+  }
+  if (what === 'boost') {
+    if (!A.playwright) return { ok: false, msg: 'the page part needs its browser first: sudo bash /srv/bf2replay/repo/server/analyze.sh start (installs it once)' };
+    anSet(o => { o.boost = now; o.paused = null; });
+    if (A.running === 'manual') return { ok: true, msg: 'all rounds now: after the analyze.sh run that is going' };
+    if (busy && !A.auto?.boost) return { ok: true, msg: 'all rounds now: the run going now stops after its round, the next one (in 5 minutes) does all of them, several at once' };
+    const r = await startUnit('hints'); if (!r.ok) return r;
+    return { ok: true, msg: 'all rounds now: started, several at once; it goes on run after run (up to 95 min each, 5 min apart) until all are done, then back to 40 a run' };
+  }
+  if (what === 'unboost') { anSet(o => { o.boost = null; }); return { ok: true, msg: 'back to 40 rounds a run, one at a time' + (busy ? ' (the run going now stops after its rounds)' : '') }; }
+  if (what === 'pause') { anSet(o => { o.paused = now; }); return { ok: true, msg: 'paused' + (busy ? ': the run going now finishes the round it is on and stops' : '') + '; nothing more until "Go on"' }; }
+  if (what === 'pack') {
+    if (A.pack?.on) return { ok: false, msg: 'an archive is being made already' };
+    let free = Infinity; try { const st = fs.statfsSync(AND()); free = st.bavail * st.bsize; } catch (e) {}
+    const need = Math.round(A.roundsBytes * 1.02) + 64 * 2 ** 20;
+    if (free < need + 2 ** 30) return { ok: false, msg: `not enough room for it: it takes about ${(need / 2 ** 30).toFixed(1)} GB, ${(free / 2 ** 30).toFixed(1)} GB free (1 GB stays free); remove an older archive first` };
+    fs.mkdirSync(AND(), { recursive: true });
+    const lf = fs.openSync(path.join(AND(), '.pack.log'), 'w');
+    const ch = spawn(NODE, [path.join(HERE, 'analyze.mjs'), '--pack'], { detached: true, stdio: ['ignore', lf, lf], env: process.env, cwd: ROOT });
+    fs.closeSync(lf); try { os.setPriority(ch.pid, 15); } catch (e) {}
+    ch.on('error', e => log('archive not started:', e.message)); ch.unref();
+    try { writeJson(path.join(AND(), '.pack.json'), { started: now, pid: ch.pid }); } catch (e) {}
+    anCache.at = 0; log('archive of the analysis started, pid', ch.pid);
+    return { ok: true, msg: `making the archive (about ${(need / 2 ** 30).toFixed(1)} GB): a few minutes; "Download" comes when it is done` };
+  }
+  if (what === 'archive-delete') {
+    const f = String(b.file || ''), name = f.endsWith('.part') ? f.slice(0, -5) : f;
+    if (!ARCH_RE.test(name) || f.includes('/')) return { ok: false, msg: 'no such archive' };
+    if (A.pack?.on && f.endsWith('.part')) return { ok: false, msg: 'it is being made now' };
+    let n = 0; for (const x of f === name ? [f, f + '.json'] : [f]) { try { fs.unlinkSync(path.join(AND(), x)); n++; } catch (e) {} }
+    anCache.at = 0; log('analysis archive removed:', f);
+    return n ? { ok: true, msg: `removed: ${f}` } : { ok: false, msg: 'not there' };
+  }
+  return { ok: false, msg: 'unknown' };
+}
+// (v193) an archive to the browser (behind the login, as all here); resumable (Range)
+function sendArchive(req, res, name) {
+  name = String(name || '');
+  if (!ARCH_RE.test(name)) return send(res, 404, { error: 'no such archive' });
+  const f = path.join(AND(), name); let st; try { st = fs.statSync(f); } catch (e) { return send(res, 404, { error: 'no such archive' }); }
+  const tag = `"${st.size.toString(16)}-${Math.floor(st.mtimeMs).toString(16)}"`, lm = st.mtime.toUTCString();
+  const H = { 'Content-Type': 'application/x-tar', 'Content-Disposition': `attachment; filename="${name}"`, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Accel-Buffering': 'no', 'Referrer-Policy': 'no-referrer', 'Accept-Ranges': 'bytes', ETag: tag, 'Last-Modified': lm };
+  let a = 0, z = st.size - 1, code = 200;
+  const m = /^bytes=(\d+)-(\d*)$/.exec(req.headers.range || ''), ir = req.headers['if-range'];
+  if (m && (!ir || ir === tag || ir === lm)) {
+    a = +m[1]; if (m[2]) z = Math.min(z, +m[2]);
+    if (a > z || a >= st.size) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}` }); return res.end(); }
+    code = 206; H['Content-Range'] = `bytes ${a}-${z}/${st.size}`;
+  }
+  H['Content-Length'] = z - a + 1; res.writeHead(code, H);
+  if (req.method === 'HEAD') return res.end();
+  const rs = fs.createReadStream(f, { start: a, end: z }); rs.on('error', () => res.destroy()); res.on('close', () => rs.destroy()); rs.pipe(res);
+  if (!a) log('analysis archive downloaded:', name, 'from', clientIp(req));
+}
 // the demos that could not be decoded (data/bad) back into the queue: the ingest service's path unit sees them at once
 function retryBad() {
   let n = 0, skipped = 0;
@@ -439,6 +532,7 @@ const server = http.createServer(async (req, res) => {
     if (what === 'logout' && req.method === 'POST') { sessions.delete(s.tok); setCookie(req, res, 'x'.repeat(20), 0); return send(res, 200, { ok: true }); }
     if (what === 'state' && req.method === 'GET') return send(res, 200, await state());
     if (what === 'log' && req.method === 'GET') return send(res, 200, await journal(url.searchParams.get('unit') || 'all', +url.searchParams.get('n')));
+    if (what === 'analysis-file' && (req.method === 'GET' || req.method === 'HEAD')) return sendArchive(req, res, url.searchParams.get('name'));
     if (req.method !== 'POST') return send(res, 405, { error: 'method' });
     const b = await bodyOf(req);
     if (what === 'start') return send(res, 200, await startUnit(String(b.unit)));
@@ -454,6 +548,7 @@ const server = http.createServer(async (req, res) => {
     if (what === 'demos-preview') return send(res, 200, demosPreview(b));
     if (what === 'demos-keep') return send(res, 200, demosKeep(b));
     if (what === 'copies-delete') return send(res, 200, copiesDelete());
+    if (what === 'analysis') return send(res, 200, await analysisAct(b));
     if (what === 'notify-test') return send(res, 200, await notifyRun('--test'));
     if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
     if (what === 'notify-last') return send(res, 200, await notifyRun('--last'));

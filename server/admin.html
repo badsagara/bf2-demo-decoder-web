@@ -58,6 +58,12 @@ details summary { cursor: pointer; color: var(--muted); }
 .dmform .w { color: var(--muted); font-size: 12.5px; } .dmform label.ck { flex-wrap: nowrap; align-items: flex-start; } .dmform label.ck input { margin-top: 3px; flex: none; }
 .dmplan { margin-top: 10px; padding: 10px 12px; background: var(--panel-2); border-radius: 4px; } .dmplan .row { margin: 2px 0; }
 .dmkeep { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+/* (v193) the background analysis: its buttons, the archives */
+.anact { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; margin: 10px 0 6px; }
+.anh { margin: 16px 0 4px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.antab td.n, .antab th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .antab td { font-size: 13px; }
+a.btn { display: inline-block; text-decoration: none; } a.btn.primary { background: var(--accent); color: #17140a; border-color: var(--accent); font-weight: 600; }
+@media (max-width: 640px) { .antab thead { display: none; } .antab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); } .antab td { border: 0; padding: 2px 0; } .antab td:nth-child(2) { grid-column: 1 / -1; } .antab td.act { grid-column: 1 / -1; text-align: left; } }
 [hidden] { display: none !important; }
 td.mono { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
@@ -148,7 +154,7 @@ td.mono { overflow-wrap: anywhere; }
 
   <section class="card wide" aria-labelledby="hAn">
     <h2 id="hAn">Background analysis</h2>
-    <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, a few at a time, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. When it is near 100%, an archive of it is what Claude needs to set the thresholds: <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh pack</span>.</p>
+    <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, a few at a time, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. 40 rounds a run, one at a time, 5 minutes after the last run (or all of them at once: "All rounds now"). When it is near 100%, the archive below is what Claude needs to set the thresholds.</p>
     <div id="anBox"></div>
   </section>
 
@@ -355,20 +361,48 @@ function renderJobs() {
 // (v192) the background analysis: how far, the last run, when all is done; the glitch grids; the hint cards
 function renderAnalysis() {
   const A = S.analysis, box = $('#anBox'); if (!A) { box.innerHTML = ''; return; }
-  const pc = A.total ? Math.floor(100 * A.cur / A.total) : 0, L = [];
+  const pc = A.total ? Math.floor(100 * A.cur / A.total) : 0, L = [], au = A.auto, st = A.set || {};
   if (A.off) L.push('<div class="row warn">BF2R_HINTS=0 in /etc/bf2replay.conf: the background analysis is off</div>');
   L.push(`<div class="row"><span class="big">${pc}%</span><span class="muted">${A.cur} of ${A.total} rounds (6+ soldiers, not copies) looked at with the page's hint rules now (${A.hv})${A.old ? ` · ${A.old} with older ones` : ''}${A.none ? ` · ${A.none} not yet` : ''}${A.failed ? ` · <span class="warn">${A.failed} failed</span>` : ''}</span></div><div class="bar"><i style="width:${pc}%"></i></div>`);
   if (!A.playwright) L.push('<div class="row warn">the page part needs its browser once: <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh start</span> (only the glitch grids are made until then)</div>');
-  const au = A.auto, run = A.running === 'auto' ? '<b class="ok">running now</b>' : A.running === 'manual' ? '<b class="ok">analyze.sh start is running</b> (the background one waits for it)' : '';
-  if (au || run) L.push(`<div class="row muted">${run ? run + ' · ' : ''}${au && au.ended ? `last run ${ago(au.ended)}: ${au.done} round${au.done === 1 ? '' : 's'}${au.secs != null ? ` in ${hm(au.secs)}` : ''}${au.failed ? `, ${au.failed} failed` : ''}` : ''}${A.eta ? ` · all done in about ${hm(A.eta)}` : A.eta === 0 && A.total ? ' · <span class="ok">all done</span>' : ''}</div>`);
+  // (v193) what it is doing: running now (how far), paused, the last run's own words
+  const now = [];
+  if (st.paused) now.push(`<b class="warn">paused</b> ${ago(st.paused)}`);
+  if (A.running === 'auto' && au) now.push(`<b class="ok">running now</b>: ${au.done} of ${au.rounds} round${au.rounds === 1 ? '' : 's'} this run, ${au.jobs} at once${au.boost ? ' (all rounds now)' : ''} · started ${ago(au.started)}`);
+  else if (A.running === 'manual') now.push(`<b class="ok">analyze.sh start is running</b>${A.manual ? `: ${A.manual.done} of ${A.manual.rounds}` : ''} (the background one waits for it)`);
+  else if (!st.paused && !A.off) now.push('not running now: the next run starts 5 minutes after the last one ends (or press "Run now")');
+  if (st.boost && !st.paused) now.push('<b>all rounds now</b> (several at once, run after run until all are done)');
+  L.push(`<div class="row">${now.join(' · ')}</div>`);
+  const N = A.note; if (N) L.push(`<div class="row muted">last run ${ago(N.at)}: ${esc(N.msg)}</div>`);
+  else if (au && au.ended) L.push(`<div class="row muted">last run ${ago(au.ended)}: ${au.done} round${au.done === 1 ? '' : 's'}${au.secs != null ? ` in ${hm(au.secs)}` : ''}${au.failed ? `, ${au.failed} failed` : ''}</div>`);
+  if (!st.boost && (A.eta || (A.eta === 0 && A.total))) L.push(`<div class="row muted">${A.eta ? `at 40 a run: all done in about ${hm(A.eta)}` : '<span class="ok">all done</span>'}</div>`);
+  L.push(`<div class="anact"><button type="button" data-an="run" class="primary"${A.running ? ' disabled' : ''} title="Start a run now instead of waiting for the timer">Run now</button>`
+    + (st.boost ? '<button type="button" data-an="unboost" title="Back to 40 rounds a run, one at a time">Back to 40 a run</button>' : `<button type="button" data-an="boost"${A.playwright && A.cur < A.total ? '' : ' disabled'} title="No 40-round limit: all rounds that need it, several at once (as analyze.sh start), run after run until all are done; then back to 40 a run. The site stays first (low priority)">All rounds now</button>`)
+    + (st.paused ? '<button type="button" data-an="resume">Go on</button>' : '<button type="button" data-an="pause" class="danger" title="The rounds being done are finished first; then nothing until Go on">Pause</button>')
+    + '<button type="button" data-an="log" title="bf2replay-hints in the log below">Its log</button></div>');
   const G = A.glitch;
   if (G) { const M = Object.entries(G.maps || {}), ready = M.filter(([, n]) => n >= G.minRounds);
     L.push(`<div class="row"><b>Glitch spot</b><span class="muted">${ready.length} of ${M.length} maps have ${G.minRounds}+ rounds in their grid${G.left ? ` · ${G.left} rounds still to add` : ''} · ${G.stays} stays left to check · ${G.hints} hint${G.hints === 1 ? '' : 's'} · ${ago(G.at)}</span></div>`
       + `<details><summary>the maps</summary><div class="mono" style="font-size:12px">${M.sort((a, b) => b[1] - a[1]).map(([m, n]) => `<span class="${n >= G.minRounds ? 'ok' : 'muted'}">${esc(m)} ${n}</span>`).join(' · ')}</div></details>`); }
   else L.push('<div class="row muted">Glitch spot: no grids yet (the first background run makes them, or <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh glitch</span>)</div>');
   const C = A.cards; L.push(C ? `<div class="row muted">players' hint cards: ${C.players} players from ${C.rounds} rounds, written ${ago(C.at)}</div>` : '<div class="row muted">players\' hint cards: not written yet</div>');
+  // (v193) the archive for Claude: made here, named with the site's version, downloaded here
+  const P = A.pack, AR = A.archives || [], vers = o => o ? Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${esc(k)} ${n}`).join(', ') : '';
+  L.push(`<h3 class="anh">Archive for Claude</h3><div class="row muted">Every round's numbers in one file (about ${mb(A.roundsBytes * 1.02)}), to set the hints' thresholds; named with the site's version it is made with (now ${esc(A.site || '?')}). Best when the bar above is near 100%.</div>`);
+  L.push(`<div class="anact"><button type="button" data-an="pack"${P && P.on ? ' disabled' : ''}>Make the archive</button>${P && P.on ? `<span class="muted">being made: started ${ago(P.started)}…</span>` : P && P.error ? `<span class="bad">the last one failed: ${esc(P.error)}</span>` : P && P.dead ? '<span class="warn">the last one stopped before it was done</span>' : P && P.ended && P.file ? `<span class="muted">last made ${ago(P.ended)}: ${esc(P.file)}</span>` : ''}</div>`);
+  if (AR.length) L.push(`<table class="antab"><thead><tr><th>Archive</th><th>Made with</th><th class="n">Rounds</th><th class="n">Size</th><th></th></tr></thead><tbody>${AR.map(a => `<tr><td><span class="mono">${esc(a.file)}</span><br><span class="muted">${a.part ? (P && P.on ? 'being made' : 'unfinished') : ago(a.made || a.at)}</span></td>`
+    + `<td>${a.part ? '' : `${a.site ? `site <b>${esc(a.site)}</b>` : 'site version not kept <span class="muted">(made before v193)</span>'}${a.pages ? `<br><span class="muted">rounds done by the page: ${vers(a.pages)}</span>` : a.unknown ? '<br><span class="muted">(what is in it: unknown)</span>' : ''}${a.hv ? `<br><span class="muted">hint rules: ${Object.entries(a.hv).sort((x, y) => y[0] - x[0]).map(([k, n]) => `${+k ? (a.hvNow && +k >= a.hvNow ? `the latest (${k})` : `older (${k})`) : 'none (before v185)'} ${n}`).join(', ')}</span>` : ''}${a.glitch ? `<br><span class="muted">with the glitch spots${a.glitch.gridsIn ? '' : ' (not the maps\' grids: too big)'}</span>` : ''}`}</td>`
+    + `<td class="n">${a.rounds ?? ''}</td><td class="n">${mb(a.bytes)}</td><td class="act">${a.part ? '' : `<a class="btn primary" href="/admin/api/analysis-file?name=${encodeURIComponent(a.file)}" download>Download</a> `}<button type="button" class="danger" data-an="archive-delete" data-file="${esc(a.file)}"${a.part && P && P.on ? ' disabled' : ''}>Remove</button></td></tr>`).join('')}</tbody></table>`);
   box.innerHTML = L.join('');
 }
+$('#anBox').addEventListener('click', e => {
+  const b = e.target.closest('button[data-an]'); if (!b) return;
+  const d = b.dataset.an;
+  if (d === 'log') { $('#logUnit').value = 'hints'; loadLog(); $('#logUnit').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+  if (d === 'archive-delete' && !confirm(`Remove ${b.dataset.file} from the VPS? (Download it first if you still need it.)`)) return;
+  if (d === 'pack' && (S.analysis?.archives || []).some(a => !a.part) && !confirm('Make a new archive? It takes as much room again as the rounds; an older one can be removed after.')) return;
+  act('analysis', { do: d, file: b.dataset.file }, b);
+});
 // (v186) demos: what takes the room, which old ones go (data/.demos.json; ingest.mjs removes them), the keep list
 let dmDirty = false, dmPreview = null;
 const dayStr = ms => ms ? new Date(ms).toISOString().slice(0, 10) : '';

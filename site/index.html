@@ -513,6 +513,8 @@ details.schema p { max-width: 70ch; }
 .sttab.sess tr.open:hover td { background: var(--panel-2); }
 .sttab.sess tr.sel td { background: var(--panel-2); box-shadow: inset 0 -1px 0 var(--accent); }
 .sttab.sess td, .sttab.sessp td { white-space: nowrap; }
+.sttab.sessp tr[hidden] { display: none !important; }   /* (v193: Find a player; the phone layout makes rows flex) */
+.sttab.sessp tr.pnone td { white-space: normal; }
 .sttab th .sortb { all: unset; cursor: pointer; }
 .sessd > summary { cursor: pointer; list-style: none; }
 .sessd > summary::-webkit-details-marker { display: none; }
@@ -1013,7 +1015,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v192';
+const APP_VERSION = 'v193';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -12878,13 +12880,26 @@ function renderSessPlayers(nDone, busy) {
     : k === 'kd' ? (p.k / Math.max(1, p.d)).toFixed(2) : k === 'alive' ? fmt(p.alive) : k === 'long' ? (p.long ? p.long + ' m' : '–') : k === 'hs' ? (p.hs ? `${p.hs} <span class="w">${Math.round(p.hs / Math.max(1, p.k) * 100)}%</span>` : '–') : k === 'streak' ? (p.streak || '–') : (p[k] || (k === 'score' || k === 'wins' ? 0 : '–'));
   const SG = { kVeh: 'veh', rev: 'med', heal: 'med', rep: 'med', streak: 'more', long: 'more', alive: 'more' }, SC = SESS_COLS.filter(([k]) => pview.groups.has(SG[k] || 'main'));
   if (session.srvF) nDone = sessRoundsByDate(session.srvF).length;
-  pbox.innerHTML = `<div class="sesshead"><h2>Players over ${nDone} round${nDone === 1 ? '' : 's'} <span class="w">${session.srvF ? esc(session.srvF) + ' · ' : ''}${P.length} players${busy ? ' · still adding up' : ''}</span></h2>${pgroupChips()}<div class="chips"><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button></div></div>
+  // (v193) "Find a player": the rows whose name (or nick) has it; the table stays as it is, only rows hide (the box keeps
+  // the focus while typing, and through a redraw as the numbers add up)
+  const fEl = document.activeElement, fHad = fEl && fEl.id === 'pFind', fSel = fHad ? [fEl.selectionStart, fEl.selectionEnd] : null;
+  pbox.innerHTML = `<div class="sesshead"><h2>Players over ${nDone} round${nDone === 1 ? '' : 's'} <span class="w">${session.srvF ? esc(session.srvF) + ' · ' : ''}${P.length} players${busy ? ' · still adding up' : ''}</span></h2>${pgroupChips()}<div class="chips"><input type="search" class="rfind" id="pFind" placeholder="Find a player" aria-label="Find a player in the table" autocomplete="off" spellcheck="false" value="${esc(session.pFind || '')}"><span class="w" id="pCount" aria-live="polite"></span><button class="btn sm" id="sessCsvP" title="Every player over all rounds, as a CSV table">Players CSV</button></div></div>
     <div class="stscroll"><table class="sttab sessp"><thead><tr>${SC.map(([k, label, n]) => `<th class="${n ? 'n' : ''}${session.sort === k ? ' on' : ''}" data-k="${k}" aria-sort="${session.sort === k ? (session.dir < 0 ? 'descending' : 'ascending') : 'none'}"><button class="sortb">${esc(label)}${session.sort === k ? (session.dir < 0 ? ' ▾' : ' ▴') : ''}</button></th>`).join('')}</tr></thead><tbody>
-    ${P.map(p => `<tr>${SC.map(([k, label, n]) => `<td class="${n ? 'n' : ''}"${n ? ` data-l="${esc(label)}"` : ''}>${cell(p, k)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>
+    ${P.map(p => `<tr data-f="${esc((p.name + ' ' + p.nick).toLowerCase())}">${SC.map(([k, label, n]) => `<td class="${n ? 'n' : ''}"${n ? ` data-l="${esc(label)}"` : ''}>${cell(p, k)}</td>`).join('')}</tr>`).join('')}<tr class="pnone" hidden><td colspan="${SC.length}" class="empty"></td></tr></tbody></table></div>
     <p class="stnote">Name colour: the side played most (⇄ played on both); a name opens his page. One player under several clan tags is one row. Score: the game's own (rounds decoded before v132: an estimate by its rules). Won: rounds that ended with more tickets on his side. Click a column to sort.</p>`;
   pbox.querySelectorAll('[data-nick]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.nick));
   pbox.querySelectorAll('th[data-k] .sortb').forEach(b => b.onclick = () => { const k = b.parentElement.dataset.k; if (session.sort === k) session.dir = -session.dir; else { session.sort = k; session.dir = k === 'name' ? 1 : -1; } renderSessPlayers(nDone, busy); });
   $('#sessCsvP').onclick = csvSessionPlayers;
+  const pf = $('#pFind'), pfind = () => {
+    const q = (session.pFind || '').trim().toLowerCase(), rows = pbox.querySelectorAll('tbody tr[data-f]'); let n = 0;
+    for (const tr of rows) { const on = !q || tr.dataset.f.includes(q); tr.hidden = !on; if (on) n++; }
+    const none = pbox.querySelector('tr.pnone'); none.hidden = !q || n > 0; if (q && !n) none.firstChild.textContent = `No player has “${session.pFind.trim()}” in his name.`;
+    $('#pCount').textContent = q ? `${n} of ${rows.length}` : '';
+  };
+  pf.oninput = () => { session.pFind = pf.value; pfind(); };
+  pf.onkeydown = e => { if (e.key === 'Escape' && pf.value) { e.stopPropagation(); pf.value = ''; session.pFind = ''; pfind(); } else if (e.key === 'Enter') { const b = pbox.querySelectorAll('tbody tr[data-f]:not([hidden]) [data-nick]'); if (b.length === 1) b[0].click(); } };
+  pfind();
+  if (fHad) { pf.focus(); try { pf.setSelectionRange(fSel[0], fSel[1]); } catch (e) {} }
 }
 
 // ---------- a player over all rounds ----------

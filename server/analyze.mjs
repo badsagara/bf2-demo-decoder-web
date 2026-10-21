@@ -16,11 +16,17 @@
 //     --since YYYY-MM-DD            rounds recorded since then
 //     --timeout S                   a round that takes longer is given up (default 900 s; in failed.json)
 //     --fresh                       do again the rounds already done
-//     --pack                        only make the archive of what is done
+//     --pack                        only make the archive of what is done (v193: named with the site's version,
+//                                   bf2-analysis-<date>-<version>.tar, with a .json beside it of what is in it; the
+//                                   admin page makes and downloads it too)
 //     --no-pack                     no archive at the end
 //     --auto                        (v185, bf2replay-hints.timer) the background run: a few rounds a time (--limit 40,
 //                                   1 at once) - those not done yet, then those done by older hint rules (the page's
-//                                   HINTS_V), the newest first; no archive; then the hints over every player's rounds
+//                                   HINTS_V), the newest first; no archive; then the hints over every player's rounds.
+//                                   (v193) The admin page's say (analysis/.auto-set.json): paused (nothing is done),
+//                                   or all rounds now (no 40 a run, as many at once as analyze.sh would) - a run takes
+//                                   new rounds for up to 95 minutes (the service's limit is 2 h), the next one goes on
+//                                   5 minutes later; what each run did: analysis/auto-note.json
 //     --hints                       only the hints over every player's rounds: data/stats/hints.json (each hint's share
 //                                   of soldier-rounds) and data/stats/hints/<nick>.json (the player page's card)
 //     --glitch [N]                  only the glitch spots (glitch.mjs; no browser): N new rounds (default every one) into
@@ -52,30 +58,62 @@ const linkId = n => String(n || '').replace(/\.bf2demo$/i, '');
 const fileOf = n => path.join(RDIR, linkId(n).replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz');
 
 // ---------- the archive ----------
+// (v193) named with the site's version (bf2-analysis-<date>-<version>.tar) and with <name>.tar.json beside it: what is in
+// it (summary.json's numbers: rounds, the page versions and hint rules they were done with, the decoders); the glitch
+// spots' files too (analysis/glitch: the stays, the maps' grids while they are under 300 MB together, and the page's
+// data/stats/glitch, data/stats/hints.json). Made as .part and renamed when done; analysis/.pack.json says how it went
+// (the admin page shows it)
+const PACKF = path.join(OUT, '.pack.json'), GRIDS_MAX = 300 * 2 ** 20;
 function pack() {
   if (!fs.existsSync(RDIR)) { log('nothing to pack: no', RDIR); return null; }
-  // (v182) rounds taken off the list as copies of others (ingest.mjs, data/.copies.json: the same demo from two demo
-  // pages) stay out of the archive
-  let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) { /* none */ }
-  const copyFiles = new Set(Object.keys(copies).map(n => path.basename(fileOf(n))));
-  const files = fs.readdirSync(RDIR).filter(f => f.endsWith('.json.gz') && !copyFiles.has(f)), left = fs.readdirSync(RDIR).filter(f => copyFiles.has(f));
-  const sum = { made: new Date().toISOString(), rounds: files.length, copiesLeftOut: left.length, kinds: {}, maps: {}, pages: {}, errors: 0 };
-  for (const f of files) {
-    try {
-      const d = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f))));
-      sum.maps[d.map] = (sum.maps[d.map] || 0) + 1; sum.pages[d.page] = (sum.pages[d.page] || 0) + 1; if (d.errs?.length) sum.errors++;
-      for (const h of d.H || []) sum.kinds[h.kind] = (sum.kinds[h.kind] || 0) + 1;
-    } catch (e) { sum.errors++; }
+  const st0 = { started: new Date().toISOString(), pid: process.pid };
+  try { fs.writeFileSync(PACKF, JSON.stringify(st0)); } catch (e) {}
+  try {
+    // (v182) rounds taken off the list as copies of others (ingest.mjs, data/.copies.json: the same demo from two demo
+    // pages) stay out of the archive
+    let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) { /* none */ }
+    const copyFiles = new Set(Object.keys(copies).map(n => path.basename(fileOf(n))));
+    const all = fs.readdirSync(RDIR), files = all.filter(f => f.endsWith('.json.gz') && !copyFiles.has(f)), left = all.filter(f => copyFiles.has(f));
+    let page = ''; try { page = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8'); } catch (e) {}
+    const site = (/const APP_VERSION = '(v\d+)'/.exec(page) || [])[1] || 'v0', hvNow = +((/const HINTS_V = (\d+)/.exec(page) || [])[1] || 0);
+    const sum = { made: new Date().toISOString(), site, hvNow, rounds: files.length, copiesLeftOut: left.length, kinds: {}, maps: {}, pages: {}, hv: {}, decoders: {}, errors: 0 };
+    for (const f of files) {
+      try {
+        const d = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f))));
+        sum.maps[d.map] = (sum.maps[d.map] || 0) + 1; sum.pages[d.page] = (sum.pages[d.page] || 0) + 1; sum.hv[d.hv || 0] = (sum.hv[d.hv || 0] || 0) + 1; if (d.errs?.length) sum.errors++;
+        const dc = d.round?.decoder || '?'; sum.decoders[dc] = (sum.decoders[dc] || 0) + 1;
+        for (const h of d.H || []) sum.kinds[h.kind] = (sum.kinds[h.kind] || 0) + 1;
+      } catch (e) { sum.errors++; }
+    }
+    // the glitch spots
+    const GD = path.join(OUT, 'glitch'), gl = [], gData = [];
+    if (fs.existsSync(GD)) {
+      const gf = fs.readdirSync(GD).filter(f => f.endsWith('.json')), grids = gf.filter(f => f !== 'summary.json' && f !== 'stays.json');
+      const gb = grids.reduce((b, f) => { try { return b + fs.statSync(path.join(GD, f)).size; } catch (e) { return b; } }, 0);
+      for (const f of gf) if (!grids.includes(f) || gb <= GRIDS_MAX) gl.push('glitch/' + f);
+      sum.glitch = { files: gl.length, grids: grids.length, gridsBytes: gb, gridsIn: gb <= GRIDS_MAX };
+    }
+    for (const f of ['stats/hints.json', 'stats/glitch']) if (fs.existsSync(path.join(DATA, f))) gData.push(f);
+    fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(sum, null, 1));
+    const name = `bf2-analysis-${sum.made.slice(0, 10)}-${site}.tar`, tar = path.join(OUT, name);
+    const list = ['summary.json', 'rounds', ...['failed.json', 'run.json', 'auto.json', 'auto-note.json'].filter(f => fs.existsSync(path.join(OUT, f))), ...gl];
+    const ex = path.join(OUT, '.pack-exclude'); fs.writeFileSync(ex, left.map(f => 'rounds/' + f).concat(['*.part', '*.tmp']).join('\n') + '\n');
+    // (the background run may be writing a round meanwhile: a file that changes or goes while it is read is no failure)
+    try { execFileSync('tar', ['-cf', tar + '.part', '--warning=no-file-changed', '--warning=no-file-removed', '--ignore-failed-read', '-X', ex, '-C', OUT, ...list, ...(gData.length ? ['-C', DATA, ...gData] : [])], { stdio: ['ignore', 'ignore', 'pipe'] }); }
+    catch (e) { if (e.status !== 1) throw new Error('tar: ' + String(e.stderr || e.message).trim().split('\n').pop()); }
+    try { fs.unlinkSync(ex); } catch (e) {}
+    fs.renameSync(tar + '.part', tar);
+    const bytes = fs.statSync(tar).size;
+    fs.writeFileSync(tar + '.json', JSON.stringify({ file: name, bytes, ...sum }, null, 1));
+    fs.writeFileSync(PACKF, JSON.stringify({ ...st0, ended: new Date().toISOString(), file: name, bytes, rounds: files.length }));
+    log(`archive: ${tar} (${(bytes / 2 ** 20).toFixed(1)} MB, ${files.length} rounds, site ${site}${left.length ? `; ${left.length} cop${left.length === 1 ? "y" : "ies"} of other rounds left out` : ''})`);
+    return tar;
+  } catch (e) {
+    try { fs.writeFileSync(PACKF, JSON.stringify({ ...st0, ended: new Date().toISOString(), error: String(e.message || e).slice(0, 300) })); } catch (e2) {}
+    throw e;
   }
-  fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(sum, null, 1));
-  const tar = path.join(OUT, `bf2-analysis-${new Date().toISOString().slice(0, 10)}.tar`);
-  const list = ['summary.json', 'rounds', ...['failed.json', 'run.json'].filter(f => fs.existsSync(path.join(OUT, f)))];
-  const ex = path.join(OUT, '.pack-exclude'); fs.writeFileSync(ex, left.map(f => 'rounds/' + f).join('\n') + '\n');
-  execFileSync('tar', ['-cf', tar, '-X', ex, '-C', OUT, ...list]); try { fs.unlinkSync(ex); } catch (e) {}
-  log(`archive: ${tar} (${(fs.statSync(tar).size / 2 ** 20).toFixed(1)} MB, ${files.length} rounds${left.length ? `; ${left.length} cop${left.length === 1 ? "y" : "ies"} of other rounds left out` : ''})`);
-  return tar;
 }
-if (has('--pack')) { pack(); process.exit(0); }
+if (has('--pack')) { try { pack(); } catch (e) { log('archive not made:', e.message); process.exit(1); } process.exit(0); }
 
 // ---------- (v185, todo 226) the hints over every player's rounds ----------
 // From the rounds done with the page's hint rules (HINTS_V): for each soldier on the field 60 s or more, which hints
@@ -168,13 +206,24 @@ function glitchStep(budget) {
   return aggGlitch({ DATA, OUT, rounds, nickOf: F.nickOf, budget, log });
 }
 if (has('--glitch')) { glitchStep(+val('--glitch', 0) || 1e9); process.exit(0); }
+// (v193) the admin page's say over the background run: analysis/.auto-set.json { paused: when, boost: when } (either may
+// be missing); what a run did, for the admin page: analysis/auto-note.json { at, kind, msg, ... }
+const SETF = path.join(OUT, '.auto-set.json'), NOTEF = path.join(OUT, 'auto-note.json');
+const autoSet = () => { try { return JSON.parse(fs.readFileSync(SETF, 'utf8')) || {}; } catch (e) { return {}; } };
+const autoSetPut = o => { try { const t = SETF + '.tmp'; fs.writeFileSync(t, JSON.stringify(o)); fs.renameSync(t, SETF); } catch (e) {} };
+const note = (kind, msg, x = {}) => { if (!AUTO) return; try { fs.mkdirSync(OUT, { recursive: true }); fs.writeFileSync(NOTEF, JSON.stringify({ at: new Date().toISOString(), kind, msg, ...x })); } catch (e) {} };
+// (v193) a run of this script still going (a pid in run.json of a run that ended without saying so may be another
+// program's by now: it is this script only when its command line says so)
+const alive = pid => { if (!pid) return false; try { return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('analyze.mjs'); } catch (e) { if (fs.existsSync('/proc/self')) return false; try { process.kill(pid, 0); return true; } catch (e2) { return false; } } };
+const BOOST = AUTO && !!autoSet().boost, RUN_BUDGET = AUTO ? (+val('--budget', 0) || 95) * 60e3 : Infinity;
 // (v185) a background run while analyze.sh's own run is going: left for the next time
 if (AUTO) {
-  if (opt('BF2R_HINTS', '1') === '0') { console.log('BF2R_HINTS=0 (/etc/bf2replay.conf): the background analysis is off'); process.exit(0); }
-  try { const ri = JSON.parse(fs.readFileSync(path.join(OUT, 'run.json'), 'utf8')); if (!ri.ended && ri.pid) { process.kill(ri.pid, 0); console.log('a run of analyze.sh is going (pid ' + ri.pid + '): the background analysis waits'); process.exit(0); } } catch (e) { /* none, or it has ended */ }
+  if (opt('BF2R_HINTS', '1') === '0') { const m = 'BF2R_HINTS=0 (/etc/bf2replay.conf): the background analysis is off'; console.log(m); note('off', m); process.exit(0); }
+  { const S = autoSet(); if (S.paused) { const m = 'paused on the admin page (since ' + S.paused + '): nothing done'; console.log(m); note('paused', m); process.exit(0); } }
+  try { const ri = JSON.parse(fs.readFileSync(path.join(OUT, 'run.json'), 'utf8')); if (!ri.ended && alive(ri.pid)) { const m = 'a run of analyze.sh is going (pid ' + ri.pid + '): the background analysis waits'; console.log(m); note('waits', m, { pid: ri.pid }); process.exit(0); } } catch (e) { /* none, or it has ended */ }
   // (the glitch grids need no browser: done first, up to 150 new rounds a run - ~0.5 s each)
   try { os.setPriority(15); } catch (e) {}
-  try { glitchStep(+val('--glitch-rounds', 0) || 150); } catch (e) { log('glitch spots not done:', e.message); }
+  try { const g = glitchStep(+val('--glitch-rounds', 0) || 150); if (g) note('glitch', `glitch grids: ${g.done} rounds added${g.left ? `, ${g.left} to go` : ''}`, { glitch: g }); } catch (e) { log('glitch spots not done:', e.message); }
 }
 
 // ---------- Playwright ----------
@@ -185,7 +234,7 @@ for (const base of [PW_DIR, path.dirname(new URL(import.meta.url).pathname), pro
   try { chromium = createRequire(path.join(base, 'x.js'))('playwright').chromium; break; } catch (e) { /* next */ }
 }
 if (!chromium) {
-  if (AUTO) { console.log('the background analysis needs Playwright: sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze.sh') + ' start (installs it, once)'); process.exit(0); }
+  if (AUTO) { const m = 'the background analysis needs Playwright: sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze.sh') + ' start (installs it, once)'; console.log(m); note('nopw', m); process.exit(0); }
   console.error('Playwright is not installed: run  sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze.sh') + ' start (installs it, once)'); process.exit(2);
 }
 
@@ -203,13 +252,19 @@ if (AUTO) {   // (v185) not done yet first, then done by older hint rules; the c
   let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
   let fl = {}; try { fl = JSON.parse(fs.readFileSync(path.join(OUT, 'failed.json'), 'utf8')); } catch (e) {}
   const HV = pageHv(), none = [], old = [];
-  for (const r of todo) { if (copies[r.name] || fl[r.name]?.page === pageVer) continue; const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (hvOf(f) < HV) old.push(r); }
+  let skipF = 0;
+  for (const r of todo) { if (copies[r.name]) continue; if (fl[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (hvOf(f) < HV) old.push(r); }
   hvSave(); todo = none.concat(old);
-  if (!todo.length) { aggHints(); process.exit(0); }
+  if (!todo.length) {
+    const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); }   // (all done: the boost is over)
+    aggHints(); const m = `nothing to do: every round is done with the hint rules now${skipF ? ` (${skipF} failed with this version of the site: tried again after its next update)` : ''}`; log(m); note('done', m, { queued: 0, failed: skipF }); process.exit(0);
+  }
+  log(`${none.length} rounds not looked at yet, ${old.length} done with older hint rules${BOOST ? ' (all rounds now: the admin page)' : ''}`);
+  var QUEUED = todo.length;
 } else if (!FRESH) todo = todo.filter(r => { try { return !fs.statSync(fileOf(r.name)).size; } catch (e) { return true; } });
-todo = todo.slice(0, AUTO ? (+val('--limit', 0) || 40) : LIMIT);
+todo = todo.slice(0, AUTO ? (BOOST ? Infinity : +val('--limit', 0) || 40) : LIMIT);
 const failedPath = path.join(OUT, 'failed.json'); let failed = {}; try { failed = JSON.parse(fs.readFileSync(failedPath, 'utf8')); } catch (e) { /* none yet */ }
-const memJobs = Math.max(1, Math.floor(os.totalmem() / (1.5 * 2 ** 30))), JOBS = Math.max(1, Math.min(16, +val('--jobs', 0) || (AUTO ? 1 : Math.min(3, Math.max(1, os.cpus().length - 1), memJobs))));
+const memJobs = Math.max(1, Math.floor(os.totalmem() / (1.5 * 2 ** 30))), JOBS = Math.max(1, Math.min(16, +val('--jobs', 0) || (AUTO && !BOOST ? 1 : Math.min(3, Math.max(1, os.cpus().length - 1), memJobs))));
 log(`${todo.length} rounds to analyse (page ${pageVer}, ${JOBS} at once; ${MIN_P}+ soldiers${MAPS ? ', maps ' + [...MAPS].join(',') : ''}${SINCE ? ', since ' + SINCE : ''}) -> ${RDIR}`);
 try { os.setPriority(15); } catch (e) { /* not allowed: as it is */ }
 if (!todo.length) { if (!has('--no-pack')) pack(); process.exit(0); }
@@ -251,12 +306,22 @@ async function newPage(first) {
 // round, past systemd's time to stop: "State 'stop-sigterm' timed out. Killing")
 const withTimeout = (p, ms, what) => { let tm; return Promise.race([p, new Promise((_, rej) => { tm = setTimeout(() => rej(new Error(what + ': over ' + Math.round(ms / 1000) + ' s')), ms); })]).finally(() => clearTimeout(tm)); };
 let done = 0, kills = 0, hints = 0; const started = Date.now(), total = todo.length;
-const runInfo = { started: new Date().toISOString(), pid: process.pid, page: pageVer, jobs: JOBS, rounds: total, host: os.hostname(), mem: os.totalmem(), cpus: os.cpus().length };
+const runInfo = { started: new Date().toISOString(), pid: process.pid, page: pageVer, jobs: JOBS, rounds: total, host: os.hostname(), mem: os.totalmem(), cpus: os.cpus().length, ...(AUTO ? { boost: BOOST, queued: QUEUED } : {}), done: 0 };
 fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1));
-let stopping = false; process.on('SIGTERM', () => { stopping = true; log('stopping after the rounds being done (SIGTERM)'); }); process.on('SIGINT', () => { stopping = true; log('stopping after the rounds being done'); });
+let stopping = false, outOfTime = false, told = '';
+// (v193) a background run takes new rounds while the admin page says nothing else and its time is not up
+const goOn = () => {
+  if (!AUTO) return true;
+  if (Date.now() - started > RUN_BUDGET) { if (!outOfTime) log(`${Math.round(RUN_BUDGET / 60e3)} minutes: the rest in the next run`); outOfTime = true; return false; }
+  const S = autoSet();
+  if (S.paused) { if (told !== 'p') log('paused on the admin page: the rounds being done are finished first'); told = 'p'; return false; }
+  if (!!S.boost !== BOOST) { if (told !== 'b') log(S.boost ? 'all rounds now (the admin page): from the next run, in 5 minutes' : 'back to a few rounds a run (the admin page)'); told = 'b'; return false; }
+  return true;
+};
+process.on('SIGTERM', () => { stopping = true; log('stopping after the rounds being done (SIGTERM)'); }); process.on('SIGINT', () => { stopping = true; log('stopping after the rounds being done'); });
 async function worker(w) {
   let page = null;
-  while (todo.length && !stopping) {
+  while (todo.length && !stopping && goOn()) {
     const r = todo.shift(), t0 = Date.now();
     try {
       if (!page || page._n >= PER_PAGE) { if (page) await page.context().close().catch(() => {}); page = await newPage(r.name); }
@@ -269,6 +334,7 @@ async function worker(w) {
       fs.writeFileSync(fileOf(r.name) + '.part', zlib.gzipSync(JSON.stringify(d), { level: 9 })); fs.renameSync(fileOf(r.name) + '.part', fileOf(r.name));
       hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0;
       delete failed[r.name]; page._n++; done++; kills += d.K.length; hints += d.H.length;
+      runInfo.done = done; try { fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); } catch (e) {}   // (v193: how far, for the admin page)
       const el = (Date.now() - started) / 1000, left = el / done * todo.length;
       log(`[${done}/${total} ${Math.round(done / total * 100)}%, ~${left > 3600 ? Math.floor(left / 3600) + ' h ' : ''}${Math.round(left % 3600 / 60)} min left] ${r.name} ${(d.wallMs / 1000).toFixed(1)} s, ${d.K.length} kills, ${d.H.length} hints${d.errs.length ? ', ' + d.errs.length + ' errors' : ''}`);
     } catch (e) {
@@ -286,7 +352,15 @@ await browser.close().catch(() => {}); server.closeAllConnections?.(); server.cl
 runInfo.ended = new Date().toISOString(); runInfo.done = done; runInfo.failed = Object.keys(failed).length; runInfo.kills = kills; runInfo.hints = hints;
 fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); hvSave();
 log(`done: ${done} rounds (${kills} kills, ${hints} hints), ${Object.keys(failed).length} failed, ${Math.round((Date.now() - started) / 60000)} min`);
-if (AUTO) { try { aggHints(); } catch (e) { log('hints not written:', e.message); } process.exit(0); }
+if (AUTO) {
+  const failedNow = Object.values(failed).filter(f => f.at >= runInfo.started).length, rest = QUEUED - done - failedNow;
+  if (BOOST && !todo.length && !stopping) { const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); } }
+  const ms = Date.now() - started, took = ms >= 60e3 ? `${Math.round(ms / 60e3)} min` : `${Math.round(ms / 1e3)} s`;
+  const why = outOfTime ? ' (the time of a run was up: the next run goes on)' : told === 'p' ? ' (paused on the admin page)' : told === 'b' ? (BOOST ? ' (the next run: 40 again)' : ' (the next run: all rounds)') : stopping ? ' (stopped)' : '';
+  note('ran', `${done} round${done === 1 ? '' : 's'} done${failedNow ? `, ${failedNow} failed` : ''} in ${took}${rest > 0 ? ` · ${rest} to go${why}` : ' · all done'}`, { done, failed: failedNow, queued: Math.max(0, rest), boost: BOOST, stopped: stopping || undefined });
+  try { aggHints(); } catch (e) { log('hints not written:', e.message); }
+  process.exit(0);
+}
 // (v182) the archive also when stopped (analyze.sh stop): what is done so far, ready to send; started again, the run goes on
 if (!has('--no-pack')) { if (stopping) log('stopped: the archive of the rounds done so far'); try { pack(); } catch (e) { log('archive not made:', e.message); } }
 process.exit(0);   // (nothing left to wait for)

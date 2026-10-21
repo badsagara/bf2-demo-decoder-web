@@ -16,7 +16,9 @@
 # (v185) Without any of this, bf2replay-hints.timer runs analyze.mjs --auto in the background, 5 minutes after each run
 # ends: 150 decoded rounds into the glitch grids, then 40 rounds in the page (once Playwright is installed by "start":
 # the new rounds, then those done by older hint rules), then the player pages' hints card (data/stats/hints). It waits
-# while a run of this script is going.
+# while a run of this script is going. (v193) The admin page's Background analysis card runs it now, does all rounds
+# at once (as "start" would, run after run), pauses it, and makes and downloads the archive (named with the site's
+# version: bf2-analysis-<date>-<version>.tar).
 # Anything after "start" goes to analyze.mjs: --jobs 2, --limit 500, --maps strike_at_karkand, --min-players 6,
 # --since 2026-10-01, --fresh (see the top of analyze.mjs).
 set -euo pipefail
@@ -50,11 +52,16 @@ case "${1:-start}" in
   status)
     if systemctl is-active --quiet "$UNIT"; then echo "Running - $(count) rounds done so far:"; else echo "Not running - $(count) rounds done:"; fi
     journalctl -u "$UNIT" -n 12 -o cat --no-pager 2>/dev/null || true
-    echo; echo "In the background (bf2replay-hints.timer, a few rounds every 15 minutes):"
-    journalctl -u bf2replay-hints.service -n 3 -o cat --no-pager 2>/dev/null || true
+    echo; echo "In the background (bf2replay-hints: 40 rounds a run, 5 minutes after the last run ends; the admin page's"
+    echo "Background analysis card shows it too, and runs it now / all rounds at once / pauses it):"
+    if systemctl is-active --quiet bf2replay-hints.service; then echo "  running now"; fi
+    # (its own lines, not systemd's "Started / Deactivated / Consumed")
+    journalctl -u bf2replay-hints.service -n 200 -o cat --no-pager 2>/dev/null | grep -v 'bf2replay-hints.service' | tail -6 | sed 's/^/  /' || true
+    [ -f "$OUT/auto-note.json" ] && echo "  last run: $(sed -n 's/.*"msg":"\([^"]*\)".*/\1/p' "$OUT/auto-note.json")"
+    [ -f "$OUT/.auto-set.json" ] && grep -q paused "$OUT/.auto-set.json" && echo "  PAUSED on the admin page (Go on there)"
     t=$(ls -t "$OUT"/bf2-analysis-*.tar 2>/dev/null | head -1 || true)
     if [ -n "$t" ] && ! systemctl is-active --quiet "$UNIT"; then
-      echo; echo "Archive: $t ($(du -h "$t" | cut -f1)). To the Mac (in Terminal there):"
+      echo; echo "Archive: $t ($(du -h "$t" | cut -f1)). Download it on the admin page (Background analysis), or to the Mac (in Terminal there):"
       echo "  scp 'root@$(hostname -I 2>/dev/null | awk '{print $1}'):$t' ~/Downloads/"
     fi ;;
   stop) systemctl stop "$UNIT" && echo "Stopped (the rounds being done were finished first). Again from there: sudo bash $0 start" ;;
