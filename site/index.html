@@ -110,7 +110,17 @@ input[type=file] { display: none; }
    shrinks to them at the top */
 .fcard .tabs .fcfold { margin-left: auto; color: var(--muted); } .fcard .tabs .fcfold:hover { color: var(--fg); }
 .fcard.min > :not(.tabs) { display: none !important; } .fcard.min > .tabs { margin-bottom: 0; }
-.fslot > .fcard.min { bottom: auto; }
+/* (v191, Sagara: "при не fullscreen мапі killfeed згортався не горизонтально, а вертикально") in the column left of the
+   map the panel folds into a thin upright strip (the whole height, its name written down it) and the map's column moves
+   up to it; under the map it folds to its tabs as before */
+.fcstrip { display: none; }
+.fslot > .fcard.min { padding: 0; }
+.fslot > .fcard.min > .tabs { display: none !important; }
+.fslot > .fcard.min > .fcstrip { display: flex !important; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; padding: 12px 0; border: 0; border-radius: 4px; background: none; color: var(--muted); font: 600 12px var(--font-data); letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.fslot > .fcard.min > .fcstrip span { writing-mode: vertical-rl; white-space: nowrap; }
+.fslot > .fcard.min > .fcstrip:hover, .fslot > .fcard.min > .fcstrip:focus-visible { color: var(--fg); background: var(--panel-2); }
+.fslot > .fcard.min > .fcstrip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.maprow.lfeed.fmin { grid-template-columns: 40px min(var(--mapw, 600px), calc(100% - 52px)); justify-content: center; }
 .fslot .feed:not([hidden]) { flex: 1 1 0; min-height: 0; max-height: none; align-content: start; }
 .fslot :is(#hlBox, #admBox):not([hidden]) { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .fslot :is(#hlBox, #admBox) > :not(.feed) { flex: none; }
@@ -851,6 +861,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="flagrow" id="flagrow"></div>
       </section>
       <section class="card fcard" id="feedCard">
+        <button type="button" class="fcstrip" id="fcStrip" aria-expanded="false" title="Show the kill feed, highlights and hints again"><span>Kill feed · Highlights · For admins</span><b>▸</b></button>
         <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" title="Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills">For admins</button><button class="btn fcfold" id="fcFold" type="button" aria-expanded="true" title="Fold this panel: only its tabs stay (the kill feed, highlights and hints go on being written)">Hide ▴</button></div>
         <div class="ffbar" id="ffBar">
           <input id="ffK" list="ffList" placeholder="Killer…" autocomplete="off" spellcheck="false" aria-label="Killer (the one who did it)" title="The killer - the one who did it (killed, revived, repaired; the one a hint is about)"><datalist id="ffList"></datalist>
@@ -1001,7 +1012,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v190';
+const APP_VERSION = 'v191';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -4142,7 +4153,7 @@ function feedFoldShow() { const fo = $('#fsfeed'), b = $('#feedFold'); if (!fo |
 // (v189, Sagara: "не бачу кнопки згортання кілфіду") the panel with the kill feed, highlights and hints (left of the map,
 // or under it) folds too: its Hide button; a tab clicked opens it again (remembered)
 let fcMin = false; try { fcMin = localStorage.getItem('bf2rr.fcmin') === '1'; } catch (e) {}
-function fcFoldShow() { const c = $('#feedCard'), b = $('#fcFold'); if (!c || !b) return; c.classList.toggle('min', fcMin); b.textContent = fcMin ? 'Show ▾' : 'Hide ▴'; b.title = fcMin ? 'Show this panel again' : 'Fold this panel: only its tabs stay'; b.setAttribute('aria-expanded', String(!fcMin)); }
+function fcFoldShow() { const c = $('#feedCard'), b = $('#fcFold'); if (!c || !b) return; const side = c.parentElement === $('#feedSlot'); c.classList.toggle('min', fcMin); $('#mapRow')?.classList.toggle('fmin', fcMin && side); b.textContent = fcMin ? 'Show ▾' : side ? 'Hide ◂' : 'Hide ▴'; $('#fcStrip').setAttribute('aria-expanded', 'false'); b.title = fcMin ? 'Show this panel again' : 'Fold this panel: only its tabs stay'; b.setAttribute('aria-expanded', String(!fcMin)); }
 function fcFold(on) { fcMin = !!on; try { localStorage.setItem('bf2rr.fcmin', fcMin ? '1' : '0'); } catch (e) {} fcFoldShow(); if (!fcMin) refresh(true); }
 function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmin', feedMin ? '1' : '0'); } catch (e) {} feedFoldShow(); refresh(true); }
 // (v185, Sagara: "додати кнопку вмикання прицільної лінії при виборі гравця") the followed soldier's aim line on / off
@@ -5512,6 +5523,7 @@ function placeFeed() {
   row.classList.toggle('lfeed', left); slot.hidden = !left;
   if (left) slot.append(card); else lb.before(card);
   lb.parentElement.classList.toggle('two', left);
+  if (typeof fcFoldShow === 'function') fcFoldShow();   // (v191: upright strip beside the map, its tabs under it)
 }
 new ResizeObserver(() => requestAnimationFrame(placeFeed)).observe($('#mapRow'));
 window.addEventListener('resize', () => requestAnimationFrame(placeFeed));
@@ -9553,7 +9565,7 @@ relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classLi
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
 $('#feedFold').onclick = e => { e.stopPropagation(); feedFold(!feedMin); }; feedFoldShow();   // (v188)
-$('#fcFold').onclick = () => fcFold(!fcMin); fcFoldShow();   // (v189)
+$('#fcFold').onclick = () => fcFold(!fcMin); $('#fcStrip').onclick = () => fcFold(false); fcFoldShow();   // (v189; v191: the upright strip)
 { const tb = $('#tSound'); tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); tb.onclick = () => sndSet(!opts.sound); }
 // how far ahead (the slider under "Next N s"): moving it turns the layer on
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
