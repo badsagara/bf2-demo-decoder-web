@@ -209,7 +209,7 @@ say "Done"
 echo "Site:      ${DOMAIN:+https://$DOMAIN/}${DOMAIN:-http://$(hostname -I | awk '{print $1}')/}"
 # shellcheck source=/dev/null
 echo "Demos:     downloaded from: $(. /etc/bf2replay.conf; echo "${BF2R_FETCH_URLS:-(none: set BF2R_FETCH_URLS in /etc/bf2replay.conf)}")"
-echo "           every 10 minutes (BF2R_FETCH_EVERY; next: $(systemctl show -P NextElapseUSecRealtime bf2replay-fetch.timer 2>/dev/null)); the first run starts now"
+echo "           each page at its own time (the admin page; else every BF2R_FETCH_EVERY minutes, 10); the first run starts now"
 echo "Uploads:   sftp bf2upload@${DOMAIN:-$(hostname -I | awk '{print $1}')} into incoming/  (add each sender's public key"
 echo "           as a line in /etc/ssh/bf2replay_keys/bf2upload)"
 echo "Logs:      journalctl -u 'bf2replay-*' -f"

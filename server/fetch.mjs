@@ -7,7 +7,15 @@
 // (BF2R_FETCH_EVERY; 0 = once a day at BF2R_FETCH_AT): a round is on the site a few minutes after it ends. A run that
 // finds nothing new writes nothing to the log, only data/.fetch-last.json (when it looked, what it found: bf2replay-status).
 //
-//   node fetch.mjs                      download what's new
+// (v210, Sagara: "how often to fetch, for each server: the round posts sooner") each page its own: bf2replay-fetch.timer
+// runs every minute and a page is read when its time is up - the admin page's for it (data/.fetch-sources.json every:
+// { <address>: minutes | 'day' (once a day at BF2R_FETCH_AT) | 'off' }), else BF2R_FETCH_EVERY (minutes; 0 = 'day';
+// 10 when empty). When each was read: data/.fetch-due.json. "Fetch now" on the admin page (data/.fetch-now.json):
+// every page that is not off, at once. And a demo the page lists with a newer one after it (the server records the next
+// round) is done: taken 30 s after it last changed, not 3 minutes (v210; the newest one keeps the 3 minutes).
+//
+//   node fetch.mjs                      download what's new (from the pages whose time is up)
+//   node fetch.mjs --all                from every page now (not the ones off)
 //   node fetch.mjs --list               only show what it would download (and how much)
 //   node fetch.mjs --probe 1.2.3.4 ...  only look: what each address leads to (server name, demo page, demos listed);
 //                                       without addresses: the ones in BF2R_FETCH_URLS
@@ -46,8 +54,8 @@ try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\
 const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
 const ROOT = opt('BF2R_ROOT', '/srv/bf2replay');
 // (v150) and the demo pages / game servers added on the admin page (data/.fetch-sources.json: { sources: [{ url, added }] })
-let ADDED = [];
-try { const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', '.fetch-sources.json'), 'utf8')); ADDED = (j.sources || []).map(s => s && typeof s.url === 'string' ? s.url.trim() : '').filter(Boolean); } catch (e) { /* none added */ }
+let ADDED = [], EVERY = {};
+try { const j = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', '.fetch-sources.json'), 'utf8')); ADDED = (j.sources || []).map(s => s && typeof s.url === 'string' ? s.url.trim() : '').filter(Boolean); EVERY = j.every && typeof j.every === 'object' ? j.every : {}; } catch (e) { /* none added */ }
 const URLS = [...new Set([...opt('BF2R_FETCH_URLS', '').split(/[\s,]+/).filter(Boolean), ...ADDED])];
 const SINCE = opt('BF2R_FETCH_SINCE', '');
 const MAX = Math.max(0, +opt('BF2R_FETCH_MAX', '0') || 0);   // (0: no limit)
@@ -56,7 +64,17 @@ const PAUSE = Math.max(0, +opt('BF2R_FETCH_PAUSE', '1') || 0);
 const MIN_FREE = (+opt('BF2R_MIN_FREE_GB', '3') || 0) * 2 ** 30;
 const INC = path.join(ROOT, 'upload', 'incoming'), STATE = path.join(ROOT, 'data', '.fetched.json');
 const SOURCE_LIST = path.join(ROOT, 'data', '.source-list.json'), REFETCH = path.join(ROOT, 'data', '.refetch.json'), REFETCH_DONE = path.join(ROOT, 'data', '.refetch-done.json');
-const LIST = process.argv.includes('--list'), PROBE = process.argv.includes('--probe');
+const LIST = process.argv.includes('--list'), PROBE = process.argv.includes('--probe'), ALL = process.argv.includes('--all');
+// (v210) how often each page: its own, else BF2R_FETCH_EVERY (10; 0 = once a day at BF2R_FETCH_AT, the VPS clock)
+const DEF_EVERY = (() => { const v = String(opt('BF2R_FETCH_EVERY', '')).trim(); return v === '' || !/^\d+$/.test(v) ? 10 : +v === 0 ? 'day' : Math.min(1440, +v); })();
+const FETCH_AT = /^([01]?\d|2[0-3]):([0-5]\d)$/.exec(String(opt('BF2R_FETCH_AT', '05:30')).trim()) || [null, '05', '30'];
+const everyOf = u => { const v = EVERY[u]; return v === 'day' || v === 'off' || (Number.isInteger(v) && v >= 1 && v <= 1440) ? v : DEF_EVERY; };
+function isDue(u, last, now) {
+  const e = everyOf(u), L = last ? Date.parse(last) || 0 : 0; if (e === 'off') return false;
+  if (e === 'day') { const d = new Date(now); d.setHours(+FETCH_AT[1], +FETCH_AT[2], 0, 0); let at = +d; if (now < at) at -= 86400e3; return L < at; }   // (the last daily time passed: read since?)
+  return now - L >= e * 60e3 - 25e3;   // (the timer's minute ± a few seconds)
+}
+const DUEF = path.join(ROOT, 'data', '.fetch-due.json'), NOWF = path.join(ROOT, 'data', '.fetch-now.json');
 const PROBE_ADDR = PROBE ? process.argv.slice(process.argv.indexOf('--probe') + 1).filter(a => !a.startsWith('--')) : [];
 const DEMOS = path.join(ROOT, 'data', 'demos');
 const UA = 'bf2replay-fetch/1.0 (BF2 Round Replay; downloads each demo once)';
@@ -148,19 +166,19 @@ async function source(entry) {
 
 // what the file's headers say about it: still being recorded (a folder the running server writes into: wait until it
 // hasn't changed for 3 minutes), recorded before BF2R_FETCH_SINCE, smaller than BF2R_FETCH_MIN_BYTES; null = take it
-function verdict(name, h) {
+function verdict(name, h, done) {
   const lm = Date.parse(h.get('last-modified') || ''), size = +(h.get('content-length') || NaN);
-  if (Number.isFinite(lm) && Date.now() - lm < 180e3) return { why: 'busy' };
+  if (Number.isFinite(lm) && Date.now() - lm < (done ? 30e3 : 180e3)) return { why: 'busy' };   // (v210: done - a newer one after it on the page)
   if (SINCE && !nameDay(name) && Number.isFinite(lm) && new Date(lm).toISOString().slice(0, 10) < SINCE) return { why: 'old' };
   if (MIN_BYTES && Number.isFinite(size) && size < MIN_BYTES) return { why: Number.isFinite(lm) ? 'small' : 'busy' };
   return { why: null, size };
 }
 
-async function download(name, url, file, twin = []) {
+async function download(name, url, file, twin = [], done = false) {
   // the headers first (HEAD); a web server that doesn't answer HEAD gets a GET, and the checks run on its headers
   const head = await fetch(url, { method: 'HEAD', headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30e3) });
   if (!head.ok && ![403, 405, 501].includes(head.status)) throw new Error(`HTTP ${head.status}`);
-  let v = head.ok ? verdict(name, head.headers) : null;
+  let v = head.ok ? verdict(name, head.headers, done) : null;
   if (v?.why) return v.why;
   if (v && twin.includes(v.size)) return 'copy';
   if (LIST && v) return { would: v.size };
@@ -168,7 +186,7 @@ async function download(name, url, file, twin = []) {
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(30 * 60e3) });
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
   if (!v) {
-    v = verdict(name, res.headers);
+    v = verdict(name, res.headers, done);
     const stop = v.why || (twin.includes(v.size) ? 'copy' : null) || (LIST ? { would: v.size } : freeBytes() - (Number.isFinite(v.size) ? v.size : 0) < MIN_FREE ? 'full' : null);
     if (stop) { await res.body.cancel().catch(() => {}); return stop; }
   }
@@ -219,9 +237,29 @@ async function refetch() {
   if (got || failed) log(`downloaded again to decode anew: ${got} demo${got === 1 ? '' : 's'} (${mb(bytes)})${failed ? `, ${failed} failed` : ''}; ${Math.max(0, want.length - got - failed)} left (${per} a run, the admin page)`);
 }
 
+// (v210) a demo is done when the page lists a newer one of the same kind after it (auto_<date and time>: the server
+// started recording the next round)
+const stampOf = nm => { const m = /^(.*?)(20\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)[_-](\d\d)/.exec(nm); return m ? { pre: m[1], key: m.slice(2, 8).join('') } : null; };
+function doneSet(names) {
+  const newest = new Map(), out = new Set();
+  for (const nm of names) { const s = stampOf(nm); if (s && !(newest.get(s.pre) >= s.key)) newest.set(s.pre, s.key); }
+  for (const nm of names) { const s = stampOf(nm); if (s && newest.get(s.pre) > s.key) out.add(nm); }
+  return out;
+}
 async function main() {
-  const entries = (PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS).flatMap(expand);
-  if (!entries.length) { log('no BF2R_FETCH_URLS set and none added on the admin page: nothing to fetch'); return; }
+  if (!URLS.length && !(PROBE && PROBE_ADDR.length)) { log('no BF2R_FETCH_URLS set and none added on the admin page: nothing to fetch'); return; }
+  // (v210) the pages whose time is up (all of them: --all, --list, the admin page's "Fetch now")
+  const NOW = Date.now(); let due = {}; try { due = JSON.parse(fs.readFileSync(DUEF, 'utf8')) || {}; } catch (e) { /* first run */ }
+  const looked = due.looked && typeof due.looked === 'object' ? due.looked : (due.looked = {});
+  let hand = null; try { hand = JSON.parse(fs.readFileSync(NOWF, 'utf8'))?.at || null; } catch (e) { /* not asked */ }
+  const byHand = !!hand && hand !== due.handAt, everyOne = ALL || byHand || LIST;
+  const pick = PROBE && PROBE_ADDR.length ? PROBE_ADDR : URLS.filter(u => everyOne ? everyOf(u) !== 'off' : isDue(u, looked[u], NOW));
+  const refetchDue = !LIST && !PROBE && (everyOne || !(NOW - (Date.parse(due.refetchAt || '') || 0) < 9.5 * 60e3));   // (the demos asked for again: every 10 min, as before)
+  const saveDue = () => { if (LIST || PROBE) return; try { const t = DUEF + '.tmp'; fs.writeFileSync(t, JSON.stringify(due)); fs.renameSync(t, DUEF); } catch (e) { log('data/.fetch-due.json not written:', e.message); } };
+  if (!PROBE && !LIST) { for (const u of pick) looked[u] = new Date(NOW).toISOString(); for (const u of Object.keys(looked)) if (!URLS.includes(u)) delete looked[u]; if (byHand) { due.handAt = hand; log('fetch now (the admin page): every page'); } }
+  if (!pick.length) { if (refetchDue) { fs.mkdirSync(INC, { recursive: true }); await refetch(); due.refetchAt = new Date().toISOString(); } saveDue(); return; }   // (nothing due: no log, no .fetch-last.json)
+  saveDue();
+  const entries = pick.flatMap(expand);
   if (!PROBE) { fs.mkdirSync(INC, { recursive: true }); fs.mkdirSync(path.dirname(STATE), { recursive: true }); }
   const n = { got: 0, bytes: 0, would: 0, wouldBytes: 0, busy: 0, skipped: 0, copies: 0, failed: 0, listed: 0, pages: 0 };
   const report = () => LIST
@@ -236,21 +274,22 @@ async function main() {
     let found;
     try { found = await links(src.page, src.dl); } catch (e) { log('could not read', where, '-', e.message); continue; }
     if (PROBE) { const names = [...found.keys()].sort((x, y) => whenKey(x).localeCompare(whenKey(y))); log(where, '-', found.size, 'demos listed', names.length ? `(oldest: ${names[0]}, newest: ${names[names.length - 1]})` : ''); continue; }
-    const fresh = [...found].filter(([nm, u]) => !seenAt(nm, u) && !(SINCE && nameDay(nm) && nameDay(nm) < SINCE));
+    const fresh = [...found].filter(([nm, u]) => !seenAt(nm, u) && !(SINCE && nameDay(nm) && nameDay(nm) < SINCE)), fin = doneSet([...found.keys()]);
     n.listed += found.size; n.pages++;
     if (!LIST) { const F = {}; for (const [nm, u] of found) { const v = seenAt(nm, u), f = v ? (v.file || (v.skipped === 'copy' ? v.of : v.skipped ? null : nm)) : null; if (f) F[f] = u; } listedNow[src.page] = { at: new Date().toISOString(), files: F }; }
-    if (fresh.length || LIST) log(where, '-', found.size, 'demos listed,', fresh.length, 'new');
-    for (const [name, url] of fresh) todo.push({ name, url });
+    if (LIST || fresh.some(([nm]) => !due.busy?.[nm])) log(where, '-', found.size, 'demos listed,', fresh.length, 'new');   // (v210: not again for one still being written)
+    for (const [name, url] of fresh) todo.push({ name, url, done: fin.has(name) });
   }
   if (PROBE) return;
   // 2. newest first over all the servers, so fresh rounds from each show up before any old backlog
   todo.sort((a, b) => whenKey(b.name).localeCompare(whenKey(a.name)));
-  for (const { name, url } of todo) {
+  const quietBusy = todo.every(({ name }) => due.busy?.[name]);   // (only demos still being written, told before: nothing to say)
+  for (const { name, url, done } of todo) {
     if (MAX && n.got + n.would >= MAX) { log('limit of', MAX, 'per run reached (BF2R_FETCH_MAX); the rest next run'); break; }
     try {
-      const file = fileFor(name, url), r = await download(name, url, file, file === name ? [] : sizesOf(name));
+      const file = fileFor(name, url), r = await download(name, url, file, file === name ? [] : sizesOf(name), done);
       if (r === 'copy') { if (!LIST) { seen[url] = { skipped: 'copy', of: name, at: new Date().toISOString() }; save(); } log('the same demo as', name, 'already fetched from another page (or sent): not downloaded again', `(${hostOf(url)})`); n.copies++; continue; }
-      if (r === 'busy') { log('still being written:', name); n.busy++; continue; }
+      if (r === 'busy') { n.busy++; if (LIST || !due.busy?.[name]) log('still being written:', name); if (!LIST) (due.busy || (due.busy = {}))[name] = new Date().toISOString(); continue; }   // (v210: said once - read every minute, the round being recorded would fill the log)
       if (r?.would !== undefined) { log('would download', name, Number.isFinite(r.would) ? mb(r.would) : ''); n.would++; if (Number.isFinite(r.would)) n.wouldBytes += r.would; continue; }
       if (r === 'full') { log(`stopped: less than ${(MIN_FREE / 2 ** 30).toFixed(1)} GB free on the disk (BF2R_MIN_FREE_GB); ${name} and older ones next run`); break; }
       if (r === 'old' || r === 'small') { if (!LIST) { seen[url] = { skipped: r, at: new Date().toISOString() }; save(); } n.skipped++; continue; }
@@ -259,7 +298,7 @@ async function main() {
       if (PAUSE) await new Promise(ok => setTimeout(ok, PAUSE * 1000));
     } catch (e) { log('could not download', name, '-', e.message, '(tried again next run)'); n.failed++; }
   }
-  if (LIST || n.got || n.busy || n.skipped || n.copies || n.failed) report();
+  if (LIST || n.got || n.skipped || n.copies || n.failed || (n.busy && !quietBusy)) report();
   if (!LIST) {
     // (v186) which fetched demos each page lists now (a page not read this run keeps what it listed before, for a week)
     try {
@@ -267,7 +306,10 @@ async function main() {
       const hosts = { ...(SL.hosts || {}), ...listedNow }; for (const [k, h] of Object.entries(hosts)) if (!(Date.now() - Date.parse(h.at || 0) < 7 * 86400e3)) delete hosts[k];   // (a page not read for a week: gone)
       const tmp = SOURCE_LIST + '.tmp'; fs.writeFileSync(tmp, JSON.stringify({ at: new Date().toISOString(), hosts })); fs.renameSync(tmp, SOURCE_LIST);
     } catch (e) { log('the list of what the pages hold not written:', e.message); }
-    await refetch();
+    if (due.busy) for (const [k, at] of Object.entries(due.busy)) if (!(Date.now() - Date.parse(at) < 6 * 3600e3)) delete due.busy[k];   // (kept 6 h)
+    for (const { name } of todo) if (seen[name] || Object.values(seen).some(v => v && v.file === name)) delete due.busy?.[name];
+    saveDue();
+    if (refetchDue) { await refetch(); due.refetchAt = new Date().toISOString(); saveDue(); }
   }
   // (when it last looked: for bf2replay-status)
   if (!LIST) { try { const f = path.join(ROOT, 'data', '.fetch-last.json'); fs.writeFileSync(f + '.tmp', JSON.stringify({ at: new Date().toISOString(), pages: n.pages, listed: n.listed, new: todo.length, got: n.got, busy: n.busy, failed: n.failed })); fs.renameSync(f + '.tmp', f); } catch (e) {} }

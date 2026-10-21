@@ -1054,7 +1054,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v209';
+const APP_VERSION = 'v210';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -5976,6 +5976,9 @@ function renderPCard(i) {
 // from the round itself (so also for a demo opened from a file): enemy kills only, the killer a soldier; ties all of
 // them. -> [[group, [{ k, label, n | d, who: [player index], t (a moment: the kill), w (weapon), vi (victim) }]]]
 const HL_ARTY = /shell|artillery/i, HL_PLACED = new Set([5367, 5460, 5359]);
+// (v210, Sagara: grenades and mines apart) the explosives each their own: hand grenades (and the SF flashbang / tear gas),
+// the rifles' grenade launchers (M203, GP-30, GP-25, F2000 / SA80), C4; claymores and AT mines had their own already
+const HL_GL = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, HL_GREN = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !HL_GL.test(w || ''), HL_C4 = w => /^C4$/i.test(w || '');
 function roundHighlights() {
   if (round._aw) return round._aw;
   const R = round, pidx = id => R.pidx.get(id), K = [];
@@ -5991,7 +5994,7 @@ function roundHighlights() {
   const far = (k, label, f) => { let b = null; for (const x of E) if (x.d != null && !x.placed && f(x) && (!b || x.d > b.d)) b = x; return b ? { k, label, d: b.d, who: [b.ki], t: b.t, w: b.w, vi: b.vi } : null; };
   G.push(['Most kills', [most('foot', 'On foot', x => !x.kv), most('veh', 'In vehicles', x => x.kv), most('hs', 'Headshots', x => x.head), most('knife', 'Knife', x => /knife/i.test(x.w)),
     most('clay', 'Claymores', x => /claymore/i.test(x.w)), most('mine', 'Mines', x => /\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)), most('atInf', 'Launchers on infantry', x => x.cause === 'at' && !x.kv && !x.vv),
-    most('road', 'Run over', x => x.kv && !x.raw && !x.vv), most('expl', 'Explosives', x => x.cause === 'expl')]]);
+    most('road', 'Run over', x => x.kv && !x.raw && !x.vv), most('gren', 'Grenades', x => HL_GREN(x.w)), most('gl', 'Grenade launcher', x => HL_GL.test(x.w)), most('c4', 'C4', x => HL_C4(x.w))]]);
   const lg = far('longest', 'Any weapon', x => (!!x.raw || x.cause === 'at') && !HL_ARTY.test(x.w)), L3 = [far('atLong', 'Launcher', x => x.cause === 'at' && !x.kv), far('smallLong', 'Small arms', x => x.cause === 'small' && !x.kv && !SNIPER_W.test(x.w) && !HL_ARTY.test(x.w)), far('snipLong', 'Sniper rifle', x => !x.kv && SNIPER_W.test(x.w))];
   G.push(['Longest kill', [...L3, lg && !L3.some(o => o && o.t === lg.t && o.who[0] === lg.who[0]) ? lg : null]]);
   const PR = roundPlayerRows().rows, best = (k, label, f, min = 1) => { let n = 0; for (const r of PR) n = Math.max(n, f(r) || 0); if (n < min) return null; return { k, label, n, who: PR.filter(r => (f(r) || 0) === n).map(r => r.i) }; };
@@ -11871,7 +11874,7 @@ const REC_KEYS = [['k', 'Most kills'], ['foot', 'Most kills on foot'], ['kVeh', 
   ['tcl', 'Tank cannons: longest kill', 'm'], ['tck', 'Tank cannons: most kills'], ['vl', 'Vehicles: longest kill (tank cannons and anti-air apart)', 'm'], ['vk', 'Vehicles: most kills (tank cannons and anti-air apart)'],
   ['agl', 'Anti-air guns: longest kill', 'm'], ['agk', 'Anti-air guns: most kills'], ['arl', 'Anti-air rockets from the ground: longest kill', 'm'], ['ark', 'Anti-air rockets from the ground: most kills'],
   ['aal', 'Air-to-air missiles: longest kill', 'm'], ['aak', 'Air-to-air missiles: most kills'],
-  ['kn', 'Most knife kills'], ['cl', 'Most claymore kills'], ['mi', 'Most mine kills'], ['ai', 'Most soldiers killed with launchers'], ['rd', 'Most run over'], ['ex', 'Most explosive kills'],
+  ['kn', 'Most knife kills'], ['cl', 'Most claymore kills'], ['mi', 'Most mine kills'], ['ai', 'Most soldiers killed with launchers'], ['rd', 'Most run over'], ['gr', 'Most hand grenade kills'], ['gl', 'Most grenade launcher kills'], ['c4', 'Most C4 kills'],
   ['rev', 'Most revives'], ['heal', 'Most heals'], ['rep', 'Most repairs'], ['fl', 'Most flags taken'], ['score', 'Best score'], ['kd', 'Best K/D (10 kills or more)']];
 // one soldier's value in one round for a key: [value, weapon] (0: none)
 function recVal(p, k) {
@@ -11931,7 +11934,7 @@ const recRound = nm => { const r = session?.server ? srvRound(nm) : (session?.ro
 const recValTxt = (k, unit, v, w) => unit === 'm' ? `${v} m${w ? ` <span class="w">${esc(w)}</span>` : ''}` : k === 'kd' ? Number(v).toFixed(2) : String(v);
 const REC_SHORT = { k: 'Kills', foot: 'Kills on foot', kVeh: 'Kills from vehicles', hs: 'Headshots', sf: 'Streak on foot', sv: 'Streak in vehicles', lg: 'Longest kill', sl: 'Hand-held kill', hk: 'Hand-held kills', sn: 'Sniper kill', al: 'Hand-held anti-tank kill', atk: 'Hand-held anti-tank kills', stl: 'TOW / HJ-8 kill', stk: 'TOW / HJ-8 kills', tcl: 'Tank cannon kill', tck: 'Tank cannon kills', vl: 'Vehicle kill', vk: 'Vehicle kills',
   agl: 'Anti-air gun kill', agk: 'Anti-air gun kills', arl: 'Anti-air rocket kill', ark: 'Anti-air rocket kills', aal: 'Air-to-air kill', aak: 'Air-to-air kills',
-  kn: 'Knife kills', cl: 'Claymore kills', mi: 'Mine kills', ai: 'Launchers on infantry', rd: 'Run over', ex: 'Explosive kills', rev: 'Revives', heal: 'Heals', rep: 'Repairs', fl: 'Flags taken', score: 'Score', kd: 'K/D (10+ kills)' };
+  kn: 'Knife kills', cl: 'Claymore kills', mi: 'Mine kills', ai: 'Launchers on infantry', rd: 'Run over', gr: 'Grenade kills', gl: 'Grenade launcher kills', c4: 'C4 kills', rev: 'Revives', heal: 'Heals', rep: 'Repairs', fl: 'Flags taken', score: 'Score', kd: 'K/D (10+ kills)' };
 function bestsCard(pb) {
   if (!pb || !Object.keys(pb).length) return '';
   const T = REC_KEYS.filter(([k]) => pb[k]).map(([k, name, unit]) => { const [v, nm, w] = pb[k]; return `<div class="kpi"><span class="kl">${esc(REC_SHORT[k] || name)}</span><span class="kv">${unit === 'm' ? v + ' m' : k === 'kd' ? Number(v).toFixed(2) : v}</span><span class="ks">${unit === 'm' && w ? esc(w) + ' · ' : ''}${recRound(nm)}</span></div>`; });

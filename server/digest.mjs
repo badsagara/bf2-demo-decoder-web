@@ -53,7 +53,7 @@ export function periodOf(kind, now = Date.now()) {
 }
 
 // the rows: added up over the period (each kind of kill; K/D apart), and the best in one round
-const SUM_KEYS = [['foot', 'On foot'], ['kVeh', 'In vehicles'], ['hs', 'Headshots'], ['kn', 'Knife'], ['cl', 'Claymores'], ['mi', 'Mines'], ['ai', 'AT on infantry'], ['rd', 'Run over'], ['ex', 'Explosives'],
+const SUM_KEYS = [['foot', 'On foot'], ['kVeh', 'In vehicles'], ['hs', 'Headshots'], ['kn', 'Knife'], ['cl', 'Claymores'], ['mi', 'Mines'], ['ai', 'AT on infantry'], ['rd', 'Run over'], ['gr', 'Grenades'], ['gl', 'Grenade launcher'], ['c4', 'C4'],
   ['hk', 'Hand-held'], ['atk', 'Hand-held AT'], ['stk', 'TOW / HJ-8'], ['tck', 'Tank cannon'], ['vk', 'Vehicle weapons'], ['agk', 'AA guns'], ['ark', 'AA rockets'], ['aak', 'Air-to-air'],
   ['rev', 'Revives'], ['heal', 'Heals'], ['rep', 'Repairs'], ['fl', 'Flags']];
 const BEST_KEYS = [['k', 'Kills'], ['score', 'Score'], ['sf', 'Streak on foot'], ['sv', 'Streak in vehicles'], ['kd', 'K/D (10+ kills)'], ['lg', 'Longest kill'], ['sl', 'Longest small arms'], ['sn', 'Longest sniper'],

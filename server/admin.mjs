@@ -157,6 +157,21 @@ async function units() {
 // the demo sources: BF2R_FETCH_URLS (from /etc/bf2replay.conf) and the ones added here
 const envSources = () => opt('BF2R_FETCH_URLS', '').split(/[\s,]+/).filter(Boolean);
 const addedSources = () => { const j = readJson(SOURCES, null); return Array.isArray(j?.sources) ? j.sources.filter(s => s && typeof s.url === 'string') : []; };
+// (v210) how often each page is read (fetch.mjs): its own (data/.fetch-sources.json every[url]: minutes, 'day', 'off'),
+// else BF2R_FETCH_EVERY (10; 0: once a day at BF2R_FETCH_AT); when each was read last: data/.fetch-due.json
+const EVERY_OK = [1, 2, 3, 5, 10, 15, 30, 60, 180, 360, 720, 'day', 'off'];
+const srcEvery = () => { const j = readJson(SOURCES, null); return j?.every && typeof j.every === 'object' ? j.every : {}; };
+const defEvery = () => { const v = String(opt('BF2R_FETCH_EVERY', '')).trim(); return v === '' || !/^\d+$/.test(v) ? 10 : +v === 0 ? 'day' : Math.min(1440, +v); };
+const saveSources = (L, E) => { const j = readJson(SOURCES, {}) || {}; writeJson(SOURCES, { ...j, sources: L, every: E ?? (j.every || {}) }); };
+function sourceEvery(b) {
+  const url = String(b.url || '').trim(), v = b.every === '' || b.every == null ? null : /^\d+$/.test(String(b.every)) ? +b.every : String(b.every);
+  if (!envSources().includes(url) && !addedSources().some(s => s.url === url)) return { ok: false, msg: 'not in the list' };
+  if (v !== null && !EVERY_OK.includes(v)) return { ok: false, msg: 'how often: 1-720 minutes, day or off' };
+  const E = { ...srcEvery() }; if (v === null) delete E[url]; else E[url] = v;
+  saveSources(addedSources(), E); const said = v === null ? `as all (${everyText(defEvery())})` : everyText(v);
+  log('demo source', url, 'read:', said); return { ok: true, msg: `${url}: ${said}` };
+}
+const everyText = v => v === 'off' ? 'not read (off)' : v === 'day' ? `once a day at ${String(opt('BF2R_FETCH_AT', '05:30')).trim() || '05:30'}` : v === 1 ? 'every minute' : v < 60 ? `every ${v} min` : `every ${v / 60} h`;
 const SOURCE_RE = /^(https?:\/\/[^\s"'<>]{3,300}|[A-Za-z0-9][A-Za-z0-9.-]{0,252}(:\d{1,5})?)$/;
 // what was fetched from each host (data/.fetched.json)
 function fetchedByHost() {
@@ -186,7 +201,7 @@ async function state() {
     queue: { demos: incDemos.length, bytes: incDemos.reduce((s, f) => s + sizeOf(path.join(INC, f)), 0), parts: parts.length, files: incDemos.sort().slice(0, 12) },
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
     units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
-    sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost() },
+    sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost(), every: srcEvery(), def: defEvery(), at: String(opt('BF2R_FETCH_AT', '05:30')).trim() || '05:30', looked: readJson(path.join(DATA, '.fetch-due.json'), {})?.looked || {}, choices: EVERY_OK },
     settings, password: !!readPass(), users: usersState(), servers: knownServers(), notify: notifyState(), decode: decodeState(), demos: demoState(), analysis: analysisState()
   };
 }
@@ -495,6 +510,7 @@ async function recordsAgain() {
 }
 async function startUnit(u) {
   if (!UNITS.includes(u)) return { ok: false, msg: 'unknown service' };
+  if (u === 'fetch') try { writeJson(path.join(DATA, '.fetch-now.json'), { at: new Date().toISOString() }); } catch (e) {}   // (v210: every page, not only those whose time is up)
   const r = await run(SUDO, ['-n', SYSTEMCTL, 'start', '--no-block', `bf2replay-${u}.service`]);
   if (r.code === 0) { log('started', `bf2replay-${u}`); return { ok: true, msg: `bf2replay-${u} started` }; }
   const why = (r.err || r.out).trim().split('\n').pop();
@@ -680,13 +696,13 @@ function addSource(url) {
   url = String(url || '').trim();
   if (!SOURCE_RE.test(url)) return { ok: false, msg: 'not an address: a page (http://… or https://…) or a game server (IP or name, :port if not the usual)' };
   const L = addedSources(); if (L.some(s => s.url === url) || envSources().includes(url)) return { ok: false, msg: 'already in the list' };
-  L.push({ url, added: new Date().toISOString() }); writeJson(SOURCES, { sources: L }); log('demo source added:', url);
+  L.push({ url, added: new Date().toISOString() }); saveSources(L); log('demo source added:', url);
   return { ok: true, msg: `added: ${url} (read at the next fetch, or press "Fetch new demos now")` };
 }
 function removeSource(url) {
   const L = addedSources(), M = L.filter(s => s.url !== url);
   if (M.length === L.length) return { ok: false, msg: envSources().includes(url) ? 'this one is in /etc/bf2replay.conf (BF2R_FETCH_URLS): remove it there' : 'not in the list' };
-  writeJson(SOURCES, { sources: M }); log('demo source removed:', url); return { ok: true, msg: `removed: ${url} (its demos and rounds stay)` };
+  const E = { ...srcEvery() }; delete E[url]; saveSources(M, E); log('demo source removed:', url); return { ok: true, msg: `removed: ${url} (its demos and rounds stay)` };
 }
 // fetch.mjs --probe / --list: only looks, writes nothing
 async function fetchLook(args, timeout) {
@@ -763,6 +779,7 @@ const server = http.createServer(async (req, res) => {
     if (what === 'retry-bad') return send(res, 200, retryBad());
     if (what === 'source-add') return send(res, 200, addSource(b.url));
     if (what === 'source-remove') return send(res, 200, removeSource(String(b.url || '')));
+    if (what === 'source-every') return send(res, 200, sourceEvery(b));   // (v210)
     if (what === 'probe') { const a = String(b.url || '').trim(); if (a && !SOURCE_RE.test(a)) return send(res, 200, { ok: false, out: 'not an address' }); return send(res, 200, await fetchLook(a ? ['--probe', a] : ['--probe'], 60e3)); }
     if (what === 'fetch-list') return send(res, 200, await fetchLook(['--list'], 180e3));
     if (what === 'notify-set') return send(res, 200, notifySet(b));

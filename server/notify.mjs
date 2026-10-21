@@ -53,7 +53,9 @@ export const POST_ITEMS = [
   ['foot', 'Kills on foot', 'most enemies killed on foot'], ['veh', 'Kills in vehicles', 'most enemies killed from vehicles'],
   ['hs', 'Headshots', 'most headshots'], ['knife', 'Knife', 'most knife kills'], ['clay', 'Claymores', 'most claymore kills'], ['mine', 'Mines', 'most kills with AT mines'],
   ['atInf', 'Launchers on infantry', 'most soldiers on foot killed with a hand-held launcher (SRAW, Eryx, RPG-7)'],
-  ['road', 'Run over', 'most soldiers run over with a vehicle'], ['expl', 'Explosives', 'most kills with grenades, grenade launchers, C4, mines, claymores'],
+  ['road', 'Run over', 'most soldiers run over with a vehicle'], 
+  // (v210, Sagara: grenades and mines apart) the explosives each their own - "Explosives" (all of them) is no more
+  ['gren', 'Grenades', 'most kills with hand grenades'], ['gl', 'Grenade launcher', "most kills with the rifles' grenade launchers (M203, GP-30, GP-25, F2000 / SA80)"], ['c4', 'C4', 'most C4 kills'],
   ['atLong', 'Longest launcher kill', 'with a hand-held launcher'], ['smallLong', 'Longest small-arms kill', 'rifles, machine guns, pistols, shotguns - not a sniper rifle or a launcher'],
   ['snipLong', 'Longest sniper kill', 'with a sniper rifle'], ['longest', 'Longest kill', 'with any weapon, vehicles too'],
   // (v207) the weapons' groups of the Records (ingest.mjs summarize: recGroup) - off until turned on
@@ -70,13 +72,15 @@ export const POST_ITEMS = [
 ];
 // (v208, Sagara: "a table - one row, one kind of kill, not a group") Discord as a table: the short names of its rows
 // (a part's own name from the editor wins)
-export const TLABEL = { foot: 'On foot', veh: 'In vehicles', hs: 'Headshots', knife: 'Knife', clay: 'Claymores', mine: 'Mines', atInf: 'AT on infantry', road: 'Run over', expl: 'Explosives',
+export const TLABEL = { foot: 'On foot', veh: 'In vehicles', hs: 'Headshots', knife: 'Knife', clay: 'Claymores', mine: 'Mines', atInf: 'AT on infantry', road: 'Run over', gren: 'Grenades', gl: 'Grenade launcher', c4: 'C4',
   atLong: 'Longest launcher', smallLong: 'Longest small arms', snipLong: 'Longest sniper', longest: 'Longest kill', handMost: 'Hand-held', atMost: 'Hand-held AT', standMost: 'TOW / HJ-8', standLong: 'Longest TOW / HJ-8',
   tankMost: 'Tank cannon', tankLong: 'Longest tank cannon', vehMost: 'Vehicle weapons', vehLong: 'Longest vehicle', aaGunMost: 'AA guns', aaGunLong: 'Longest AA gun', aaRktMost: 'AA rockets', aaRktLong: 'Longest AA rocket',
   a2aMost: 'Air-to-air', a2aLong: 'Longest air-to-air', streakFoot: 'Streak on foot', streakVeh: 'Streak in vehicles', kd: 'Best K/D', rev: 'Revives', heal: 'Heals', rep: 'Repairs', flags: 'Flags', first: 'First blood', last: 'Last killed' };
 // (missing: on - but the weapons' groups of v207: off, so a server's posts don't grow by themselves)
 const OFF_NEW = new Set(['handMost', 'atMost', 'standMost', 'standLong', 'tankMost', 'tankLong', 'vehMost', 'vehLong', 'aaGunMost', 'aaGunLong', 'aaRktMost', 'aaRktLong', 'a2aMost', 'a2aLong']);
-export const linesOf = (o) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o && k in o ? o[k] !== false : !OFF_NEW.has(k)]));
+// (v210) the three parts that were "Explosives": on or off as that one was
+const WAS_EXPL = new Set(['gren', 'gl', 'c4']);
+export const linesOf = (o) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o && k in o ? o[k] !== false : o && WAS_EXPL.has(k) && 'expl' in o ? o.expl !== false : !OFF_NEW.has(k)]));
 const readNotify = () => { try { return JSON.parse(fs.readFileSync(NOTIFY_FILE, 'utf8')) || {}; } catch (e) { return {}; } };
 const writeNotify = j => { const tmp = NOTIFY_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, NOTIFY_FILE); };
 export const NO_SERVER = '(no server name)';
@@ -164,12 +168,12 @@ const KEYS = POST_ITEMS.map(([k]) => k), LABEL = Object.fromEntries(POST_ITEMS.m
 const str = (v, d, n) => typeof v === 'string' ? v.replace(/\r/g, '').slice(0, n) : d;
 export function normFormat(f) {
   const D = FORMAT_DEFAULT; f = f && typeof f === 'object' ? f : {};
-  const order = []; for (const k of Array.isArray(f.order) ? f.order : []) if (KEYS.includes(k) && !order.includes(k)) order.push(k);
+  const order = []; for (const k of Array.isArray(f.order) ? f.order : []) for (const q of k === 'expl' ? [...WAS_EXPL] : [k]) if (KEYS.includes(q) && !order.includes(q)) order.push(q);   // (v210: where "Explosives" was)
   for (const k of D.order) if (!order.includes(k)) order.push(k);   // (a part added in a later version: at the end)
   const labels = {}; for (const [k, v] of Object.entries(f.labels || {})) if (KEYS.includes(k) && typeof v === 'string' && v.trim() && v.trim() !== LABEL[k]) labels[k] = v.trim().slice(0, 80);
   const wide = {}; for (const k of KEYS) { const w = f.wide && k in f.wide ? !!f.wide[k] : !!D.wide[k]; if (w) wide[k] = true; }
   return { style: ['card', 'table', 'text'].includes(f.style) ? f.style : 'classic', title: str(f.title, D.title, 250).replace(/\n/g, ' '), intro: str(f.intro, D.intro, 1000), footer: str(f.footer, D.footer, 500), color: /^#[0-9a-f]{6}$/i.test(f.color || '') ? f.color.toLowerCase() : 'winner',
-    image: ['big', 'small', 'none'].includes(f.image) ? f.image : D.image, cols: +f.cols === 2 ? 2 : 3, order, labels, wide, text: str(f.text, '', 3500) };
+    image: ['big', 'small', 'none'].includes(f.image) ? f.image : D.image, cols: +f.cols === 2 ? 2 : 3, order, labels, wide, text: str(f.text, '', 3500), mono: !!f.mono };
 }
 const labelOf = (F, k) => F.labels[k] || LABEL[k];
 const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -180,7 +184,7 @@ function itemVals(entry, on) {
   const top = (s.P || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k).slice(0, 3);
   if (top.length) { const L = top.map((p, k) => `${k + 1}. ${p.name}${T[p.team] ? ` (${T[p.team]})` : ''} ${p.score ?? 0}`); V.best = { v: L.join(' · '), vm: L.join('\n') }; }
   const who = o => o.who.join(', ') + (o.more ? ` +${o.more}` : ''), wpn = w => w ? ` (${w})` : '', put = (k, f) => { if (H[k]) V[k] = { v: f(H[k]) }; };
-  for (const k of ['foot', 'veh', 'hs', 'knife', 'clay', 'mine', 'atInf', 'road', 'expl', 'streakFoot', 'streakVeh', 'rev', 'heal', 'rep', ...GROUP_MOST]) put(k, o => `${who(o)} ${o.n}`);
+  for (const k of ['foot', 'veh', 'hs', 'knife', 'clay', 'mine', 'atInf', 'road', 'gren', 'gl', 'c4', 'streakFoot', 'streakVeh', 'rev', 'heal', 'rep', ...GROUP_MOST]) put(k, o => `${who(o)} ${o.n}`);
   const same = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
   for (const k of [...LONG_KEYS, 'longest']) if (!(k === 'longest' && LONG_KEYS.some(q => on[q] && same(H[q], H.longest)))) put(k, o => `${o.who} ${o.d} m${wpn(o.w)}`);
   // (v207) the scoreboard: each side's best five; the records the round broke
@@ -283,7 +287,7 @@ function postLines(entry, on = linesOf({})) {
     const seg = title ? [[title, 'b'], [' - ', '']] : []; P.forEach(([label, text], i) => { if (i) seg.push([' · ', '']); seg.push([label + ': ', title ? '' : 'b'], [text, '']); }); L.push(seg);
   };
   const cnt = o => `${who(o)} ${o.n}`, far = o => `${o.who} ${o.d} m${wpn(o.w)}`;
-  group('Most kills', [['foot', 'on foot', cnt], ['veh', 'in vehicles', cnt], ['hs', 'headshots', cnt], ['knife', 'knife', cnt], ['clay', 'claymores', cnt], ['mine', 'mines', cnt], ['atInf', 'launchers on infantry', cnt], ['road', 'run over', cnt], ['expl', 'explosives', cnt]]);
+  group('Most kills', [['foot', 'on foot', cnt], ['veh', 'in vehicles', cnt], ['hs', 'headshots', cnt], ['knife', 'knife', cnt], ['clay', 'claymores', cnt], ['mine', 'mines', cnt], ['atInf', 'launchers on infantry', cnt], ['road', 'run over', cnt], ['gren', 'grenades', cnt], ['gl', 'grenade launcher', cnt], ['c4', 'C4', cnt]]);
   group('Most kills with', [['handMost', 'hand-held weapons', cnt], ['atMost', 'hand-held anti-tank', cnt], ['standMost', 'TOW / HJ-8', cnt], ['tankMost', 'tank cannons', cnt], ['vehMost', 'vehicles', cnt], ['aaGunMost', 'anti-air guns', cnt], ['aaRktMost', 'anti-air rockets', cnt], ['a2aMost', 'air-to-air', cnt]]);   // (v207)
   group('Longest kill', [['atLong', 'launcher', far], ['smallLong', 'small arms', far], ['snipLong', 'sniper', far], ['standLong', 'TOW / HJ-8', far], ['tankLong', 'tank cannon', far], ['vehLong', 'vehicle', far], ['aaGunLong', 'anti-air gun', far], ['aaRktLong', 'anti-air rocket', far], ['a2aLong', 'air-to-air', far], ['longest', 'any', far]]);
   group('Kill streak', [['streakFoot', 'on foot', cnt], ['streakVeh', 'in vehicles', cnt]]);   // (v190: apart)
@@ -434,14 +438,24 @@ export function monoTable(head, rows) {
   for (const r of rows) out.push(Array.isArray(r) ? line(r) : cb(r));
   return '```\n' + out.join('\n') + '\n```';
 }
+// (v210, Sagara: "the numbers bold, and a | between the name and the number") the rows as Discord text: the name in
+// monospace up to its | (so the |s and the numbers line up), the number bold, then the player - `On foot        |` **20** |
+// name. Markdown has no bold inside a code block (and Discord's ANSI blocks show as codes on phones), so this is not one:
+// the name padded with no-break spaces (never squeezed), the rest in the app's own font. F.mono: the table as before (v208)
+const NBSP = '\u00a0';
+export function boldRows(rows) {
+  const R = rows.filter(Array.isArray), w = Math.min(LBL_MAX, Math.max(1, ...R.map(r => String(r[0] ?? '').length)));
+  const lab = t => { t = String(t ?? '').replace(/`/g, 'ˋ').replace(/\n/g, ' '); if (t.length > w) t = t.slice(0, w - 1) + '.'; return '`' + t + NBSP.repeat(w - t.length) + NBSP + '|`'; };
+  return rows.map(r => !Array.isArray(r) ? `*${escDc(r)}*` : `${lab(r[0])} **${escDc(r[1])}** ${r.slice(2).map(x => '\\| ' + escDc(x)).join(' ')}`).join('\n');
+}
 const PER_HEAD = { ever: 'All time', month: 'Last 30 days', week: 'Last 7 days' };
-function recTable(list) {
+function recTable(list, mono) {
   const A = aggFns(), rows = []; let per = '';
   for (const r of list) {
     if (r.per !== per) { per = r.per; rows.push(PER_HEAD[per] || per); }
-    rows.push([A?.REC_SHORT?.[r.k] || r.name, recNum(r, r.v), recNum(r, r.prev), r.who + (r.w ? ` (${r.w})` : '')]);
+    rows.push([A?.REC_SHORT?.[r.k] || r.name, recNum(r, r.v), mono ? recNum(r, r.prev) : `was ${recNum(r, r.prev)}`, r.who + (r.w ? ` (${r.w})` : '')]);
   }
-  return monoTable(['Record', 'Now', 'Was', 'Player'], rows);
+  return mono ? monoTable(['Record', 'Now', 'Was', 'Player'], rows) : boldRows(rows);
 }
 function tablePost(entry, F, on) {
   const s = entry.sum, H = s.hl || {}, V = itemVals(entry, on), vars = varsOf(entry, V), E = {};
@@ -453,11 +467,11 @@ function tablePost(entry, F, on) {
     if (!on[k]) continue;
     if (!ROW_SKIP.has(k)) { const r = rowOf(k, H, on); if (r) { if (at < 0) { at = blocks.length; blocks.push(null); } rows.push([F.labels[k] || TLABEL[k] || LABEL[k], ...r]); } continue; }
     if (k === 'board' || !V[k]) continue;
-    if (k === 'records') blocks.push(`**${escDc(labelOf(F, k))}**\n${recTable(V.records.list)}`);
+    if (k === 'records') blocks.push(`**${escDc(labelOf(F, k))}**\n${recTable(V.records.list, F.mono)}`);
     else blocks.push(V[k].vm ? `**${escDc(labelOf(F, k))}**\n${escDc(V[k].vm)}` : `**${escDc(labelOf(F, k))}:** ${escDc(V[k].v)}`);
   }
   // (Discord's limit for a card's text, 4096: the table's last rows go first)
-  const desc = () => [intro, ...blocks.map((b, i) => i === at ? (rows.length ? monoTable(['Kill', 'Result', 'Player'], rows) : '') : b)].filter(Boolean).join('\n');
+  const desc = () => [intro, ...blocks.map((b, i) => i === at ? (rows.length ? (F.mono ? monoTable(['Kill', 'Result', 'Player'], rows) : boldRows(rows)) : '') : b)].filter(Boolean).join('\n');
   while (desc().length > 4090 && rows.length) rows.pop();
   const d = desc(); if (d) E.description = cut(d, 4096);
   const fields = [];

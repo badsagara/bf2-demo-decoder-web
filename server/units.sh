@@ -1,7 +1,7 @@
 #!/bin/bash
-# BF2 Round Replay: put this repository's systemd units, update.sh and the Caddy config in place (only what changed), and how
-# often to look for new demos from /etc/bf2replay.conf as a drop-in for bf2replay-fetch.timer: BF2R_FETCH_EVERY=minutes
-# (default 10, the unit's own; 0 = once a day, at BF2R_FETCH_AT=HH:MM or 05:30).
+# BF2 Round Replay: put this repository's systemd units, update.sh and the Caddy config in place (only what changed).
+# (How often to look for new demos: fetch.mjs itself since v210 - each page its own on the admin page, else
+# BF2R_FETCH_EVERY=minutes, 0 = once a day at BF2R_FETCH_AT=HH:MM; the timer runs every minute.)
 # Run as root by install.sh and, every minute, by update.sh: a unit changed in GitHub, or a new BF2R_FETCH_AT,
 # takes effect without running install.sh again.
 set -euo pipefail
@@ -33,23 +33,13 @@ if [ -d /etc/sudoers.d ] && command -v visudo >/dev/null 2>&1 && [ "$want" != "$
   rm -f "$tmp"
 fi
 
-# how often to look for new demos: BF2R_FETCH_EVERY=minutes (empty or 10: the timer's own every 10 minutes; 1-59: every so
-# many minutes; 60: hourly; 0: once a day at BF2R_FETCH_AT=HH:MM, 05:30 when that is empty)
-cv() { { sed -n "s/^$1=\"\{0,1\}\([^\"#]*\)\"\{0,1\}\s*$/\1/p" /etc/bf2replay.conf 2>/dev/null || true; } | tail -1 | tr -d ' '; }
-every=$(cv BF2R_FETCH_EVERY) at=$(cv BF2R_FETCH_AT)
-drop=/etc/systemd/system/bf2replay-fetch.timer.d/time.conf want= what=
-if [ -n "$every" ] && ! [[ $every =~ ^[0-9]+$ ]]; then echo "BF2R_FETCH_EVERY=$every is not a number of minutes: every 10 minutes"; every=; fi
-if [ "$every" = 0 ]; then
-  if [ -n "$at" ] && ! [[ $at =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]; then echo "BF2R_FETCH_AT=$at is not HH:MM (e.g. 05:30): 05:30"; at=; fi
-  want=$(printf '[Timer]\nOnCalendar=\nOnCalendar=*-*-* %s:00\nRandomizedDelaySec=10min\n' "${at:-05:30}"); what="once a day at ${at:-05:30}"
-elif [ -n "$every" ] && [ "$every" != 10 ]; then
-  if [ "$every" -ge 60 ]; then want=$(printf '[Timer]\nOnCalendar=\nOnCalendar=hourly\n'); what="every hour"
-  else want=$(printf '[Timer]\nOnCalendar=\nOnCalendar=*:0/%s\n' "$every"); what="every $every minutes"; fi
-fi
-if [ -n "$want" ] && [ "$want" != "$(cat "$drop" 2>/dev/null)" ]; then
-  install -d -m 755 "$(dirname "$drop")"; printf '%s\n' "$want" > "$drop"; reload=1; timers+=(bf2replay-fetch.timer); echo "new demos looked for $what"
-elif [ -z "$want" ] && [ -f "$drop" ]; then
-  rm -f "$drop"; reload=1; timers+=(bf2replay-fetch.timer); echo "new demos looked for every 10 minutes"
+# how often to look for new demos: (v210) the timer runs every minute and fetch.mjs reads each page at its own time (the
+# admin page; else BF2R_FETCH_EVERY / BF2R_FETCH_AT, read by fetch.mjs itself) - the drop-in of before (the timer's own
+# time from BF2R_FETCH_EVERY) goes
+drop=/etc/systemd/system/bf2replay-fetch.timer.d/time.conf
+if [ -f "$drop" ]; then
+  rm -f "$drop"; rmdir "$(dirname "$drop")" 2>/dev/null || true; reload=1; timers+=(bf2replay-fetch.timer)
+  echo "the demo pages: the timer every minute now, each page at its own time (the admin page; BF2R_FETCH_EVERY for the rest)"
 fi
 
 # update.sh itself (a new file, renamed in place: the copy that is running now keeps reading the old one)

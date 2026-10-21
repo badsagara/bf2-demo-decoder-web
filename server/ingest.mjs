@@ -147,8 +147,10 @@ function bfrBuild(obj) {
 // for a kill by what it is, todo 245; 8, v202: a soldier's longest kill without the commander's artillery; 9, v204: the
 // records of each group of weapons - hand-held, anti-tank rockets, vehicles, anti-air guns, rockets, air-to-air, todo 250;
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
-// v207: the round's highlights of the same groups for the posts, todo 253)
-const SUM_V = 11;
+// v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
+// grenade launchers, C4 - for the posts and the records, todo 256)
+const SUM_V = 12;
+const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -241,7 +243,7 @@ function summarize(tl, hdr, dec) {
     const E = K.filter(x => !x.tk);
     const most = (key, f) => { const c = new Map(); for (const x of E) if (f(x)) c.set(x.k, (c.get(x.k) || 0) + 1); let n = 0; for (const v of c.values()) n = Math.max(n, v); if (!n) return; const who = [...c].filter(([, v]) => v === n).map(([k]) => k); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
     most('foot', x => !x.kv); most('veh', x => x.kv); most('clay', x => /claymore/i.test(x.w)); most('mine', x => /\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)); most('hs', x => x.head); most('knife', x => /knife/i.test(x.w));
-    most('atInf', x => x.cause === 'at' && !x.kv && !x.vv); most('road', x => x.kv && !x.raw && !x.vv); most('expl', x => x.cause === 'expl');
+    most('atInf', x => x.cause === 'at' && !x.kv && !x.vv); most('road', x => x.kv && !x.raw && !x.vv); most('gren', x => GREN_W(x.w)); most('gl', x => GL_W.test(x.w)); most('c4', x => C4_W(x.w));   // (v210: was 'expl', all of them together)
     const far = (key, f) => { let b = null; for (const x of E) if (x.d != null && !x.placed && f(x) && (!b || x.d > b.d)) b = x; if (b) hl[key] = { d: b.d, who: b.k, w: b.w, vic: b.v }; };
     // (the commander's artillery - "M777 shell" - is no small arm; a kill with no weapon named is no record)
     const ARTY = /shell|artillery/i;
@@ -287,12 +289,13 @@ function summarize(tl, hdr, dec) {
     { let b = null; for (const i of sold) { const L = (P0[i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')), cap = L.filter(q => /captured/i.test(q[2])).length; if (L.length && (!b || L.length > b.n)) b = { n: L.length, cap, neu: L.length - cap, who: P0[i].name.trim() }; } if (b) hl.flags = b; }
     // (v192) each soldier's own of the same (P[].x, the zeros left out): the records pages over many rounds - the site's
     // Records, his player page, the map's page (the page's @agg: aggRecs, aggBests) - take each soldier's best, not only
-    // the round's. kn knife, cl claymores, mi mines, ai launchers on infantry, rd run over, ex explosives (counts); al
+    // the round's. kn knife, cl claymores, mi mines, ai launchers on infantry, rd run over, gr hand grenades, gl grenade launchers, c4 C4 (counts; v210 - ex,
+    // all explosives together, before); al
     // launcher, sl small arms, sn sniper rifle, lg any weapon ([m, weapon]); sf / sv streaks on foot / in vehicles; fl flags
     const X = new Map(), xo = i => { let o = X.get(i); if (!o) X.set(i, o = {}); return o; }, inc = (i, k) => { const o = xo(i); o[k] = (o[k] || 0) + 1; };
     for (const x of E) {
       if (/knife/i.test(x.w)) inc(x.ki, 'kn'); if (/claymore/i.test(x.w)) inc(x.ki, 'cl'); if (/\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)) inc(x.ki, 'mi');
-      if (x.cause === 'at' && !x.kv && !x.vv) inc(x.ki, 'ai'); if (x.kv && !x.raw && !x.vv) inc(x.ki, 'rd'); if (x.cause === 'expl') inc(x.ki, 'ex');
+      if (x.cause === 'at' && !x.kv && !x.vv) inc(x.ki, 'ai'); if (x.kv && !x.raw && !x.vv) inc(x.ki, 'rd'); if (GREN_W(x.w)) inc(x.ki, 'gr'); if (GL_W.test(x.w)) inc(x.ki, 'gl'); if (C4_W(x.w)) inc(x.ki, 'c4');
       const g = recGroup(x); if (REC_N[g]) inc(x.ki, REC_N[g]);
       if (x.d == null || x.placed) continue;
       const up = k => { const o = xo(x.ki); if (!o[k] || x.d > o[k][0]) o[k] = [x.d, x.w]; };
