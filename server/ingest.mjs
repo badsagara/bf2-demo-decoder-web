@@ -141,8 +141,8 @@ function bfrBuild(obj) {
 // (v183) SUM_V: how a round is summed up (summarize); a round summed up by an older one is summed up again from its .bfr
 // (2: the kills' hit part [12] and the weapon guessed where the game names none [7] - the player page's headshots
 // against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs; 4, v188:
-// and the mines' kills, as the site's Round stats has them)
-const SUM_V = 4;
+// and the mines' kills, as the site's Round stats has them; 5, v190: the kill streaks on foot and in vehicles apart)
+const SUM_V = 5;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -224,7 +224,7 @@ function summarize(tl, hdr, dec) {
       const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || P0[ki].vehicle) continue;
       const kq = at(ki, e.t - 0.05), vq = at(vi, e.t - 0.05), w = wOf(e) || '', cause = killCause({ ...e, weapon: w }, !!kq.veh);
       let d = e.dist; if (d === undefined && kq.alive) { const k = frameAt(e.t); if (k >= 0) { const a = k * n + ki, b = k * n + vi; d = Math.round(Math.hypot(C.X[a] - C.X[b], C.Y[a] - C.Y[b], C.HH[a] - C.HH[b])); } }
-      K.push({ t: e.t, k: P0[ki].name.trim(), v: P0[vi].name.trim(), w, raw: e.weapon || '', cause, kv: !!kq.veh, vv: !!vq.veh, tk: team(ki, e.t) === team(vi, e.t), d: Number.isFinite(d) ? d : null, head: e.hit === 'head', placed: PLACED.has(e.wid) || /claymore|mine\b|^C4$/i.test(w) });
+      K.push({ t: e.t, ki, k: P0[ki].name.trim(), v: P0[vi].name.trim(), w, raw: e.weapon || '', cause, kv: !!kq.veh, vv: !!vq.veh, tk: team(ki, e.t) === team(vi, e.t), d: Number.isFinite(d) ? d : null, head: e.hit === 'head', placed: PLACED.has(e.wid) || /claymore|mine\b|^C4$/i.test(w) });
     }
     const E = K.filter(x => !x.tk);
     const most = (key, f) => { const c = new Map(); for (const x of E) if (f(x)) c.set(x.k, (c.get(x.k) || 0) + 1); let n = 0; for (const v of c.values()) n = Math.max(n, v); if (!n) return; const who = [...c].filter(([, v]) => v === n).map(([k]) => k); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
@@ -237,7 +237,15 @@ function summarize(tl, hdr, dec) {
     if (E.length) { const x = E[0]; hl.first = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t) }; }
     if (K.length) { const x = K[K.length - 1]; hl.last = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t), tk: x.tk }; }   // (times: whole seconds down, as the site shows them)
     const best = (key, f, min = 1) => { let n = 0; for (const p of P) n = Math.max(n, f(p) || 0); if (n < min) return; const who = P.filter(p => (f(p) || 0) === n).map(p => p.name); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
-    best('streak', p => p.streak, 2); best('rev', p => p.rev); best('heal', p => p.heal); best('rep', p => p.rep);
+    // (v190) the streaks apart: enemy kills on foot in a row without dying, and from vehicles (a kill of the other kind
+    // neither counts nor ends it; a death does - one revived does not, as the site's streaks)
+    const streak = (key, veh) => { const best = new Map();
+      for (const i of sold) { const L = E.filter(x => x.ki === i && x.kv === veh), D = deathsOf.get(i) || []; let cur = 0, b = 0;
+        for (const [, isK] of L.map(x => [x.t, 1]).concat(D.map(t => [t, 0])).sort((a, c) => a[0] - c[0] || c[1] - a[1])) { if (isK) b = Math.max(b, ++cur); else cur = 0; }
+        if (b >= 2) best.set(P0[i].name.trim(), b); }
+      let n = 0; for (const v of best.values()) n = Math.max(n, v); if (!n) return; const who = [...best].filter(([, v]) => v === n).map(([k]) => k); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
+    streak('streakFoot', false); streak('streakVeh', true);
+    best('rev', p => p.rev); best('heal', p => p.heal); best('rep', p => p.rep);
     { let b = null; for (const p of P) if (p.k >= 10) { const r = p.k / Math.max(1, p.d); if (!b || r > b.r) b = { r, who: p.name, k: p.k, d: p.d }; } if (b) hl.kd = { r: Math.round(b.r * 100) / 100, who: b.who, k: b.k, d: b.d }; }
     { let b = null; for (const i of sold) { const L = (P0[i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')), cap = L.filter(q => /captured/i.test(q[2])).length; if (L.length && (!b || L.length > b.n)) b = { n: L.length, cap, neu: L.length - cap, who: P0[i].name.trim() }; } if (b) hl.flags = b; }
   }

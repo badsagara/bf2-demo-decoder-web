@@ -41,7 +41,7 @@ export const POST_ITEMS = [
   ['road', 'Run over', 'most soldiers run over with a vehicle'], ['expl', 'Explosives', 'most kills with grenades, grenade launchers, C4, mines, claymores'],
   ['atLong', 'Longest launcher kill', 'with a hand-held launcher'], ['smallLong', 'Longest small-arms kill', 'rifles, machine guns, pistols, shotguns - not a sniper rifle or a launcher'],
   ['snipLong', 'Longest sniper kill', 'with a sniper rifle'], ['longest', 'Longest kill', 'with any weapon, vehicles too'],
-  ['streak', 'Kill streak', 'most kills in a row without dying'], ['kd', 'Best K/D', 'of those with 10 kills or more'],
+  ['streakFoot', 'Kill streak on foot', 'most kills on foot in a row without dying'], ['streakVeh', 'Kill streak in vehicles', 'most kills from vehicles in a row without dying'], ['kd', 'Best K/D', 'of those with 10 kills or more'],
   ['rev', 'Revives', 'most revives'], ['heal', 'Heals', 'most heals'], ['rep', 'Repairs', 'most repairs'],
   ['flags', 'Flags', 'most flags captured and neutralised'], ['first', 'First blood', 'the first kill of the round'], ['last', 'Last killed', 'the last soldier killed in the round']
 ];
@@ -93,7 +93,8 @@ function postLines(entry, on = linesOf({}, 'discord')) {
   const cnt = o => `${who(o)} ${o.n}`, far = o => `${o.who} ${o.d} m${wpn(o.w)}`;
   group('Most kills', [['foot', 'on foot', cnt], ['veh', 'in vehicles', cnt], ['hs', 'headshots', cnt], ['knife', 'knife', cnt], ['clay', 'claymores', cnt], ['mine', 'mines', cnt], ['atInf', 'launchers on infantry', cnt], ['road', 'run over', cnt], ['expl', 'explosives', cnt]]);
   group('Longest kill', [['atLong', 'launcher', far], ['smallLong', 'small arms', far], ['snipLong', 'sniper', far], ['longest', 'any', far]]);
-  group('', [['streak', 'Kill streak', cnt], ['kd', 'Best K/D', o => `${o.who} ${o.r} (${o.k}/${o.d})`]]);
+  group('Kill streak', [['streakFoot', 'on foot', cnt], ['streakVeh', 'in vehicles', cnt]]);   // (v190: apart)
+  group('', [['kd', 'Best K/D', o => `${o.who} ${o.r} (${o.k}/${o.d})`]]);
   group('Most', [['rev', 'revives', cnt], ['heal', 'heals', cnt], ['rep', 'repairs', cnt], ['flags', 'flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`]]);
   group('', [['first', 'First blood', o => `${o.who} → ${o.vic}${o.w ? ` (${o.w}, ${mmss(o.t)})` : ` (${mmss(o.t)})`}`], ['last', 'Last killed', o => `${o.vic} by ${o.who}${o.tk ? ' (team kill' + (o.w ? ', ' + o.w : '') + ')' : wpn(o.w)} at ${mmss(o.t)}`]]);
   if (on.server && s.server) L.push([[s.server, '']]);

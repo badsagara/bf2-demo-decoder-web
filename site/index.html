@@ -106,6 +106,11 @@ input[type=file] { display: none; }
 .fslot[hidden] { display: none; }
 .fslot > .fcard { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .fslot > .fcard > .tabs { flex: none; }
+/* (v189) the panel folded (its Hide button, or the over-the-map feed's): only the tabs; in the column left of the map it
+   shrinks to them at the top */
+.fcard .tabs .fcfold { margin-left: auto; color: var(--muted); } .fcard .tabs .fcfold:hover { color: var(--fg); }
+.fcard.min > :not(.tabs) { display: none !important; } .fcard.min > .tabs { margin-bottom: 0; }
+.fslot > .fcard.min { bottom: auto; }
 .fslot .feed:not([hidden]) { flex: 1 1 0; min-height: 0; max-height: none; align-content: start; }
 .fslot :is(#hlBox, #admBox):not([hidden]) { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .fslot :is(#hlBox, #admBox) > :not(.feed) { flex: none; }
@@ -162,12 +167,13 @@ input[type=file] { display: none; }
   text-shadow: 0 0 3px var(--bg), 0 0 1px var(--bg); }
 .fsfeed[hidden], .fsfeed.none:not(.min) { display: none; }
 /* (v188) its fold button (the feed itself lets the map take the clicks): top right on it; folded, only the button */
-.fsfold { position: absolute; top: 2px; right: 2px; z-index: 1; pointer-events: auto; font: 600 12px/1 var(--font-data); color: var(--muted); background: color-mix(in srgb, var(--bg) 70%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 3px; padding: 2px 6px; cursor: pointer; text-shadow: none; }
+.fsfold { position: absolute; top: 3px; right: 3px; z-index: 1; white-space: nowrap; pointer-events: auto; font: 600 12px/1 var(--font-data); color: var(--muted); background: color-mix(in srgb, var(--bg) 70%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 3px; padding: 2px 6px; cursor: pointer; text-shadow: none; }
 .fsfold:hover, .fsfold:focus-visible { color: var(--fg); border-color: var(--accent); } .fsfold:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .fsfeed.min { width: auto !important; max-height: none !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; overflow: visible; }
 .fsfeed.min .fsfold { position: static; display: block; padding: 4px 8px; color: var(--fg); }
 .fsfeed.min #fsfeedIn { display: none; }
-.fsfeed:not(.min) #fsfeedIn > :first-child { padding-right: 22px; }
+.fsfeed:not(.min) #fsfeedIn > .fstk, .fsfeed:not(.min) #fsfeedIn > ul:first-child > li:first-child { padding-right: 58px; }   /* (room for its button: the box clips what is outside it) */
+
 /* (v136) the game's top bar: both sides' tickets (bleeding: an arrow and how fast), the time left */
 .topbar { display: flex; gap: 12px; align-items: center; padding: 3px 10px;
   background: color-mix(in srgb, var(--bg) 78%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 4px;
@@ -845,7 +851,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="flagrow" id="flagrow"></div>
       </section>
       <section class="card fcard" id="feedCard">
-        <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" title="Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills">For admins</button></div>
+        <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" title="Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills">For admins</button><button class="btn fcfold" id="fcFold" type="button" aria-expanded="true" title="Fold this panel: only its tabs stay (the kill feed, highlights and hints go on being written)">Hide ▴</button></div>
         <div class="ffbar" id="ffBar">
           <input id="ffK" list="ffList" placeholder="Killer…" autocomplete="off" spellcheck="false" aria-label="Killer (the one who did it)" title="The killer - the one who did it (killed, revived, repaired; the one a hint is about)"><datalist id="ffList"></datalist>
           <button class="btn" id="ffBoth" aria-pressed="false" title="Either way: the two names in either role - one name: he killed or was killed">⇄</button>
@@ -932,7 +938,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as the button on it</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -995,7 +1001,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v188';
+const APP_VERSION = 'v190';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -4132,7 +4138,12 @@ const SND_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="tr
 // (v188, Sagara: "Kill Feed можна було згортати кнопкою") the kill feed over the map folded to its button and back
 // (remembered): the button on it, J. Filters ▾ Kill feed still takes it off the map altogether
 let feedMin = false; try { feedMin = localStorage.getItem('bf2rr.feedmin') === '1'; } catch (e) {}
-function feedFoldShow() { const fo = $('#fsfeed'), b = $('#feedFold'); if (!fo || !b) return; fo.classList.toggle('min', feedMin); b.textContent = feedMin ? 'Kill feed ▾' : '–'; b.title = feedMin ? 'Show the kill feed (J)' : 'Fold the kill feed (J)'; b.setAttribute('aria-expanded', String(!feedMin)); }
+function feedFoldShow() { const fo = $('#fsfeed'), b = $('#feedFold'); if (!fo || !b) return; fo.classList.toggle('min', feedMin); b.textContent = feedMin ? 'Kill feed ▾' : 'Hide ▸'; b.title = feedMin ? 'Show the kill feed (J)' : 'Fold the kill feed (J)'; b.setAttribute('aria-expanded', String(!feedMin)); }
+// (v189, Sagara: "не бачу кнопки згортання кілфіду") the panel with the kill feed, highlights and hints (left of the map,
+// or under it) folds too: its Hide button; a tab clicked opens it again (remembered)
+let fcMin = false; try { fcMin = localStorage.getItem('bf2rr.fcmin') === '1'; } catch (e) {}
+function fcFoldShow() { const c = $('#feedCard'), b = $('#fcFold'); if (!c || !b) return; c.classList.toggle('min', fcMin); b.textContent = fcMin ? 'Show ▾' : 'Hide ▴'; b.title = fcMin ? 'Show this panel again' : 'Fold this panel: only its tabs stay'; b.setAttribute('aria-expanded', String(!fcMin)); }
+function fcFold(on) { fcMin = !!on; try { localStorage.setItem('bf2rr.fcmin', fcMin ? '1' : '0'); } catch (e) {} fcFoldShow(); if (!fcMin) refresh(true); }
 function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmin', feedMin ? '1' : '0'); } catch (e) {} feedFoldShow(); refresh(true); }
 // (v185, Sagara: "додати кнопку вмикання прицільної лінії при виборі гравця") the followed soldier's aim line on / off
 // (remembered; off as v152 left it): the card's Aim line button, X
@@ -5630,7 +5641,7 @@ function roundStats() {
   // --- per kill: who, where (on foot / in a vehicle), what it cost
   const kills = ev.filter(e => e.type === 'kill');
   const P = new Map(sold.map(i => [i, { i, k: [0, 0], d: [0, 0], tk: 0, foot: 0, veh: 0 }]));   // [on foot, in vehicles]
-  const lost = [{}, {}], byWeapon = new Map(), deathsOf = new Map(), killsOf = new Map();
+  const lost = [{}, {}], byWeapon = new Map(), deathsOf = new Map(), killsOf = new Map(), kvOf = new Map();   // (kvOf: kill -> [the killer was in a vehicle], v190)
   const add = (o, k, v = 1) => { o[k] = (o[k] || 0) + v; };
   const push = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
   for (const e of kills) {
@@ -5638,7 +5649,7 @@ function roundStats() {
     const vt = team(vi, e.t), kt = ki === undefined ? -1 : team(ki, e.t);
     const kv = ki !== undefined && vehAt(ki, e.t - 0.05), vv = vehAt(vi, e.t - 0.05);
     const self = ki === vi, tk = !self && kt === vt;
-    if (!self && !tk && P.has(ki)) { P.get(ki).k[kv ? 1 : 0]++; push(killsOf, ki, e); }
+    if (!self && !tk && P.has(ki)) { P.get(ki).k[kv ? 1 : 0]++; push(killsOf, ki, e); push(kvOf, e, kv); }
     if (tk && P.has(ki)) P.get(ki).tk++;
     if (!self) { const w = e.weapon || '(no weapon)', b = byWeapon.get(w) || { w, wid: e.wid, n: [0, 0] }; if (kt === 0 || kt === 1) b.n[kt]++; byWeapon.set(w, b); }
     if (e.revived) continue;   // a revived soldier costs no ticket and is no death
@@ -5680,6 +5691,16 @@ function roundStats() {
     if (best.length >= 2) streaks.push({ i, n: best.length, t0: best[0].t, t1: best[best.length - 1].t, weapons: [...new Set(best.map(e => e.weapon || 'no weapon'))] });
   }
   streaks.sort((a, b) => b.n - a.n || a.t1 - a.t0 - (b.t1 - b.t0));
+  // (v190, Sagara: "кілстріки піхотні й кілстріки техніки") the same, apart: kills on foot in a row without dying, and
+  // kills from vehicles - a kill of the other kind neither counts nor ends it, a death does (on foot or in a vehicle)
+  const streakOf = veh => { const out = [];
+    for (const [i, L0] of killsOf) {
+      const L = L0.filter(e => !!kvOf.get(e)?.[0] === veh), D = deathsOf.get(i) || []; let cur = [], best = [];
+      for (const [, e] of L.map(e => [e.t, e]).concat(D.map(t => [t, null])).sort((a, b) => a[0] - b[0] || (a[1] ? -1 : 1))) { if (e) { cur.push(e); if (cur.length > best.length) best = cur.slice(); } else cur = []; }
+      if (best.length >= 2) out.push({ i, n: best.length, t0: best[0].t, t1: best[best.length - 1].t });
+    }
+    return out.sort((a, b) => b.n - a.n || a.t1 - a.t0 - (b.t1 - b.t0)); };
+  const streaksFoot = streakOf(false), streaksVeh = streakOf(true);
   const summary = [0, 1].map(tm => {
     const ps = sold.filter(i => (R.players[i].teams || [[0, R.players[i].team]]).some(([, x]) => x === tm));
     const s = { players: ps.length, kills: 0, deaths: 0, revives: ev.filter(e => e.type === 'revive' && team(R.pidx.get(e.player), e.t) === tm).length,
@@ -5689,7 +5710,7 @@ function roundStats() {
     return s;
   });
   for (const e of kills) { const ki = R.pidx.get(e.killer), vi = R.pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi) continue; const kt = team(ki, e.t), vt = team(vi, e.t); if (kt !== vt && (kt === 0 || kt === 1)) summary[kt].kills++; }
-  return (R._stats = { ts, alive: alive60, flags, nCapt: capt.length, lost, hasTk, byWeapon: [...byWeapon.values()].sort((a, b) => b.n[0] + b.n[1] - a.n[0] - a.n[1]), P: [...P.values()], streaks, summary });
+  return (R._stats = { ts, alive: alive60, flags, nCapt: capt.length, lost, hasTk, byWeapon: [...byWeapon.values()].sort((a, b) => b.n[0] + b.n[1] - a.n[0] - a.n[1]), P: [...P.values()], streaks, streaksFoot, streaksVeh, summary });
 }
 // a line chart over the round (one value axis), two series in the team colours, a crosshair with both values on hover
 function statLine(id, title, series, ts, yMax, fmtV, stepped, W, o = {}) {
@@ -5895,9 +5916,11 @@ function roundHighlights() {
   const lg = far('longest', 'Any weapon', x => (!!x.raw || x.cause === 'at') && !HL_ARTY.test(x.w)), L3 = [far('atLong', 'Launcher', x => x.cause === 'at' && !x.kv), far('smallLong', 'Small arms', x => x.cause === 'small' && !x.kv && !SNIPER_W.test(x.w) && !HL_ARTY.test(x.w)), far('snipLong', 'Sniper rifle', x => !x.kv && SNIPER_W.test(x.w))];
   G.push(['Longest kill', [...L3, lg && !L3.some(o => o && o.t === lg.t && o.who[0] === lg.who[0]) ? lg : null]]);
   const PR = roundPlayerRows().rows, best = (k, label, f, min = 1) => { let n = 0; for (const r of PR) n = Math.max(n, f(r) || 0); if (n < min) return null; return { k, label, n, who: PR.filter(r => (f(r) || 0) === n).map(r => r.i) }; };
-  const stk = roundStats().streaks[0], kd = PR.filter(r => r.k >= 10).sort((a, b) => b.k / Math.max(1, b.d) - a.k / Math.max(1, a.d))[0];
+  const RS = roundStats(), kd = PR.filter(r => r.k >= 10).sort((a, b) => b.k / Math.max(1, b.d) - a.k / Math.max(1, a.d))[0];
   const flags = PR.map(r => { const L = (R.players[r.i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')); return { r, n: L.length, cap: L.filter(q => /captured/i.test(q[2])).length, t: L[0]?.[0] }; }).filter(o => o.n).sort((a, b) => b.n - a.n)[0];
-  G.push(['More', [stk && stk.n >= 2 ? { k: 'streak', label: 'Kill streak', n: stk.n, who: [stk.i], t: stk.t0, sub: `${fmt(stk.t0)}–${fmt(stk.t1)}` } : null,
+  // (v190) the streaks apart: on foot, from vehicles (ties: all of them; the moment: the first one's start)
+  const stkT = (k, label, L) => { const n = L[0]?.n || 0; if (n < 2) return null; const top = L.filter(x => x.n === n).sort((a, b) => a.t0 - b.t0); return { k, label, n, who: [...new Set(top.map(x => x.i))], t: top[0].t0, sub: top.length === 1 ? `${fmt(top[0].t0)}–${fmt(top[0].t1)}` : '' }; };
+  G.push(['More', [stkT('streakFoot', 'Streak on foot', RS.streaksFoot), stkT('streakVeh', 'Streak in vehicles', RS.streaksVeh),
     kd ? { k: 'kd', label: 'Best K/D', n: Math.round(kd.k / Math.max(1, kd.d) * 100) / 100, who: [kd.i], sub: `${kd.k}–${kd.d}` } : null,
     best('rev', 'Revives', r => r.rev), best('heal', 'Heals', r => r.heal), best('rep', 'Repairs', r => r.rep),
     flags ? { k: 'flags', label: 'Flags', n: flags.n, who: [flags.r.i], sub: `${flags.cap} captured, ${flags.n - flags.cap} neutralised` } : null]]);
@@ -9530,6 +9553,7 @@ relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classLi
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
 $('#feedFold').onclick = e => { e.stopPropagation(); feedFold(!feedMin); }; feedFoldShow();   // (v188)
+$('#fcFold').onclick = () => fcFold(!fcMin); fcFoldShow();   // (v189)
 { const tb = $('#tSound'); tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); tb.onclick = () => sndSet(!opts.sound); }
 // how far ahead (the slider under "Next N s"): moving it turns the layer on
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
@@ -9814,6 +9838,7 @@ function setRound(data, src) {
 }
 // kill feed / highlights tabs
 [0, 1, 2].forEach(k => $('#fTab' + k).addEventListener('click', () => {
+  if (fcMin) fcFold(false);   // (v189: a tab of the folded panel opens it)
   feedTab = k; [0, 1, 2].forEach(j => { $('#fTab' + j).classList.toggle('on', j === k); $('#fTab' + j).setAttribute('aria-selected', String(j === k)); });
   $('#feed').hidden = k !== 0; $('#hlBox').hidden = k !== 1; $('#admBox').hidden = k !== 2; $('#ffFlag').hidden = k !== 2; hlShown = -2; markHighlights();
 }));

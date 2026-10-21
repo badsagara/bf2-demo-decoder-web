@@ -402,7 +402,7 @@ $('#srcProbe').onclick = () => { const v = $('#srcIn').value.trim(); if (!v) { $
 $('#fetchList').onclick = () => look('fetch-list', {}, $('#fetchList'));
 // (v187) what goes in a post, for each app: a checkbox a part (kept while being changed over the 5 s refreshes)
 let nDirty = false;
-const GROUPS = { best: 'The round', foot: 'Most kills', atLong: 'Longest kill', streak: 'Streak, K/D', rev: 'Most', first: 'First and last' };
+const GROUPS = { best: 'The round', foot: 'Most kills', atLong: 'Longest kill', streakFoot: 'Kill streak, K/D', rev: 'Most', first: 'First and last' };
 function renderItems(N) {
   if (!N.items || nDirty) return;
   $('#nItems').innerHTML = N.items.map(it => `${GROUPS[it.k] ? `<tr class="grp"><td colspan="3">${GROUPS[it.k]}</td></tr>` : ''}<tr><td>${esc(it.name)} <span class="muted" style="font-size:12px">${esc(it.what)}</span></td>${['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(it.k)}" aria-label="${esc(it.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${N.lines?.[app]?.[it.k] !== false ? ' checked' : ''}></td>`).join('')}</tr>`).join('');
