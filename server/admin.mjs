@@ -180,6 +180,7 @@ async function state() {
   return {
     now: new Date().toISOString(), site: { version: dec.ver, decoder: dec.hash },
     rounds: { total: R.length, current: cur, old: R.length - cur, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null },
+    records: recordsState(),   // (v206)
     reprocess: idx.reprocess || null, lastReprocess: readJson(path.join(DATA, 'reprocess.json'), null),
     queue: { demos: incDemos.length, bytes: incDemos.reduce((s, f) => s + sizeOf(path.join(INC, f)), 0), parts: parts.length, files: incDemos.sort().slice(0, 12) },
     bad: { demos: bad.length, files: bad.sort().slice(-12) },
@@ -467,6 +468,22 @@ async function stopUnit(u) {
   const why = (r.err || r.out).trim().split('\n').pop();
   return { ok: false, msg: `could not stop bf2replay-${u}: ${why || 'error ' + r.code}${/password|sudoers|not allowed/i.test(why) ? ' (the permission comes with units.sh: wait a minute after the update, or run sudo bash /srv/bf2replay/repo/server/units.sh; or on the VPS: sudo systemctl stop bf2replay-' + u + ')' : ''}` };
 }
+// (v206, Sagara: "a button on the admin page: Recalculate all records") every round summed up again from its decoded file
+// (no decoding: ~0.5 s a round) - its kills, distances, highlights for the posts, records; then the Records, players' and
+// maps' pages and the numbers over all rounds. ingest.mjs does it at its next run (started now): data/.resum-request.json
+function recordsState() {
+  const rd = f => readJson(path.join(DATA, f), null);
+  return { asked: rd('.resum-request.json'), done: rd('.resum-done.json'), now: rd('.resum-now.json') };
+}
+async function recordsAgain() {
+  const S = recordsState();
+  if (S.asked?.at && (!S.done?.at || S.done.at < S.asked.at)) return { ok: false, msg: `already asked for ${S.asked.at.replace('T', ' ').slice(0, 16)} UTC${S.now ? `: ${S.now.done} of ${S.now.total} rounds done` : ': it starts with the next decoding run'}` };
+  writeJson(path.join(DATA, '.resum-request.json'), { at: new Date().toISOString(), by: 'admin page' });
+  log('records: all rounds to be summed up again (asked for on the admin page)');
+  const r = await startUnit('ingest');
+  const n = (index().rounds || []).filter(x => x.bfr && x.sum && !x.sum.empty).length;
+  return { ok: true, msg: `all ${n} rounds will be summed up again (~${Math.max(1, Math.round(n * 0.5 / 60))} min)${r.ok ? ': started' : ': it starts by itself within 2 minutes'} - then the records and the pages are written again` };
+}
 async function startUnit(u) {
   if (!UNITS.includes(u)) return { ok: false, msg: 'unknown service' };
   const r = await run(SUDO, ['-n', SYSTEMCTL, 'start', '--no-block', `bf2replay-${u}.service`]);
@@ -732,6 +749,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method !== 'POST') return send(res, 405, { error: 'method' });
     const b = await bodyOf(req);
     if (what === 'start') return send(res, 200, await startUnit(String(b.unit)));
+    if (what === 'records-again') return send(res, 200, await recordsAgain());   // (v206)
     if (what === 'stop') return send(res, 200, await stopUnit(String(b.unit)));
     if (what === 'retry-bad') return send(res, 200, retryBad());
     if (what === 'source-add') return send(res, 200, addSource(b.url));

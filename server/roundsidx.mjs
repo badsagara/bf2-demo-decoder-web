@@ -8,7 +8,7 @@
 // The page (expandIndex, the same rule) and the server's scripts turn it back into the usual objects.
 export const IDX_COLS = ['name', 'date', 'map', 'server', 'duration', 'players', 'kills', 'teams', 'tickets', 'winner', 'top', 'x'];
 const SUM_KEYS = new Set(['date', 'map', 'server', 'duration', 'empty', 'players', 'kills', 'teams', 'tickets', 'winner', 'top']);
-const ENTRY_KEYS = new Set(['name', 'demo', 'bfr', 'decoder', 'sum']), SERVER_ONLY = new Set(['bytes', 'bfrBytes', 'added']);
+const ENTRY_KEYS = new Set(['name', 'demo', 'bfr', 'decoder', 'sum']), SERVER_ONLY = new Set(['bytes', 'bfrBytes', 'added', 'resumAt']);   // (v206: resumAt - when "Recalculate all records" did it)
 const baseOf = name => String(name).replace(/\.bf2demo(\.gz)?$/i, '');
 
 // entries as data/.rounds-full.json has them (sum without its players' lines and kills) -> the compact list

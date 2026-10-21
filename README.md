@@ -73,7 +73,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 (`site/`, `server/`, `README.md`…). На Mac:
 
 ```bash
-V=v205   # номер версії з назви архіву
+V=v206   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -208,6 +208,8 @@ Admin ✓, перехід у вкладку Admin раунду, адмінка, 
 яким його розібрали, і v201-v203 їх не міняли (тому на сайті лишалось 910 м); SUM_V 9.
 З v205 — протитанкові окремо: ручні (SRAW, Eryx, RPG-7), станкові (TOW, HJ-8) і танкові гармати (окремо від техніки);
 SUM_V 10.
+З v206 — на адмін-сторінці (картка Rounds) кнопка **Recalculate all records**: усі раунди підсумовуються заново з
+розібраних файлів, рекорди й сторінки пишуться наново (INSTALL, розділ 14).
 
 ### Перевірити локально перед push
 

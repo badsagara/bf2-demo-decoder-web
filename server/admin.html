@@ -132,6 +132,7 @@ td.mono { overflow-wrap: anywhere; }
     <div class="row" id="rDec"></div>
     <div id="rServers" class="mono muted"></div>
     <div class="row muted" id="rNewest"></div>
+    <div class="row" id="recRow" style="align-items:center"><button type="button" id="recAgain" title="Every round summed up again from its decoded file (no decoding, ~0.5 s a round): its kills and their distances, the highlights for the posts, the records - then the Records page, the players' and maps' pages and the numbers over all rounds">Recalculate all records</button><span class="muted" id="recNote"></span></div>
   </section>
 
   <section class="card" aria-labelledby="hQ">
@@ -291,6 +292,11 @@ function render() {
   $('#rDec').innerHTML = R.old ? `<span class="warn">${R.old} made by an older decoder</span><span class="muted">· ${R.current} by this one</span>` : `<span class="ok">all made by this decoder</span>`;
   const sv = Object.entries(R.servers).sort((a, b) => b[1] - a[1]);
   $('#rServers').innerHTML = sv.length > 1 || (sv[0] && sv[0][0] !== '?') ? sv.map(([s, n]) => `${esc(s)}: ${n}`).join('<br>') : '';
+  // (v206) Recalculate all records: asked for / how far / the last time
+  { const RC = S.records || {}, asked = RC.asked?.at, done = RC.done, busy = !!asked && (!done?.at || done.at < asked);
+    $('#recNote').innerHTML = busy ? (RC.now ? `<span class="warn">working: ${RC.now.done} / ${RC.now.total} rounds</span>` : `<span class="warn">asked ${ago(asked)}: starts with the next decoding run</span>`)
+      : done?.end ? `last time ${ago(done.end)}: ${done.n} rounds${done.ms ? ' in ' + hm(done.ms / 1000) : ''}${done.bad ? ` · <span class="warn">${done.bad} could not be read</span>` : ''}` : '';
+    $('#recAgain').disabled = busy; }
   $('#rNewest').innerHTML = R.newest ? `newest: <span class="mono">${esc(R.newest.name)}</span> ${R.newest.added ? '· added ' + ago(R.newest.added) : ''}` : '';
   // the queue and decoding again
   const Q = S.queue;
@@ -493,6 +499,7 @@ const dmVals = () => ({ ...(S?.demos?.policy?.keepDaysConf ? {} : { keepDays: +$
 $('#dmForm').addEventListener('input', () => { dmDirty = true; });
 $('#dmForm').addEventListener('submit', e => { e.preventDefault(); act('demos-set', dmVals(), e.submitter).then(j => { if (j && j.ok) { dmDirty = false; dmPreview = null; } }); });
 $('#dmPrev').onclick = async () => { const b = $('#dmPrev'); b.disabled = true; try { const j = await api('demos-preview', dmVals()); if (j.ok) { dmPreview = j.plan; render(); } else toast(j.msg || j.error || 'no', false); } catch (e) { toast(e.message, false); } finally { b.disabled = false; } };
+$('#recAgain').onclick = () => { const n = S?.rounds?.total || 0; if (confirm(`Sum up all ${n} rounds again (no decoding, ~${Math.max(1, Math.round(n * 0.5 / 60))} min) and write the records and the pages again?`)) act('records-again', {}, $('#recAgain')); };   // (v206)
 $('#dmNow').onclick = () => { if (dmDirty && !confirm('The changes are not saved: remove by the saved settings?')) return; act('start', { unit: 'ingest' }, $('#dmNow')); };
 $('#dmKeepForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#dmKeepIn').value.trim(); if (!v) return; act('demos-keep', { round: v }, e.submitter).then(j => { if (j && j.ok) $('#dmKeepIn').value = ''; }); });
 async function refresh() { try { const j = await api('state'); if (j.error) { if (j.round) showRoundOnly(await api('me')); return; } S = j; render(); } catch (e) {} }

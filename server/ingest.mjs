@@ -603,7 +603,7 @@ function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
   // (and the day: the records page's week and month move on)
-  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV, !!r.demo, r.src || ''])])).digest('hex'), stampF = path.join(WWW, '.stamp');
+  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV, !!r.demo, r.src || '', r.resumAt || ''])])).digest('hex'), stampF = path.join(WWW, '.stamp');
   try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
   const mapName = m => dec.GAME?.maps?.[m]?.name || m;
   const idOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
@@ -987,18 +987,28 @@ async function main() {
   // 1b. (v183) rounds summed up by an older summarize (SUM_V): summed up again from their decoded round (.bfr), without
   // decoding the demo (~0.5 s a round) - once for every round after the update; stopped by a site update or SIGTERM, the
   // rest at the next run
-  { const old = idx.rounds.filter(r => (r.sumV || 1) < SUM_V && r.bfr && r.sum && !r.sum.empty);
+  // (v206, the admin page's "Recalculate all records": data/.resum-request.json { at }) every round, as if summed up by an
+  // older one - each marked (resumAt) so a run stopped half way goes on with the rest; when all are done .resum-done.json
+  // { at, end, n, bad, ms }; how far now: .resum-now.json
+  const RQF = path.join(DATA, '.resum-request.json'), RDF = path.join(DATA, '.resum-done.json'), RNF = path.join(DATA, '.resum-now.json');
+  let RQ = null; try { RQ = JSON.parse(fs.readFileSync(RQF, 'utf8')); } catch (e) {}
+  let RD = null; try { RD = JSON.parse(fs.readFileSync(RDF, 'utf8')); } catch (e) {}
+  const forced = RQ && RQ.at && (!RD || !RD.at || RD.at < RQ.at) ? RQ.at : null;
+  { const old = idx.rounds.filter(r => ((r.sumV || 1) < SUM_V || (forced && r.resumAt !== forced)) && r.bfr && r.sum && !r.sum.empty);
+    if (forced && !old.length) { writeJsonF(RDF, { at: forced, end: new Date().toISOString(), n: 0, bad: 0, ms: 0 }); try { fs.unlinkSync(RNF); } catch (e) {} }
     if (old.length && !siteChanged()) {
       const t0 = Date.now(); let k = 0, bad = 0;
-      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (summary version ${SUM_V}: ${SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
+      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (${forced ? 'asked for on the admin page: "Recalculate all records"' : `summary version ${SUM_V}`}: ${SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
       for (const r of old) {
         if (siteChanged()) { log(`the site was updated: ${old.length - k} rounds left to sum up again at the next run`); break; }
         try { const B = bfrRead(path.join(DATA, r.bfr)), sum = summarize(B.tl, B.info?.hdr || null, dec); aggMark(r.sum); r.sum = sum; heatPut(r.name, sum); aggMark(sum); }
         catch (e) { bad++; log('not summed up again:', r.name, '-', e.message); }
-        r.sumV = SUM_V; changed = true; k++;
+        r.sumV = SUM_V; if (forced) r.resumAt = forced; changed = true; k++;
+        if (forced && (k % 25 === 0 || k === old.length)) { try { writeJsonF(RNF, { at: forced, done: k, total: old.length, since: new Date(t0).toISOString() }); } catch (e) {} }
         if (k % 250 === 0 && k < old.length) { const el = (Date.now() - t0) / 1000; log(`summed up ${k} of ${old.length} again, ~${hm(el / k * (old.length - k))} left`); writeIndex(idx, dec, true); }
       }
       writeIndex(idx, dec); log(`summed up ${k} rounds again in ${hm((Date.now() - t0) / 1000)}${bad ? `, ${bad} could not be read (kept as they were)` : ''}`);
+      if (forced && k === old.length) { writeJsonF(RDF, { at: forced, end: new Date().toISOString(), n: k, bad, ms: Date.now() - t0 }); try { fs.unlinkSync(RNF); } catch (e) {} log('all records worked out again (asked for on the admin page)'); }
     }
   }
   // 2. after a site update: rounds made by another decoder are decoded again from their demo
