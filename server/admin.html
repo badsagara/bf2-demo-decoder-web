@@ -64,6 +64,14 @@ details summary { cursor: pointer; color: var(--muted); }
 .antab td.n, .antab th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .antab td { font-size: 13px; }
 a.btn { display: inline-block; text-decoration: none; } a.btn.primary { background: var(--accent); color: #17140a; border-color: var(--accent); font-weight: 600; }
 @media (max-width: 640px) { .antab thead { display: none; } .antab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); } .antab td { border: 0; padding: 2px 0; } .antab td:nth-child(2) { grid-column: 1 / -1; } .antab td.act { grid-column: 1 / -1; text-align: left; } }
+/* (v194) round posts: a block a server */
+.nsrv { border-top: 1px solid var(--line); padding: 6px 0; } .nsrv:first-child { border-top: 0; }
+.nsrv > summary { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 4px 0; color: var(--fg); list-style: none; } .nsrv > summary::-webkit-details-marker { display: none; }
+.nsrv > summary::before { content: '▸'; color: var(--muted); width: 1em; } .nsrv[open] > summary::before { content: '▾'; }
+.nsrv .chip { font-size: 11.5px; border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; white-space: nowrap; } .nsrv .chip.on { color: var(--ok); border-color: var(--ok); } .nsrv .chip.no { color: var(--muted); }
+.nsrv .nbody { padding: 4px 0 8px 1.2em; } .nsrv .nrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; } .nsrv .nrow input[type=password], .nsrv .nrow input.chat { flex: 1 1 220px; } .nsrv .nrow input.chat { flex: 0 1 220px; }
+.nsrv .nparts { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); } .nsrv .nparts > summary { color: var(--fg); }
+.nsrv .nrow label.ck { display: flex; gap: 6px; align-items: center; min-width: 7.5em; font-weight: 600; } .nsrv .nrow input[type=number] { width: 4.5em; }
 [hidden] { display: none !important; }
 td.mono { overflow-wrap: anywhere; }
 @media (max-width: 640px) {
@@ -172,29 +180,18 @@ td.mono { overflow-wrap: anywhere; }
 
   <section class="card wide" aria-labelledby="hN">
     <h2 id="hN">Posts about new rounds</h2>
-    <p class="muted" style="margin:0 0 8px">Each new round in a Discord channel and / or a Telegram chat: the map, who won and the link (the chat shows the map under it), with what you pick below. Rounds downloaded in a batch (recorded more than 12 h before) and clips are not posted.</p>
+    <p class="muted" style="margin:0 0 8px">Each game server its own: its new rounds go only to its own Discord channel and / or Telegram chat, with the parts picked for it - the map, who won and the link (the chat shows the map under it) always. A server not set up here is not posted. Rounds downloaded in a batch (recorded more than 12 h before) and clips are not posted.</p>
     <div id="nState"></div>
-    <form class="addsrc" id="nDcForm">
-      <input id="nDc" type="password" autocomplete="new-password" spellcheck="false" placeholder="Discord webhook: https://discord.com/api/webhooks/…" aria-label="Discord webhook address">
-      <button type="submit" class="primary">Save Discord</button>
-    </form>
     <form class="addsrc" id="nTgForm">
-      <input id="nTgT" type="password" autocomplete="new-password" spellcheck="false" placeholder="Telegram bot token (from @BotFather)" aria-label="Telegram bot token">
-      <input id="nTgC" autocomplete="off" spellcheck="false" placeholder="chat: -100… or @channel" aria-label="Telegram chat" style="flex:0 1 190px">
-      <button type="submit" class="primary">Save Telegram</button>
+      <input id="nTgT" type="password" autocomplete="new-password" spellcheck="false" placeholder="Telegram bot token (from @BotFather): one bot for every server's chat" aria-label="Telegram bot token">
+      <button type="submit" class="primary">Save the bot</button>
     </form>
     <div class="row" style="margin-top:10px">
-      <label class="muted">Rounds with <input id="nMin" type="number" min="1" max="64" style="width:4.5em" aria-label="Fewest players"> players or more</label><button type="button" id="nMinSave">Save</button>
-      <span style="flex:1"></span><button type="button" id="nTest">Send a test post</button><button type="button" id="nLast">Post the newest round</button>
+      <label class="muted">Rounds with <input id="nMin" type="number" min="1" max="64" style="width:4.5em" aria-label="Fewest players"> players or more</label><button type="button" id="nMinSave">Save</button><span class="muted">(where a server says nothing else)</span>
     </div>
-    <div class="pitems">
-      <div class="row"><b>What goes in a post</b><span class="muted">for Discord and Telegram apart · the map, when, who won, players and kills and the link always · a part shows only when the round has it</span></div>
-      <table class="pit"><thead><tr><th>Part</th><th class="c">Discord</th><th class="c">Telegram</th></tr></thead><tbody id="nItems"></tbody></table>
-      <div class="row" style="margin-top:8px"><button type="button" class="primary" id="nItemsSave">Save</button><button type="button" id="nAllOn">All on</button><button type="button" id="nAllOff">All off</button>
-        <span style="flex:1"></span><input id="nPrevRound" placeholder="a round (name or link) - empty: the newest" aria-label="Round to preview" autocomplete="off" spellcheck="false" style="flex:0 1 260px"><button type="button" id="nPrev">Preview</button></div>
-      <div class="pvw" id="nPrevOut" hidden><div class="muted" id="nPrevWhat"></div><div class="pvc"><div><b>Discord</b><div class="pvt" id="nPrevDc"></div></div><div><b>Telegram</b><div class="pvt" id="nPrevTg"></div></div></div></div>
-    </div>
-    <details style="margin-top:8px"><summary>Where to get these</summary><p class="muted">Discord: the channel's settings (the gear) → Integrations → Webhooks → New Webhook → Copy Webhook URL.<br>Telegram: write to @BotFather, /newbot, copy the token it gives; add the bot to your group (or as an admin of your channel). The chat: @channelname for a public channel; for a group, its id - send a message in it, open https://api.telegram.org/bot&lt;token&gt;/getUpdates and take "chat":{"id": -100…}.<br>Kept on the VPS only (data/.notify.json, which the web server never serves); here only the last 4 characters show. In /etc/bf2replay.conf BF2R_DISCORD_WEBHOOK, BF2R_TELEGRAM_TOKEN, BF2R_TELEGRAM_CHAT and BF2R_NOTIFY_MIN_PLAYERS win over these.</p></details>
+    <h3 class="anh">Servers</h3>
+    <div id="nServers"></div>
+    <details style="margin-top:8px"><summary>Where to get these</summary><p class="muted">Discord: the channel's settings (the gear) → Integrations → Webhooks → New Webhook → Copy Webhook URL. A channel a server: a webhook each.<br>Telegram: write to @BotFather, /newbot, copy the token it gives (one bot is enough for every server); add the bot to each group (or as an admin of each channel). The chat: @channelname for a public channel; for a group, its id - send a message in it, open https://api.telegram.org/bot&lt;token&gt;/getUpdates and take "chat":{"id": -100…}.<br>A server is known by the name in its demos: if its admins rename it, the new name shows here as a new server, not posted until set up.<br>Kept on the VPS only (data/.notify.json, which the web server never serves); here only the last 4 characters of the secrets show. In /etc/bf2replay.conf BF2R_TELEGRAM_TOKEN and BF2R_NOTIFY_MIN_PLAYERS win over these.</p></details>
   </section>
 
   <section class="card wide" aria-labelledby="hL">
@@ -306,18 +303,19 @@ function render() {
   $('#srcList').innerHTML = rows.length ? rows.join('') : '<div class="muted">no demo pages or game servers yet</div>';
   for (const b of document.querySelectorAll('#srcList [data-remove]')) b.onclick = () => { if (confirm(`Stop downloading from ${b.dataset.remove}? (Rounds already downloaded stay.)`)) act('source-remove', { url: b.dataset.remove }, b); };
   for (const b of document.querySelectorAll('#srcList [data-probe]')) b.onclick = () => look('probe', { url: b.dataset.probe }, b);
-  // round posts (v153)
+  // round posts (v153; v194: a server each)
   const N = S.notify;
   if (N) {
-    const one = (name, val, conf, rm) => `<div class="src"><b style="min-width:6.5em">${name}</b><span class="u">${val ? `<span class="ok">set</span> <span class="mono muted">${esc(val)}</span>` : '<span class="muted">not set</span>'}</span>${conf ? '<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS">bf2replay.conf</span>' : val ? `<button type="button" class="danger" data-nrm="${rm}">Remove</button>` : ''}</div>`;
     const L = N.last;
-    $('#nState').innerHTML = one('Discord', N.discord, N.discordConf, 'discord') + one('Telegram', N.tgToken ? N.tgToken + (N.tgChat ? ' → ' + N.tgChat : ' (no chat yet)') : '', N.tgTokenConf || N.tgChatConf, 'telegram')
-      + (L ? `<div class="row muted" style="overflow-wrap:anywhere">last: <span class="mono" style="min-width:0">${esc(L.what)}</span> ${ago(L.at)} · <span class="${L.ok ? 'ok' : 'bad'}">${esc(L.msg)}</span></div>` : '')
-      + (N.domain ? '' : '<div class="row warn">BF2R_DOMAIN is not set in /etc/bf2replay.conf: the posts go without a link to the round</div>');
-    for (const b of document.querySelectorAll('#nState [data-nrm]')) b.onclick = () => { if (confirm(`Stop posting to ${b.dataset.nrm === 'discord' ? 'Discord' : 'Telegram'}?`)) act('notify-set', b.dataset.nrm === 'discord' ? { discord: '' } : { tgToken: '', tgChat: '' }, b); };
+    $('#nState').innerHTML = `<div class="src"><b style="min-width:6.5em">Telegram bot</b><span class="u">${N.tgToken ? `<span class="ok">set</span> <span class="mono muted">${esc(N.tgToken)}</span>` : '<span class="muted">not set (needed for Telegram chats)</span>'}</span>${N.tgTokenConf ? '<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS">bf2replay.conf</span>' : N.tgToken ? '<button type="button" class="danger" id="nTgRm">Remove</button>' : ''}</div>`
+      + (L ? `<div class="row muted" style="overflow-wrap:anywhere">last post: ${L.server ? esc(L.server) + ' · ' : ''}<span class="mono" style="min-width:0">${esc(L.what)}</span> ${ago(L.at)} · <span class="${L.ok ? 'ok' : 'bad'}">${esc(L.msg)}</span></div>` : '')
+      + (N.domain ? '' : '<div class="row warn">BF2R_DOMAIN is not set in /etc/bf2replay.conf: the posts go without a link to the round</div>')
+      + (N.ignoredConf && N.ignoredConf.length ? `<div class="row warn">${N.ignoredConf.map(esc).join(', ')} in /etc/bf2replay.conf: not used any more (each server has its own channels here, v194) - they can go from there</div>` : '')
+      + (N.migrated && N.migrated.servers && Date.now() - Date.parse(N.migrated.at) < 7 * 86400e3 ? `<div class="row muted">the one webhook / chat of before was given to the ${N.migrated.servers} server${N.migrated.servers === 1 ? '' : 's'} with rounds in the last 30 days (${ago(N.migrated.at)}): change each below</div>` : '');
+    if ($('#nTgRm')) $('#nTgRm').onclick = () => { if (confirm('Remove the Telegram bot? No server is posted to Telegram then.')) act('notify-set', { tgToken: '' }, $('#nTgRm')); };
     if (document.activeElement !== $('#nMin')) $('#nMin').value = N.minPlayers;
-    const any = (N.discord || (N.tgToken && N.tgChat)); $('#nTest').disabled = !any; $('#nLast').disabled = !any;
-    renderItems(N);
+    $('#nMin').disabled = $('#nMinSave').disabled = !!N.minPlayersConf;
+    renderServers(N);
   }
   renderJobs();
   renderDemos();
@@ -458,17 +456,77 @@ async function look(what, body, btn) {
 $('#srcForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#srcIn').value.trim(); if (!v) return; act('source-add', { url: v }, e.submitter).then(j => { if (j && j.ok) $('#srcIn').value = ''; }); });
 $('#srcProbe').onclick = () => { const v = $('#srcIn').value.trim(); if (!v) { $('#srcIn').focus(); return; } look('probe', { url: v }, $('#srcProbe')); };
 $('#fetchList').onclick = () => look('fetch-list', {}, $('#fetchList'));
-// (v187) what goes in a post, for each app: a checkbox a part (kept while being changed over the 5 s refreshes)
-let nDirty = false;
+// (v194) the servers: a block each - Discord (on, webhook), Telegram (on, chat), fewest players, the parts for each app
+// (checkboxes), copy the parts from another server, preview, a test post, the newest round. Drawn again only when
+// something changed and nothing in it is being edited (the 5 s refreshes)
+let nsSig = '', nsList = [];
+const nsOpen = new Set(), nsDirty = new Set();
 const GROUPS = { best: 'The round', foot: 'Most kills', atLong: 'Longest kill', streakFoot: 'Kill streak, K/D', rev: 'Most', first: 'First and last' };
-function renderItems(N) {
-  if (!N.items || nDirty) return;
-  $('#nItems').innerHTML = N.items.map(it => `${GROUPS[it.k] ? `<tr class="grp"><td colspan="3">${GROUPS[it.k]}</td></tr>` : ''}<tr><td>${esc(it.name)} <span class="muted" style="font-size:12px">${esc(it.what)}</span></td>${['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(it.k)}" aria-label="${esc(it.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${N.lines?.[app]?.[it.k] !== false ? ' checked' : ''}></td>`).join('')}</tr>`).join('');
+function renderServers(N) {
+  const box = $('#nServers'), sig = JSON.stringify([N.servers, N.tgToken, N.minPlayers]);
+  const ae = document.activeElement;   // (typing in one of its boxes: later)
+  if (sig === nsSig || nsDirty.size || (box.contains(ae) && ae.matches('input[type=password], input[type=number], input.chat, select') && ae.value)) return;
+  nsSig = sig; nsList = N.servers;
+  if (!nsList.length) { box.innerHTML = '<div class="muted">no rounds yet</div>'; return; }
+  const onN = a => N.items.filter(it => a?.lines?.[it.k] !== false).length;
+  const chip = (on, set, what, name) => !set ? '' : on ? `<span class="chip on">${name} ✓</span>` : `<span class="chip no">${name} off</span>`;
+  box.innerHTML = nsList.map((v, i) => {
+    const d = v.discord, t = v.telegram, any = (d && d.on && d.webhook) || (t && t.on && t.chat && N.tgToken);
+    const items = N.items.map(it => `${GROUPS[it.k] ? `<tr class="grp"><td colspan="3">${GROUPS[it.k]}</td></tr>` : ''}<tr><td>${esc(it.name)} <span class="muted" style="font-size:12px">${esc(it.what)}</span></td>${['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(it.k)}" aria-label="${esc(it.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${(v[app]?.lines?.[it.k]) !== false ? ' checked' : ''}></td>`).join('')}</tr>`).join('');
+    const others = nsList.map((o, j) => j !== i && o.set ? `<option value="${j}">${esc(o.name)}</option>` : '').join('');
+    return `<details class="nsrv" data-i="${i}"${nsOpen.has(v.name) ? ' open' : ''}><summary><b>${esc(v.name)}</b><span class="muted">${v.rounds30} round${v.rounds30 === 1 ? '' : 's'} in 30 days${v.newest ? ` · newest ${esc(v.newest.slice(0, 16))}` : ''}</span>`
+      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') : '<span class="chip no">not posted: not set up</span>')
+      + `</summary><div class="nbody">`
+      + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="dcOn"${d && d.on ? ' checked' : ''}> Discord</label><span class="muted mono">${d && d.webhook ? esc(d.webhook) : 'no webhook'}</span><input type="password" data-f="dcHook" autocomplete="new-password" spellcheck="false" placeholder="${d && d.webhook ? 'a new webhook' : 'webhook: https://discord.com/api/webhooks/…'}" aria-label="Discord webhook for ${esc(v.name)}"><button type="button" data-a="dcSave">Save</button>${d && d.webhook ? '<button type="button" class="danger" data-a="dcRm">Remove</button>' : ''}</div>`
+      + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="tgOn"${t && t.on ? ' checked' : ''}> Telegram</label><input class="chat" data-f="tgChat" autocomplete="off" spellcheck="false" placeholder="chat: -100… or @channel" value="${esc(t?.chat || '')}" aria-label="Telegram chat for ${esc(v.name)}"><button type="button" data-a="tgSave">Save</button>${N.tgToken ? '' : '<span class="warn">the bot\'s token is needed (above)</span>'}</div>`
+      + `<div class="nrow"><span class="muted">Rounds with</span><input type="number" min="1" max="64" data-f="min" placeholder="${N.minPlayers}" value="${v.minPlayers ?? ''}" aria-label="Fewest players for ${esc(v.name)}"><span class="muted">players or more (empty: as all, ${N.minPlayers})</span><button type="button" data-a="minSave">Save</button></div>`
+      + (v.last ? `<div class="row muted" style="overflow-wrap:anywhere">last post: <span class="mono">${esc(v.last.what)}</span> ${ago(v.last.at)} · <span class="${v.last.ok ? 'ok' : 'bad'}">${esc(v.last.msg)}</span></div>` : '')
+      + `<details class="nparts"${nsOpen.has(v.name + '\n#parts') ? ' open' : ''}><summary><b>What goes in a post</b> <span class="muted">Discord ${onN(v.discord)} of ${N.items.length} · Telegram ${onN(v.telegram)} of ${N.items.length} · a part shows only when the round has it</span></summary>`
+      + `<table class="pit"><thead><tr><th>Part</th><th class="c">Discord</th><th class="c">Telegram</th></tr></thead><tbody>${items}</tbody></table>`
+      + `<div class="row" style="margin-top:8px"><button type="button" class="primary" data-a="linesSave">Save the parts</button><button type="button" data-a="allOn">All on</button><button type="button" data-a="allOff">All off</button>${others ? `<label class="muted">copy from <select data-f="copy"><option value="">another server…</option>${others}</select></label>` : ''}</div></details>`
+      + `<div class="row" style="margin-top:8px"><button type="button" data-a="prev">Preview</button><button type="button" data-a="test"${any ? '' : ' disabled'}>Send a test post</button><button type="button" data-a="last"${any ? '' : ' disabled'}>Post its newest round</button></div>`
+      + `<div class="pvw" data-f="prev" hidden><div class="muted" data-f="prevWhat"></div><div class="pvc"><div><b>Discord</b><div class="pvt" data-f="prevDc"></div></div><div><b>Telegram</b><div class="pvt" data-f="prevTg"></div></div></div></div>`
+      + (v.set ? `<div class="row" style="margin-top:10px"><button type="button" class="danger" data-a="forget">Stop posting this server</button><span class="muted">its channels and parts are forgotten</span></div>` : '')
+      + `</div></details>`;
+  }).join('');
 }
-const itemVals = () => { const L = { discord: {}, telegram: {} }; for (const c of document.querySelectorAll('#nItems input[data-app]')) L[c.dataset.app][c.dataset.k] = c.checked; return L; };
-$('#nItems').addEventListener('change', () => { nDirty = true; });
-$('#nItemsSave').onclick = () => act('notify-set', { lines: itemVals() }, $('#nItemsSave')).then(j => { if (j && j.ok) nDirty = false; });
-for (const [id, v] of [['#nAllOn', true], ['#nAllOff', false]]) $(id).onclick = () => { for (const c of document.querySelectorAll('#nItems input[data-app]')) c.checked = v; nDirty = true; };
+const nsOf = el => { const d = el.closest('details.nsrv'); return d ? { d, i: +d.dataset.i, v: nsList[+d.dataset.i] } : null; };
+const linesVals = d => { const L = { discord: {}, telegram: {} }; for (const c of d.querySelectorAll('input[data-app]')) L[c.dataset.app][c.dataset.k] = c.checked; return L; };
+const nsAct = (body, btn, keep) => act('notify-set', body, btn).then(j => { if (j && j.ok) { if (!keep) nsDirty.delete(body.server); nsSig = ''; } return j; });
+$('#nServers').addEventListener('toggle', e => {
+  const d = e.target; if (!d.matches || !d.matches('details.nsrv, details.nparts')) return;
+  const o = nsOf(d.matches('details.nparts') ? d.parentElement : d); if (!o) return; const key = o.v.name + (d.matches('details.nparts') ? '\n#parts' : '');
+  if (d.open) nsOpen.add(key); else nsOpen.delete(key);
+}, true);
+$('#nServers').addEventListener('change', e => {
+  const o = nsOf(e.target); if (!o) return; const f = e.target.dataset.f, name = o.v.name;
+  if (e.target.matches('input[data-app]')) { nsDirty.add(name); return; }
+  if (f === 'dcOn') { if (e.target.checked && !o.v.discord?.webhook) toast('add its webhook below too'); nsAct({ server: name, discord: { on: e.target.checked } }, null, true); }
+  if (f === 'tgOn') nsAct({ server: name, telegram: { on: e.target.checked } }, null, true);
+  if (f === 'copy' && e.target.value !== '') { const src = nsList[+e.target.value]; for (const c of o.d.querySelectorAll('input[data-app]')) c.checked = src?.[c.dataset.app]?.lines?.[c.dataset.k] !== false; nsDirty.add(name); e.target.value = ''; toast(`the parts of ${src.name}: "Save the parts" to keep them`); }
+});
+$('#nServers').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-a]'); if (!b) return; const o = nsOf(b); if (!o) return;
+  const a = b.dataset.a, name = o.v.name, q = f => o.d.querySelector(`[data-f=${f}]`);
+  if (a === 'dcSave') { const v = q('dcHook').value.trim(); if (!v) { q('dcHook').focus(); return; } nsAct({ server: name, discord: { webhook: v } }, b, true).then(j => { if (j && j.ok) q('dcHook').value = ''; }); }
+  if (a === 'dcRm') { if (confirm(`Remove the Discord webhook of ${name}?`)) nsAct({ server: name, discord: { webhook: '' } }, b, true); }
+  if (a === 'tgSave') nsAct({ server: name, telegram: { chat: q('tgChat').value.trim() } }, b, true);
+  if (a === 'minSave') nsAct({ server: name, minPlayers: q('min').value.trim() === '' ? null : +q('min').value }, b, true);
+  if (a === 'linesSave') nsAct({ server: name, discord: { lines: linesVals(o.d).discord }, telegram: { lines: linesVals(o.d).telegram } }, b);
+  if (a === 'allOn' || a === 'allOff') { for (const c of o.d.querySelectorAll('input[data-app]')) c.checked = a === 'allOn'; nsDirty.add(name); }
+  if (a === 'forget') { if (confirm(`Stop posting the rounds of ${name}? Its webhook, chat and parts are forgotten.`)) nsAct({ server: name, remove: true }, b); }
+  if (a === 'test') act('notify-test', { server: name }, b);
+  if (a === 'last') act('notify-last', { server: name }, b);
+  if (a === 'prev') {
+    b.disabled = true;
+    try {
+      const j = await api('notify-preview', { server: name, lines: linesVals(o.d) });
+      if (!j.ok) { toast(j.msg || j.error || 'no', false); return; }
+      q('prev').hidden = false; q('prevWhat').innerHTML = `<span class="mono">${esc(j.round)}</span> · its newest round, with the boxes as they are now (saved or not)${j.hl ? '' : ' · <span class="warn">this round was summed up before v187: no highlights</span>'}`;
+      drawPost(q('prevDc'), j.discord, 'discord'); drawPost(q('prevTg'), j.telegram, 'telegram');
+    } catch (err) { toast(err.message, false); } finally { b.disabled = false; }
+  }
+});
 // the preview: each app's text drawn as it shows it (bold; Discord's \ escapes gone) - built as text, never as HTML
 function drawPost(box, text, app) {
   box.textContent = '';
@@ -481,21 +539,9 @@ function drawPost(box, text, app) {
     else box.appendChild(document.createTextNode(plain(p)));
   }
 }
-$('#nPrev').onclick = async () => {
-  const b = $('#nPrev'); b.disabled = true;
-  try {
-    const j = await api('notify-preview', { round: $('#nPrevRound').value.trim() || undefined, lines: itemVals() });
-    if (!j.ok) { toast(j.msg || j.error || 'no', false); return; }
-    $('#nPrevOut').hidden = false; $('#nPrevWhat').innerHTML = `<span class="mono">${esc(j.round)}</span> · with the boxes as they are now (saved or not)${j.hl ? '' : ' · <span class="warn">this round was summed up before v187: no highlights yet (the server adds them within minutes after the update)</span>'}`;
-    drawPost($('#nPrevDc'), j.discord, 'discord'); drawPost($('#nPrevTg'), j.telegram, 'telegram');
-  } catch (e) { toast(e.message, false); } finally { b.disabled = false; }
-};
-// round posts (v153)
-$('#nDcForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#nDc').value.trim(); if (!v) { $('#nDc').focus(); return; } act('notify-set', { discord: v }, e.submitter).then(j => { if (j && j.ok) $('#nDc').value = ''; }); });
-$('#nTgForm').addEventListener('submit', e => { e.preventDefault(); const t = $('#nTgT').value.trim(), c = $('#nTgC').value.trim(); if (!t && !c) { $('#nTgT').focus(); return; } const b = {}; if (t) b.tgToken = t; if (c) b.tgChat = c; act('notify-set', b, e.submitter).then(j => { if (j && j.ok) { $('#nTgT').value = ''; $('#nTgC').value = ''; } }); });
-$('#nMinSave').onclick = () => act('notify-set', { minPlayers: +$('#nMin').value }, $('#nMinSave'));
-$('#nTest').onclick = () => act('notify-test', {}, $('#nTest'));
-$('#nLast').onclick = () => act('notify-last', {}, $('#nLast'));
+// round posts (v153): the Telegram bot and the fewest players for all
+$('#nTgForm').addEventListener('submit', e => { e.preventDefault(); const t = $('#nTgT').value.trim(); if (!t) { $('#nTgT').focus(); return; } act('notify-set', { tgToken: t }, e.submitter).then(j => { if (j && j.ok) { $('#nTgT').value = ''; nsSig = ''; } }); });
+$('#nMinSave').onclick = () => act('notify-set', { minPlayers: +$('#nMin').value }, $('#nMinSave')).then(() => { nsSig = ''; });
 
 // ---- the log ----
 async function loadLog() {

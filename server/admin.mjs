@@ -25,7 +25,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
-import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts } from './notify.mjs';
+import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf } from './notify.mjs';
 import { expandIndex } from './roundsidx.mjs';
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 
@@ -341,42 +341,79 @@ function copiesDelete() {
   return { ok: true, msg: `${n} file${n === 1 ? '' : 's'} removed (${sz}); the links to those copies still open the same rounds` };
 }
 
-// (v153) the round posts (notify.mjs): where to, with the secrets shown only by their last 4 characters
+// (v153) the round posts (notify.mjs): where to, with the secrets shown only by their last 4 characters. (v194) Each
+// game server its own channels and parts: the servers set up, and those with rounds in the last 90 days (not posted
+// until set up), with their rounds
 function notifyState() {
-  const N = notifySettings(), tail = v => v ? '…' + v.slice(-4) : '';
-  return { discord: tail(N.discord), discordConf: N.discordConf, tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, tgChat: N.tgChat, tgChatConf: N.tgChatConf, minPlayers: N.minPlayers, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
-    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what })), lines: N.lines };   // (v187: what goes in a post, for each app)
+  const N = notifySettings(), tail = v => v ? '…' + v.slice(-4) : '', day = n => new Date(Date.now() - n * 86400e3).toISOString().slice(0, 10);
+  const seen = new Map(), d30 = day(30), d90 = day(90);
+  for (const r of index().rounds || []) {
+    if (!r.sum || r.sum.empty) continue;
+    const n = serverOf(r), d = String(r.sum.date || ''); let o = seen.get(n); if (!o) seen.set(n, o = { n30: 0, total: 0, newest: '' });
+    o.total++; if (d.slice(0, 10) >= d30) o.n30++; if (d > o.newest) o.newest = d;
+  }
+  const names = new Set([...Object.keys(N.servers), ...[...seen].filter(([, o]) => o.newest.slice(0, 10) >= d90).map(([n]) => n)]);
+  const servers = [...names].map(name => {
+    const c = N.servers[name], o = seen.get(name) || { n30: 0, total: 0, newest: '' };
+    return { name, set: !!c, rounds30: o.n30, rounds: o.total, newest: o.newest || null, minPlayers: c?.minPlayers ?? null, last: c?.last || null,
+      discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null };
+  }).sort((a, b) => (b.set - a.set) || String(b.newest || '').localeCompare(String(a.newest || '')) || a.name.localeCompare(b.name));
+  return { tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, minPlayers: N.minPlayers, minPlayersConf: N.minPlayersConf, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
+    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf };
 }
+const cleanLines = o => { const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {}; for (const [k, v] of Object.entries(o || {})) if (keys.has(k)) L[k] = !!v; return L; };
+const knownServer = name => !!notifySettings().servers[name] || (index().rounds || []).some(r => r.sum && !r.sum.empty && serverOf(r) === name);
 function notifySet(b) {
-  const ch = {}, said = [];
-  if (b.discord !== undefined) { const v = String(b.discord || '').trim(); if (v && !DISCORD_RE.test(v)) return { ok: false, msg: 'not a Discord webhook address (https://discord.com/api/webhooks/<number>/<token>)' }; ch.discord = v; said.push(v ? 'Discord webhook saved' : 'Discord webhook removed'); }
-  if (b.tgToken !== undefined || b.tgChat !== undefined) {
-    const t = b.tgToken === undefined ? undefined : String(b.tgToken || '').trim(), c = b.tgChat === undefined ? undefined : String(b.tgChat || '').trim();
-    if (t && !TG_TOKEN_RE.test(t)) return { ok: false, msg: "not a Telegram bot token (from @BotFather: 123456789:AA…)" };
-    if (c && !TG_CHAT_RE.test(c)) return { ok: false, msg: 'not a Telegram chat: its id (-100… for a group or channel) or @channelname' };
-    ch.telegram = {}; if (t !== undefined) ch.telegram.token = t; if (c !== undefined) ch.telegram.chat = c; said.push(t === '' && c === '' ? 'Telegram removed' : 'Telegram saved');
+  const said = [];
+  if (b.server !== undefined) {   // (v194) one server's settings
+    const name = String(b.server || ''); if (!name || name.length > 300) return { ok: false, msg: 'which server?' };
+    if (!knownServer(name)) return { ok: false, msg: 'no rounds of such a server' };
+    if (b.remove) { saveNotify({}, name, null); log(`round posts (${name}): removed`); return { ok: true, msg: `${name}: its rounds are no more posted` }; }
+    const N = notifySettings(), cur = N.servers[name], srv = {};
+    if (b.discord) {
+      const d = {};
+      if (b.discord.webhook !== undefined) { const v = String(b.discord.webhook || '').trim(); if (v && !DISCORD_RE.test(v)) return { ok: false, msg: 'not a Discord webhook address (https://discord.com/api/webhooks/<number>/<token>)' }; d.webhook = v; d.on = !!v; said.push(v ? 'Discord webhook saved (on)' : 'Discord webhook removed'); }
+      if (b.discord.on !== undefined) { d.on = !!b.discord.on; said.push(`Discord ${d.on ? 'on' : 'off'}${d.on && !cur?.discord.webhook && !d.webhook ? ' (no webhook yet: add one)' : ''}`); }
+      if (b.discord.lines) { d.lines = cleanLines(b.discord.lines); said.push('Discord parts saved'); }
+      srv.discord = d;
+    }
+    if (b.telegram) {
+      const t = {};
+      if (b.telegram.chat !== undefined) { const v = String(b.telegram.chat || '').trim(); if (v && !TG_CHAT_RE.test(v)) return { ok: false, msg: 'not a Telegram chat: its id (-100… for a group or channel) or @channelname' }; t.chat = v; t.on = !!v; said.push(v ? `Telegram chat ${v} saved (on)${N.tgToken ? '' : ' - the bot\'s token is still needed (above)'}` : 'Telegram chat removed'); }
+      if (b.telegram.on !== undefined) { t.on = !!b.telegram.on; said.push(`Telegram ${t.on ? 'on' : 'off'}${t.on && !cur?.telegram.chat && !t.chat ? ' (no chat yet: add one)' : ''}`); }
+      if (b.telegram.lines) { t.lines = cleanLines(b.telegram.lines); said.push('Telegram parts saved'); }
+      srv.telegram = t;
+    }
+    if (b.minPlayers !== undefined) {
+      if (b.minPlayers === null || b.minPlayers === '' || b.minPlayers === 0) { srv.minPlayers = null; said.push(`fewest players: as all (${N.minPlayers})`); }
+      else { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; srv.minPlayers = n; said.push(`rounds with ${n}+ players`); }
+    }
+    if (!said.length) return { ok: false, msg: 'nothing to change' };
+    saveNotify({}, name, srv); log(`round posts (${name}):`, said.join(', '));
+    return { ok: true, msg: `${name}: ${said.join(' · ')}` };
   }
-  if (b.lines !== undefined) {   // (v187) { discord: { key: bool }, telegram: { key: bool } }
-    const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {};
-    for (const app of ['discord', 'telegram']) { const o = b.lines?.[app]; if (!o || typeof o !== 'object') continue; L[app] = {}; for (const [k, v] of Object.entries(o)) if (keys.has(k)) L[app][k] = !!v; }
-    if (!Object.keys(L).length) return { ok: false, msg: 'nothing to change' };
-    ch.lines = L; said.push('what goes in a post saved');
+  if (b.tgToken !== undefined) {
+    const t = String(b.tgToken || '').trim(); if (t && !TG_TOKEN_RE.test(t)) return { ok: false, msg: "not a Telegram bot token (from @BotFather: 123456789:AA…)" };
+    saveNotify({ telegram: { token: t } }); said.push(t ? 'Telegram bot saved' : 'Telegram bot removed (no Telegram posts)');
   }
-  if (b.minPlayers !== undefined) { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; ch.minPlayers = n; said.push(`rounds with ${n}+ players`); }
+  if (b.minPlayers !== undefined) { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; saveNotify({ minPlayers: n }); said.push(`rounds with ${n}+ players (where a server says nothing else)`); }
   if (!said.length) return { ok: false, msg: 'nothing to change' };
-  saveNotify(ch); log('round posts:', said.join(', '));
+  log('round posts:', said.join(', '));
   return { ok: true, msg: said.join(' · ') };
 }
-// (v187) the post about a round as Discord and Telegram would get it, nothing sent: the newest round, or the one named
+// (v187) the post about a round as Discord and Telegram would get it, nothing sent: the round named, or the server's
+// newest (v194: with the server's parts - or those given, the boxes as they are on the page)
 function notifyPreview(b) {
-  const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty);
+  const srv = b.server !== undefined ? String(b.server) : null;
+  const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty && (srv === null || serverOf(r) === srv));
   const r = b.round ? roundOf(b.round) : R.sort((x, y) => String(y.sum.date).localeCompare(String(x.sum.date)))[0];
-  if (!r || !r.sum) return { ok: false, msg: b.round ? 'no such round on the site' : 'no rounds yet' };
-  const N = notifySettings(), T = postTexts(r, b.lines ? { ...N, lines: { discord: { ...N.lines.discord, ...(b.lines.discord || {}) }, telegram: { ...N.lines.telegram, ...(b.lines.telegram || {}) } } } : N);
-  return { ok: true, round: r.name, hl: !!r.sum.hl, ...T };
+  if (!r || !r.sum) return { ok: false, msg: b.round ? 'no such round on the site' : 'no rounds of this server yet' };
+  const c = srv !== null ? notifySettings().servers[srv] : null;
+  const lines = { discord: { ...(c?.discord.lines || {}), ...(b.lines?.discord || {}) }, telegram: { ...(c?.telegram.lines || {}), ...(b.lines?.telegram || {}) } };
+  return { ok: true, round: r.name, server: serverOf(r), hl: !!r.sum.hl, ...postTexts(r, lines) };
 }
-async function notifyRun(arg) {
-  const r = await run(NODE, [path.join(HERE, 'notify.mjs'), arg], { timeout: 45e3 });
+async function notifyRun(arg, server) {
+  const r = await run(NODE, [path.join(HERE, 'notify.mjs'), arg, ...(server ? [String(server)] : [])], { timeout: 60e3 });
   const out = (r.out + (r.err ? '\n' + r.err : '')).trim();
   return { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'posted' : 'failed') };
 }
@@ -549,9 +586,9 @@ const server = http.createServer(async (req, res) => {
     if (what === 'demos-keep') return send(res, 200, demosKeep(b));
     if (what === 'copies-delete') return send(res, 200, copiesDelete());
     if (what === 'analysis') return send(res, 200, await analysisAct(b));
-    if (what === 'notify-test') return send(res, 200, await notifyRun('--test'));
+    if (what === 'notify-test') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--test', b.server));
     if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
-    if (what === 'notify-last') return send(res, 200, await notifyRun('--last'));
+    if (what === 'notify-last') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--last', b.server));
     return send(res, 404, { error: 'not found' });
   } catch (e) { log('error:', e.stack || e.message); try { send(res, 500, { error: e.message }); } catch (e2) {} }
 });

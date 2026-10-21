@@ -3,22 +3,33 @@
 // and the tickets, how long, players and kills, the best three by score and the link to the round (chat apps show the
 // map's picture under it: the link preview, data/share/r). ingest.mjs calls it after each new round it lists.
 //
-//   node notify.mjs --test      a test post (the settings as they are now)
-//   node notify.mjs --last      the newest round again (to see the post)
+//   (node notify.mjs --test / --last: see below)
 //
 // Where to: a Discord webhook (Server settings -> Integrations -> Webhooks -> New webhook -> Copy webhook URL) and / or
 // a Telegram bot (its token from @BotFather) and the chat it posts in (its id, or @channel). Set on the admin page
-// (kept in data/.notify.json, which only the bf2replay user reads and the web server never serves), or in
-// /etc/bf2replay.conf: BF2R_DISCORD_WEBHOOK, BF2R_TELEGRAM_TOKEN, BF2R_TELEGRAM_CHAT (these win). Nothing set: nothing
-// is posted. Only rounds with BF2R_NOTIFY_MIN_PLAYERS players or more (6) and recorded in the last 12 hours (not old
-// demos downloaded in a batch) are posted; demos made into clips by the page are not.
+// (kept in data/.notify.json, which only the bf2replay user reads and the web server never serves). Nothing set:
+// nothing is posted. Only rounds with BF2R_NOTIFY_MIN_PLAYERS players or more (6; the admin page's, or the server's
+// own) and recorded in the last 12 hours (not old demos downloaded in a batch) are posted; demos made into clips by the
+// page are not.
 // (v187) What goes in a post: the admin page turns each part (POST_ITEMS) on or off for Discord and for Telegram apart
 // (data/.notify.json: lines) - the best three, the server, and the round's highlights ingest.mjs sums up (sum.hl): the
 // most kills on foot, in vehicles, headshots, knife, claymores, launchers on infantry, run over, explosives; the longest
 // kill with a launcher, small arms, a sniper rifle and any weapon; the longest streak, the best K/D; revives, heals,
 // repairs; flags; the first blood and the last one killed. All on until the admin page says otherwise.
+// (v194) Each game server its own: a round is posted only where its server (the name in the demo, sum.server) is set
+// up on the admin page - its own Discord webhook and / or Telegram chat (one bot, its token, for all chats), each on or
+// off, with its own parts (POST_ITEMS) and, if it wants, its own fewest players. A server not set up is not posted
+// (new ones show on the admin page with their rounds). data/.notify.json: { telegram: { token }, minPlayers,
+// servers: { <server name>: { discord: { on, webhook, lines }, telegram: { on, chat, lines }, minPlayers, last } } }.
+// The settings of before (one webhook, one chat, one set of parts) were given to every server with rounds in the
+// last 30 days, once (migrated; the old ones kept as legacy). BF2R_TELEGRAM_TOKEN in /etc/bf2replay.conf still wins;
+// BF2R_DISCORD_WEBHOOK / BF2R_TELEGRAM_CHAT there were only taken into that first copy.
+//
+//   node notify.mjs --test [server]     a test post to that server's channels (or every server's)
+//   node notify.mjs --last [server]     that server's newest round again (or each server's)
 import fs from 'node:fs';
 import path from 'node:path';
+import { readRoundList } from './roundsidx.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -45,23 +56,64 @@ export const POST_ITEMS = [
   ['rev', 'Revives', 'most revives'], ['heal', 'Heals', 'most heals'], ['rep', 'Repairs', 'most repairs'],
   ['flags', 'Flags', 'most flags captured and neutralised'], ['first', 'First blood', 'the first kill of the round'], ['last', 'Last killed', 'the last soldier killed in the round']
 ];
-const linesOf = (j, app) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, j?.lines?.[app]?.[k] !== false]));
-// the settings: /etc/bf2replay.conf first, then the admin page's file
+const linesOf = (o) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o?.[k] !== false]));   // (missing: on)
+const readNotify = () => { try { return JSON.parse(fs.readFileSync(NOTIFY_FILE, 'utf8')) || {}; } catch (e) { return {}; } };
+const writeNotify = j => { const tmp = NOTIFY_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, NOTIFY_FILE); };
+export const NO_SERVER = '(no server name)';
+export const serverOf = e => String(e?.sum?.server || '').trim() || NO_SERVER;
+// (v194) the settings of before, once, to every server with rounds in the last 30 days (where they were posted to)
+function migrate(j) {
+  const dc = opt('BF2R_DISCORD_WEBHOOK', '') || (typeof j.discord === 'string' ? j.discord : ''), chat = opt('BF2R_TELEGRAM_CHAT', '') || j.telegram?.chat || '';
+  const servers = {};
+  if (dc || chat) {
+    let R = []; try { R = readRoundList(fs, path, DATA).rounds || []; } catch (e) {}
+    const since = new Date(Date.now() - 30 * 86400e3).toISOString().slice(0, 10), seen = new Set();
+    for (const r of R) if (r.sum && !r.sum.empty && String(r.sum.date || '').slice(0, 10) >= since) seen.add(serverOf(r));
+    for (const n of seen) servers[n] = { discord: { on: !!dc, webhook: dc, lines: { ...(j.lines?.discord || {}) } }, telegram: { on: !!chat, chat, lines: { ...(j.lines?.telegram || {}) } } };
+  }
+  const out = { ...j, servers, migrated: { at: new Date().toISOString(), servers: Object.keys(servers).length }, legacy: { discord: j.discord || '', chat: j.telegram?.chat || '', lines: j.lines || null } };
+  delete out.discord; delete out.lines; if (out.telegram) delete out.telegram.chat;
+  try { writeNotify(out); if (Object.keys(servers).length) log(`round posts: each server its own now; the old settings given to ${Object.keys(servers).length} server(s) with rounds in the last 30 days`); } catch (e) {}
+  return out;
+}
+const srvCfg = c => ({
+  discord: { on: !!c?.discord?.on, webhook: typeof c?.discord?.webhook === 'string' ? c.discord.webhook : '', lines: linesOf(c?.discord?.lines) },
+  telegram: { on: !!c?.telegram?.on, chat: typeof c?.telegram?.chat === 'string' ? c.telegram.chat : '', lines: linesOf(c?.telegram?.lines) },
+  minPlayers: c?.minPlayers ? Math.max(1, Math.min(64, Math.floor(+c.minPlayers))) : null, last: c?.last || null
+});
+// the settings: /etc/bf2replay.conf first (the bot's token, the fewest players), then the admin page's file
 export function notifySettings() {
-  let j = {}; try { j = JSON.parse(fs.readFileSync(NOTIFY_FILE, 'utf8')) || {}; } catch (e) {}
-  const pick = (k, v) => { const c = opt(k, ''); return c ? { v: c, conf: true } : { v: typeof v === 'string' ? v : '', conf: false }; };
-  const d = pick('BF2R_DISCORD_WEBHOOK', j.discord), tt = pick('BF2R_TELEGRAM_TOKEN', j.telegram?.token), tc = pick('BF2R_TELEGRAM_CHAT', j.telegram?.chat);
+  let j = readNotify(); if (!j.servers || typeof j.servers !== 'object') j = migrate(j);
+  const ct = opt('BF2R_TELEGRAM_TOKEN', ''), tok = ct || (typeof j.telegram?.token === 'string' ? j.telegram.token : '');
   const mp = Math.floor(+opt('BF2R_NOTIFY_MIN_PLAYERS', '') || +j.minPlayers || 6);
-  return { discord: d.v, discordConf: d.conf, tgToken: tt.v, tgTokenConf: tt.conf, tgChat: tc.v, tgChatConf: tc.conf, minPlayers: Math.max(1, Math.min(64, mp)), last: j.last || null,
-    lines: { discord: linesOf(j, 'discord'), telegram: linesOf(j, 'telegram') } };
+  const servers = {}; for (const [n, c] of Object.entries(j.servers || {})) servers[n] = srvCfg(c);
+  return { tgToken: tok, tgTokenConf: !!ct, minPlayers: Math.max(1, Math.min(64, mp)), minPlayersConf: !!opt('BF2R_NOTIFY_MIN_PLAYERS', ''), last: j.last || null, servers,
+    migrated: j.migrated || null, ignoredConf: ['BF2R_DISCORD_WEBHOOK', 'BF2R_TELEGRAM_CHAT'].filter(k => opt(k, '')) };
 }
-export function saveNotify(change) {
-  let j = {}; try { j = JSON.parse(fs.readFileSync(NOTIFY_FILE, 'utf8')) || {}; } catch (e) {}
-  Object.assign(j, change); if (change.telegram) j.telegram = { ...(j.telegram || {}), ...change.telegram };
-  if (change.lines) j.lines = { discord: { ...(j.lines?.discord || {}), ...(change.lines.discord || {}) }, telegram: { ...(j.lines?.telegram || {}), ...(change.lines.telegram || {}) } };
-  const tmp = NOTIFY_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, NOTIFY_FILE);
+// change: { telegram: { token }, minPlayers, last } and / or server: name with srv: { discord: {...}, telegram: {...},
+// minPlayers, last } (merged; srv null: the server's settings gone - its rounds no more posted)
+export function saveNotify(change, server, srv) {
+  let j = readNotify(); if (!j.servers || typeof j.servers !== 'object') j = migrate(j);
+  for (const [k, v] of Object.entries(change || {})) { if (k === 'telegram') j.telegram = { ...(j.telegram || {}), ...v }; else j[k] = v; }
+  if (server !== undefined) {
+    if (srv === null) delete j.servers[server];
+    else {
+      const o = j.servers[server] || {};
+      for (const app of ['discord', 'telegram']) if (srv[app]) { const a = { ...(o[app] || {}), ...srv[app] }; if (srv[app].lines) a.lines = { ...(o[app]?.lines || {}), ...srv[app].lines }; o[app] = a; }
+      for (const k of ['minPlayers', 'last']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
+      j.servers[server] = o;
+    }
+  }
+  writeNotify(j);
 }
-const remember = (what, ok, msg) => { try { saveNotify({ last: { at: new Date().toISOString(), what, ok, msg: String(msg || '').slice(0, 300) } }); } catch (e) {} };
+// where a server's rounds go: [{ app, url | chat, lines }]
+function targetsOf(S, server) {
+  const c = S.servers[server], out = []; if (!c) return out;
+  if (c.discord.on && c.discord.webhook) out.push({ app: 'discord', url: c.discord.webhook, lines: c.discord.lines });
+  if (c.telegram.on && c.telegram.chat && S.tgToken) out.push({ app: 'telegram', chat: c.telegram.chat, lines: c.telegram.lines });
+  return out;
+}
+const remember = (what, ok, msg, server) => { try { const last = { at: new Date().toISOString(), what, ok, msg: String(msg || '').slice(0, 300), ...(server ? { server } : {}) }; if (server && notifySettings().servers[server]) saveNotify({ last }, server, { last }); else saveNotify({ last }); } catch (e) {} };
 
 // the maps' names, as the page has them (its GAME table)
 let MAPS = null;
@@ -75,7 +127,7 @@ const recent = d => { const m = /^(\d{4})-(\d\d)-(\d\d)\s+(\d\d):(\d\d)/.exec(d 
 // the post: lines, each a list of [text, kind] - kind 'b' bold, 'l' a link, '' plain - for each app's own markup; on:
 // which parts (POST_ITEMS) this app gets
 const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-function postLines(entry, on = linesOf({}, 'discord')) {
+function postLines(entry, on = linesOf({})) {
   const s = entry.sum, id = entry.name.replace(/\.bf2demo(\.gz)?$/i, ''), tk = s.tickets, T = s.teams || [], H = s.hl || {};
   const won = s.winner != null && T[s.winner] ? `${T[s.winner]} won${tk ? `, tickets ${tk[0][1]} : ${tk[1][1]}` : ''}` : tk ? `tickets ${tk[0][1]} : ${tk[1][1]}` : '';
   const top = (s.P || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k).slice(0, 3);
@@ -116,42 +168,53 @@ async function post(url, body) {
 // each app's text: Discord's markdown, Telegram's HTML
 const asDiscord = L => L.map(seg => seg.map(([t, k]) => { if (k === 'l') return t; if (k !== 'b') return escDc(t); const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(t); return m[2] ? `${m[1]}**${escDc(m[2])}**${m[3]}` : t; }).join('')).join('\n').slice(0, 1900);   // (Discord's bold takes no spaces inside its stars)
 const asTelegram = L => L.map(seg => seg.map(([t, k]) => k === 'b' ? `<b>${escTg(t)}</b>` : escTg(t)).join('')).join('\n').slice(0, 3900);
-// (v187) the post for a round as each app gets it (the admin page's preview)
-export function postTexts(entry, S = notifySettings()) { return { discord: asDiscord(postLines(entry, S.lines.discord)), telegram: asTelegram(postLines(entry, S.lines.telegram)) }; }
-// L: the lines for both apps, or a function app -> lines
-async function send(L, S = notifySettings()) {
-  const out = [], of = app => typeof L === 'function' ? L(app) : L;
-  if (S.discord) {
-    const r = await post(S.discord, { content: asDiscord(of('discord')), username: 'BF2 Round Replay', allowed_mentions: { parse: [] } }); out.push(['Discord', r]);
-  }
-  if (S.tgToken && S.tgChat) {
-    const r = await post(`https://api.telegram.org/bot${S.tgToken}/sendMessage`, { chat_id: S.tgChat, text: asTelegram(of('telegram')), parse_mode: 'HTML' }); out.push(['Telegram', r]);
+// (v187) the post for a round as each app gets it (the admin page's preview); v194: with the lines given for each app
+export function postTexts(entry, lines) { return { discord: asDiscord(postLines(entry, linesOf(lines?.discord))), telegram: asTelegram(postLines(entry, linesOf(lines?.telegram))) }; }
+// L: the lines for every target, or a function target -> lines; T: targetsOf
+async function send(L, T, S) {
+  const out = [], of = t => typeof L === 'function' ? L(t) : L;
+  for (const t of T) {
+    if (t.app === 'discord') out.push(['Discord', await post(t.url, { content: asDiscord(of(t)), username: 'BF2 Round Replay', allowed_mentions: { parse: [] } })]);
+    else out.push(['Telegram', await post(`https://api.telegram.org/bot${S.tgToken}/sendMessage`, { chat_id: t.chat, text: asTelegram(of(t)), parse_mode: 'HTML' })]);
   }
   return out;
 }
 const told = R => R.map(([w, r]) => r.ok ? `${w}: posted` : `${w}: failed (${r.msg})`).join('; ');
 
-// new rounds, as ingest.mjs lists them (rounds.json entries): one post each, the ones worth it
+// new rounds, as ingest.mjs lists them (rounds.json entries): one post each, the ones worth it, to their server's
+// channels (v194); a server not set up on the admin page: not posted
 export async function notifyRounds(entries) {
-  const S = notifySettings(); if (!S.discord && !(S.tgToken && S.tgChat)) return;
+  const S = notifySettings(), skipped = new Map();
   for (const e of entries) {
-    const s = e.sum; if (!s || s.empty || s.players < S.minPlayers || e.clip || !recent(s.date)) continue;
-    const R = await send(app => postLines(e, S.lines[app]), S), m = told(R);
-    log('round post', e.name, '-', m); remember(e.name, R.every(([, r]) => r.ok), m);
+    const s = e.sum; if (!s || s.empty || e.clip || !recent(s.date)) continue;
+    const srv = serverOf(e), c = S.servers[srv], T = targetsOf(S, srv);
+    if (!c || !T.length) { const k = `"${srv}" ${c ? (c.telegram.on && c.telegram.chat && !S.tgToken ? '(its Telegram chat needs the bot\'s token on the admin page)' : '(set up, but no Discord webhook or Telegram chat on)') : '(not set up on the admin page)'}`; skipped.set(k, (skipped.get(k) || 0) + 1); continue; }
+    if (s.players < (c.minPlayers || S.minPlayers)) continue;
+    const R = await send(t => postLines(e, t.lines), T, S), m = told(R);
+    log('round post', e.name, `(${srv})`, '-', m); remember(e.name, R.every(([, r]) => r.ok), m, srv);
   }
+  for (const [k, n] of skipped) log(`round posts: ${n} new round${n === 1 ? '' : 's'} of ${k} not posted`);
+}
+// the newest round of a server (or of all)
+function newestRound(server) {
+  let R = []; try { R = readRoundList(fs, path, DATA).rounds || []; } catch (e) {}   // (v166: the whole list has the players' lines)
+  return R.filter(r => r.sum && !r.sum.empty && (!server || serverOf(r) === server)).sort((x, y) => String(y.sum.date).localeCompare(String(x.sum.date)))[0] || null;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const S = notifySettings(), a = process.argv.slice(2);
-  if (!S.discord && !(S.tgToken && S.tgChat)) { console.log('Nothing to post to: no Discord webhook, no Telegram bot token and chat (admin page, or /etc/bf2replay.conf).'); process.exit(1); }
-  let L;
-  if (a.includes('--test')) L = [[['BF2 Round Replay', 'b']], [['A test post: new rounds will be posted here like this.', '']], ...(DOMAIN ? [[[`https://${DOMAIN}/`, 'l']]] : [])];
-  else if (a.includes('--last')) {
-    let idx = { rounds: [] }; for (const f of ['.rounds-full.json', 'rounds.json']) { try { idx = JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8')); break; } catch (e) {} }   // (v166: the whole list has the players' lines)
-    const e = (idx.rounds || []).filter(r => r.sum && !r.sum.empty).sort((x, y) => String(y.sum.date).localeCompare(String(x.sum.date)))[0];
-    if (!e) { console.log('No rounds yet.'); process.exit(1); }
-    L = app => postLines(e, S.lines[app]);
-  } else { console.log('node notify.mjs --test | --last'); process.exit(2); }
-  const R = await send(L, S), m = told(R); console.log(m); remember(a.includes('--test') ? 'test' : 'newest round', R.every(([, r]) => r.ok), m);
-  process.exit(R.every(([, r]) => r.ok) ? 0 : 1);
+  const S = notifySettings(), a = process.argv.slice(2), want = a.find(x => !x.startsWith('--'));
+  const servers = want !== undefined ? [want] : Object.keys(S.servers).filter(n => targetsOf(S, n).length);
+  if (!a.includes('--test') && !a.includes('--last')) { console.log('node notify.mjs --test [server] | --last [server]'); process.exit(2); }
+  if (want !== undefined && !S.servers[want]) { console.log(`"${want}" is not set up for posts (admin page: Posts about new rounds).`); process.exit(1); }
+  if (!servers.length || !servers.some(n => targetsOf(S, n).length)) { console.log(want !== undefined ? `Nothing to post to for "${want}": no Discord webhook or Telegram chat on (or no Telegram bot token).` : 'Nothing to post to: no server has a Discord webhook or Telegram chat on (admin page).'); process.exit(1); }
+  let all = true; const said = [];
+  for (const n of servers) {
+    const T = targetsOf(S, n); if (!T.length) continue;
+    let L;
+    if (a.includes('--test')) L = [[['BF2 Round Replay', 'b']], [[`A test post: new rounds of ${n} will be posted here like this.`, '']], ...(DOMAIN ? [[[`https://${DOMAIN}/`, 'l']]] : [])];
+    else { const e = newestRound(n); if (!e) { said.push(`${n}: no rounds yet`); all = false; continue; } L = t => postLines(e, t.lines); }
+    const R = await send(L, T, S), m = told(R), ok = R.every(([, r]) => r.ok); all = all && ok;
+    said.push(servers.length > 1 || want === undefined ? `${n}: ${m}` : m); remember(a.includes('--test') ? 'test' : 'newest round', ok, m, n);
+  }
+  console.log(said.join(' | ')); process.exit(all ? 0 : 1);
 }
