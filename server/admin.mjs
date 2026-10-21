@@ -30,7 +30,8 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
-import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf } from './notify.mjs';
+import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf, TLABEL } from './notify.mjs';
+import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ } from './digest.mjs';   // (v209: the summaries)
 import { expandIndex } from './roundsidx.mjs';
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 
@@ -375,10 +376,12 @@ function notifyState() {
   const servers = [...names].map(name => {
     const c = N.servers[name], o = seen.get(name) || { n30: 0, total: 0, newest: '' };
     return { name, set: !!c, rounds30: o.n30, rounds: o.total, newest: o.newest || null, minPlayers: c?.minPlayers ?? null, last: c?.last || null, format: c ? c.format : normFormat(null), formatSet: !!c?.formatSet,
-      discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null };
+      discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null,
+      digest: c ? { ...c.digest } : null, digestLog: c ? c.digestLog : null, digestTry: c ? c.digestTry : null };   // (v209)
   }).sort((a, b) => (b.set - a.set) || String(b.newest || '').localeCompare(String(a.newest || '')) || a.name.localeCompare(b.name));
   return { tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, minPlayers: N.minPlayers, minPlayersConf: N.minPlayersConf, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
-    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what, on: linesOf({})[k] })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
+    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what, on: linesOf({})[k], ...(TLABEL[k] ? { short: TLABEL[k] } : {}) })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
+    digestAt: DIGEST_AT, digestTz: DIGEST_TZ, digestPeriods: Object.fromEntries(DIGEST_KINDS.map(k => [k, periodOf(k)])),
     vars: POST_VARS, formatDefault: FORMAT_DEFAULT, templates: Object.entries(N.templates).map(([name, t]) => ({ name, ...t })).sort((a, b) => a.name.localeCompare(b.name)) };   // (v195: the post editor)
 }
 const cleanLines = o => { const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {}; for (const [k, v] of Object.entries(o || {})) if (keys.has(k)) L[k] = !!v; return L; };
@@ -406,10 +409,16 @@ function notifySet(b) {
       if (b.telegram.lines) { t.lines = cleanLines(b.telegram.lines); said.push('Telegram parts saved'); }
       srv.telegram = t;
     }
-    if (b.format !== undefined) { srv.format = b.format === null ? null : normFormat(b.format); said.push(b.format === null ? 'the post: back to classic' : `the post saved (${srv.format.style === 'card' ? 'Discord: a card' : srv.format.style === 'text' ? 'Discord: text' : 'classic'})`); }   // (v195)
+    if (b.format !== undefined) { srv.format = b.format === null ? null : normFormat(b.format); said.push(b.format === null ? 'the post: back to classic' : `the post saved (${srv.format.style === 'card' ? 'Discord: a card' : srv.format.style === 'table' ? 'Discord: a table' : srv.format.style === 'text' ? 'Discord: text' : 'classic'})`); }   // (v195)
     if (b.minPlayers !== undefined) {
       if (b.minPlayers === null || b.minPlayers === '' || b.minPlayers === 0) { srv.minPlayers = null; said.push(`fewest players: as all (${N.minPlayers})`); }
       else { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; srv.minPlayers = n; said.push(`rounds with ${n}+ players`); }
+    }
+    if (b.digest !== undefined) {   // (v209) the summaries: a day, a week, a month - one turned on starts at the next one due (not the period over already)
+      const was = cur?.digest || {}, d = {}, last = { ...(cur?.digestLast || {}) };
+      for (const k of DIGEST_KINDS) { d[k] = b.digest[k] !== undefined ? !!b.digest[k] : !!was[k]; if (d[k] && !was[k]) last[k] = periodOf(k).key; }
+      srv.digest = d; srv.digestLast = last;
+      const on = DIGEST_KINDS.filter(k => d[k]); said.push(on.length ? `summaries: ${on.join(', ')} (at ${DIGEST_AT})` : 'no summaries');
     }
     if (!said.length) return { ok: false, msg: 'nothing to change' };
     saveNotify({}, name, srv); log(`round posts (${name}):`, said.join(', '));
@@ -685,7 +694,7 @@ async function fetchLook(args, timeout) {
   return { ok: r.code === 0, out: (r.out + (r.err ? '\n' + r.err : '')).trim().slice(-20000) || '(no answer)' };
 }
 async function journal(u, n) {
-  if (!['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'hints', 'admin', 'all'].includes(u)) return { ok: false, out: 'unknown service' };
+  if (!['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'hints', 'digest', 'admin', 'all'].includes(u)) return { ok: false, out: 'unknown service' };
   const who = u === 'all' ? ['-u', 'bf2replay-*'] : ['-u', `bf2replay-${u}`];
   const r = await run(JOURNALCTL, [...who, '-n', String(Math.max(10, Math.min(500, n || 120))), '--no-pager', '-o', 'short-iso'], { timeout: 15e3 });
   const out = (r.out || r.err).trim();
@@ -767,6 +776,8 @@ const server = http.createServer(async (req, res) => {
     if (what === 'user-remove') return send(res, 200, userRemove(b));
     if (what === 'notify-test') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--test', b.server));
     if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
+    if (what === 'digest-preview') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); try { return send(res, 200, digestTexts(n, k)); } catch (e) { return send(res, 200, { ok: false, msg: e.message }); } }
+    if (what === 'digest-post') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); const r = await run(NODE, [path.join(HERE, 'digest.mjs'), '--post', k, n], { timeout: 120e3 }); const out = (r.out + (r.err ? '\n' + r.err : '')).trim(); return send(res, 200, { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'posted' : 'failed') }); }
     if (what === 'notify-last') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--last', b.server));
     return send(res, 404, { error: 'not found' });
   } catch (e) { log('error:', e.stack || e.message); try { send(res, 500, { error: e.message }); } catch (e2) {} }

@@ -33,12 +33,12 @@ import { readRoundList } from './roundsidx.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
-const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
-const ROOT = opt('BF2R_ROOT', '/srv/bf2replay'), DATA = path.join(ROOT, 'data'), SITE = path.join(ROOT, 'site');
+export const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
+export const ROOT = opt('BF2R_ROOT', '/srv/bf2replay'), DATA = path.join(ROOT, 'data'), SITE = path.join(ROOT, 'site');
 export const NOTIFY_FILE = path.join(DATA, '.notify.json');
-const DOMAIN = opt('BF2R_DOMAIN', '').trim();
+export const DOMAIN = opt('BF2R_DOMAIN', '').trim();
 const MAX_AGE_H = 12;
-const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
+export const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 export const DISCORD_RE = /^https:\/\/(?:(?:ptb|canary)\.)?discord(?:app)?\.com\/api\/webhooks\/\d{5,25}\/[\w-]{20,200}$/;
 export const TG_TOKEN_RE = /^\d{5,15}:[\w-]{30,60}$/, TG_CHAT_RE = /^(?:-?\d{3,20}|@[A-Za-z][A-Za-z0-9_]{4,31})$/;
@@ -68,6 +68,12 @@ export const POST_ITEMS = [
   ['rev', 'Revives', 'most revives'], ['heal', 'Heals', 'most heals'], ['rep', 'Repairs', 'most repairs'],
   ['flags', 'Flags', 'most flags captured and neutralised'], ['first', 'First blood', 'the first kill of the round'], ['last', 'Last killed', 'the last soldier killed in the round']
 ];
+// (v208, Sagara: "a table - one row, one kind of kill, not a group") Discord as a table: the short names of its rows
+// (a part's own name from the editor wins)
+export const TLABEL = { foot: 'On foot', veh: 'In vehicles', hs: 'Headshots', knife: 'Knife', clay: 'Claymores', mine: 'Mines', atInf: 'AT on infantry', road: 'Run over', expl: 'Explosives',
+  atLong: 'Longest launcher', smallLong: 'Longest small arms', snipLong: 'Longest sniper', longest: 'Longest kill', handMost: 'Hand-held', atMost: 'Hand-held AT', standMost: 'TOW / HJ-8', standLong: 'Longest TOW / HJ-8',
+  tankMost: 'Tank cannon', tankLong: 'Longest tank cannon', vehMost: 'Vehicle weapons', vehLong: 'Longest vehicle', aaGunMost: 'AA guns', aaGunLong: 'Longest AA gun', aaRktMost: 'AA rockets', aaRktLong: 'Longest AA rocket',
+  a2aMost: 'Air-to-air', a2aLong: 'Longest air-to-air', streakFoot: 'Streak on foot', streakVeh: 'Streak in vehicles', kd: 'Best K/D', rev: 'Revives', heal: 'Heals', rep: 'Repairs', flags: 'Flags', first: 'First blood', last: 'Last killed' };
 // (missing: on - but the weapons' groups of v207: off, so a server's posts don't grow by themselves)
 const OFF_NEW = new Set(['handMost', 'atMost', 'standMost', 'standLong', 'tankMost', 'tankLong', 'vehMost', 'vehLong', 'aaGunMost', 'aaGunLong', 'aaRktMost', 'aaRktLong', 'a2aMost', 'a2aLong']);
 export const linesOf = (o) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o && k in o ? o[k] !== false : !OFF_NEW.has(k)]));
@@ -93,7 +99,10 @@ function migrate(j) {
 const srvCfg = c => ({
   discord: { on: !!c?.discord?.on, webhook: typeof c?.discord?.webhook === 'string' ? c.discord.webhook : '', lines: linesOf(c?.discord?.lines) },
   telegram: { on: !!c?.telegram?.on, chat: typeof c?.telegram?.chat === 'string' ? c.telegram.chat : '', lines: linesOf(c?.telegram?.lines) },
-  minPlayers: c?.minPlayers ? Math.max(1, Math.min(64, Math.floor(+c.minPlayers))) : null, last: c?.last || null, format: normFormat(c?.format), formatSet: !!c?.format
+  minPlayers: c?.minPlayers ? Math.max(1, Math.min(64, Math.floor(+c.minPlayers))) : null, last: c?.last || null, format: normFormat(c?.format), formatSet: !!c?.format,
+  // (v209) the summaries of its rounds (digest.mjs): which are on, the last period each was done for, the last one sent
+  digest: { day: !!c?.digest?.day, week: !!c?.digest?.week, month: !!c?.digest?.month }, digestLast: c?.digestLast && typeof c.digestLast === 'object' ? { ...c.digestLast } : {},
+  digestTry: c?.digestTry && typeof c.digestTry === 'object' ? { ...c.digestTry } : {}, digestLog: c?.digestLog && typeof c.digestLog === 'object' && !c.digestLog.at ? { ...c.digestLog } : {}
 });
 // the settings: /etc/bf2replay.conf first (the bot's token, the fewest players), then the admin page's file
 export function notifySettings() {
@@ -115,7 +124,7 @@ export function saveNotify(change, server, srv) {
     else {
       const o = j.servers[server] || {};
       for (const app of ['discord', 'telegram']) if (srv[app]) { const a = { ...(o[app] || {}), ...srv[app] }; if (srv[app].lines) a.lines = { ...(o[app]?.lines || {}), ...srv[app].lines }; o[app] = a; }
-      for (const k of ['minPlayers', 'last', 'format']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
+      for (const k of ['minPlayers', 'last', 'format', 'digest', 'digestLast', 'digestTry', 'digestLog']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
       for (const app of ['discord', 'telegram']) if (srv[app]?.linesAll) { o[app].lines = srv[app].linesAll; delete o[app].linesAll; }   // (v195: a template's lines, whole)
       j.servers[server] = o;
     }
@@ -123,7 +132,7 @@ export function saveNotify(change, server, srv) {
   writeNotify(j);
 }
 // where a server's rounds go: [{ app, url | chat, lines }]
-function targetsOf(S, server) {
+export function targetsOf(S, server) {
   const c = S.servers[server], out = []; if (!c) return out;
   if (c.discord.on && c.discord.webhook) out.push({ app: 'discord', url: c.discord.webhook, lines: c.discord.lines });
   if (c.telegram.on && c.telegram.chat && S.tgToken) out.push({ app: 'telegram', chat: c.telegram.chat, lines: c.telegram.lines });
@@ -133,7 +142,7 @@ const remember = (what, ok, msg, server) => { try { const last = { at: new Date(
 
 // the maps' names, as the page has them (its GAME table)
 let MAPS = null;
-function mapName(m) {
+export function mapName(m) {
   if (!MAPS) { MAPS = {}; try { const line = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8').split('\n').find(l => l.startsWith('const GAME = ')); MAPS = new Function(line.replace(/^const GAME = /, 'return ').replace(/;\s*$/, ''))().maps || {}; } catch (e) {} }
   return MAPS[String(m || '').toLowerCase()]?.name || String(m || '?').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
@@ -159,7 +168,7 @@ export function normFormat(f) {
   for (const k of D.order) if (!order.includes(k)) order.push(k);   // (a part added in a later version: at the end)
   const labels = {}; for (const [k, v] of Object.entries(f.labels || {})) if (KEYS.includes(k) && typeof v === 'string' && v.trim() && v.trim() !== LABEL[k]) labels[k] = v.trim().slice(0, 80);
   const wide = {}; for (const k of KEYS) { const w = f.wide && k in f.wide ? !!f.wide[k] : !!D.wide[k]; if (w) wide[k] = true; }
-  return { style: ['card', 'text'].includes(f.style) ? f.style : 'classic', title: str(f.title, D.title, 250).replace(/\n/g, ' '), intro: str(f.intro, D.intro, 1000), footer: str(f.footer, D.footer, 500), color: /^#[0-9a-f]{6}$/i.test(f.color || '') ? f.color.toLowerCase() : 'winner',
+  return { style: ['card', 'table', 'text'].includes(f.style) ? f.style : 'classic', title: str(f.title, D.title, 250).replace(/\n/g, ' '), intro: str(f.intro, D.intro, 1000), footer: str(f.footer, D.footer, 500), color: /^#[0-9a-f]{6}$/i.test(f.color || '') ? f.color.toLowerCase() : 'winner',
     image: ['big', 'small', 'none'].includes(f.image) ? f.image : D.image, cols: +f.cols === 2 ? 2 : 3, order, labels, wide, text: str(f.text, '', 3500) };
 }
 const labelOf = (F, k) => F.labels[k] || LABEL[k];
@@ -176,7 +185,7 @@ function itemVals(entry, on) {
   for (const k of [...LONG_KEYS, 'longest']) if (!(k === 'longest' && LONG_KEYS.some(q => on[q] && same(H[q], H.longest)))) put(k, o => `${o.who} ${o.d} m${wpn(o.w)}`);
   // (v207) the scoreboard: each side's best five; the records the round broke
   const B = boardOf(s); if (B.length) V.board = { v: B.map(x => `${x.side}: ${x.rows.join(' · ')}`).join(' | '), vm: B.map(x => `${x.side}\n${x.rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`).join('\n\n'), sides: B };
-  const NR = on.records ? newRecords(entry) : []; if (NR.length) { const L = NR.map(recText); V.records = { v: L.join(' · '), vm: L.join('\n') }; }
+  const NR = on.records ? newRecords(entry) : []; if (NR.length) { const L = NR.map(recText); V.records = { v: L.join(' · '), vm: L.join('\n'), list: NR }; }
   put('kd', o => `${o.who} ${o.r} (${o.k}/${o.d})`);
   put('flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`);
   put('first', o => `${o.who} → ${o.vic}${o.w ? ` (${o.w}, ${mmss(o.t)})` : ` (${mmss(o.t)})`}`);
@@ -198,16 +207,19 @@ function boardOf(s, n = 5) {
 // time it beats; with fewer rounds before than REC_MIN, that time is not taken: the first rounds would break all)
 const REC_MIN = { ever: 20, month: 10, week: 5 }, REC_PER = [['ever', 'all-time record', Infinity], ['month', '30-day record', 30], ['week', '7-day record', 7]];
 let AGGF;
-function aggFns() {
+export function aggFns() {
   if (AGGF !== undefined) return AGGF; AGGF = null;
   try {
     const L = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8').split('\n'), g = L.find(l => l.startsWith('const GAME = ')), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end'));
     if (g && a >= 0 && b > a) AGGF = new Function(g + '\n' + L.slice(a, b).join('\n') + '\nreturn { REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null, recVal: typeof recVal === "function" ? recVal : null, nickOf };')();
+    // (v208: the Records page's short names, for the table: "Sniper kill" - its lines up to the one ending "};")
+    const r0 = L.findIndex(l => l.startsWith('const REC_SHORT = ')); let r1 = r0; while (r1 >= 0 && r1 < L.length - 1 && !/\};\s*$/.test(L[r1])) r1++;
+    if (AGGF && r0 >= 0) try { AGGF.REC_SHORT = new Function(L.slice(r0, r1 + 1).join('\n').replace(/^const REC_SHORT = /, 'return ').replace(/;\s*$/, ''))(); } catch (e) {}
   } catch (e) { log("round posts: the page's records code did not load:", e.message); }
   return AGGF;
 }
 let RL = null;
-function allRounds() {   // (the whole list, the players' lines too: data/.rounds-full.json - read again when it changes)
+export function allRounds() {   // (the whole list, the players' lines too: data/.rounds-full.json - read again when it changes)
   let mt = 0; try { mt = fs.statSync(path.join(DATA, '.rounds-full.json')).mtimeMs; } catch (e) {}
   if (RL && RL.mt === mt) return RL.R;
   let R = []; try { R = readRoundList(fs, path, DATA).rounds || []; } catch (e) {}
@@ -249,8 +261,8 @@ function varsOf(entry, V) {
   for (const k of KEYS) if (V[k]) out[k] = V[k].v; else if (!(k in out)) out[k] = '';
   return out;
 }
-const escTg = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-const escDc = s => String(s).replace(/([\\*_~`|>#[\]()@-])/g, '\\$1');
+export const escTg = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+export const escDc = s => String(s).replace(/([\\*_~`|>#[\]()@-])/g, '\\$1');
 // (v187-v194) the classic post, as before: the highlights in groups ("Most kills - on foot: A 14 · in vehicles: B 37"), only
 // which parts are on applies; the post of a server not changed in the editor (v195: style 'classic')
 function postLines(entry, on = linesOf({})) {
@@ -350,8 +362,8 @@ function textPost(entry, F, on, app) {
   return keep.join('\n');
 }
 // the post as a Discord card (an embed; Discord's limits: 25 fields, a name 256, a value 1024, the whole 6000)
-const TEAM_RGB = [0xff6b4f, 0x5ea8ff], DRAW_RGB = 0xe2b547;
-const cut = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+export const TEAM_RGB = [0xff6b4f, 0x5ea8ff], DRAW_RGB = 0xe2b547;
+export const cut = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
 function cardPost(entry, F, on) {
   const s = entry.sum, V = itemVals(entry, on), vars = varsOf(entry, V), E = {};
   const title = tpl(F.title, vars, 'plain'); if (title) E.title = cut(title, 256);
@@ -379,12 +391,90 @@ function cardPost(entry, F, on) {
   while (size() > 5900 && E.fields.length) E.fields.pop();
   return E;
 }
+// (v208) Discord as a table: a card whose text has the parts as a table in monospace (the columns line up) - a row
+// each kind of kill: its name, the result, the player (last: on a phone a long one goes on to the next line, the
+// columns stay); the new records a table of their own (the record, now, was, the player, under each time it beats);
+// the best three and the server as text where they are in the order; the scoreboard after the text (Discord puts a
+// card's fields there), each side a column. The card's title, line under it, stripe, map picture and bottom line.
+const ROW_SKIP = new Set(['best', 'board', 'records', 'server']);
+const sameKill = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
+function rowOf(k, H, on) {
+  const o = H[k]; if (!o) return null;
+  const who = x => Array.isArray(x.who) ? x.who.join(', ') + (x.more ? ` +${x.more}` : '') : String(x.who ?? ''), wp = w => w ? ` (${w})` : '';
+  if (k === 'longest' && LONG_KEYS.some(q => on[q] && sameKill(H[q], H.longest))) return null;
+  if (k === 'longest' || LONG_KEYS.includes(k)) return [`${o.d} m`, who(o) + wp(o.w)];
+  if (k === 'kd') return [String(o.r), `${who(o)} (${o.k}/${o.d})`];
+  if (k === 'flags') return [String(o.n), `${who(o)} (${o.cap} cap, ${o.neu} neut)`];
+  if (k === 'first') return [mmss(o.t), `${who(o)} → ${o.vic}${wp(o.w)}`];
+  if (k === 'last') return [mmss(o.t), `${o.vic} by ${who(o)}${o.tk ? ' (team kill' + (o.w ? ', ' + o.w : '') + ')' : wp(o.w)}`];
+  return o.n === undefined ? null : [String(o.n), who(o)];
+}
+// a table in a code block: the first column left (at most 20 letters), the middle ones right, the last as it is; a
+// string among the rows: a line of its own (a heading). No markdown inside; no ` (it would end the block). A row
+// wider than a Discord card holds (~56 letters on a computer) goes on under its last column - after a name ("A, B"),
+// before the weapon ("(L96A1)") - so the columns stay (Discord itself would go on at the line's start)
+const LBL_MAX = 20, ROW_MAX = 55;
+function wrapLast(t, at) {
+  const room = ROW_MAX - at; if (t.length <= room) return t;
+  const m = /^(.*\S) (\((?:[^()]|\([^()]*\))*\))$/.exec(t), toks = (m ? m[1] : t).split(/(?<=,) |(?<=→) | (?=by )/);   // (never inside a name)
+  if (m) toks.push(m[2]);
+  const out = []; let cur = '';
+  for (const tok of toks) { if (!cur) cur = tok; else if (cur.length + 1 + tok.length <= room) cur += ' ' + tok; else { out.push(cur); cur = tok; } }
+  if (cur) out.push(cur);
+  return out.join('\n' + ' '.repeat(at));
+}
+export function monoTable(head, rows) {
+  const n = head.length, R = rows.filter(Array.isArray), cb = t => String(t ?? '').replace(/`/g, 'ˋ').replace(/\n/g, ' ');
+  const w = head.map((h, i) => Math.max(h.length, ...R.map(r => cb(r[i]).length)));
+  w[0] = Math.min(w[0], LBL_MAX);
+  const at = w.slice(0, n - 1).reduce((a, x) => a + x + 2, 0);   // (where the last column starts)
+  const fit = (t, i) => i === 0 ? (t.length > w[0] ? t.slice(0, w[0] - 1) + '.' : t.padEnd(w[0])) : i === n - 1 ? wrapLast(t, at) : t.padStart(w[i]);
+  const line = r => r.map((t, i) => fit(cb(t), i)).join('  ').trimEnd();
+  const out = [line(head), w.map((x, i) => '-'.repeat(i === n - 1 ? Math.min(x, 24) : x)).join('  ')];   // (plain - and .: a font without ─ … would put the columns out)
+  for (const r of rows) out.push(Array.isArray(r) ? line(r) : cb(r));
+  return '```\n' + out.join('\n') + '\n```';
+}
+const PER_HEAD = { ever: 'All time', month: 'Last 30 days', week: 'Last 7 days' };
+function recTable(list) {
+  const A = aggFns(), rows = []; let per = '';
+  for (const r of list) {
+    if (r.per !== per) { per = r.per; rows.push(PER_HEAD[per] || per); }
+    rows.push([A?.REC_SHORT?.[r.k] || r.name, recNum(r, r.v), recNum(r, r.prev), r.who + (r.w ? ` (${r.w})` : '')]);
+  }
+  return monoTable(['Record', 'Now', 'Was', 'Player'], rows);
+}
+function tablePost(entry, F, on) {
+  const s = entry.sum, H = s.hl || {}, V = itemVals(entry, on), vars = varsOf(entry, V), E = {};
+  const title = tpl(F.title, vars, 'plain'); if (title) E.title = cut(title, 256);
+  if (vars.link) E.url = vars.link;
+  E.color = F.color !== 'winner' ? parseInt(F.color.slice(1), 16) : s.winner === 0 || s.winner === 1 ? TEAM_RGB[s.winner] : DRAW_RGB;
+  const intro = tpl(F.intro, vars, 'discord'), blocks = [], rows = []; let at = -1;
+  for (const k of F.order) {
+    if (!on[k]) continue;
+    if (!ROW_SKIP.has(k)) { const r = rowOf(k, H, on); if (r) { if (at < 0) { at = blocks.length; blocks.push(null); } rows.push([F.labels[k] || TLABEL[k] || LABEL[k], ...r]); } continue; }
+    if (k === 'board' || !V[k]) continue;
+    if (k === 'records') blocks.push(`**${escDc(labelOf(F, k))}**\n${recTable(V.records.list)}`);
+    else blocks.push(V[k].vm ? `**${escDc(labelOf(F, k))}**\n${escDc(V[k].vm)}` : `**${escDc(labelOf(F, k))}:** ${escDc(V[k].v)}`);
+  }
+  // (Discord's limit for a card's text, 4096: the table's last rows go first)
+  const desc = () => [intro, ...blocks.map((b, i) => i === at ? (rows.length ? monoTable(['Kill', 'Result', 'Player'], rows) : '') : b)].filter(Boolean).join('\n');
+  while (desc().length > 4090 && rows.length) rows.pop();
+  const d = desc(); if (d) E.description = cut(d, 4096);
+  const fields = [];
+  if (on.board && V.board?.sides) for (const x of V.board.sides) fields.push({ name: cut(x.side, 256), value: cut(escDc(x.rows.map((r, i) => `${i + 1}. ${r}`).join('\n')), 1024), inline: true });
+  E.fields = fields;
+  const ft = tpl(F.footer, vars, 'plain'); if (ft) E.footer = { text: cut(ft, 2048) };
+  if (DOMAIN && F.image !== 'none') { const m = String(s.map || '').toLowerCase(), img = `https://${DOMAIN}/assets/og/${fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg`; E[F.image === 'small' ? 'thumbnail' : 'image'] = { url: img }; }
+  const size = () => (E.title || '').length + (E.description || '').length + (E.footer?.text || '').length + E.fields.reduce((n, x) => n + x.name.length + x.value.length, 0);
+  while (size() > 5900 && E.fields.length) E.fields.pop();
+  return E;
+}
 // (v195) the post about a round for each app, with a server's settings (c: srvCfg - format, lines; missing: the
 // standard ones): { discord: { content } | { embeds }, telegram: HTML text }
 export function renderPost(entry, c) {
   const F = normFormat(c?.format), on = app => linesOf(c?.[app]?.lines);
   if (F.style === 'classic') return { discord: { content: asDiscord(postLines(entry, on('discord'))) }, telegram: asTelegram(postLines(entry, on('telegram'))) };
-  const dc = F.style === 'card' ? { embeds: [cardPost(entry, F, on('discord'))] } : { content: textPost(entry, F, on('discord'), 'discord') };
+  const dc = F.style === 'card' ? { embeds: [cardPost(entry, F, on('discord'))] } : F.style === 'table' ? { embeds: [tablePost(entry, F, on('discord'))] } : { content: textPost(entry, F, on('discord'), 'discord') };
   return { discord: dc, telegram: textPost(entry, F, on('telegram'), 'telegram') };
 }
 async function post(url, body) {
@@ -400,7 +490,7 @@ async function post(url, body) {
 // (v187) the post for a round as each app gets it (the admin page's preview); v195: with a server's settings
 export function postTexts(entry, c) { const P = renderPost(entry, c); return { discord: P.discord.embeds ? { card: P.discord.embeds[0] } : { text: P.discord.content }, telegram: P.telegram }; }
 // P: { discord: { content } | { embeds }, telegram: text } for the targets T (targetsOf)
-async function send(P, T, S) {
+export async function send(P, T, S) {
   const out = [];
   for (const t of T) {
     if (t.app === 'discord') out.push(['Discord', await post(t.url, { ...P.discord, username: 'BF2 Round Replay', allowed_mentions: { parse: [] } })]);

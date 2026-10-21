@@ -80,6 +80,7 @@ a.btn { display: inline-block; text-decoration: none; } a.btn.primary { backgrou
 .dcard .dctitle { display: block; font-weight: 600; color: #00a8fc; margin-bottom: 4px; } .dcard .dcdesc { white-space: pre-wrap; margin-bottom: 6px; font-size: 13.5px; }
 .dcard .dcrow { display: grid; gap: 8px 12px; margin-top: 8px; } .dcard .dcfn { font-weight: 600; font-size: 13px; } .dcard .dcfv { white-space: pre-wrap; font-size: 13px; overflow-wrap: anywhere; }
 .dcard .dcimg { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 4px; margin-top: 10px; background: #1e1f22; color: #888; font-size: 12px; text-align: center; padding: 0; min-height: 40px; line-height: 40px; }
+.dcard { max-width: 520px; } .pvcards { display: grid; gap: 6px; margin-top: 4px; } .pvcards .dcard { margin-top: 0; } label.dgck { min-width: 0 !important; font-weight: 400 !important; } .dcard pre.dccode { font: 14px/1.3 "gg mono", Menlo, Consolas, "DejaVu Sans Mono", monospace; max-height: none; overflow: visible; word-break: normal; background: #1e1f22; border: 1px solid #1e1f22; border-radius: 4px; padding: 7px; margin: 4px 0 6px; white-space: pre-wrap; overflow-wrap: anywhere; color: #dbdee1; }
 .dcard .dcfoot { margin-top: 8px; font-size: 12px; color: #b5bac1; } .pvt code, .dcard code { font-family: ui-monospace, monospace; background: rgba(0,0,0,.3); padding: 0 3px; border-radius: 3px; }
 @media (max-width: 640px) { .ptab .w { display: none; } .ptab input.lbl { min-width: 0; width: 100%; flex: 1 1 auto; } .ptab th, .ptab td { padding: 4px 3px; font-size: 11.5px; } .ptab td.mv { width: auto; } .ptab td.mv button { padding: 2px 5px; } .nsrv .nbody { padding-left: 0; } .nsrv .nrow input[type=password], .nsrv .nrow input.chat { min-width: 0; flex: 1 1 100%; }
   .pedt label { grid-template-columns: 1fr; } .ptab td:last-child, .ptab th:last-child { width: 3em; } .dcard .dcrow { grid-template-columns: 1fr !important; } }
@@ -227,7 +228,7 @@ td.mono { overflow-wrap: anywhere; }
     <h2 id="hL">Log</h2>
     <div class="row">
       <select id="logUnit" aria-label="Which service">
-        <option value="all">all services</option><option value="ingest">ingest (new demos)</option><option value="reprocess">reprocess (old rounds again)</option><option value="rebuild">rebuild (all again)</option><option value="fetch">fetch (downloads)</option><option value="update">update (GitHub)</option><option value="backup">backup</option><option value="hints">hints (background analysis)</option><option value="admin">admin page</option>
+        <option value="all">all services</option><option value="ingest">ingest (new demos)</option><option value="reprocess">reprocess (old rounds again)</option><option value="rebuild">rebuild (all again)</option><option value="fetch">fetch (downloads)</option><option value="update">update (GitHub)</option><option value="backup">backup</option><option value="hints">hints (background analysis)</option><option value="digest">digest (summaries)</option><option value="admin">admin page</option>
       </select>
       <select id="logN" aria-label="How many lines"><option>60</option><option selected>150</option><option>400</option></select>
       <button type="button" id="logGo">Refresh</button>
@@ -523,21 +524,21 @@ $('#fetchList').onclick = () => look('fetch-list', {}, $('#fetchList'));
 // and nothing in it is being edited (the 5 s refreshes)
 let nsSig = '', nsList = [], nsN = null;
 const nsOpen = new Set(), nsDirty = new Set(), nsField = new WeakMap();
-const STYLE_NAME = { classic: 'classic', card: 'Discord: a card', text: 'Discord: text' };
+const STYLE_NAME = { classic: 'classic', card: 'Discord: a card', table: 'Discord: a table', text: 'Discord: text' };
 function editorHtml(v, F, lines, N) {
-  const it = Object.fromEntries(N.items.map(x => [x.k, x])), cls = F.style === 'classic', on = (app, k) => lines?.[app] && k in lines[app] ? lines[app][k] !== false : it[k]?.on !== false;   // (v207: a new part's own default)
+  const it = Object.fromEntries(N.items.map(x => [x.k, x])), cls = F.style === 'classic', tbl = F.style === 'table', on = (app, k) => lines?.[app] && k in lines[app] ? lines[app][k] !== false : it[k]?.on !== false;   // (v207: a new part's own default)
   const rows = F.order.map(k => { const x = it[k]; if (!x) return ''; return `<tr data-k="${esc(k)}"><td class="mv"><button type="button" data-a="up" aria-label="up"${cls ? ' disabled' : ''}>↑</button><button type="button" data-a="dn" aria-label="down"${cls ? ' disabled' : ''}>↓</button></td>`
-    + `<td><div class="lblrow"><input class="lbl" data-lbl="${esc(k)}" value="${esc(F.labels[k] || '')}" placeholder="${esc(x.name)}" aria-label="Name of ${esc(x.name)} in the post"${cls ? ' disabled' : ''}><span class="muted w">${esc(x.what)}</span></div></td>`
+    + `<td><div class="lblrow"><input class="lbl" data-lbl="${esc(k)}" value="${esc(F.labels[k] || '')}" placeholder="${esc(tbl && x.short ? x.short : x.name)}" aria-label="Name of ${esc(x.name)} in the post"${cls ? ' disabled' : ''}><span class="muted w">${esc(x.what)}</span></div></td>`
     + ['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(k)}" aria-label="${esc(x.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${on(app, k) ? ' checked' : ''}></td>`).join('')
-    + `<td class="c"><input type="checkbox" data-w="${esc(k)}" aria-label="${esc(x.name)} across the whole card"${F.wide[k] ? ' checked' : ''}${cls ? ' disabled' : ''}></td></tr>`; }).join('');
+    + `<td class="c"><input type="checkbox" data-w="${esc(k)}" aria-label="${esc(x.name)} across the whole card"${F.wide[k] ? ' checked' : ''}${cls || tbl ? ' disabled' : ''}></td></tr>`; }).join('');
   const chips = N.vars.map(([k, w]) => `<button type="button" class="ph" data-ph="${esc(k)}" title="${esc(w)}">{${esc(k)}}</button>`).join('') + N.items.map(x => `<button type="button" class="ph" data-ph="${esc(x.k)}" title="${esc(x.name)}: ${esc(x.what)}">{${esc(x.k)}}</button>`).join('');
   const tpls = N.templates.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join(''), others = nsList.map((o, j) => o.set && o.name !== v.name ? `<option value="${j}">${esc(o.name)}</option>` : '').join('');
-  return `<div class="nrow"><label class="muted">Discord as <select data-f="style"><option value="classic"${cls ? ' selected' : ''}>classic (as before)</option><option value="card"${F.style === 'card' ? ' selected' : ''}>a card with a table</option><option value="text"${F.style === 'text' ? ' selected' : ''}>text from the table</option></select></label>`
-    + `<span class="muted">${cls ? 'the parts in groups; only which are on applies - pick a card or text to set the order, names and layout' : F.style === 'card' ? 'Telegram (no cards there): text with the same order and names' : 'Telegram: the same text'}</span></div>`
+  return `<div class="nrow"><label class="muted">Discord as <select data-f="style"><option value="classic"${cls ? ' selected' : ''}>classic (as before)</option><option value="card"${F.style === 'card' ? ' selected' : ''}>a card, the parts in columns</option><option value="table"${tbl ? ' selected' : ''}>a card with a table: a row each</option><option value="text"${F.style === 'text' ? ' selected' : ''}>text from the table</option></select></label>`
+    + `<span class="muted">${cls ? 'the parts in groups; only which are on applies - pick a card, a table or text to set the order, names and layout' : tbl ? 'a row each kind of kill - its name, the result, the player - in monospace, so the columns line up; the new records a table of their own; the scoreboard under it, a side a column. Telegram (no cards there): text with the same order and names' : F.style === 'card' ? 'Telegram (no cards there): text with the same order and names' : 'Telegram: the same text'}</span></div>`
     + `<div class="pedt"${cls ? ' hidden' : ''}><label>Title <input data-f="title" value="${esc(F.title)}" placeholder="{map} · {when}"></label><label>Under it <textarea data-f="intro" rows="2" placeholder="{result} · {length} · {players} players · {kills} kills">${esc(F.intro)}</textarea></label><label>At the bottom <input data-f="footer" value="${esc(F.footer)}" placeholder="e.g. {server} · our Discord: …"></label></div>`
-    + `<div class="nrow"${F.style === 'card' ? '' : ' hidden'} data-f="cardOpts"><label class="muted">Stripe <select data-f="colorMode"><option value="winner"${F.color === 'winner' ? ' selected' : ''}>the winner's colour</option><option value="own"${F.color !== 'winner' ? ' selected' : ''}>own</option></select></label><input type="color" data-f="color" value="${F.color !== 'winner' ? esc(F.color) : '#e2b547'}"${F.color === 'winner' ? ' hidden' : ''} aria-label="Stripe colour">`
+    + `<div class="nrow"${F.style === 'card' || tbl ? '' : ' hidden'} data-f="cardOpts"><label class="muted">Stripe <select data-f="colorMode"><option value="winner"${F.color === 'winner' ? ' selected' : ''}>the winner's colour</option><option value="own"${F.color !== 'winner' ? ' selected' : ''}>own</option></select></label><input type="color" data-f="color" value="${F.color !== 'winner' ? esc(F.color) : '#e2b547'}"${F.color === 'winner' ? ' hidden' : ''} aria-label="Stripe colour">`
     + `<label class="muted">Map picture <select data-f="image"><option value="big"${F.image === 'big' ? ' selected' : ''}>big, at the bottom</option><option value="small"${F.image === 'small' ? ' selected' : ''}>small, top right</option><option value="none"${F.image === 'none' ? ' selected' : ''}>none</option></select></label>`
-    + `<label class="muted">In a row <select data-f="cols"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
+    + `<label class="muted"${tbl ? ' hidden' : ''}>In a row <select data-f="cols"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
     + `<div class="nrow"${F.style === 'text' ? '' : ' hidden'} data-f="textOpts"><label class="muted">In a line <select data-f="colsT"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3 parts</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
     + `<table class="pit ptab"><thead><tr><th></th><th>Part · its name in the post</th><th class="c">Discord</th><th class="c">Telegram</th><th class="c" title="A row of its own: across the whole card / a line of its own">Own row</th></tr></thead><tbody>${rows}</tbody></table>`
     + `<details class="ptext"${F.text ? ' open' : ''}${cls ? ' hidden' : ''}><summary>Own text instead of the table <span class="muted">(Discord as text, and Telegram)${F.text ? ' · <b class="ok">in use</b>' : ''}</span></summary>`
@@ -547,8 +548,19 @@ function editorHtml(v, F, lines, N) {
     + `<div class="row"><label class="muted">Template <select data-f="tpl"><option value="">…</option>${tpls}</select></label><button type="button" data-a="tplUse">Use it</button><button type="button" data-a="tplSave">Save as a template</button><button type="button" class="danger" data-a="tplRm">Remove it</button>`
     + `${others ? `<label class="muted">or copy from <select data-f="copy"><option value="">a server…</option>${others}</select></label>` : ''}<span style="flex:1"></span><button type="button" data-a="applyAll" title="This post (saved or not) on every server set up; their channels stay">Use on all servers</button></div>`;
 }
+// (v209) the summaries of a server's rounds (digest.mjs): a day, a week, a month - on or off; a preview and a post now of
+// the last one over; the last of each sent
+const DG_KINDS = ['day', 'week', 'month'], DG_T = { day: 'Day', week: 'Week', month: 'Month' };
+function digestRow(v, N, any) {
+  const P = N.digestPeriods || {}, L = v.digestLog || {}, T = v.digestTry || {};
+  const boxes = DG_KINDS.map(k => `<label class="ck dgck"><input type="checkbox" data-dg="${k}"${v.digest?.[k] ? ' checked' : ''}> ${DG_T[k]}</label>`).join('');
+  const last = DG_KINDS.filter(k => L[k]).map(k => `${esc(L[k].what)} ${ago(L[k].at)} · <span class="${L[k].ok ? 'ok' : 'bad'}">${esc(L[k].msg)}</span>${T[k] && !L[k].ok ? ` <span class="muted">(tried ${T[k].n} of 6)</span>` : ''}`).join('<br>');
+  return `<div class="nrow"><span class="muted" title="Posted to the channels above: the day before, the week before (Monday to Sunday, on Monday), the month before (on the 1st). A period's rounds by the time in the demo, with the fewest players above.">Summaries at ${esc(N.digestAt || '10:00')} <span class="w">(${esc(N.digestTz || '')})</span></span>${boxes}</div>`
+    + `<div class="nrow"><select data-f="dgKind" aria-label="Which summary of ${esc(v.name)}">${DG_KINDS.map(k => `<option value="${k}">${DG_T[k]}: ${esc(P[k]?.label || '')}</option>`).join('')}</select><button type="button" data-a="dgPrev">Preview the summary</button><button type="button" data-a="dgPost"${any ? '' : ' disabled'}>Post it now</button></div>`
+    + (last ? `<div class="row muted" style="font-size:12.5px;overflow-wrap:anywhere">last summaries:<br>${last}</div>` : '');
+}
 function renderServers(N) {
-  const box = $('#nServers'), sig = JSON.stringify([N.servers, N.tgToken, N.minPlayers, N.templates]);
+  const box = $('#nServers'), sig = JSON.stringify([N.servers, N.tgToken, N.minPlayers, N.templates, N.digestPeriods]);
   const ae = document.activeElement;   // (typing in one of its boxes: later)
   if (sig === nsSig || nsDirty.size || (box.contains(ae) && ae.matches('input[type=password], input[type=number], input.chat, input.lbl, input[data-f], textarea, select') && ae.value)) return;
   nsSig = sig; nsList = N.servers; nsN = N;
@@ -558,11 +570,12 @@ function renderServers(N) {
   box.innerHTML = nsList.map((v, i) => {
     const d = v.discord, t = v.telegram, any = (d && d.on && d.webhook) || (t && t.on && t.chat && N.tgToken);
     return `<details class="nsrv" data-i="${i}"${nsOpen.has(v.name) ? ' open' : ''}><summary><b>${esc(v.name)}</b><span class="muted">${v.rounds30} round${v.rounds30 === 1 ? '' : 's'} in 30 days${v.newest ? ` · newest ${esc(v.newest.slice(0, 16))}` : ''}</span>`
-      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') : '<span class="chip no">not posted: not set up</span>')
+      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') + (v.digest && DG_KINDS.some(k => v.digest[k]) ? `<span class="chip on">summaries: ${DG_KINDS.filter(k => v.digest[k]).join(', ')}</span>` : '') : '<span class="chip no">not posted: not set up</span>')
       + `</summary><div class="nbody">`
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="dcOn"${d && d.on ? ' checked' : ''}> Discord</label><span class="muted mono">${d && d.webhook ? esc(d.webhook) : 'no webhook'}</span><input type="password" data-f="dcHook" autocomplete="new-password" spellcheck="false" placeholder="${d && d.webhook ? 'a new webhook' : 'webhook: https://discord.com/api/webhooks/…'}" aria-label="Discord webhook for ${esc(v.name)}"><button type="button" data-a="dcSave">Save</button>${d && d.webhook ? '<button type="button" class="danger" data-a="dcRm">Remove</button>' : ''}</div>`
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="tgOn"${t && t.on ? ' checked' : ''}> Telegram</label><input class="chat" data-f="tgChat" autocomplete="off" spellcheck="false" placeholder="chat: -100… or @channel" value="${esc(t?.chat || '')}" aria-label="Telegram chat for ${esc(v.name)}"><button type="button" data-a="tgSave">Save</button>${N.tgToken ? '' : '<span class="warn">the bot\'s token is needed (above)</span>'}</div>`
       + `<div class="nrow"><span class="muted">Rounds with</span><input type="number" min="1" max="64" data-f="min" placeholder="${N.minPlayers}" value="${v.minPlayers ?? ''}" aria-label="Fewest players for ${esc(v.name)}"><span class="muted">players or more (empty: as all, ${N.minPlayers})</span><button type="button" data-a="minSave">Save</button></div>`
+      + (v.set ? digestRow(v, N, any) : '')
       + (v.last ? `<div class="row muted" style="overflow-wrap:anywhere">last post: <span class="mono">${esc(v.last.what)}</span> ${ago(v.last.at)} · <span class="${v.last.ok ? 'ok' : 'bad'}">${esc(v.last.msg)}</span></div>` : '')
       + `<details class="nparts"${nsOpen.has(v.name + '\n#parts') ? ' open' : ''}><summary><b>The post</b> <span class="muted">${STYLE_NAME[v.format.style]} · Discord ${onN(v.discord)} of ${N.items.length} parts · Telegram ${onN(v.telegram)} of ${N.items.length}${v.format.text ? ' · own text' : ''}</span></summary>`
       + `<div class="ped">${editorHtml(v, v.format, { discord: v.discord?.lines, telegram: v.telegram?.lines }, N)}</div></details>`
@@ -602,6 +615,7 @@ $('#nServers').addEventListener('change', e => {
   }
   if (f === 'dcOn') { if (e.target.checked && !o.v.discord?.webhook) toast('add its webhook below too'); nsAct({ server: name, discord: { on: e.target.checked } }, null, true); }
   if (f === 'tgOn') nsAct({ server: name, telegram: { on: e.target.checked } }, null, true);
+  if (e.target.dataset.dg) nsAct({ server: name, digest: { [e.target.dataset.dg]: e.target.checked } }, null, true);   // (v209)
 });
 $('#nServers').addEventListener('click', async e => {
   const ph = e.target.closest('button.ph');
@@ -624,6 +638,19 @@ $('#nServers').addEventListener('click', async e => {
   if (a === 'forget') { if (confirm(`Stop posting the rounds of ${name}? Its webhook, chat and post are forgotten.`)) nsAct({ server: name, remove: true }, b); }
   if (a === 'test') act('notify-test', { server: name }, b);
   if (a === 'last') act('notify-last', { server: name }, b);
+  if (a === 'dgPost') { const k = q('dgKind').value; if (confirm(`Post the summary "${q('dgKind').selectedOptions[0].textContent}" of ${name} to its channels now?`)) act('digest-post', { server: name, kind: k }, b); }
+  if (a === 'dgPrev') {   // (v209: the summary as it would go, nothing sent)
+    b.disabled = true;
+    try {
+      const j = await api('digest-preview', { server: name, kind: q('dgKind').value });
+      if (!j.ok) { toast(j.msg || j.error || 'no', false); return; }
+      q('prev').hidden = false; q('prevWhat').textContent = `${DG_T[j.kind]} summary: ${j.period.label} (${j.period.from}${j.period.to !== j.period.from ? ' to ' + j.period.to : ''}) · ${j.rounds} round${j.rounds === 1 ? '' : 's'} with ${j.minPlayers}+ players · nothing sent`;
+      const dc = q('prevDc'); dc.textContent = '';
+      if (!j.rounds) { dc.className = 'pvt'; dc.textContent = 'No rounds in this period: nothing would be posted.'; q('prevTg').className = 'pvt'; q('prevTg').textContent = '—'; return; }
+      dc.className = 'pvcards'; for (const E of j.discord) drawCard(dc.appendChild(document.createElement('div')), E);
+      drawPost(q('prevTg'), j.telegram.join('\n\n— the next message —\n\n'), 'telegram');
+    } catch (err) { toast(err.message, false); } finally { b.disabled = false; }
+  }
   if (a === 'prev') {
     b.disabled = true;
     try {
@@ -651,6 +678,11 @@ function mdInto(box, text, app) {
   const MK = [['**', 'b'], ['__', 'u'], ['~~', 's'], ['*', 'i'], ['`', 'code']], t = String(text); let i = 0, buf = '';
   while (i < t.length) {
     if (t[i] === '\\' && i + 1 < t.length) { buf += t[i + 1]; i += 2; continue; }
+    if (t.startsWith('```', i)) {   // (v208: a code block - monospace, as it is: the table)
+      const j = t.indexOf('```', i + 3); if (j < 0) { buf += t.slice(i); break; }
+      put(buf); buf = ''; const pre = document.createElement('pre'); pre.className = 'dccode'; pre.textContent = t.slice(i + 3, j).replace(/^[\w+-]*\n/, '').replace(/\n$/, ''); top().appendChild(pre);
+      i = j + 3; if (t[i] === '\n') i++; continue;
+    }
     const mk = MK.find(([m]) => t.startsWith(m, i));
     if (!mk) { buf += t[i]; i++; continue; }
     put(buf); buf = '';

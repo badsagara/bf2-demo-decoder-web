@@ -1,0 +1,13 @@
+[Unit]
+Description=BF2 Round Replay: post the summaries due (a day, a week, a month of a server's rounds: digest.mjs)
+After=network.target
+
+[Service]
+Type=oneshot
+User=bf2replay
+Group=bf2replay
+Nice=10
+EnvironmentFile=-/etc/bf2replay.conf
+WorkingDirectory=/srv/bf2replay
+ExecStart=/usr/bin/node /srv/bf2replay/repo/server/digest.mjs --due
+TimeoutStartSec=15min

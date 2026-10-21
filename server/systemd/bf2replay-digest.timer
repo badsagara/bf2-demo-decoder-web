@@ -1,0 +1,10 @@
+[Unit]
+Description=BF2 Round Replay: the summaries of the servers' rounds - a day, a week, a month (digest.mjs --due: posts the ones due)
+
+[Timer]
+OnBootSec=5min
+OnCalendar=*:0/10
+Unit=bf2replay-digest.service
+
+[Install]
+WantedBy=timers.target

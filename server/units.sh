@@ -80,11 +80,11 @@ fi
 
 if [ "$reload" = 1 ]; then
   systemctl daemon-reload
-  systemctl enable --quiet bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer bf2replay-admin.service
+  systemctl enable --quiet bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer bf2replay-digest.timer bf2replay-admin.service
   # (a timer restarted after a change runs on its new schedule; units.sh is called from bf2replay-update.service, so
   # that one is never restarted from here: its new timer is picked up by the daemon-reload)
   for t in $(printf '%s\n' "${timers[@]}" | sort -u); do [ "$t" = bf2replay-update.timer ] || systemctl restart "$t"; done
-  systemctl start bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer
+  systemctl start bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer bf2replay-digest.timer
   # (the admin page: started, or restarted when its unit changed; a new admin.mjs restarts itself)
   if [ "$admin" = 1 ]; then systemctl restart bf2replay-admin.service; else systemctl start bf2replay-admin.service; fi
 fi
