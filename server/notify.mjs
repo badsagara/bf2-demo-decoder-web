@@ -36,7 +36,7 @@ export const TG_TOKEN_RE = /^\d{5,15}:[\w-]{30,60}$/, TG_CHAT_RE = /^(?:-?\d{3,2
 export const POST_ITEMS = [
   ['best', 'Best three', 'the best three by score, with their side'], ['server', 'Server', "the server's name"],
   ['foot', 'Kills on foot', 'most enemies killed on foot'], ['veh', 'Kills in vehicles', 'most enemies killed from vehicles'],
-  ['hs', 'Headshots', 'most headshots'], ['knife', 'Knife', 'most knife kills'], ['clay', 'Claymores', 'most claymore kills'],
+  ['hs', 'Headshots', 'most headshots'], ['knife', 'Knife', 'most knife kills'], ['clay', 'Claymores', 'most claymore kills'], ['mine', 'Mines', 'most kills with AT mines'],
   ['atInf', 'Launchers on infantry', 'most soldiers on foot killed with a hand-held launcher (SRAW, Eryx, RPG-7)'],
   ['road', 'Run over', 'most soldiers run over with a vehicle'], ['expl', 'Explosives', 'most kills with grenades, grenade launchers, C4, mines, claymores'],
   ['atLong', 'Longest launcher kill', 'with a hand-held launcher'], ['smallLong', 'Longest small-arms kill', 'rifles, machine guns, pistols, shotguns - not a sniper rifle or a launcher'],
@@ -74,7 +74,7 @@ const recent = d => { const m = /^(\d{4})-(\d\d)-(\d\d)\s+(\d\d):(\d\d)/.exec(d 
 
 // the post: lines, each a list of [text, kind] - kind 'b' bold, 'l' a link, '' plain - for each app's own markup; on:
 // which parts (POST_ITEMS) this app gets
-const mmss = t => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, '0')}`;
+const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 function postLines(entry, on = linesOf({}, 'discord')) {
   const s = entry.sum, id = entry.name.replace(/\.bf2demo(\.gz)?$/i, ''), tk = s.tickets, T = s.teams || [], H = s.hl || {};
   const won = s.winner != null && T[s.winner] ? `${T[s.winner]} won${tk ? `, tickets ${tk[0][1]} : ${tk[1][1]}` : ''}` : tk ? `tickets ${tk[0][1]} : ${tk[1][1]}` : '';
@@ -91,7 +91,7 @@ function postLines(entry, on = linesOf({}, 'discord')) {
     const seg = title ? [[title, 'b'], [' - ', '']] : []; P.forEach(([label, text], i) => { if (i) seg.push([' · ', '']); seg.push([label + ': ', title ? '' : 'b'], [text, '']); }); L.push(seg);
   };
   const cnt = o => `${who(o)} ${o.n}`, far = o => `${o.who} ${o.d} m${wpn(o.w)}`;
-  group('Most kills', [['foot', 'on foot', cnt], ['veh', 'in vehicles', cnt], ['hs', 'headshots', cnt], ['knife', 'knife', cnt], ['clay', 'claymores', cnt], ['atInf', 'launchers on infantry', cnt], ['road', 'run over', cnt], ['expl', 'explosives', cnt]]);
+  group('Most kills', [['foot', 'on foot', cnt], ['veh', 'in vehicles', cnt], ['hs', 'headshots', cnt], ['knife', 'knife', cnt], ['clay', 'claymores', cnt], ['mine', 'mines', cnt], ['atInf', 'launchers on infantry', cnt], ['road', 'run over', cnt], ['expl', 'explosives', cnt]]);
   group('Longest kill', [['atLong', 'launcher', far], ['smallLong', 'small arms', far], ['snipLong', 'sniper', far], ['longest', 'any', far]]);
   group('', [['streak', 'Kill streak', cnt], ['kd', 'Best K/D', o => `${o.who} ${o.r} (${o.k}/${o.d})`]]);
   group('Most', [['rev', 'revives', cnt], ['heal', 'heals', cnt], ['rep', 'repairs', cnt], ['flags', 'flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`]]);

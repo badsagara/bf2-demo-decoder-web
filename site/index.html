@@ -160,7 +160,14 @@ input[type=file] { display: none; }
 .fsfeed { position: absolute; top: 10px; right: 10px; width: min(310px, 46%); max-height: 50%; overflow: hidden; pointer-events: none;
   background: color-mix(in srgb, var(--bg) 55%, transparent); border: 1px solid color-mix(in srgb, var(--line) 60%, transparent); border-radius: 4px; padding: 7px 9px; font-size: 12px;
   text-shadow: 0 0 3px var(--bg), 0 0 1px var(--bg); }
-.fsfeed[hidden], .fsfeed:empty { display: none; }
+.fsfeed[hidden], .fsfeed.none:not(.min) { display: none; }
+/* (v188) its fold button (the feed itself lets the map take the clicks): top right on it; folded, only the button */
+.fsfold { position: absolute; top: 2px; right: 2px; z-index: 1; pointer-events: auto; font: 600 12px/1 var(--font-data); color: var(--muted); background: color-mix(in srgb, var(--bg) 70%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 3px; padding: 2px 6px; cursor: pointer; text-shadow: none; }
+.fsfold:hover, .fsfold:focus-visible { color: var(--fg); border-color: var(--accent); } .fsfold:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fsfeed.min { width: auto !important; max-height: none !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; overflow: visible; }
+.fsfeed.min .fsfold { position: static; display: block; padding: 4px 8px; color: var(--fg); }
+.fsfeed.min #fsfeedIn { display: none; }
+.fsfeed:not(.min) #fsfeedIn > :first-child { padding-right: 22px; }
 /* (v136) the game's top bar: both sides' tickets (bleeding: an arrow and how fast), the time left */
 .topbar { display: flex; gap: 12px; align-items: center; padding: 3px 10px;
   background: color-mix(in srgb, var(--bg) 78%, transparent); border: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 4px;
@@ -602,6 +609,7 @@ body.site:not(.devshow) .mapsizel, body.site:not(.devshow) details.schema, body.
 .rmore { margin-top: 8px; }
 @media (max-width: 600px) { .rcur b { font-size: 17px; } .rcur { flex-basis: 100%; } .rnav { margin-left: auto; } }
 /* Round stats: the round in a few numbers */
+.hlg { margin-top: 10px; } .hlg h4 { margin: 0 0 6px; font: 600 11px var(--font-data); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }   /* (v188: the highlights' groups) */
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
 .kpi { display: block; background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; min-width: 0; text-align: left; font: inherit; color: inherit; }
 button.kpi { cursor: pointer; }
@@ -808,7 +816,7 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Filters ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
       </div>
       <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qbr" aria-hidden="true"></span><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span></div>
-      <div class="fsfeed" id="fsfeed" aria-live="off"></div>
+      <div class="fsfeed" id="fsfeed" aria-live="off"><button type="button" class="fsfold" id="feedFold" aria-expanded="true" aria-controls="fsfeedIn" title="Fold the kill feed (J)">–</button><div id="fsfeedIn"></div></div>
       <div class="tabboard" id="tabBoard" role="dialog" aria-label="Scoreboard" hidden></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
@@ -924,7 +932,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line in his card</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as the button on it</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -987,7 +995,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v187';
+const APP_VERSION = 'v188';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -4121,6 +4129,11 @@ function povTag() {
 }
 // (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Filters ▾ Sounds
 const SND_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor" stroke="none"/><path class="w1" d="M11 5.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w2" d="M12.8 3.5a6.3 6.3 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+// (v188, Sagara: "Kill Feed можна було згортати кнопкою") the kill feed over the map folded to its button and back
+// (remembered): the button on it, J. Filters ▾ Kill feed still takes it off the map altogether
+let feedMin = false; try { feedMin = localStorage.getItem('bf2rr.feedmin') === '1'; } catch (e) {}
+function feedFoldShow() { const fo = $('#fsfeed'), b = $('#feedFold'); if (!fo || !b) return; fo.classList.toggle('min', feedMin); b.textContent = feedMin ? 'Kill feed ▾' : '–'; b.title = feedMin ? 'Show the kill feed (J)' : 'Fold the kill feed (J)'; b.setAttribute('aria-expanded', String(!feedMin)); }
+function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmin', feedMin ? '1' : '0'); } catch (e) {} feedFoldShow(); refresh(true); }
 // (v185, Sagara: "додати кнопку вмикання прицільної лінії при виборі гравця") the followed soldier's aim line on / off
 // (remembered; off as v152 left it): the card's Aim line button, X
 function aimLnSet(on) { opts.aimLn = !!on; try { localStorage.setItem('bf2rr.aimln', opts.aimLn ? '1' : '0'); } catch (e) {} if (sel !== null) toast(opts.aimLn ? 'Aim line on (X)' : 'Aim line off (X)'); refresh(true); }
@@ -5280,7 +5293,9 @@ function panels(force) {
       rows.push(mapHtml(round, feed[k]).replace(/<button class="svb[^"]*"[\s\S]*?<\/button>/g, '').replace(/^<li(?: class="([^"]*)")?/, (m, c) => { const cl = [c, old ? 'old' : ''].filter(Boolean).join(' '); return cl ? `<li class="${cl}"` : '<li'; }));
     }
     const tbOn = !!round.TK && round.meta.source === 'demo' && (tk0 > 0 || tk1 > 0);
-    fo.innerHTML = (tbOn ? '' : `<div class="fstk">${[0,1].map(tm => `<span class="t${tm}">${flagChip(tm, false, 12)} ${esc(round.teams[tm]?.name || '')} ${start[tm] ? Math.round(tm ? tk1 : tk0) : ''}</span>`).join('')}</div>`) + `${rows.length ? `<ul>${rows.join('')}</ul>` : ''}`;
+    const inner = (tbOn ? '' : `<div class="fstk">${[0,1].map(tm => `<span class="t${tm}">${flagChip(tm, false, 12)} ${esc(round.teams[tm]?.name || '')} ${start[tm] ? Math.round(tm ? tk1 : tk0) : ''}</span>`).join('')}</div>`) + `${rows.length ? `<ul>${rows.join('')}</ul>` : ''}`;
+    // (v188) folded (the button on it, J): only the button; the rows still written, so it opens on the moment
+    $('#fsfeedIn').innerHTML = inner; fo.classList.toggle('none', !inner); feedFoldShow();
     if (opts.gameHud && bmOk(FONT_CHAT)) gameFeed(fo); else fo.classList.remove('gfont');
   }
   // the game's own score, kills and deaths (v132+: its scoreboard is in the demo), estimated score (decoded demos before)
@@ -5856,6 +5871,40 @@ function renderPCard(i) {
   }
   box.querySelectorAll('[data-pp]').forEach(b => b.onclick = () => openPlayerPage(b.dataset.pp));
 }
+// (v188, Sagara: "на вебсайті ті самі речі, щоб люди теж бачили по раунду") the round's highlights - the same as the
+// posts about a new round (Discord / Telegram: the server's ingest.mjs summarize -> sum.hl, notify.mjs), worked out here
+// from the round itself (so also for a demo opened from a file): enemy kills only, the killer a soldier; ties all of
+// them. -> [[group, [{ k, label, n | d, who: [player index], t (a moment: the kill), w (weapon), vi (victim) }]]]
+const HL_ARTY = /shell|artillery/i, HL_PLACED = new Set([5367, 5460, 5359]);
+function roundHighlights() {
+  if (round._aw) return round._aw;
+  const R = round, pidx = id => R.pidx.get(id), K = [];
+  for (const e of R.events) {
+    if (e.type !== 'kill') continue;
+    const ki = pidx(e.killer), vi = pidx(e.victim); if (ki === undefined || vi === undefined || ki === vi || R.players[ki].vehicle) continue;
+    const kq = playerAt(ki, e.t - 0.05), vq = playerAt(vi, e.t - 0.05), w = killGuess(e) || '', cause = killCause({ ...e, weapon: w }, !!kq.veh);
+    let d = e.dist; if (d === undefined && kq.alive) { const a = playerAt(ki, e.t), b = playerAt(vi, e.t); if (Number.isFinite(a.x) && Number.isFinite(b.x)) d = Math.round(Math.hypot(a.x - b.x, a.y - b.y, (a.h ?? 0) - (b.h ?? 0))); }
+    K.push({ e, t: e.t, ki, vi, w, raw: e.weapon || '', cause, kv: !!kq.veh, vv: !!vq.veh, tk: teamOf(ki, e.t) === teamOf(vi, e.t), d: Number.isFinite(d) ? d : null, head: e.hit === 'head', placed: HL_PLACED.has(e.wid) || /claymore|mine\b|^C4$/i.test(w) });
+  }
+  const E = K.filter(x => !x.tk), G = [];
+  const most = (k, label, f) => { const c = new Map(); for (const x of E) if (f(x)) { const o = c.get(x.ki) || { n: 0, t: x.t }; o.n++; c.set(x.ki, o); } let n = 0; for (const o of c.values()) n = Math.max(n, o.n); if (!n) return null; const top = [...c].filter(([, o]) => o.n === n).sort((a, b) => a[1].t - b[1].t); return { k, label, n, who: top.map(([i]) => i), t: top[0][1].t }; };
+  const far = (k, label, f) => { let b = null; for (const x of E) if (x.d != null && !x.placed && f(x) && (!b || x.d > b.d)) b = x; return b ? { k, label, d: b.d, who: [b.ki], t: b.t, w: b.w, vi: b.vi } : null; };
+  G.push(['Most kills', [most('foot', 'On foot', x => !x.kv), most('veh', 'In vehicles', x => x.kv), most('hs', 'Headshots', x => x.head), most('knife', 'Knife', x => /knife/i.test(x.w)),
+    most('clay', 'Claymores', x => /claymore/i.test(x.w)), most('mine', 'Mines', x => /\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)), most('atInf', 'Launchers on infantry', x => x.cause === 'at' && !x.kv && !x.vv),
+    most('road', 'Run over', x => x.kv && !x.raw && !x.vv), most('expl', 'Explosives', x => x.cause === 'expl')]]);
+  const lg = far('longest', 'Any weapon', x => (!!x.raw || x.cause === 'at') && !HL_ARTY.test(x.w)), L3 = [far('atLong', 'Launcher', x => x.cause === 'at' && !x.kv), far('smallLong', 'Small arms', x => x.cause === 'small' && !x.kv && !SNIPER_W.test(x.w) && !HL_ARTY.test(x.w)), far('snipLong', 'Sniper rifle', x => !x.kv && SNIPER_W.test(x.w))];
+  G.push(['Longest kill', [...L3, lg && !L3.some(o => o && o.t === lg.t && o.who[0] === lg.who[0]) ? lg : null]]);
+  const PR = roundPlayerRows().rows, best = (k, label, f, min = 1) => { let n = 0; for (const r of PR) n = Math.max(n, f(r) || 0); if (n < min) return null; return { k, label, n, who: PR.filter(r => (f(r) || 0) === n).map(r => r.i) }; };
+  const stk = roundStats().streaks[0], kd = PR.filter(r => r.k >= 10).sort((a, b) => b.k / Math.max(1, b.d) - a.k / Math.max(1, a.d))[0];
+  const flags = PR.map(r => { const L = (R.players[r.i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')); return { r, n: L.length, cap: L.filter(q => /captured/i.test(q[2])).length, t: L[0]?.[0] }; }).filter(o => o.n).sort((a, b) => b.n - a.n)[0];
+  G.push(['More', [stk && stk.n >= 2 ? { k: 'streak', label: 'Kill streak', n: stk.n, who: [stk.i], t: stk.t0, sub: `${fmt(stk.t0)}–${fmt(stk.t1)}` } : null,
+    kd ? { k: 'kd', label: 'Best K/D', n: Math.round(kd.k / Math.max(1, kd.d) * 100) / 100, who: [kd.i], sub: `${kd.k}–${kd.d}` } : null,
+    best('rev', 'Revives', r => r.rev), best('heal', 'Heals', r => r.heal), best('rep', 'Repairs', r => r.rep),
+    flags ? { k: 'flags', label: 'Flags', n: flags.n, who: [flags.r.i], sub: `${flags.cap} captured, ${flags.n - flags.cap} neutralised` } : null]]);
+  const first = E[0], last = K[K.length - 1];
+  G.push(['First and last', [first ? { k: 'first', label: 'First blood', who: [first.ki], vi: first.vi, w: first.w, t: first.t, at: true } : null, last ? { k: 'last', label: 'Last killed', who: [last.ki], vi: last.vi, w: last.w, t: last.t, at: true, tk: last.tk, lastK: true } : null]]);
+  return (round._aw = G.map(([g, L]) => [g, L.filter(Boolean)]).filter(([, L]) => L.length));
+}
 function renderStats() {
   const box = $('#stats'); if (!box || !round) return;
   const S = roundStats(), tn = k => esc(round.teams[k]?.name || 'Team ' + (k + 1)), col = k => `var(--team${k})`;
@@ -5868,19 +5917,8 @@ function renderStats() {
   const tkTxt = tkS ? [0, 1].map(k => `<span class="t${k}">${tkS[k][0]}→${tkS[k][1]}</span>`).join(' · ') : '';
   const killsN = round.events.filter(e => e.type === 'kill').length, kN = PRow.reduce((a, r) => a + r.k, 0), hsN = PRow.reduce((a, r) => a + r.hs, 0);
   const best = PRow.slice().sort((a, b) => (PR.hasScore ? b.score - a.score : 0) || b.k - a.k)[0];
-  const lgst = PRow.filter(r => r.lg).sort((a, b) => b.long - a.long)[0], stk = S.streaks[0];
   const revN = S.summary[0].revives + S.summary[1].revives, capN = S.summary[0].caps + S.summary[1].caps;
-  // (v154, Sagara: "хто був останній вбитий в раунді; хто більше всього вбив з claymore, рокетниці або мін") the round's
-  // last kill (by somebody else: not a suicide), and who made the most enemy kills with claymores, an AT launcher
-  // (SRAW / Eryx) and AT mines - one tile each that the round has (a tie: both names)
-  const pidx = id => round.pidx.get(id), KL = round.events.filter(e => e.type === 'kill' && e.killer !== e.victim && pidx(e.victim) !== undefined);
-  const lastK = KL[KL.length - 1];
-  const byW = [['Claymore kills', e => /claymore/i.test(e.weapon || '')], ['Rocket kills', e => killCause(e, false) === 'at'], ['Mine kills', e => /\bmine\b/i.test(e.weapon || '') && !/claymore/i.test(e.weapon || '')]].map(([label, f]) => {
-    const M = new Map();
-    for (const e of KL) { const ki = pidx(e.killer), vi = pidx(e.victim); if (ki === undefined || round.players[ki].vehicle || teamOf(ki, e.t) === teamOf(vi, e.t) || !f(e)) continue; const o = M.get(ki) || { i: ki, n: 0, first: e }; o.n++; M.set(ki, o); }
-    const L = [...M.values()].sort((a, b) => b.n - a.n || a.first.t - b.first.t), top = L.filter(o => o.n === L[0]?.n);
-    return top.length ? { label, top, w: [...new Set(KL.filter(e => pidx(e.killer) === top[0].i && f(e)).map(e => killWpn(e) || e.weapon))].join(' / ') } : null;
-  }).filter(Boolean);
+  // (v154: the last one killed and the most claymore / launcher / mine kills had tiles here - v188: in the highlights below)
   const bySide = f => [0, 1].map(k => `<span class="t${k}">${tn(k)}</span> ${f(k)}`).join(' · ');
   const tile = (label, value, sub, attrs) => attrs ? `<button class="kpi"${attrs}><span class="kl">${label}</span><span class="kv">${value}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</button>`
     : `<div class="kpi"><span class="kl">${label}</span><span class="kv">${value}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
@@ -5890,12 +5928,20 @@ function renderStats() {
     ${tile('Kills', killsN, round.meta.hits && kN ? `${hsN} headshots · ${Math.round(hsN / kN * 100)}%` : '')}
     ${S.nCapt ? tile('Flags captured', capN, bySide(k => S.summary[k].caps)) : ''}
     ${best ? tile(PR.hasScore ? 'Best score' : 'Most kills', PR.hasScore ? best.score : best.k, `${nm(best.i)} · ${best.k}–${best.d}`, ` data-i="${best.i}" title="His card"`) : ''}
-    ${lgst ? tile('Longest kill', `${lgst.long} m`, `${nm(lgst.i)} · ${esc(killWpn(lgst.lg))}`, ` data-i="${lgst.i}" data-t="${lgst.lg.t}" title="Go to this kill"`) : ''}
-    ${stk ? tile('Best streak', `${stk.n} kills`, `${nm(stk.i)} · ${fmt(stk.t0)}–${fmt(stk.t1)}`, ` data-i="${stk.i}" data-t="${stk.t0}" title="Go to the start of the streak"`) : ''}
     ${revN ? tile('Revives', revN, bySide(k => S.summary[k].revives)) : ''}
-    ${lastK ? (() => { const ki = pidx(lastK.killer), vi = pidx(lastK.victim), tk = ki !== undefined && teamOf(ki, lastK.t) === teamOf(vi, lastK.t); const pn2 = i => esc(round.players[i]?.name || ''), w = killWpn(lastK) || lastK.weapon || ''; return tile('Last killed', fmt(lastK.t), `${nm(vi)} by ${ki !== undefined ? nm(ki) : 'nobody known'}${w ? ' · ' + esc(w) : ''}${tk ? ' · team kill' : ''}`, ` data-i="${vi}" data-t="${lastK.t}" data-wrap title="${pn2(vi)} killed by ${ki !== undefined ? pn2(ki) : 'nobody known'}${w ? ' with the ' + esc(w) : ''} at ${fmt(lastK.t)}: go to this kill"`); })() : ''}
-    ${byW.map(o => tile(o.label, o.top[0].n, `${o.top.slice(0, 2).map(x => nm(x.i)).join(', ')}${o.top.length > 2 ? ` +${o.top.length - 2}` : ''} · ${esc(o.w)}`, ` data-i="${o.top[0].i}" data-t="${o.top[0].first.t}" data-wrap title="${o.top.map(x => esc(round.players[x.i].name)).join(', ')}: ${o.top[0].n} enemy kill${o.top[0].n > 1 ? 's' : ''} with the ${esc(o.w)}${o.top.length > 1 ? ' each' : ''} - go to the first one"`)).join('')}
   </div></div>`;
+  // (v188) the highlights: as the posts about the round give them (roundHighlights) - a tile each, with whom (his card)
+  // or the moment (a kill: go there)
+  { const G = roundHighlights(), who = o => `${o.who.slice(0, 2).map(nm).join(', ')}${o.who.length > 2 ? ` +${o.who.length - 2}` : ''}`, pn2 = i => esc(round.players[i]?.name || '');
+    const one = o => {
+      const v = o.d != null ? `${o.d} m` : o.at ? fmt(o.t) : String(o.n), w = o.w ? esc(o.w) : '';
+      const sub = o.at ? (o.lastK ? `${nm(o.vi)} by ${nm(o.who[0])}` : `${nm(o.who[0])} → ${nm(o.vi)}`) + (w ? ' · ' + w : '') + (o.tk ? ' · team kill' : '')
+        : o.d != null ? `${nm(o.who[0])} → ${nm(o.vi)}${w ? ' · ' + w : ''}` : who(o) + (o.sub ? ' · ' + esc(o.sub) : '');
+      const title = o.at || o.d != null ? `${pn2(o.who[0])}${o.d != null ? ` killed ${pn2(o.vi)} from ${o.d} m` : o.lastK ? ` killed ${pn2(o.vi)}, the last kill of the round` : ` killed ${pn2(o.vi)}, the first kill of the round`}${w ? ' with the ' + w : ''}: go to this kill`
+        : `${o.who.map(pn2).join(', ')}: ${o.n}${o.t != null ? ' - go to the first' : ' - his card'}`;
+      return tile(o.label, v, sub, ` data-i="${o.at && o.lastK ? o.vi : o.who[0]}"${o.t != null ? ` data-t="${o.t}"` : ''} data-wrap title="${title}"`);
+    };
+    if (G.length) h += `<div class="stblock wide"><h3>Highlights</h3>${G.map(([g, L]) => `<div class="hlg"><h4>${g}</h4><div class="kpis">${L.map(one).join('')}</div></div>`).join('')}<p class="stnote">Enemy kills only. The same as in the posts about new rounds on the site's Discord / Telegram.</p></div>`; }
   // the two sides
   h += `<div class="stblock"><h3>Both sides</h3><table class="sttab sum"><thead><tr><th></th>${[0, 1].map(k => `<th class="n t${k}">${tn(k)}</th>`).join('')}</tr></thead><tbody>
     ${S.summary[0].tickets ? `<tr><td>Tickets</td>${[0, 1].map(k => `<td class="n">${S.summary[k].tickets[0]} → ${S.summary[k].tickets[1]}</td>`).join('')}</tr>` : ''}
@@ -9483,6 +9529,7 @@ relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classLi
 // (v181) the sounds in his view: remembered
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
+$('#feedFold').onclick = e => { e.stopPropagation(); feedFold(!feedMin); }; feedFoldShow();   // (v188)
 { const tb = $('#tSound'); tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); tb.onclick = () => sndSet(!opts.sound); }
 // how far ahead (the slider under "Next N s"): moving it turns the layer on
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
@@ -9728,6 +9775,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
   if (e.code==='KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey && round) povSet(!pov);   // (v177: his view only)
   if (e.code==='KeyX' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aimLnSet(!opts.aimLn);   // (v185: the aim line)
+  if (e.code==='KeyJ' && !e.ctrlKey && !e.metaKey && !e.altKey && round && opts.feed) feedFold(!feedMin);   // (v188: the kill feed folded)
   if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; popToggle($('#namBtn'), $('#namMenu'), false); layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
 // (v136) Tab held: the scoreboard (not while typing in a field)

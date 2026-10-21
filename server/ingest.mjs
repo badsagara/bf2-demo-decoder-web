@@ -140,8 +140,9 @@ function bfrBuild(obj) {
 // ---------- the round's numbers for the rounds list (the same as the page's rounds panel works out) ----------
 // (v183) SUM_V: how a round is summed up (summarize); a round summed up by an older one is summed up again from its .bfr
 // (2: the kills' hit part [12] and the weapon guessed where the game names none [7] - the player page's headshots
-// against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs)
-const SUM_V = 3;
+// against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs; 4, v188:
+// and the mines' kills, as the site's Round stats has them)
+const SUM_V = 4;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -227,14 +228,14 @@ function summarize(tl, hdr, dec) {
     }
     const E = K.filter(x => !x.tk);
     const most = (key, f) => { const c = new Map(); for (const x of E) if (f(x)) c.set(x.k, (c.get(x.k) || 0) + 1); let n = 0; for (const v of c.values()) n = Math.max(n, v); if (!n) return; const who = [...c].filter(([, v]) => v === n).map(([k]) => k); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
-    most('foot', x => !x.kv); most('veh', x => x.kv); most('clay', x => /claymore/i.test(x.w)); most('hs', x => x.head); most('knife', x => /knife/i.test(x.w));
+    most('foot', x => !x.kv); most('veh', x => x.kv); most('clay', x => /claymore/i.test(x.w)); most('mine', x => /\bmine\b/i.test(x.w) && !/claymore/i.test(x.w)); most('hs', x => x.head); most('knife', x => /knife/i.test(x.w));
     most('atInf', x => x.cause === 'at' && !x.kv && !x.vv); most('road', x => x.kv && !x.raw && !x.vv); most('expl', x => x.cause === 'expl');
     const far = (key, f) => { let b = null; for (const x of E) if (x.d != null && !x.placed && f(x) && (!b || x.d > b.d)) b = x; if (b) hl[key] = { d: b.d, who: b.k, w: b.w, vic: b.v }; };
     // (the commander's artillery - "M777 shell" - is no small arm; a kill with no weapon named is no record)
     const ARTY = /shell|artillery/i;
     far('atLong', x => x.cause === 'at' && !x.kv); far('smallLong', x => x.cause === 'small' && !x.kv && !SNIPER.test(x.w) && !ARTY.test(x.w)); far('snipLong', x => !x.kv && SNIPER.test(x.w)); far('longest', x => (!!x.raw || x.cause === 'at') && !ARTY.test(x.w));   // (a crew killed with no weapon named: only a launcher's guess counts)
-    if (E.length) { const x = E[0]; hl.first = { who: x.k, vic: x.v, w: x.w, t: Math.round(x.t) }; }
-    if (K.length) { const x = K[K.length - 1]; hl.last = { who: x.k, vic: x.v, w: x.w, t: Math.round(x.t), tk: x.tk }; }
+    if (E.length) { const x = E[0]; hl.first = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t) }; }
+    if (K.length) { const x = K[K.length - 1]; hl.last = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t), tk: x.tk }; }   // (times: whole seconds down, as the site shows them)
     const best = (key, f, min = 1) => { let n = 0; for (const p of P) n = Math.max(n, f(p) || 0); if (n < min) return; const who = P.filter(p => (f(p) || 0) === n).map(p => p.name); hl[key] = { n, who: who.slice(0, 3), more: Math.max(0, who.length - 3) }; };
     best('streak', p => p.streak, 2); best('rev', p => p.rev); best('heal', p => p.heal); best('rep', p => p.rep);
     { let b = null; for (const p of P) if (p.k >= 10) { const r = p.k / Math.max(1, p.d); if (!b || r > b.r) b = { r, who: p.name, k: p.k, d: p.d }; } if (b) hl.kd = { r: Math.round(b.r * 100) / 100, who: b.who, k: b.k, d: b.d }; }
