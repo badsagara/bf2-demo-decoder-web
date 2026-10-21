@@ -78,6 +78,20 @@ a.btn { text-decoration: none; }
 .btn:focus-visible, canvas:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .btn.primary { background: var(--accent); color: #17130a; border-color: var(--accent); }
 .btn.on { border-color: var(--accent); color: var(--accent); }
+/* (v199) the admins' login: the header's Admin button and dialog, and the Admin tab's form */
+.btn.admb.on { border-color: var(--accent); color: var(--accent); }
+.admlogin { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
+.admlogin label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.admlogin input { font: 14px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; width: 15em; max-width: 100%; box-sizing: border-box; }
+.admlogin input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.admlogin .admmsg { flex: 1 1 100%; min-height: 1.3em; font-size: 12.5px; color: var(--hp-low); }
+.admdlg { padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); width: min(400px, calc(100vw - 32px)); box-shadow: 0 16px 48px rgba(0, 0, 0, .45); }
+.admdlg::backdrop { background: rgba(0, 0, 0, .55); }
+.admdlgb { padding: 16px 18px 18px; } .admdlgb p { margin: 0 0 12px; font-size: 13px; line-height: 1.45; }
+.admdlgh { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 10px; }
+.admdlgh h2 { margin: 0; font: 700 14px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.admdlg .admlogin { display: grid; } .admdlg .admlogin input { width: 100%; } .admdlg .admlogin .btn { justify-self: start; }
+.admdlg .admacts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; } .admdlg .admwarnp { color: var(--hp-low); }
 input[type=file] { display: none; }
 
 /* a new version on the site: a bar at the top of the screen, with Reload */
@@ -809,8 +823,10 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn themeb" id="themeBtn" type="button" aria-pressed="false" aria-label="Light colours" title="Light colours"><svg viewBox="0 0 16 16" aria-hidden="true"></svg></button>
       <a class="btn" id="recLink" href="records/" hidden title="The best in one round and who did most: the last 7 days, 30 days, all rounds">Records</a>
       <button class="btn" id="moreBtn" aria-expanded="false" hidden title="Open your own demo, what the decoder reads, the demo file's details">Tools ▾</button>
+      <button class="btn admb" id="admBtn" type="button" hidden aria-haspopup="dialog" aria-controls="admDlg" title="Log in: the admins of the site and of its servers">Admin</button>
     </div>
   </header>
+  <dialog class="admdlg" id="admDlg" aria-labelledby="admDlgH"><div class="admdlgb" id="admDlgBody"></div></dialog>
 
   <div class="notice" id="notice"></div>
 
@@ -1015,7 +1031,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v198';
+const APP_VERSION = 'v199';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -9862,7 +9878,7 @@ function adminLoad(analyze) {
   if (!/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   admLoading = (async () => {
     try {
-      if (!analyze) { const me = await admApi('me'); if (!me || !me.in || !me.round) { admMe = null; return null; } admMe = me; }
+      if (!analyze) { const me = await admApi('me'); admSrv = !!me && typeof me.in === 'boolean'; if (!me || !me.in || !me.round) { admMe = null; return null; } admMe = me; }
       else admMe = { in: true, user: 'analysis', role: 'owner', servers: null };
       const r = await fetch('/admin/api/admin.js?v=' + encodeURIComponent(APP_VERSION), { credentials: 'same-origin', cache: 'no-store' });
       if (!r.ok) return null;
@@ -9872,7 +9888,7 @@ function adminLoad(analyze) {
       if (ppage.nick || ppage.map) renderPlayerPage();
       return admMe;
     } catch (e) { console.error('the admins\' part:', e); return null; }
-    finally { admLoading = null; renderAdmPane(); }
+    finally { admLoading = null; renderAdmPane(); admBtnSet(); }
   })();
   renderAdmPane();
   return admLoading;
@@ -9883,20 +9899,67 @@ function renderAdmPane() {
   if (admLoading) { box.innerHTML = '<p class="empty">Loading…</p>'; return; }
   const local = !/^https?:$/.test(location.protocol);
   box.innerHTML = `<h2>Admin <span class="w">for the admins of the site and of its servers</span></h2>
-    ${local ? '<p class="empty">Only on the site: open the round there.</p>' : `<form class="admlogin" id="admLogin" autocomplete="on">
-      <label><span class="w">Name</span><input id="admU" name="username" autocomplete="username" spellcheck="false" placeholder="empty: the site's owner"></label>
-      <label><span class="w">Password</span><input id="admP" name="password" type="password" autocomplete="current-password" required></label>
-      <button class="btn" type="submit">Log in</button><span class="w" id="admMsg" role="status"></span></form>`}`;
-  const f = $('#admLogin'); if (!f) return;
-  f.onsubmit = async e => {
-    e.preventDefault(); const b = f.querySelector('button'), m = $('#admMsg'); b.disabled = true; m.textContent = '';
+    ${local ? '<p class="empty">Only on the site: open the round there.</p>' : admFormHtml('admLogin', 'admU', 'admP', 'admMsg')}`;
+  const f = $('#admLogin'); if (f) admLoginBind(f);
+}
+// (v199) the login form: the Admin tab's and the header's dialog's. method post + action: even if the script stops
+// before it (or there is none), the browser sends it in the request's body to the admin server - never in the address;
+// the admin server takes a login only from this page's script (X-BF2R) and keeps no password, only its hash
+const admInsecure = () => location.protocol === 'http:' && !/^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(location.hostname);
+const admFormHtml = (id, u, pw, msg) => `${admInsecure() ? '<p class="admwarnp">This page is not on https: the password would cross the network unencrypted.</p>' : ''}<form class="admlogin" id="${id}" method="post" action="/admin/api/login" autocomplete="on">
+      <label>Name<input id="${u}" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64" placeholder="empty: the site's owner"></label>
+      <label>Password<input id="${pw}" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" maxlength="256" required></label>
+      <button class="btn primary" type="submit">Log in</button><span class="admmsg" id="${msg}" role="status" aria-live="polite"></span></form>`;
+function admLoginBind(f, done) {
+  const U = f.querySelector('input[name=username]'), P = f.querySelector('input[type=password]'), b = f.querySelector('button[type=submit]'), m = f.querySelector('.admmsg');
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw = P.value; if (!pw) { m.textContent = 'The password, please.'; P.focus(); return; }
+    P.value = '';   // (out of the page the moment it is sent; a wrong one is typed again)
+    b.disabled = true; m.textContent = 'Logging in…';
     try {
-      const j = await admApi('login', { user: $('#admU').value.trim(), password: $('#admP').value });
-      if (!j.ok) { m.textContent = j.error || 'could not log in'; return; }
-      $('#admP').value = ''; await adminLoad();
-      if (!ADM.loaded) { m.textContent = 'logged in, but the admins\' part did not come: try again in a moment'; }
+      const j = await admApi('login', { user: U.value.trim(), password: pw });
+      if (!j.ok) { m.textContent = j.error || 'Could not log in.'; P.focus(); return; }
+      m.textContent = ''; await adminLoad();
+      if (!ADM.loaded) { m.textContent = 'Logged in, but the admins\' part did not come: try again in a moment.'; return; }
+      if (done) done();
     } catch (err) { m.textContent = err.message; } finally { b.disabled = false; }
-  };
+  });
+}
+async function admLogout() { try { await admApi('logout', {}); } catch (e) {} location.reload(); }   // (the admins' code goes with the page)
+// (v199) the header's Admin button: shown on the site when its admin server answers; logged in - who, and where to go
+let admSrv = false;
+function admBtnSet() {
+  const b = $('#admBtn'); if (!b) return;
+  b.hidden = !admSrv; if (!admSrv) return;
+  const on = !!(ADM.loaded && admMe), who = on ? (admMe.user === 'owner' ? "the site's owner" : admMe.user) : '';
+  b.textContent = on ? 'Admin ✓' : 'Admin'; b.classList.toggle('on', on);
+  b.title = on ? `Logged in as ${who}` : 'Log in: the admins of the site and of its servers';
+  if ($('#admDlg')?.open && !admLoading) admDlgDraw();
+}
+function admDlgDraw() {
+  const box = $('#admDlgBody'), on = !!(ADM.loaded && admMe), own = on && admMe.role === 'owner';
+  const roundOpen = !!round && round.meta?.source !== 'sim';
+  box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">Admin</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
+    + (on ? `<p>Logged in as <b>${esc(own ? "the site's owner" : admMe.user)}</b>${own ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}.</p>
+      <p class="admacts">${roundOpen ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${own ? '<a class="btn" href="/admin">Admin page</a>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
+      : `<p class="w">For the admins of the site and of its servers. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}`);
+  $('#admDlgX').onclick = () => $('#admDlg').close();
+  const f = $('#admDlgForm');
+  if (f) admLoginBind(f, () => { $('#admDlg').close(); toast(`Logged in as ${admMe.role === 'owner' ? "the site's owner" : admMe.user}`); });
+  if ($('#admDlgTab')) $('#admDlgTab').onclick = () => { $('#admDlg').close(); if (ppage.nick || ppage.map) closePlayerPage(); paneSet('admin', true); $('#pnAdmin')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+  if ($('#admDlgOut')) $('#admDlgOut').onclick = admLogout;
+}
+function admDlgOpen() {
+  const d = $('#admDlg'); if (!d) return;
+  admDlgDraw(); if (!d.open) d.showModal();
+  const first = d.querySelector('#admDlgU') || d.querySelector('#admDlgTab') || d.querySelector('#admDlgOut'); if (first) first.focus();
+}
+if ($('#admDlg')) {
+  $('#admBtn').onclick = admDlgOpen;
+  const d = $('#admDlg');
+  d.addEventListener('click', e => { if (e.target === d) d.close(); });   // (a click outside the box)
+  d.addEventListener('close', () => { d.querySelectorAll('input[type=password]').forEach(x => { x.value = ''; }); });   // (the browser gives the focus back to the button)
 }
 // @admin-begin
 // ---------- (v196) the admins' part: the Admin tab ----------
