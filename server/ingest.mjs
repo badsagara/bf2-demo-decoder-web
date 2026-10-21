@@ -146,8 +146,9 @@ function bfrBuild(obj) {
 // v192: each soldier's own of them, P[].x, for the records over many rounds; 7, v201: the kills' distances - a throw only
 // for a kill by what it is, todo 245; 8, v202: a soldier's longest kill without the commander's artillery; 9, v204: the
 // records of each group of weapons - hand-held, anti-tank rockets, vehicles, anti-air guns, rockets, air-to-air, todo 250;
-// 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251)
-const SUM_V = 10;
+// 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
+// v207: the round's highlights of the same groups for the posts, todo 253)
+const SUM_V = 11;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -263,6 +264,12 @@ function summarize(tl, hdr, dec) {
       return null;
     };
     var REC_N = { hh: 'hk', at: 'atk', st: 'stk', tc: 'tck', veh: 'vk', ag: 'agk', ar: 'ark', aa: 'aak' }, REC_D = { hh: 'sl', sn: 'sn', at: 'al', st: 'stl', tc: 'tcl', veh: 'vl', ag: 'agl', ar: 'arl', aa: 'aal' };
+    // (v207, Sagara: the posts with the same groups) the round's most kills and longest kill of each group, for the posts
+    // (notify.mjs: handMost, atMost, standMost / standLong, tankMost / tankLong, vehMost / vehLong, aaGunMost / aaGunLong,
+    // aaRktMost / aaRktLong, a2aMost / a2aLong; the hand-held launcher's longest stays atLong, small arms' smallLong)
+    for (const [g, M, L] of [['hh', 'handMost'], ['at', 'atMost'], ['st', 'standMost', 'standLong'], ['tc', 'tankMost', 'tankLong'], ['veh', 'vehMost', 'vehLong'], ['ag', 'aaGunMost', 'aaGunLong'], ['ar', 'aaRktMost', 'aaRktLong'], ['aa', 'a2aMost', 'a2aLong']]) {
+      most(M, x => recGroup(x) === g); if (L) far(L, x => recGroup(x) === g && (g !== 'veh' || !!x.raw));
+    }
     far('atLong', x => x.cause === 'at' && !x.kv); far('smallLong', x => x.cause === 'small' && !x.kv && !SNIPER.test(x.w) && !ARTY.test(x.w)); far('snipLong', x => !x.kv && SNIPER.test(x.w)); far('longest', x => (!!x.raw || x.cause === 'at') && !ARTY.test(x.w));   // (a crew killed with no weapon named: only a launcher's guess counts)
     if (E.length) { const x = E[0]; hl.first = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t) }; }
     if (K.length) { const x = K[K.length - 1]; hl.last = { who: x.k, vic: x.v, w: x.w, t: Math.floor(x.t), tk: x.tk }; }   // (times: whole seconds down, as the site shows them)

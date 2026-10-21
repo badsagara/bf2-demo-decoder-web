@@ -525,7 +525,7 @@ let nsSig = '', nsList = [], nsN = null;
 const nsOpen = new Set(), nsDirty = new Set(), nsField = new WeakMap();
 const STYLE_NAME = { classic: 'classic', card: 'Discord: a card', text: 'Discord: text' };
 function editorHtml(v, F, lines, N) {
-  const it = Object.fromEntries(N.items.map(x => [x.k, x])), cls = F.style === 'classic', on = (app, k) => lines?.[app]?.[k] !== false;
+  const it = Object.fromEntries(N.items.map(x => [x.k, x])), cls = F.style === 'classic', on = (app, k) => lines?.[app] && k in lines[app] ? lines[app][k] !== false : it[k]?.on !== false;   // (v207: a new part's own default)
   const rows = F.order.map(k => { const x = it[k]; if (!x) return ''; return `<tr data-k="${esc(k)}"><td class="mv"><button type="button" data-a="up" aria-label="up"${cls ? ' disabled' : ''}>↑</button><button type="button" data-a="dn" aria-label="down"${cls ? ' disabled' : ''}>↓</button></td>`
     + `<td><div class="lblrow"><input class="lbl" data-lbl="${esc(k)}" value="${esc(F.labels[k] || '')}" placeholder="${esc(x.name)}" aria-label="Name of ${esc(x.name)} in the post"${cls ? ' disabled' : ''}><span class="muted w">${esc(x.what)}</span></div></td>`
     + ['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(k)}" aria-label="${esc(x.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${on(app, k) ? ' checked' : ''}></td>`).join('')
@@ -553,7 +553,7 @@ function renderServers(N) {
   if (sig === nsSig || nsDirty.size || (box.contains(ae) && ae.matches('input[type=password], input[type=number], input.chat, input.lbl, input[data-f], textarea, select') && ae.value)) return;
   nsSig = sig; nsList = N.servers; nsN = N;
   if (!nsList.length) { box.innerHTML = '<div class="muted">no rounds yet</div>'; return; }
-  const onN = a => N.items.filter(it => a?.lines?.[it.k] !== false).length;
+  const onN = a => N.items.filter(it => a?.lines && it.k in a.lines ? a.lines[it.k] !== false : it.on !== false).length;
   const chip = (on, set, what, name) => !set ? '' : on ? `<span class="chip on">${name} ✓</span>` : `<span class="chip no">${name} off</span>`;
   box.innerHTML = nsList.map((v, i) => {
     const d = v.discord, t = v.telegram, any = (d && d.on && d.webhook) || (t && t.on && t.chat && N.tgToken);

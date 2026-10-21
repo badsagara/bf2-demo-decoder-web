@@ -30,7 +30,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
-import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS } from './notify.mjs';
+import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf } from './notify.mjs';
 import { expandIndex } from './roundsidx.mjs';
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 
@@ -378,12 +378,12 @@ function notifyState() {
       discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null };
   }).sort((a, b) => (b.set - a.set) || String(b.newest || '').localeCompare(String(a.newest || '')) || a.name.localeCompare(b.name));
   return { tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, minPlayers: N.minPlayers, minPlayersConf: N.minPlayersConf, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
-    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
+    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what, on: linesOf({})[k] })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
     vars: POST_VARS, formatDefault: FORMAT_DEFAULT, templates: Object.entries(N.templates).map(([name, t]) => ({ name, ...t })).sort((a, b) => a.name.localeCompare(b.name)) };   // (v195: the post editor)
 }
 const cleanLines = o => { const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {}; for (const [k, v] of Object.entries(o || {})) if (keys.has(k)) L[k] = !!v; return L; };
 const notifyFile = () => readJson(path.join(DATA, '.notify.json'), {}) || {};
-const linesOf2 = o => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o?.[k] !== false]));
+const linesOf2 = linesOf;   // (v207: the parts new in v207 off unless turned on)
 const knownServer = name => !!notifySettings().servers[name] || (index().rounds || []).some(r => r.sum && !r.sum.empty && serverOf(r) === name);
 function notifySet(b) {
   const said = [];

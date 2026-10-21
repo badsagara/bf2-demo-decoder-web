@@ -45,18 +45,32 @@ export const TG_TOKEN_RE = /^\d{5,15}:[\w-]{30,60}$/, TG_CHAT_RE = /^(?:-?\d{3,2
 
 // (v187) the parts of a post: [key, name, what it is] - all on by default, for each app apart
 export const POST_ITEMS = [
-  ['best', 'Best three', 'the best three by score, with their side'], ['server', 'Server', "the server's name"],
+  ['best', 'Best three', 'the best three by score, with their side'],
+  // (v207, Sagara: "the end of the round in Discord, and more") the scoreboard as at the round's end, the records it broke
+  ['board', 'Scoreboard', "each side's best five by score, with kills and deaths - as the game's screen at the round's end"],
+  ['records', 'New records', "a record of the server the round broke (in one round: of all time, the last 30 or 7 days - as the site's Records)"],
+  ['server', 'Server', "the server's name"],
   ['foot', 'Kills on foot', 'most enemies killed on foot'], ['veh', 'Kills in vehicles', 'most enemies killed from vehicles'],
   ['hs', 'Headshots', 'most headshots'], ['knife', 'Knife', 'most knife kills'], ['clay', 'Claymores', 'most claymore kills'], ['mine', 'Mines', 'most kills with AT mines'],
   ['atInf', 'Launchers on infantry', 'most soldiers on foot killed with a hand-held launcher (SRAW, Eryx, RPG-7)'],
   ['road', 'Run over', 'most soldiers run over with a vehicle'], ['expl', 'Explosives', 'most kills with grenades, grenade launchers, C4, mines, claymores'],
   ['atLong', 'Longest launcher kill', 'with a hand-held launcher'], ['smallLong', 'Longest small-arms kill', 'rifles, machine guns, pistols, shotguns - not a sniper rifle or a launcher'],
   ['snipLong', 'Longest sniper kill', 'with a sniper rifle'], ['longest', 'Longest kill', 'with any weapon, vehicles too'],
+  // (v207) the weapons' groups of the Records (ingest.mjs summarize: recGroup) - off until turned on
+  ['handMost', 'Kills with hand-held weapons', 'most kills with rifles, machine guns, pistols, shotguns (no sniper rifles)'], ['atMost', 'Kills with hand-held anti-tank', 'most kills with SRAW, Eryx, RPG-7'],
+  ['standMost', 'Kills with TOW / HJ-8', 'most kills with the anti-tank launchers on a stand'], ['standLong', 'Longest TOW / HJ-8 kill', 'with an anti-tank launcher on a stand'],
+  ['tankMost', 'Kills with tank cannons', 'most kills with the tanks\' cannons'], ['tankLong', 'Longest tank cannon kill', "with a tank's cannon"],
+  ['vehMost', 'Kills with other vehicle weapons', 'most kills from vehicles (no tank cannons, no anti-air)'], ['vehLong', 'Longest vehicle kill', 'from a vehicle (no tank cannons, no anti-air)'],
+  ['aaGunMost', 'Kills with anti-air guns', 'most kills with Tunguska, Type 95 AA, M6 Linebacker guns, Phalanx'], ['aaGunLong', 'Longest anti-air gun kill', 'with an anti-air gun'],
+  ['aaRktMost', 'Kills with anti-air rockets', 'most kills with Igla / Stinger, M6 Stinger, SA-19, QW-2, Sea Sparrow'], ['aaRktLong', 'Longest anti-air rocket kill', 'with an anti-air rocket from the ground'],
+  ['a2aMost', 'Kills with air-to-air missiles', 'most kills with Sidewinder, Archer, the Eurofighter\'s'], ['a2aLong', 'Longest air-to-air kill', 'with an air-to-air missile'],
   ['streakFoot', 'Kill streak on foot', 'most kills on foot in a row without dying'], ['streakVeh', 'Kill streak in vehicles', 'most kills from vehicles in a row without dying'], ['kd', 'Best K/D', 'of those with 10 kills or more'],
   ['rev', 'Revives', 'most revives'], ['heal', 'Heals', 'most heals'], ['rep', 'Repairs', 'most repairs'],
   ['flags', 'Flags', 'most flags captured and neutralised'], ['first', 'First blood', 'the first kill of the round'], ['last', 'Last killed', 'the last soldier killed in the round']
 ];
-const linesOf = (o) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o?.[k] !== false]));   // (missing: on)
+// (missing: on - but the weapons' groups of v207: off, so a server's posts don't grow by themselves)
+const OFF_NEW = new Set(['handMost', 'atMost', 'standMost', 'standLong', 'tankMost', 'tankLong', 'vehMost', 'vehLong', 'aaGunMost', 'aaGunLong', 'aaRktMost', 'aaRktLong', 'a2aMost', 'a2aLong']);
+export const linesOf = (o) => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o && k in o ? o[k] !== false : !OFF_NEW.has(k)]));
 const readNotify = () => { try { return JSON.parse(fs.readFileSync(NOTIFY_FILE, 'utf8')) || {}; } catch (e) { return {}; } };
 const writeNotify = j => { const tmp = NOTIFY_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, NOTIFY_FILE); };
 export const NO_SERVER = '(no server name)';
@@ -136,7 +150,7 @@ const recent = d => { const m = /^(\d{4})-(\d\d)-(\d\d)\s+(\d\d):(\d\d)/.exec(d 
 // Telegram's HTML). The parts' order, names and width are the table's; which go to which app: lines (as before).
 export const POST_VARS = [['map', 'the map'], ['when', 'day and time it started (Tue 13 Oct 21:14)'], ['date', 'the day (2026-10-13)'], ['time', 'the time (21:14)'], ['result', 'who won and the tickets'],
   ['winner', 'the side that won'], ['loser', 'the side that lost'], ['tickets', 'tickets left (87 : 72)'], ['length', 'how long (45 min)'], ['players', 'how many players'], ['kills', 'how many kills'], ['server', "the server's name"], ['link', 'the link to the round']];
-export const FORMAT_DEFAULT = { style: 'classic', title: '{map} · {when}', intro: '{result} · {length} · {players} players · {kills} kills', footer: '', color: 'winner', image: 'big', cols: 3, order: POST_ITEMS.map(([k]) => k).filter(k => k !== 'server').concat('server'), labels: {}, wide: { best: true, server: true }, text: '' };
+export const FORMAT_DEFAULT = { style: 'classic', title: '{map} · {when}', intro: '{result} · {length} · {players} players · {kills} kills', footer: '', color: 'winner', image: 'big', cols: 3, order: POST_ITEMS.map(([k]) => k).filter(k => k !== 'server').concat('server'), labels: {}, wide: { best: true, board: true, records: true, server: true }, text: '' };
 const KEYS = POST_ITEMS.map(([k]) => k), LABEL = Object.fromEntries(POST_ITEMS.map(([k, n]) => [k, n]));
 const str = (v, d, n) => typeof v === 'string' ? v.replace(/\r/g, '').slice(0, n) : d;
 export function normFormat(f) {
@@ -157,9 +171,12 @@ function itemVals(entry, on) {
   const top = (s.P || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k).slice(0, 3);
   if (top.length) { const L = top.map((p, k) => `${k + 1}. ${p.name}${T[p.team] ? ` (${T[p.team]})` : ''} ${p.score ?? 0}`); V.best = { v: L.join(' · '), vm: L.join('\n') }; }
   const who = o => o.who.join(', ') + (o.more ? ` +${o.more}` : ''), wpn = w => w ? ` (${w})` : '', put = (k, f) => { if (H[k]) V[k] = { v: f(H[k]) }; };
-  for (const k of ['foot', 'veh', 'hs', 'knife', 'clay', 'mine', 'atInf', 'road', 'expl', 'streakFoot', 'streakVeh', 'rev', 'heal', 'rep']) put(k, o => `${who(o)} ${o.n}`);
+  for (const k of ['foot', 'veh', 'hs', 'knife', 'clay', 'mine', 'atInf', 'road', 'expl', 'streakFoot', 'streakVeh', 'rev', 'heal', 'rep', ...GROUP_MOST]) put(k, o => `${who(o)} ${o.n}`);
   const same = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
-  for (const k of ['atLong', 'smallLong', 'snipLong', 'longest']) if (!(k === 'longest' && ['atLong', 'smallLong', 'snipLong'].some(q => on[q] && same(H[q], H.longest)))) put(k, o => `${o.who} ${o.d} m${wpn(o.w)}`);
+  for (const k of [...LONG_KEYS, 'longest']) if (!(k === 'longest' && LONG_KEYS.some(q => on[q] && same(H[q], H.longest)))) put(k, o => `${o.who} ${o.d} m${wpn(o.w)}`);
+  // (v207) the scoreboard: each side's best five; the records the round broke
+  const B = boardOf(s); if (B.length) V.board = { v: B.map(x => `${x.side}: ${x.rows.join(' · ')}`).join(' | '), vm: B.map(x => `${x.side}\n${x.rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`).join('\n\n'), sides: B };
+  const NR = on.records ? newRecords(entry) : []; if (NR.length) { const L = NR.map(recText); V.records = { v: L.join(' · '), vm: L.join('\n') }; }
   put('kd', o => `${o.who} ${o.r} (${o.k}/${o.d})`);
   put('flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`);
   put('first', o => `${o.who} → ${o.vic}${o.w ? ` (${o.w}, ${mmss(o.t)})` : ` (${mmss(o.t)})`}`);
@@ -167,6 +184,62 @@ function itemVals(entry, on) {
   if (s.server) V.server = { v: s.server };
   return V;
 }
+// (v207) the parts of the weapons' groups; the longest kills that make "any weapon" needless when the same
+const GROUP_MOST = ['handMost', 'atMost', 'standMost', 'tankMost', 'vehMost', 'aaGunMost', 'aaRktMost', 'a2aMost'];
+const LONG_KEYS = ['atLong', 'smallLong', 'snipLong', 'standLong', 'tankLong', 'vehLong', 'aaGunLong', 'aaRktLong', 'a2aLong'];
+// each side's best five by score (name score (K–D)), the winner first; [] with no players' lines
+function boardOf(s, n = 5) {
+  const T = s.teams || [], P = s.P || []; if (!P.length) return [];
+  const sides = [0, 1].filter(tm => P.some(p => p.team === tm)).sort((a, b) => (b === s.winner) - (a === s.winner));
+  return sides.map(tm => ({ tm, side: `${T[tm] || 'Team ' + (tm + 1)}${s.winner === tm ? ' (won)' : ''}`, rows: P.filter(p => p.team === tm).sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k).slice(0, n).map(p => `${p.name} ${p.score ?? 0} (${p.k}–${p.d})`) }));
+}
+// (v207) the records of the server the round broke: its soldiers' best in one round (the page's REC_KEYS / recVal - the
+// site's Records) against the server's rounds played before it - of all time, the last 30 days, the last 7 (the longest
+// time it beats; with fewer rounds before than REC_MIN, that time is not taken: the first rounds would break all)
+const REC_MIN = { ever: 20, month: 10, week: 5 }, REC_PER = [['ever', 'all-time record', Infinity], ['month', '30-day record', 30], ['week', '7-day record', 7]];
+let AGGF;
+function aggFns() {
+  if (AGGF !== undefined) return AGGF; AGGF = null;
+  try {
+    const L = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8').split('\n'), g = L.find(l => l.startsWith('const GAME = ')), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end'));
+    if (g && a >= 0 && b > a) AGGF = new Function(g + '\n' + L.slice(a, b).join('\n') + '\nreturn { REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null, recVal: typeof recVal === "function" ? recVal : null, nickOf };')();
+  } catch (e) { log("round posts: the page's records code did not load:", e.message); }
+  return AGGF;
+}
+let RL = null;
+function allRounds() {   // (the whole list, the players' lines too: data/.rounds-full.json - read again when it changes)
+  let mt = 0; try { mt = fs.statSync(path.join(DATA, '.rounds-full.json')).mtimeMs; } catch (e) {}
+  if (RL && RL.mt === mt) return RL.R;
+  let R = []; try { R = readRoundList(fs, path, DATA).rounds || []; } catch (e) {}
+  RL = { mt, R }; return R;
+}
+const playedAt = d => { const t = Date.parse(String(d || '').replace(' ', 'T') + 'Z'); return Number.isFinite(t) ? t : null; };
+export function newRecords(entry, max = 6) {
+  const A = aggFns(), s = entry.sum; if (!A || !A.REC_KEYS || !A.recVal || !s || !Array.isArray(s.P)) return [];
+  const t0 = playedAt(s.date); if (t0 === null) return [];
+  const before = allRounds().filter(r => r.name !== entry.name && r.sum && !r.sum.empty && Array.isArray(r.sum.P) && r.sum.server === s.server && playedAt(r.sum.date) !== null && playedAt(r.sum.date) < t0);
+  // (one pass over the earlier rounds: each period's count and best of every record)
+  const N = {}, BEST = {}; for (const [pk] of REC_PER) { N[pk] = 0; BEST[pk] = {}; }
+  for (const r of before) {
+    const ago = t0 - playedAt(r.sum.date), in_ = REC_PER.filter(([, , days]) => ago <= days * 86400e3).map(([pk]) => pk);
+    for (const pk of in_) N[pk]++;
+    for (const p of r.sum.P) if (!/^Player \d+$/.test(A.nickOf(p.name))) for (const [k] of A.REC_KEYS) { const [v] = A.recVal(p, k); if (v > 0) for (const pk of in_) if (!(BEST[pk][k] >= v)) BEST[pk][k] = v; }
+  }
+  const out = [];
+  for (const [k, name, unit] of A.REC_KEYS) {
+    let me = null; for (const p of s.P) { if (/^Player \d+$/.test(A.nickOf(p.name))) continue; const [v, w] = A.recVal(p, k); if (v > 0 && (!me || v > me.v)) me = { v, w: w || '', who: p.name }; }
+    if (!me) continue;
+    for (const [pk, label] of REC_PER) {
+      if (N[pk] < REC_MIN[pk]) continue;
+      const best = BEST[pk][k] || 0;
+      if (me.v > best) { out.push({ k, name, unit, ...me, per: pk, label, prev: best }); break; }
+    }
+  }
+  const rank = { ever: 0, month: 1, week: 2 };
+  return out.sort((a, b) => rank[a.per] - rank[b.per]).slice(0, max);
+}
+const recNum = (r, v) => r.unit === 'm' ? `${v} m` : r.k === 'kd' ? Number(v).toFixed(2) : String(v);
+const recText = r => `${r.name}: ${r.who} ${recNum(r, r.v)}${r.w ? ` (${r.w})` : ''} - ${r.label} (was ${recNum(r, r.prev)})`;
 const linkOf = entry => DOMAIN ? `https://${DOMAIN}/r/${encodeURIComponent(entry.name.replace(/\.bf2demo(\.gz)?$/i, ''))}` : '';
 function varsOf(entry, V) {
   const s = entry.sum, tk = s.tickets, T = s.teams || [], dm = /^(\d{4}-\d\d-\d\d)\s+(\d\d:\d\d)/.exec(s.date || '');
@@ -186,18 +259,21 @@ function postLines(entry, on = linesOf({})) {
   const top = (s.P || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k).slice(0, 3);
   const L = [[[`${mapName(s.map)} · ${when(s.date)}`, 'b']], [[[won, `${Math.round((s.duration || 0) / 60)} min`, `${s.players} players`, `${s.kills} kills`].filter(Boolean).join(' · '), '']]];
   if (on.best && top.length) L.push([['Best: ', 'b'], [top.map((p, k) => `${k + 1}. ${p.name}${T[p.team] ? ` (${T[p.team]})` : ''} ${p.score ?? 0}`).join(' · '), '']]);
+  if (on.board) for (const x of boardOf(s)) L.push([[x.side + ': ', 'b'], [x.rows.map((r, i) => `${i + 1}. ${r}`).join(' · '), '']]);   // (v207)
+  if (on.records) for (const r of newRecords(entry)) L.push([['New record: ', 'b'], [recText(r), '']]);
   // (v187) the highlights: a line for each group, its parts joined
   const who = o => o.who.join(', ') + (o.more ? ` +${o.more}` : ''), wpn = w => w ? ` (${w})` : '';
   // (a titled group: the title bold, its parts plain - "Most kills - on foot: A 14 · in vehicles: B 37"; untitled: each
   // part's name bold. The longest kill with any weapon only when it is not one of those shown already)
   const same = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
   const group = (title, parts) => {
-    const P = parts.filter(([k]) => on[k] && H[k] && !(k === 'longest' && ['atLong', 'smallLong', 'snipLong'].some(q => on[q] && same(H[q], H.longest)))).map(([k, label, f]) => [label, f(H[k])]); if (!P.length) return;
+    const P = parts.filter(([k]) => on[k] && H[k] && !(k === 'longest' && LONG_KEYS.some(q => on[q] && same(H[q], H.longest)))).map(([k, label, f]) => [label, f(H[k])]); if (!P.length) return;
     const seg = title ? [[title, 'b'], [' - ', '']] : []; P.forEach(([label, text], i) => { if (i) seg.push([' · ', '']); seg.push([label + ': ', title ? '' : 'b'], [text, '']); }); L.push(seg);
   };
   const cnt = o => `${who(o)} ${o.n}`, far = o => `${o.who} ${o.d} m${wpn(o.w)}`;
   group('Most kills', [['foot', 'on foot', cnt], ['veh', 'in vehicles', cnt], ['hs', 'headshots', cnt], ['knife', 'knife', cnt], ['clay', 'claymores', cnt], ['mine', 'mines', cnt], ['atInf', 'launchers on infantry', cnt], ['road', 'run over', cnt], ['expl', 'explosives', cnt]]);
-  group('Longest kill', [['atLong', 'launcher', far], ['smallLong', 'small arms', far], ['snipLong', 'sniper', far], ['longest', 'any', far]]);
+  group('Most kills with', [['handMost', 'hand-held weapons', cnt], ['atMost', 'hand-held anti-tank', cnt], ['standMost', 'TOW / HJ-8', cnt], ['tankMost', 'tank cannons', cnt], ['vehMost', 'vehicles', cnt], ['aaGunMost', 'anti-air guns', cnt], ['aaRktMost', 'anti-air rockets', cnt], ['a2aMost', 'air-to-air', cnt]]);   // (v207)
+  group('Longest kill', [['atLong', 'launcher', far], ['smallLong', 'small arms', far], ['snipLong', 'sniper', far], ['standLong', 'TOW / HJ-8', far], ['tankLong', 'tank cannon', far], ['vehLong', 'vehicle', far], ['aaGunLong', 'anti-air gun', far], ['aaRktLong', 'anti-air rocket', far], ['a2aLong', 'air-to-air', far], ['longest', 'any', far]]);
   group('Kill streak', [['streakFoot', 'on foot', cnt], ['streakVeh', 'in vehicles', cnt]]);   // (v190: apart)
   group('', [['kd', 'Best K/D', o => `${o.who} ${o.r} (${o.k}/${o.d})`]]);
   group('Most', [['rev', 'revives', cnt], ['heal', 'heals', cnt], ['rep', 'repairs', cnt], ['flags', 'flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`]]);
@@ -253,6 +329,7 @@ function textPost(entry, F, on, app) {
     const flush = () => { if (run.length) { L.push(run.join(' · ')); run = []; } };
     for (const k of F.order) {
       if (!on[k] || !V[k]) continue;
+      if (k === 'board' || k === 'records') { flush(); L.push(`${b(labelOf(F, k) + ':')}\n${V[k].vm.split('\n').filter(Boolean).map(e).join('\n')}`); continue; }   // (v207: a line each)
       const seg = `${b(labelOf(F, k) + ':')} ${e(V[k].v)}`;
       if (F.wide[k]) { flush(); L.push(seg); } else { run.push(seg); if (run.length >= F.cols) flush(); }
     }
@@ -285,6 +362,12 @@ function cardPost(entry, F, on) {
   for (const k of F.order) {
     if (!on[k] || !V[k]) continue;
     const wide = !!F.wide[k];
+    if (k === 'board' && V.board.sides) {   // (v207: each side a column, a row of its own)
+      const blank = { name: '\u200b', value: '\u200b', inline: true, blank: true };
+      if (run) { while (run < 3) { fields.push({ ...blank }); run++; } }
+      for (const x of V.board.sides) fields.push({ name: cut(x.side, 256), value: cut(escDc(x.rows.map((r, i) => `${i + 1}. ${r}`).join('\n')), 1024), inline: true });
+      fields.push({ ...blank }); run = 0; continue;
+    }
     if (!wide && F.cols === 2 && run === 2) { fields.push({ name: '\u200b', value: '\u200b', inline: true, blank: true }); run = 0; }   // (2 in a row: an empty third)
     fields.push({ name: cut(labelOf(F, k), 256), value: cut(escDc(V[k].vm || V[k].v), 1024), inline: !wide }); run = wide ? 0 : run + 1;
   }
