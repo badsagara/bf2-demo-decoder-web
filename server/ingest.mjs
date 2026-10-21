@@ -143,8 +143,9 @@ function bfrBuild(obj) {
 // (2: the kills' hit part [12] and the weapon guessed where the game names none [7] - the player page's headshots
 // against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs; 4, v188:
 // and the mines' kills, as the site's Round stats has them; 5, v190: the kill streaks on foot and in vehicles apart; 6,
-// v192: each soldier's own of them, P[].x, for the records over many rounds)
-const SUM_V = 6;
+// v192: each soldier's own of them, P[].x, for the records over many rounds; 7, v201: the kills' distances - a throw only
+// for a kill by what it is, todo 245)
+const SUM_V = 7;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -170,11 +171,16 @@ function summarize(tl, hdr, dec) {
   const ev = tl.events.slice().sort((a, b) => a.t - b.t), kills = ev.filter(e => e.type === 'kill');
   // kill distances as the page works them out (normalize): killer to victim in the frame of the kill, from where a grenade
   // or rocket was thrown, none for placed charges and kills without a weapon
-  const PLACED = new Set([5367, 5460, 5359]), thrown = ev.filter(e => e.type === 'throw' && e.path?.length);
+  // (v201) a throw only for a kill by what it is (THROW_FOR, as the page's), of several the one that came down nearest the
+  // victim, from where it started only when the killer was there then (30 m; a shell: from its gun) - SUM_V 7
+  const THROW_FOR = { Grenade: /grenade|^GP-\d|^M203$/i, SRAW: /SRAW|RPG/i, Eryx: /Eryx/i, TOW: /TOW|HJ-8|missile/i, 'TV missile': /missile|Hellfire|Maverick|HJ-8/i, 'D-30 shell': /artillery/i, 'M777 shell': /artillery/i };
+  const PLACED = new Set([5367, 5460, 5359]), thrown = ev.filter(e => e.type === 'throw' && e.path?.length && THROW_FOR[e.kind]);
   for (const e of kills) {
     if (e.dist !== undefined || e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
-    const a = k * n + ki, b = k * n + vi, th = thrown.find(w => w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6);
+    const a = k * n + ki, b = k * n + vi, endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - C.X[b], q[2] - C.Y[b]); };
+    let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && THROW_FOR[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
+    if (th && !/shell/i.test(th.kind)) { const k0 = frameAt(th.path[0][0]), a0 = k0 * n + ki; if (k0 < 0 || !(Math.hypot(th.path[0][1] - C.X[a0], th.path[0][2] - C.Y[a0]) <= 30)) th = null; }
     e.dist = Math.round(th ? Math.hypot(th.path[0][1] - C.X[b], th.path[0][2] - C.Y[b]) : Math.hypot(C.X[a] - C.X[b], C.Y[a] - C.Y[b], C.HH[a] - C.HH[b]));
   }
   for (const e of ev) if (e.type === 'death' && e._x === undefined) e._x = kills.some(k => k.victim === e.player && k.t <= e.t + 0.5 && e.t - k.t < 60 && !ev.some(s => s.type === 'spawn' && s.player === e.player && s.t > k.t && s.t <= e.t - 1));
@@ -420,6 +426,33 @@ function writeIndexLight(d, dec) {
 // (v166) the whole list for this script, the short one for the site: each round without its players' lines (P) and kills
 // (v176: and compact - an array a round, roundsidx.mjs: ~3 times smaller)
 const slimSum = x => { if (!x) return x; const { P, pts, hl, ...rest } = x; return rest; };   // (v187: and the posts' highlights)
+// (v202, Sagara: "a Download demo button on each round; with no demo on my server, a link to where it was downloaded
+// from") a round whose demo is gone keeps where it came from: src - the link its page lists now (data/.source-list.json,
+// fetch.mjs; srcOk 1) or the one it was downloaded from (data/.fetched.json: maybe gone there too); a round uploaded by a
+// game server has none. The site's round line and its /rounds/<round>.html page show the button.
+let srcCache = null;
+function demoSources() {
+  const mt = f => { try { return fs.statSync(path.join(DATA, f)).mtimeMs; } catch (e) { return 0; } }, key = mt('.source-list.json') + '|' + mt('.fetched.json');
+  if (srcCache && srcCache.key === key) return srcCache;
+  const live = sourceList(DATA), got = new Map(); let F = {}; try { F = JSON.parse(fs.readFileSync(path.join(DATA, '.fetched.json'), 'utf8')) || {}; } catch (e) {}
+  const last = u => { try { return decodeURIComponent(String(u).split('?')[0].split('/').pop() || ''); } catch (e) { return ''; } };
+  for (const [u, v] of Object.entries(F)) { if (!/^https?:\/\//i.test(u)) continue; const nm = v && v.of ? v.of : last(u); if (nm && (!got.has(nm) || !(v && v.skipped))) got.set(nm, u); }
+  srcCache = { key, live, got }; return srcCache;
+}
+function demoSrcMark(d) {
+  let S = null, ch = false;
+  for (const r of d.rounds) {
+    const was = (r.src || '') + '|' + (r.srcOk || 0);
+    if (r.demo) { delete r.src; delete r.srcOk; }
+    else {
+      S = S || demoSources();
+      const u = S.live.get(r.name), g = S.got.get(r.name), url = /^https?:\/\//i.test(u || '') ? u : g || null;
+      if (url) { r.src = url; if (url === u) r.srcOk = 1; else delete r.srcOk; } else { delete r.src; delete r.srcOk; }
+    }
+    if ((r.src || '') + '|' + (r.srcOk || 0) !== was) ch = true;
+  }
+  return ch;
+}
 function writeLists(d) {
   const put = (f, text) => { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); };
   put(FULL_INDEX, JSON.stringify(d));
@@ -518,6 +551,7 @@ main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}h1{font:700 28px/1.15
 .wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:6px 10px;border-bottom:1px solid #2b3830;text-align:left;white-space:nowrap}th{color:#8b9a89;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.06em}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}.t0{color:#ff6b4f}.t1{color:#5ea8ff}.mute{color:#8b9a89}.pic{float:right;width:min(220px,38vw);margin:0 0 12px 16px;border-radius:4px;border:1px solid #2b3830}
 .months{display:flex;flex-wrap:wrap;gap:6px 14px}h3{font-size:14px;margin:16px 0 6px;color:#8b9a89}table.rec tbody th{text-transform:none;letter-spacing:0;font-size:13px;color:#dde4d6;white-space:normal;min-width:170px;vertical-align:top}table.rec td{vertical-align:top;line-height:1.35}footer{max-width:1100px;margin:0 auto;padding:0 16px 30px;color:#8b9a89;font-size:13px}
+.dl{display:inline-block;margin:6px 8px 14px 0;padding:7px 12px;border:1px solid #2b3830;border-radius:4px;background:#151c17;font-weight:600}.dl:hover{text-decoration:none;border-color:#e2b547}.srvnav{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:0 0 14px}.srvnav a,.srvnav b{padding:5px 10px;border:1px solid #2b3830;border-radius:4px;background:#151c17;font-size:13px;white-space:nowrap}.srvnav b{border-color:#e2b547;color:#e2b547}.srvnav .mute{margin-left:4px;font-weight:400}.srvnav>span:first-child{color:#8b9a89;font-size:13px}
 .find{margin:0 0 12px}.find input{font:14px system-ui,sans-serif;color:#dde4d6;background:#151c17;border:1px solid #2b3830;border-radius:4px;padding:7px 10px;width:min(320px,100%)}.find input:focus{outline:2px solid #e2b547;outline-offset:1px}tr[hidden]{display:none}`;
 function wwwPage({ title, desc, canon, body, abs, script }) {
   return `<!doctype html>
@@ -541,12 +575,12 @@ const WWW_FIND = `(function(){var f=document.getElementById('find'),c=document.g
 function go(){var q=f.value.trim().toLowerCase(),n=0;R.forEach(function(r){var on=!q||r.getAttribute('data-f').indexOf(q)>=0;r.hidden=!on;if(on)n++;});c.textContent=q?n+' of '+R.length:'';no.hidden=!q||n>0;if(q&&!n)no.textContent='No player has \u201c'+f.value.trim()+'\u201d in his name.';try{history.replaceState(null,'',q?'#'+encodeURIComponent(f.value.trim()):location.pathname);}catch(e){}}
 f.oninput=go;f.onkeydown=function(e){if(e.key==='Enter'){var v=R.filter(function(r){return!r.hidden;});if(v.length===1)location.href=v[0].querySelector('a').href;}};
 if(location.hash.length>1){try{f.value=decodeURIComponent(location.hash.slice(1));}catch(e){}go();}})();`;
-const WWW_VER = 4;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights; 4, v193: Find a player)
+const WWW_VER = 6;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights; 4, v193: Find a player; 5, v201: records by server; 6, v202: a round's demo to download)
 function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
   // (and the day: the records page's week and month move on)
-  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV])])).digest('hex'), stampF = path.join(WWW, '.stamp');
+  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV, !!r.demo, r.src || ''])])).digest('hex'), stampF = path.join(WWW, '.stamp');
   try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
   const mapName = m => dec.GAME?.maps?.[m]?.name || m;
   const idOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
@@ -596,7 +630,7 @@ ${L.map(p => `<tr><td>${plink(p.name)}</td><td class="n">${p.score || 0}</td><td
     files.set(`rounds/${id}.html`, wwwPage({ abs, canon: `/rounds/${id}.html`, title: `${mapName(m)} · ${dayOf(s.date)}`, desc: `Battlefield 2 on ${mapName(m)}: ${roundDesc(s)}.`,
       body: `${hasPic(m) ? `<img class="pic" src="/assets/maps/${escH(m)}.webp" alt="Map of ${escH(mapName(m))}" width="220" height="220">` : ''}<h1>${escH(mapName(m))} · ${escH(dayOf(s.date))}</h1>
 <p class="sub">${escH(s.server)} · ${mmss(s.duration)} · ${s.players} players · ${s.kills} kills</p><p>${result(s)}</p>
-<a class="go" href="/#round=${encodeURIComponent(id)}">▶ Watch the round on the map</a> <a href="/maps/${escH(mf)}.html">More rounds on ${escH(mapName(m))}</a>
+<a class="go" href="/#round=${encodeURIComponent(id)}">▶ Watch the round on the map</a> ${r.demo ? `<a class="dl" href="/data/${escH(r.demo)}" download="${escH(r.name)}" rel="nofollow">⬇ Download the demo</a>` : r.src && /^https?:\/\//i.test(r.src) ? `<a class="dl" href="${escH(r.src)}" rel="nofollow noopener noreferrer" title="No longer on this server${r.srcOk ? ': its source still lists it' : ': where it was downloaded from (it may be gone there too)'}">⬇ The demo at its source ↗</a>` : '<span class="mute">(its demo is no longer on this server)</span>'} <a href="/maps/${escH(mf)}.html">More rounds on ${escH(mapName(m))}</a>
 ${side(0, sides[0])}${side(1, sides[1])}` }));
   }
   // players: everyone with his rounds
@@ -649,8 +683,8 @@ ${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n
   const rlink = r => `<a href="/rounds/${escH(idOf(r.name))}.html">${escH(shortDay(r.sum.date))}</a>${oneMap ? '' : ` <span class="mute">${escH(mapName(mapOf(r.sum)))}</span>`}`;
   const today = Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate());
   const PER = [['week', 'The last 7 days', 7], ['month', 'The last 30 days', 30], ['ever', 'All rounds', Infinity]];
-  const recSection = ([key, title, days]) => {
-    const L = R.filter(r => days === Infinity || when(r) > today - days * 86400e3); if (!L.length) return `<h2>${escH(title)}</h2><p class="mute">No rounds.</p>`;
+  const recSection = (RR, [key, title, days]) => {
+    const L = RR.filter(r => days === Infinity || when(r) > today - days * 86400e3); if (!L.length) return `<h2 id="${key}">${escH(title)}</h2><p class="mute">No rounds.</p>`;
     // (v192) with the page's records (aggRecs over REC_KEYS: the highlights too - streaks on foot and in vehicles, the
     // longest kill with a launcher / small arms / a sniper rifle, knife, claymores, mines, run over, flags...); an older
     // page: the first nine as before
@@ -673,9 +707,13 @@ ${rows}
 ${T.map(a => `<tr><td>${plink(a.name)}</td><td class="n">${a.score}</td><td class="n">${a.n}</td><td class="n">${a.wins}</td><td class="n">${a.k}</td><td class="n">${a.d}</td><td class="n">${kd(a.k, a.d)}</td><td class="n">${a.rev}</td></tr>`).join('\n')}
 </tbody></table></div>`;
   };
-  files.set('records/index.html', wwwPage({ abs, canon: '/records/', title: 'Battlefield 2 records', desc: `Records of ${R.length} Battlefield 2 rounds: most kills, longest kill, longest streak, best medic, this week, this month and ever.`,
-    body: `<h1>Records</h1><p class="sub">The best in one round, and who did most: <a href="#week">the last 7 days</a> · <a href="#month">the last 30 days</a> · <a href="#ever">all rounds</a>. Scores as the replay reckons them from the round's events.</p>
-${PER.map(recSection).join('\n')}` }));
+  // (v201, Sagara: "Records with a choice of the server it happened on") all servers, and a page for each: records/<server>.html
+  const SV = [...servers].filter(Boolean).map(sv => [sv, R.filter(r => r.sum.server === sv)]).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const recFile = sv => sv ? `records/${nickSlug(sv)}.html` : 'records/index.html', recHref = sv => sv ? `/records/${nickSlug(sv)}.html` : '/records/';
+  const srvNav = cur => manySrv ? `<nav class="srvnav" aria-label="Server"><span>Server</span>${[[null, 'All servers', R.length], ...SV.map(([sv, L]) => [sv, sv, L.length])].map(([sv, nm, n]) => sv === cur ? `<b aria-current="page">${escH(nm)}<span class="mute">${n}</span></b>` : `<a href="${recHref(sv)}">${escH(nm)}<span class="mute">${n}</span></a>`).join('')}</nav>` : '';
+  for (const [sv, RR] of [[null, R], ...(manySrv ? SV : [])]) files.set(recFile(sv), wwwPage({ abs, canon: recHref(sv), title: sv ? `Battlefield 2 records · ${sv}` : 'Battlefield 2 records', desc: `Records of ${RR.length} Battlefield 2 rounds${sv ? ` on ${sv}` : ''}: most kills, longest kill, longest streak, best medic, this week, this month and ever.`,
+    body: `<h1>Records${sv ? ` <span class="mute">· ${escH(sv)}</span>` : ''}</h1>${srvNav(sv)}<p class="sub">The best in one round, and who did most${sv ? ' on this server' : ''}: <a href="#week">the last 7 days</a> · <a href="#month">the last 30 days</a> · <a href="#ever">all rounds</a>. Scores as the replay reckons them from the round's events.</p>
+${PER.map(per => recSection(RR, per)).join('\n')}` }));
   // the feed: the newest 50 rounds
   const rfc = iso => { const t = Date.parse(iso || ''); return Number.isFinite(t) ? new Date(t).toUTCString() : new Date().toUTCString(); };
   const site = abs || '/';
@@ -692,7 +730,7 @@ ${abs ? `<atom:link href="${escH(abs)}rss.xml" rel="self" type="application/rss+
 </channel></rss>
 `);
   if (abs) {
-    const urls = ['', 'rounds/', 'players/', 'maps/', 'records/', ...[...months.keys()].map(m => `rounds/${m}.html`), ...R.map(r => `rounds/${idOf(r.name)}.html`), ...PL.map(a => `players/${nickSlug(a.nick)}.html`), ...ML.map(([m]) => `maps/${m}.html`)];
+    const urls = ['', 'rounds/', 'players/', 'maps/', 'records/', ...(manySrv ? SV.map(([sv]) => recHref(sv).slice(1)) : []), ...[...months.keys()].map(m => `rounds/${m}.html`), ...R.map(r => `rounds/${idOf(r.name)}.html`), ...PL.map(a => `players/${nickSlug(a.nick)}.html`), ...ML.map(([m]) => `maps/${m}.html`)];
     files.set('sitemap.xml', `<?xml version="1.0" encoding="utf-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(u => `<url><loc>${escH(abs + u)}</loc></url>`).join('\n')}\n</urlset>\n`);
     files.set('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${abs}sitemap.xml\n`);
   }
@@ -929,7 +967,7 @@ async function main() {
   { const old = idx.rounds.filter(r => (r.sumV || 1) < SUM_V && r.bfr && r.sum && !r.sum.empty);
     if (old.length && !siteChanged()) {
       const t0 = Date.now(); let k = 0, bad = 0;
-      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (summary version ${SUM_V}: ${SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
+      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (summary version ${SUM_V}: ${SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
       for (const r of old) {
         if (siteChanged()) { log(`the site was updated: ${old.length - k} rounds left to sum up again at the next run`); break; }
         try { const B = bfrRead(path.join(DATA, r.bfr)), sum = summarize(B.tl, B.info?.hdr || null, dec); aggMark(r.sum); r.sum = sum; heatPut(r.name, sum); aggMark(sum); }
@@ -1000,6 +1038,7 @@ async function main() {
     if (want.length || had?.want?.length) writeJsonF(RF, { at: new Date().toISOString(), hash: dec.hash, perRun: P.refetchPerRun, want });
     if (want.length && (!had || had.want?.length !== want.length)) log(`${want.length} round${want.length === 1 ? '' : 's'} to decode again whose demo is gone: downloaded again from their page (${P.refetchPerRun} a run)`);
   }
+  try { if (demoSrcMark(idx)) changed = true; } catch (e) { log('demo sources not marked:', e.message); }   // (v202)
   if (changed || idx.moved || !idx.heat || !fs.existsSync(INDEX) || !fs.existsSync(FULL_INDEX)) writeIndex(idx, dec);
   else { try { writeShares(idx, dec); } catch (e) { log('link previews not written:', e.message); } }   // (a new domain or preview pictures after a site update; only changed files are written)
   try { writeWww(idx, dec); } catch (e) { log('pages for search engines not written:', e.message); }
