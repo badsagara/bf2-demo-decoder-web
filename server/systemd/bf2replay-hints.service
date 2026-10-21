@@ -1,0 +1,20 @@
+[Unit]
+Description=BF2 Round Replay: the hints over every player's rounds (analyze.mjs --auto: a few rounds a time in the site's page, then data/stats/hints)
+After=network.target
+
+[Service]
+Type=oneshot
+User=bf2replay
+Group=bf2replay
+# (low priority: the site and the decoding of new demos go first; one round at a time)
+Nice=15
+IOSchedulingClass=idle
+CPUWeight=20
+MemoryMax=80%
+EnvironmentFile=-/etc/bf2replay.conf
+WorkingDirectory=/srv/bf2replay
+ExecStart=/usr/bin/node /srv/bf2replay/repo/server/analyze.mjs --auto
+TimeoutStartSec=2h
+# (stopped, it finishes the round it is on first)
+KillMode=mixed
+TimeoutStopSec=600

@@ -24,7 +24,7 @@ done
 if [ -x /usr/bin/systemctl ]; then SC=/usr/bin/systemctl; else SC=/bin/systemctl; fi
 SU=/etc/sudoers.d/bf2replay-admin
 want=$(printf '# BF2 Round Replay: the admin page (bf2replay-admin.service) may start these services and stop the decoding ones, nothing else (written by units.sh)\nbf2replay ALL=(root) NOPASSWD:'
-  sep=' '; for u in ingest reprocess rebuild fetch update backup; do printf '%s%s start --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; sep=', '; done
+  sep=' '; for u in ingest reprocess rebuild fetch update backup hints; do printf '%s%s start --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; sep=', '; done
   for u in ingest reprocess rebuild; do printf '%s%s stop --no-block bf2replay-%s.service' "$sep" "$SC" "$u"; done)
 if [ -d /etc/sudoers.d ] && command -v visudo >/dev/null 2>&1 && [ "$want" != "$(cat "$SU" 2>/dev/null)" ]; then
   tmp=$(mktemp); printf '%s\n' "$want" > "$tmp"
@@ -80,11 +80,11 @@ fi
 
 if [ "$reload" = 1 ]; then
   systemctl daemon-reload
-  systemctl enable --quiet bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-admin.service
+  systemctl enable --quiet bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer bf2replay-admin.service
   # (a timer restarted after a change runs on its new schedule; units.sh is called from bf2replay-update.service, so
   # that one is never restarted from here: its new timer is picked up by the daemon-reload)
   for t in $(printf '%s\n' "${timers[@]}" | sort -u); do [ "$t" = bf2replay-update.timer ] || systemctl restart "$t"; done
-  systemctl start bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer
+  systemctl start bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer
   # (the admin page: started, or restarted when its unit changed; a new admin.mjs restarts itself)
   if [ "$admin" = 1 ]; then systemctl restart bf2replay-admin.service; else systemctl start bf2replay-admin.service; fi
 fi

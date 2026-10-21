@@ -18,8 +18,16 @@
 //     --fresh                       do again the rounds already done
 //     --pack                        only make the archive of what is done
 //     --no-pack                     no archive at the end
+//     --auto                        (v185, bf2replay-hints.timer) the background run: a few rounds a time (--limit 40,
+//                                   1 at once) - those not done yet, then those done by older hint rules (the page's
+//                                   HINTS_V), the newest first; no archive; then the hints over every player's rounds
+//     --hints                       only the hints over every player's rounds: data/stats/hints.json (each hint's share
+//                                   of soldier-rounds) and data/stats/hints/<nick>.json (the player page's card)
+//     --glitch [N]                  only the glitch spots (glitch.mjs; no browser): N new rounds (default every one) into
+//                                   the maps' grids of places stood (analysis/glitch), then data/stats/glitch/<map>.json;
+//                                   --auto does 150 a run first (--glitch-rounds N)
 //
-// It needs Playwright and its Chromium once: sudo bash server/analyze-setup.sh (in $BF2R_ROOT/analyze). The site's files
+// It needs Playwright and its Chromium once: sudo bash server/analyze.sh start (installs it in $BF2R_ROOT/analyze). The site's files
 // ($BF2R_ROOT/site) and rounds ($BF2R_ROOT/data) are served to the browser by this script itself on 127.0.0.1 (no web
 // server or domain needed). It runs at a low priority (nice 15), so the site and the decoding of new demos go first.
 // Settings as ingest.mjs: /etc/bf2replay.conf or the environment (BF2R_ROOT); BF2R_CHROMIUM = a browser to use instead.
@@ -31,6 +39,7 @@ import os from 'node:os';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { readRoundList } from './roundsidx.mjs';
+import { aggGlitch } from './glitch.mjs';
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -68,6 +77,99 @@ function pack() {
 }
 if (has('--pack')) { pack(); process.exit(0); }
 
+// ---------- (v185, todo 226) the hints over every player's rounds ----------
+// From the rounds done with the page's hint rules (HINTS_V): for each soldier on the field 60 s or more, which hints
+// named him; everyone's share of soldier-rounds with each (data/stats/hints.json) and each player's rounds with each,
+// with up to 5 of the newest such rounds (data/stats/hints/<nick slug>.json, nicks as the stats' own: the page's
+// nickOf / nickSlug). A summary of each round file is kept in analysis/.hints-cache.json (by its time), so a run reads
+// only the new ones.
+const AUTO = has('--auto');
+const pageText = () => fs.readFileSync(path.join(SITE, 'index.html'), 'utf8');
+const pageHv = () => +((/const HINTS_V = (\d+)/.exec(pageText()) || [])[1] || 0);
+function aggFns() {
+  const L = pageText().split('\n'), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end')), g = L.find(l => l.startsWith('const GAME = '));
+  if (!g || a < 0 || b < a) return null;
+  return new Function(g + '\n' + L.slice(a, b).join('\n') + '\nreturn { nickOf, nickSlug };')();
+}
+const HVI = path.join(OUT, '.hv.json');   // file -> the hint rules it was done with
+let hvIdx = null;
+const hvLoad = () => { if (!hvIdx) { try { hvIdx = JSON.parse(fs.readFileSync(HVI, 'utf8')); } catch (e) { hvIdx = {}; } } return hvIdx; };
+const hvSave = () => { if (hvIdx) { try { fs.writeFileSync(HVI + '.tmp', JSON.stringify(hvIdx)); fs.renameSync(HVI + '.tmp', HVI); } catch (e) {} } };
+const hvOf = f => { const I = hvLoad(); if (I[f] !== undefined) return I[f]; let v = 0; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).hv || 0; } catch (e) {} return (I[f] = v); };
+function aggHints() {
+  const F = aggFns(), HV = pageHv(); if (!F || !HV) { log('hints: the page has no hint rules version (HINTS_V)'); return; }
+  if (!fs.existsSync(RDIR)) return;
+  let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
+  const skip = new Set(Object.keys(copies).map(n => path.basename(fileOf(n))));
+  // only the rounds the site still lists (one taken off it - fewer players than BF2R_MIN_PLAYERS, removed - counts no more)
+  let listed = null; try { const L = readRoundList(fs, path, DATA).rounds; if (L && L.length) listed = new Set(L.map(r => path.basename(fileOf(r.name)))); } catch (e) {}
+  const CF = path.join(OUT, '.hints-cache.json'); let cache = {}; try { cache = JSON.parse(fs.readFileSync(CF, 'utf8')); } catch (e) {}
+  const out = {}; let read = 0;
+  for (const f of fs.readdirSync(RDIR)) {
+    if (!f.endsWith('.json.gz') || skip.has(f) || (listed && !listed.has(f))) continue;
+    let st; try { st = fs.statSync(path.join(RDIR, f)); } catch (e) { continue; }
+    let c = cache[f];
+    if (!c || c.mt !== st.mtimeMs) {
+      try {
+        const d = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))); read++;
+        const pc = Object.fromEntries((d.cols?.P || []).map((n, i) => [n, i])), byI = new Map(), pl = [];
+        for (const r of d.P || []) { if ((r[pc.aliveS] || 0) < 60) continue; byI.set(r[pc.i], pl.length); pl.push(String(r[pc.name] || '').trim()); }
+        const hc = new Map(); for (const h of d.H || []) { const j = byI.get(h.actor); if (j === undefined) continue; const k = j + '|' + h.kind; hc.set(k, (hc.get(k) || 0) + 1); }
+        c = cache[f] = { mt: st.mtimeMs, hv: d.hv || 0, name: d.round?.name || d.name, date: d.meta?.date || '', pl, h: [...hc].map(([k, n]) => { const [j, kind] = k.split('|'); return [+j, kind, n]; }) };
+        hvLoad()[f] = d.hv || 0;
+      } catch (e) { continue; }
+    }
+    out[f] = c;
+  }
+  for (const f of Object.keys(cache)) if (!out[f]) delete cache[f];
+  try { fs.writeFileSync(CF + '.tmp', JSON.stringify(cache)); fs.renameSync(CF + '.tmp', CF); } catch (e) {}
+  hvSave();
+  // count
+  const kinds = {}, P = new Map(); let rounds = 0, sr = 0;
+  const R = Object.values(out).filter(c => c.hv === HV).sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  for (const c of R) {
+    rounds++; sr += c.pl.length;
+    const seen = new Map(); for (const [j, kind, n] of c.h) { const k = j + '|' + kind; seen.set(k, n); }
+    c.pl.forEach((name, j) => {
+      const nick = F.nickOf(name); if (/^Player \d+$/.test(nick)) return;
+      let o = P.get(nick); if (!o) P.set(nick, o = { name, rounds: 0, k: {}, ex: {} }); o.rounds++;
+    });
+    const done = new Set();
+    for (const [j, kind, n] of c.h) {
+      const nick = F.nickOf(c.pl[j]); const o = P.get(nick); if (!o) continue;
+      const kk = nick + '|' + kind; if (done.has(kk)) continue; done.add(kk);
+      if (!kinds[kind]) kinds[kind] = [0, 0]; kinds[kind][0]++;
+      const a = o.k[kind] || (o.k[kind] = [0, 0]); a[0]++; a[1] += n;
+      const L = o.ex[kind] || (o.ex[kind] = []); if (L.length < 5) L.push([c.name, n]);
+    }
+  }
+  for (const k of Object.keys(kinds)) kinds[k][1] = sr;
+  const SD = path.join(DATA, 'stats'), HD = path.join(SD, 'hints'); fs.mkdirSync(HD, { recursive: true });
+  const put = (f, v) => { const t = JSON.stringify(v); let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {} if (old !== t) { fs.writeFileSync(f + '.tmp', t); fs.renameSync(f + '.tmp', f); return 1; } return 0; };
+  let wrote = 0; const keep = new Set();
+  for (const [nick, o] of P) { if (!Object.keys(o.k).length) continue; const fn = F.nickSlug(nick) + '.json'; keep.add(fn); wrote += put(path.join(HD, fn), { hv: HV, nick, name: o.name, rounds: o.rounds, k: o.k, ex: o.ex }); }
+  for (const f of fs.readdirSync(HD)) if (f.endsWith('.json') && !keep.has(f)) { try { fs.unlinkSync(path.join(HD, f)); } catch (e) {} }
+  put(path.join(SD, 'hints.json'), { hv: HV, at: new Date().toISOString(), rounds, soldierRounds: sr, players: P.size, kinds });
+  log(`hints over every player's rounds: ${rounds} rounds (hint rules ${HV}), ${P.size} players, ${keep.size} with hints (${wrote} files written)${read ? `, ${read} round files read` : ''}`);
+}
+if (has('--hints')) { aggHints(); process.exit(0); }
+// (v185, todo 185) glitch spots (glitch.mjs): the decoded rounds into each map's grid of places stood, then the hints
+function glitchStep(budget) {
+  const F = aggFns(); if (!F) { log('glitch spots: the page has no nickOf'); return; }
+  let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
+  const rounds = (readRoundList(fs, path, DATA).rounds || []).filter(r => r.bfr && r.sum && !r.sum.empty && !copies[r.name]);
+  return aggGlitch({ DATA, OUT, rounds, nickOf: F.nickOf, budget, log });
+}
+if (has('--glitch')) { glitchStep(+val('--glitch', 0) || 1e9); process.exit(0); }
+// (v185) a background run while analyze.sh's own run is going: left for the next time
+if (AUTO) {
+  if (opt('BF2R_HINTS', '1') === '0') { console.log('BF2R_HINTS=0 (/etc/bf2replay.conf): the background analysis is off'); process.exit(0); }
+  try { const ri = JSON.parse(fs.readFileSync(path.join(OUT, 'run.json'), 'utf8')); if (!ri.ended && ri.pid) { process.kill(ri.pid, 0); console.log('a run of analyze.sh is going (pid ' + ri.pid + '): the background analysis waits'); process.exit(0); } } catch (e) { /* none, or it has ended */ }
+  // (the glitch grids need no browser: done first, up to 150 new rounds a run - ~0.5 s each)
+  try { os.setPriority(15); } catch (e) {}
+  try { glitchStep(+val('--glitch-rounds', 0) || 150); } catch (e) { log('glitch spots not done:', e.message); }
+}
+
 // ---------- Playwright ----------
 const PW_DIR = path.join(ROOT, 'analyze');
 if (!process.env.PLAYWRIGHT_BROWSERS_PATH && fs.existsSync(path.join(PW_DIR, 'browsers'))) process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(PW_DIR, 'browsers');
@@ -75,7 +177,10 @@ let chromium = null;
 for (const base of [PW_DIR, path.dirname(new URL(import.meta.url).pathname), process.cwd()]) {
   try { chromium = createRequire(path.join(base, 'x.js'))('playwright').chromium; break; } catch (e) { /* next */ }
 }
-if (!chromium) { console.error('Playwright is not installed: run  sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze-setup.sh')); process.exit(2); }
+if (!chromium) {
+  if (AUTO) { console.log('the background analysis needs Playwright: sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze.sh') + ' start (installs it, once)'); process.exit(0); }
+  console.error('Playwright is not installed: run  sudo bash ' + path.join(path.dirname(new URL(import.meta.url).pathname), 'analyze.sh') + ' start (installs it, once)'); process.exit(2);
+}
 
 // ---------- what to do ----------
 const idx = readRoundList(fs, path, DATA);
@@ -86,13 +191,22 @@ let todo = (idx.rounds || []).filter(r => !r.empty && r.bfr && (!MAPS || MAPS.ha
 todo.sort((a, b) => String(b.sum?.date || '').localeCompare(String(a.sum?.date || '')));   // (the newest first)
 fs.mkdirSync(RDIR, { recursive: true });
 const pageVer = (/const APP_VERSION = '(v\d+)'/.exec(fs.readFileSync(path.join(SITE, 'index.html'), 'utf8')) || [])[1] || '?';
-if (!FRESH) todo = todo.filter(r => { try { return !fs.statSync(fileOf(r.name)).size; } catch (e) { return true; } });
-todo = todo.slice(0, LIMIT);
+if (AUTO) {   // (v185) not done yet first, then done by older hint rules; the copies of other rounds never, nor a round
+  // that failed with this page (it would be tried every 15 minutes: again after the next update of the site)
+  let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
+  let fl = {}; try { fl = JSON.parse(fs.readFileSync(path.join(OUT, 'failed.json'), 'utf8')); } catch (e) {}
+  const HV = pageHv(), none = [], old = [];
+  for (const r of todo) { if (copies[r.name] || fl[r.name]?.page === pageVer) continue; const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (hvOf(f) < HV) old.push(r); }
+  hvSave(); todo = none.concat(old);
+  if (!todo.length) { aggHints(); process.exit(0); }
+} else if (!FRESH) todo = todo.filter(r => { try { return !fs.statSync(fileOf(r.name)).size; } catch (e) { return true; } });
+todo = todo.slice(0, AUTO ? (+val('--limit', 0) || 40) : LIMIT);
 const failedPath = path.join(OUT, 'failed.json'); let failed = {}; try { failed = JSON.parse(fs.readFileSync(failedPath, 'utf8')); } catch (e) { /* none yet */ }
-const memJobs = Math.max(1, Math.floor(os.totalmem() / (1.5 * 2 ** 30))), JOBS = Math.max(1, Math.min(16, +val('--jobs', 0) || Math.min(3, Math.max(1, os.cpus().length - 1), memJobs)));
+const memJobs = Math.max(1, Math.floor(os.totalmem() / (1.5 * 2 ** 30))), JOBS = Math.max(1, Math.min(16, +val('--jobs', 0) || (AUTO ? 1 : Math.min(3, Math.max(1, os.cpus().length - 1), memJobs))));
 log(`${todo.length} rounds to analyse (page ${pageVer}, ${JOBS} at once; ${MIN_P}+ soldiers${MAPS ? ', maps ' + [...MAPS].join(',') : ''}${SINCE ? ', since ' + SINCE : ''}) -> ${RDIR}`);
 try { os.setPriority(15); } catch (e) { /* not allowed: as it is */ }
 if (!todo.length) { if (!has('--no-pack')) pack(); process.exit(0); }
+const RUNF = path.join(OUT, AUTO ? 'auto.json' : 'run.json');   // (v185: the background run its own, so a manual run is told apart)
 
 // ---------- the site's files, served to the browser here ----------
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.json': 'application/json', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.css': 'text/css', '.woff2': 'font/woff2' };
@@ -131,7 +245,7 @@ async function newPage(first) {
 const withTimeout = (p, ms, what) => { let tm; return Promise.race([p, new Promise((_, rej) => { tm = setTimeout(() => rej(new Error(what + ': over ' + Math.round(ms / 1000) + ' s')), ms); })]).finally(() => clearTimeout(tm)); };
 let done = 0, kills = 0, hints = 0; const started = Date.now(), total = todo.length;
 const runInfo = { started: new Date().toISOString(), pid: process.pid, page: pageVer, jobs: JOBS, rounds: total, host: os.hostname(), mem: os.totalmem(), cpus: os.cpus().length };
-fs.writeFileSync(path.join(OUT, 'run.json'), JSON.stringify(runInfo, null, 1));
+fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1));
 let stopping = false; process.on('SIGTERM', () => { stopping = true; log('stopping after the rounds being done (SIGTERM)'); }); process.on('SIGINT', () => { stopping = true; log('stopping after the rounds being done'); });
 async function worker(w) {
   let page = null;
@@ -146,12 +260,13 @@ async function worker(w) {
       if (!d || d.error) throw new Error(d ? d.error : 'no numbers');
       d.round = { name: r.name, decoder: r.decoder || null, bytes: r.bytes || null, sum: r.sum ? { ...r.sum, P: undefined, top: undefined } : null }; d.pageErrors = page._errs; d.wallMs = Date.now() - t0;
       fs.writeFileSync(fileOf(r.name) + '.part', zlib.gzipSync(JSON.stringify(d), { level: 9 })); fs.renameSync(fileOf(r.name) + '.part', fileOf(r.name));
+      hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0;
       delete failed[r.name]; page._n++; done++; kills += d.K.length; hints += d.H.length;
       const el = (Date.now() - started) / 1000, left = el / done * todo.length;
       log(`[${done}/${total} ${Math.round(done / total * 100)}%, ~${left > 3600 ? Math.floor(left / 3600) + ' h ' : ''}${Math.round(left % 3600 / 60)} min left] ${r.name} ${(d.wallMs / 1000).toFixed(1)} s, ${d.K.length} kills, ${d.H.length} hints${d.errs.length ? ', ' + d.errs.length + ' errors' : ''}`);
     } catch (e) {
       if (stopping && !fs.existsSync(fileOf(r.name))) { log(`left for the next run: ${r.name}`); break; }
-      failed[r.name] = { at: new Date().toISOString(), error: String(e.message || e).slice(0, 500) };
+      failed[r.name] = { at: new Date().toISOString(), page: pageVer, error: String(e.message || e).slice(0, 500) };
       log(`failed ${r.name}: ${failed[r.name].error}`);
       if (page) { await page.context().close().catch(() => {}); page = null; }
     }
@@ -162,8 +277,9 @@ async function worker(w) {
 await Promise.all(Array.from({ length: JOBS }, (_, w) => worker(w)));
 await browser.close().catch(() => {}); server.closeAllConnections?.(); server.close();
 runInfo.ended = new Date().toISOString(); runInfo.done = done; runInfo.failed = Object.keys(failed).length; runInfo.kills = kills; runInfo.hints = hints;
-fs.writeFileSync(path.join(OUT, 'run.json'), JSON.stringify(runInfo, null, 1));
+fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); hvSave();
 log(`done: ${done} rounds (${kills} kills, ${hints} hints), ${Object.keys(failed).length} failed, ${Math.round((Date.now() - started) / 60000)} min`);
+if (AUTO) { try { aggHints(); } catch (e) { log('hints not written:', e.message); } process.exit(0); }
 // (v182) the archive also when stopped (analyze.sh stop): what is done so far, ready to send; started again, the run goes on
 if (!has('--no-pack')) { if (stopping) log('stopped: the archive of the rounds done so far'); try { pack(); } catch (e) { log('archive not made:', e.message); } }
 process.exit(0);   // (nothing left to wait for)

@@ -1,0 +1,9 @@
+[Unit]
+Description=BF2 Round Replay: the hints over every player's rounds (5 minutes after each run ends)
+
+[Timer]
+OnBootSec=10min
+OnUnitInactiveSec=5min
+
+[Install]
+WantedBy=timers.target

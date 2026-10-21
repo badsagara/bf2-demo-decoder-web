@@ -9,6 +9,14 @@
 #                                                             copy it to the Mac
 #   sudo bash .../analyze.sh stop                             stops after the rounds being done
 #   sudo bash .../analyze.sh pack                             the archive of what is done so far
+#   sudo bash .../analyze.sh hints                            (v185) the hints over every player's rounds written now
+#   sudo bash .../analyze.sh glitch                           (v185) every decoded round into the maps' grids of places
+#                                                             stood, at once (~0.5 s a round; no browser), then the
+#                                                             glitch spots (data/stats/glitch)
+# (v185) Without any of this, bf2replay-hints.timer runs analyze.mjs --auto in the background, 5 minutes after each run
+# ends: 150 decoded rounds into the glitch grids, then 40 rounds in the page (once Playwright is installed by "start":
+# the new rounds, then those done by older hint rules), then the player pages' hints card (data/stats/hints). It waits
+# while a run of this script is going.
 # Anything after "start" goes to analyze.mjs: --jobs 2, --limit 500, --maps strike_at_karkand, --min-players 6,
 # --since 2026-10-01, --fresh (see the top of analyze.mjs).
 set -euo pipefail
@@ -31,6 +39,8 @@ case "${1:-start}" in
   start)
     shift || true; setup; install -d -o bf2replay -g bf2replay "$OUT"
     if systemctl is-active --quiet "$UNIT"; then echo "Already running. How far: sudo bash $0 status"; exit 0; fi
+    # (the background one, if it is on a round: it finishes it and stops - the timer starts it again after this run)
+    systemctl stop bf2replay-hints.service 2>/dev/null || true
     systemctl reset-failed "$UNIT" 2>/dev/null || true
     systemd-run --quiet --unit="$UNIT" --description="BF2 Round Replay: analysis of many rounds" --uid=bf2replay --gid=bf2replay \
       --nice=15 -p IOSchedulingClass=idle -p CPUWeight=20 -p MemoryMax=80% -p KillMode=mixed -p TimeoutStopSec=600 \
@@ -40,6 +50,8 @@ case "${1:-start}" in
   status)
     if systemctl is-active --quiet "$UNIT"; then echo "Running - $(count) rounds done so far:"; else echo "Not running - $(count) rounds done:"; fi
     journalctl -u "$UNIT" -n 12 -o cat --no-pager 2>/dev/null || true
+    echo; echo "In the background (bf2replay-hints.timer, a few rounds every 15 minutes):"
+    journalctl -u bf2replay-hints.service -n 3 -o cat --no-pager 2>/dev/null || true
     t=$(ls -t "$OUT"/bf2-analysis-*.tar 2>/dev/null | head -1 || true)
     if [ -n "$t" ] && ! systemctl is-active --quiet "$UNIT"; then
       echo; echo "Archive: $t ($(du -h "$t" | cut -f1)). To the Mac (in Terminal there):"
@@ -47,5 +59,7 @@ case "${1:-start}" in
     fi ;;
   stop) systemctl stop "$UNIT" && echo "Stopped (the rounds being done were finished first). Again from there: sudo bash $0 start" ;;
   pack) install -d -o bf2replay -g bf2replay "$OUT"; sudo -u bf2replay env BF2R_ROOT="$ROOT" "$NODE" "$ROOT/repo/server/analyze.mjs" --pack ;;
-  *) sed -n '2,15p' "$0"; exit 1 ;;
+  hints) sudo -u bf2replay env BF2R_ROOT="$ROOT" "$NODE" "$ROOT/repo/server/analyze.mjs" --hints ;;
+  glitch) install -d -o bf2replay -g bf2replay "$OUT"; sudo -u bf2replay env BF2R_ROOT="$ROOT" nice -n 15 "$NODE" "$ROOT/repo/server/analyze.mjs" --glitch ;;
+  *) sed -n '2,22p' "$0"; exit 1 ;;
 esac

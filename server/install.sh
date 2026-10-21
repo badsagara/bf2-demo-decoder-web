@@ -200,7 +200,7 @@ say "Timers"
 # (units.sh puts the units, update.sh and the download time in place; update.sh runs it again every minute)
 bash "$HERE/units.sh"
 systemctl daemon-reload
-systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer
+systemctl enable --now bf2replay-ingest.path bf2replay-ingest.timer bf2replay-update.timer bf2replay-fetch.timer bf2replay-backup.timer bf2replay-hints.timer
 # (both in the background: with many demos waiting, decoding them takes hours, and install.sh must not wait for it)
 systemctl start --no-block bf2replay-ingest.service || true
 systemctl start --no-block bf2replay-fetch.service || true

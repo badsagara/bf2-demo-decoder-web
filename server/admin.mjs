@@ -38,7 +38,7 @@ const PORT = +opt('BF2R_ADMIN_PORT', '8781'), HOST = '127.0.0.1';
 const SYSTEMCTL = opt('BF2R_ADMIN_SYSTEMCTL', fs.existsSync('/usr/bin/systemctl') ? '/usr/bin/systemctl' : '/bin/systemctl');
 const SUDO = opt('BF2R_ADMIN_SUDO', '/usr/bin/sudo'), JOURNALCTL = opt('BF2R_ADMIN_JOURNALCTL', 'journalctl');
 const NODE = process.execPath;
-const UNITS = ['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup'];   // (the ones the page may start)
+const UNITS = ['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'hints'];   // (the ones the page may start)
 const STOPPABLE = ['ingest', 'reprocess', 'rebuild'];   // (v163: and stop - the decoding ones; units.sh allows it)
 const SESSION_H = 12, IDLE_H = 2;   // a login lasts 12 h, or 2 h without a look at the page
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
@@ -127,7 +127,7 @@ function index() {
 }
 // the services: systemctl show (works without root)
 async function units() {
-  const names = UNITS.map(u => `bf2replay-${u}.service`).concat(['bf2replay-fetch.timer', 'bf2replay-backup.timer', 'bf2replay-update.timer', 'bf2replay-ingest.path']);
+  const names = UNITS.map(u => `bf2replay-${u}.service`).concat(['bf2replay-fetch.timer', 'bf2replay-backup.timer', 'bf2replay-hints.timer', 'bf2replay-update.timer', 'bf2replay-ingest.path']);
   const r = await run(SYSTEMCTL, ['show', '--no-pager', '-p', 'Id,ActiveState,SubState,Result,ExecMainStartTimestamp,ExecMainExitTimestamp,NextElapseUSecRealtime,LastTriggerUSec,LoadState', ...names]);
   const out = {};
   for (const block of r.out.split(/\n\s*\n/)) {

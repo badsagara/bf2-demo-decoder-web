@@ -610,7 +610,8 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .kpi .kl { display: block; font: 500 11px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .kpi .kv { display: block; font: 700 25px/1.15 var(--font-display); letter-spacing: .02em; margin: 4px 0 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi .ks { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpi.kodd { border-color: var(--hp-low); } .kpi.kodd .ks { color: var(--hp-low); }   /* (v183: headshots far above what his weapons give) */
+.kpi.kodd { border-color: var(--hp-low); } .kpi.kodd .ks { color: var(--hp-low); }
+.hlist li.hodd b { color: var(--hp-low); } .hlist .nmc { white-space: normal; }   /* (v185: a hint over his rounds far above everyone's) */   /* (v183: headshots far above what his weapons give) */
 .kpi[data-wrap] .ks { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }   /* (v154: who and by whom, on two lines) */
 .card h2 .w { font: 400 11px var(--font-data); letter-spacing: .06em; text-transform: none; margin-left: 6px; }
 /* one table of the soldiers: Main columns always, the other groups when picked */
@@ -923,7 +924,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line in his card</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -986,7 +987,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v184';
+const APP_VERSION = 'v185';
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1383,7 +1384,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, aimLn:false, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -4120,6 +4121,9 @@ function povTag() {
 }
 // (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Filters ▾ Sounds
 const SND_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor" stroke="none"/><path class="w1" d="M11 5.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w2" d="M12.8 3.5a6.3 6.3 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+// (v185, Sagara: "додати кнопку вмикання прицільної лінії при виборі гравця") the followed soldier's aim line on / off
+// (remembered; off as v152 left it): the card's Aim line button, X
+function aimLnSet(on) { opts.aimLn = !!on; try { localStorage.setItem('bf2rr.aimln', opts.aimLn ? '1' : '0'); } catch (e) {} if (sel !== null) toast(opts.aimLn ? 'Aim line on (X)' : 'Aim line off (X)'); refresh(true); }
 function sndSet(on) { opts.sound = !!on; try { localStorage.setItem('bf2rr.sound', opts.sound ? '1' : '0'); } catch (e) {} const tb = $('#tSound'); if (tb) { tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); } refresh(true); }
 function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); refresh(true); }
 // ---------- (v181) what he could hear (Sagara, todo 212: "Звуки в «His view» ... кнопку, щоб їх можна було вимикати ...
@@ -4744,6 +4748,18 @@ function draw() {
       // (on a soldier drawn out of a crowd: to where he is drawn)
       let [ax, ay] = toC(al.x, al.y); if (al.kind === 'soldier' && spread.get(al.j)) [ax, ay] = spread.get(al.j);
       let lab = null, lx = ax, ly = ay;
+      // (v185) the line itself, when it is on: from where he is (his shadow, as his field of view) to the mark - stopping at
+      // its ring; dashed into the sky / past the fog
+      if (opts.aimLn && al.from && Number.isFinite(al.from.x)) {
+        const [fx, fy] = toC(al.from.x, al.from.y), dxl = ax - fx, dyl = ay - fy, L0 = Math.hypot(dxl, dyl);
+        const stop = hitP ? (al.kind === 'vehicle' ? Math.max(15, (vehRad.get(round.players[al.j].name) || 12) * 0.95) : 15) : far ? 0 : Math.max(7, Math.min(10, size / view.span * 1.5)) * 0.62;
+        if (L0 > stop + 4) {
+          const ex = fx + dxl * (L0 - stop) / L0, ey = fy + dyl * (L0 - stop) / L0;
+          cx.beginPath(); cx.moveTo(fx, fy); cx.lineTo(ex, ey); cx.lineCap = 'round'; if (far) cx.setLineDash([7, 6]);
+          cx.strokeStyle = ink; cx.lineWidth = 4.2; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 1.8; cx.globalAlpha = far ? 0.75 : 1; cx.stroke();
+          cx.globalAlpha = 1; cx.setLineDash([]); cx.lineCap = 'butt';
+        }
+      }
       if (hitP) {   // whom it is on: a crosshair ring round him (ticks up, down and to the sides), his side's colour inside it
         const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t));
         const [tx, ty0] = o.vehicle ? toC(playerAt(al.j, t).x, playerAt(al.j, t).y) : spread.get(al.j) || toC(playerAt(al.j, t).x, playerAt(al.j, t).y), ty = ty0 - (o.vehicle ? 0 : lifted.get(al.j) || 0);   // (v179: lifted - round his marker)
@@ -5302,9 +5318,10 @@ function panels(force) {
 ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
       <dt>Last kill</dt><dd>${lastKill? fmt(lastKill.t)+' '+esc(round.players[round.pidx.get(lastKill.victim)]?.name||'')+' '+(weaponIcon(lastKill.wid, lastKill.weapon) || '')+(lastKill.hit === 'head' ? HS_SVG : '')+' ('+esc(killWpn(lastKill))+(lastKill.dist !== undefined ? ', ' + lastKill.dist + ' m' : '')+(lastKill.hit === 'head' ? ', headshot' : '')+')'+(lastKill.killer !== lastKill.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastKill)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>${longest ? `<dt>Longest kill</dt><dd>${longest.dist} m · ${esc(killWpn(longest))} · ${esc(round.players[round.pidx.get(longest.victim)]?.name || '')} · ${fmt(longest.t)}</dd>` : ''}
       <dt>Last death</dt><dd>${lastDeath? fmt(lastDeath.t)+' by '+esc(round.players[round.pidx.get(lastDeath.killer)]?.name||'')+(lastDeath.killer !== lastDeath.victim ? ` <button class="svb" data-k="${round.events.indexOf(lastDeath)}" title="Side view of this kill">${SIDE_SVG}</button>` : ''):'—'}</dd>`}</dl>
-      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button>${p.vehicle ? `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what its crew knew in the game: their side, the enemies any of them had in sight from his seat (faded, for ${POV_MEMORY} s: where they last saw one), their side's spots (V)">Crew's view</button>` : `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what he knew in the game: his side, the enemies he had in sight (faded, for ${POV_MEMORY} s: where he last saw one), his side's spots (V)">His view</button>`}</div>`;
+      <div class="chips"><button class="btn" id="clearSel">Stop following</button><button class="btn${opts.aimLn ? ' on' : ''}" id="selAim" aria-pressed="${!!opts.aimLn}" title="A line from ${p.vehicle ? 'its guns' : 'him'} to where ${p.vehicle ? 'they point' : 'his crosshair meets something'} - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit (X)">Aim line</button><button class="btn${opts.ahead ? ' on' : ''}" id="selAhead" aria-pressed="${!!opts.ahead}" title="While paused: where ${p.vehicle ? 'it' : 'he'} goes in the next ${aheadT} s (A; how far: − / + by the button on the map)">Next ${aheadT} s</button>${p.vehicle ? `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what its crew knew in the game: their side, the enemies any of them had in sight from his seat (faded, for ${POV_MEMORY} s: where they last saw one), their side's spots (V)">Crew's view</button>` : `<button class="btn${pov ? ' on' : ''}" id="selPov" aria-pressed="${pov}" title="Only what he knew in the game: his side, the enemies he had in sight (faded, for ${POV_MEMORY} s: where he last saw one), his side's spots (V)">His view</button>`}</div>`;
     $('#clearSel').onclick = () => { sel = null; pov = false; $('#selInfo').className='empty'; $('#selInfo').textContent='Click a soldier on the map or in the scoreboard.'; refresh(true); };
     $('#selAhead').onclick = () => aheadFor(sel);
+    $('#selAim').onclick = () => aimLnSet(!opts.aimLn);
     { const b = $('#selPov'); if (b) b.onclick = () => povSet(!pov); }
   }
   pcardSync(); statsCursor();
@@ -6213,7 +6230,7 @@ function jumpTo(h, keepSel) {
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['glitch', 'Glitch spot'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map']];
 const MELEE_REACH = { 5406: ['knife', 2.0], 5386: ['defibrillator', 2.8] }, MELEE_SLACK = 2.5;
 const LAUNCH_MIN = { Grenade: 0.7, SRAW: 4.0, Eryx: 4.2, Claymore: 0.6, 'LAV-25 TOW': 10, 'BTR-90 missile': 10, 'WZ551 missile': 10, TOW: 5, 'HJ-8': 5 };
 const SHOT_MIN = { 5038: 1.5, 5222: 1.5, 5073: 1.5, 5400: 1.0, 5478: 1.0, 5491: 1.0, 5483: 0.6, 5380: 0.6 };
@@ -6547,7 +6564,7 @@ function wallTracks(R, done) {
 const SPEED_RUN = 6.93, SPEED_V = 8.7, SPEED_T = 2;
 function speedRuns(R) {
   const { times: T, n, X, Y, HH, L, VT, DN } = R, F = T.length, out = [], pid = id => R.pidx.get(id);
-  const vehs = R.players.map((p, j) => p.vehicle ? j : -1).filter(j => j >= 0);
+  const vehs = R.players.map((p, j) => p.vehicle ? j : -1).filter(j => j >= 0), sold = R.players.map((p, j) => p.vehicle ? -1 : j).filter(j => j >= 0);
   const quiet = new Map();   // player index -> moments he spawned / was revived
   for (const e of R.events) if (e.type === 'spawn' || e.type === 'revive') { const i = pid(e.player); if (i !== undefined) { if (!quiet.has(i)) quiet.set(i, []); quiet.get(i).push(e.t); } }
   const blasts = R.events.filter(e => e.type === 'blast' && e.x != null);
@@ -6565,6 +6582,9 @@ function speedRuns(R) {
       const dt = T[k] - T[kb], v = Math.hypot(X[e] - X[b], Y[e] - Y[b]) / dt;
       if (v < SPEED_V || Math.abs(HH[e] - HH[b]) > 2 || Q.some(q => q > T[k] - 3 && q <= T[k])) { close(); continue; }
       if (vehs.some(j => { const ev = k * n + j; return L[ev] && Math.hypot(X[ev] - X[e], Y[ev] - Y[e]) < 6; })) { close(); continue; }
+      // (v185) another soldier on foot by him (5 m) at both ends of the second: carried together (12 of the 26 hints of
+      // 675 rounds were such pairs at 9-10 m/s - something carries them both that the demo does not seat them in)
+      if (sold.some(j => { if (j === i) return false; const ej = k * n + j, bj = kb * n + j; return L[ej] && L[bj] && !VT[ej] && Math.hypot(X[ej] - X[e], Y[ej] - Y[e]) < 5 && Math.hypot(X[bj] - X[b], Y[bj] - Y[b]) < 5; })) { close(); continue; }
       if (blasts.some(bl => bl.t <= T[k] && bl.t > T[k] - 2 && Math.hypot(bl.x - X[e], bl.y - Y[e]) < 15)) { close(); continue; }
       if (!run) run = { i, t0: T[kb], t1: T[k], vmax: 0, k0: kb, x: X[b], y: Y[b] };
       run.t1 = T[k]; run.vmax = Math.max(run.vmax, v); run.k1 = k;
@@ -6807,7 +6827,10 @@ function moreHints(R) {
 //   comes down at 4-6 m/s). 6 rounds: honest stretches are jumps and falls off roofs, slides, parachutes; none left.
 //   (Soldiers swimming are at the sea's level; the decoder keeping a soldier's last place while he is in a vehicle: no
 //   moving across.)
-const CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 4, FLY_V = 2, FLY_VZ = -1;
+// (v185, todo 146: 675 rounds - 21 of 27 Floating hints were 4.2-5.7 s at 26-47 m up, rising, by 8 soldiers on 4 maps:
+// some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
+// infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
+const CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
 function gridCell(D, x, y) {
   const gx = Math.floor((x - D.gX0) / D.gStep), gy = Math.floor((y - D.gY0) / D.gStep); if (gx < 0 || gy < 0 || gx >= D.gW || gy >= D.gH) return -1;
   const k = D.tile[((gy / D.T) | 0) * D.tW + ((gx / D.T) | 0)]; return k < 0 ? -1 : k * D.T * D.T + (gy % D.T) * D.T + (gx % D.T);
@@ -6937,6 +6960,10 @@ function cpTimes(R) {
 // north, isHemisphere)] (from the level files)
 const CP_ZONE = {"dalian_plant":{"gpm_cq:64":[[88,-40,153.2],[786,49.7,191.9],[52,184,144.4],[246.8,-242.4,147.1],[-254,-210,153.3],[-706,-367,184.1],[-190.2,54.7,153.2],[-32.6,-391.1,153.3]],"gpm_cq:32":[[88,-40,153.2],[246.8,-242.4,147.1],[-32.5,-391.2,153.3],[786,49.7,191.9],[-254,-210,153.3],[-707,-367,184.1]],"gpm_cq:16":[[-92.3,-260.9,153.2],[-151.8,-58.9,153.2],[88,-40,153.2],[-254,-210,153.3]],"sp1:16":[[-92.3,-260.9,153.2],[-151.8,-58.9,153.2],[88,-40,153.2],[-254,-210,153.3]],"gpm_coop:16":[[-92.3,-260.9,153.2],[-151.8,-58.9,153.2],[88,-40,153.2],[-254,-210,153.3]]},"daqing_oilfields":{"gpm_cq:64":[[-245.7,380.4,173.8],[346,-578,139.8],[-53.5,-243.1,144.5],[129,255,152.5],[-212,21,155.4],[319,-103,139.8],[-363.7,-115.2,144],[67.8,-43.9,145.1],[486,175,137.4]],"gpm_cq:32":[[-245.7,380.4,173.8],[346,-578,139.8],[-53.5,-243.1,144.5],[129,255,152.5],[-212,21,155.4],[319,-103,139.8],[67.8,-43.9,145.1]],"gpm_cq:16":[[-53.5,-243.1,144.5],[129,255,152.5],[67.8,-43.9,145.1]],"sp1:16":[[-53.5,-243.1,144.5],[129,255,152.5],[67.8,-43.9,145.1]],"gpm_coop:16":[[-53.5,-243.1,144.5],[129,255,152.5],[67.8,-43.9,145.1]]},"dragon_valley":{"gpm_cq:64":[[-225.1,875.9,55.8],[-211.3,-430.1,92.3],[-224,479,54.8],[116.1,314.2,53.5],[-78,100,56.6],[-50.5,-227.4,66],[74.9,588.6,90.7],[-83.1,410.2,60.6],[122.4,-562.2,101.1],[382.6,822.5,87.8],[-298.4,-192.4,58.1]],"gpm_cq:32":[[116.1,314.2,53.5],[-78,100,56.6],[-298.4,-192.3,58.1],[122.5,-562.1,101.1],[-211.4,-430.1,92.3],[-50.5,-227.3,66]],"gpm_cq:16":[[122.6,-562.2,101.1],[-211.4,-430.1,92.3],[-50.5,-227.4,66],[-298.4,-192.3,58.1]],"sp1:16":[[122.6,-562.2,101.1],[-211.4,-430.1,92.3],[-50.5,-227.4,66],[-298.4,-192.3,58.1]],"gpm_coop:16":[[122.6,-562.2,101.1],[-211.4,-430.1,92.3],[-50.5,-227.4,66],[-298.4,-192.3,58.1]]},"fushe_pass":{"gpm_cq:64":[[-668.1,-493.8,123.9],[-531.5,231.7,94.9],[-248.9,287.5,130.6],[-150.3,-24.4,79.3],[139.2,128.1,77.5],[83,-199,93.5],[302,-203,84.5],[608.6,576.8,96],[276.8,125.6,157.1],[-273.9,-130.7,85.3]],"gpm_cq:32":[[-248.9,287.5,130.6],[139.2,128.1,77.5],[-150.3,-24.4,79.3],[83,-199.1,93.5],[-531.5,231.7,94.9],[302,-203,84.5]],"gpm_cq:16":[[-150.3,-24.4,79.3],[139.2,128,77.5],[94.4,-37,69]],"sp1:16":[[-150.3,-24.4,79.3],[139.2,128,77.5],[94.4,-37,69]],"gpm_coop:16":[[-150.3,-24.4,79.3],[139.2,128,77.5],[94.4,-37,69]]},"greatwall":{"gpm_cq:32":[[-157.9,-70,375.1,0,-7.5,7.5,0],[9,36,360.7,2,0,0,0],[128,255.8,335.4,-5,0,0,0],[-233,-264,334.8],[204,-56,345.3],[-306,100,341]],"gpm_cq:16":[[-58.5,13.7,388.1,0,-10,0,0],[-113,-41,374,0,0,-8,1],[-203,-4,365.8,3,0,0,0],[15,37,360.7],[-250,94,356],[-18,-64,362.5]],"sp1:64":[[-119.5,-39.6,373.7,0,-5,0,0],[18,34,362.6],[128,255.8,335.5],[-233,-264,334.8],[204,-56,345.5],[-50,506,309.9],[-84,-512,328.4],[-278,90,352.6]],"sp1:32":[[-119.5,-39.6,373.7,0,-5,0,0],[18,34,362.6],[128,255.8,335.5],[-233,-264,334.8],[204,-56,345.5],[-50,506,309.9],[-84,-512,328.4],[-278,90,352.6]],"sp1:16":[[16.4,55.1,360.7],[-56.5,-24.9,375.5,0,0,0,1],[68.9,-34.3,355.8,0,0,0,1],[-203,-4,365.8,3,0,0,0],[-157.9,-62.6,366.5,0,0,0,1],[-18,-64,362.6]],"gpm_coop:16":[[16.4,55.1,360.7],[-56.5,-24.9,375.5,0,0,0,1],[68.9,-34.3,355.8,0,0,0,1],[-203,-4,365.8,3,0,0,0],[-157.9,-62.6,366.5,0,0,0,1],[-18,-64,362.6]]},"gulf_of_oman":{"gpm_cq:64":[[281.8,-94.7,37.1],[49.4,33.5,40.4],[-133,176.2,25.7],[118,-253.6,38.2],[-65.2,-202.1,33.9],[-208.4,-141.1,33.3],[-331.5,28.2,30.2],[282,215.6,24.5],[-664.6,-553.5,66.3]],"gpm_cq:32":[[-664.6,-553.5,66.3],[-65.2,-202.1,33.9],[-208.4,-141.2,33.3],[-331.5,28.2,30.2],[281.8,-94.7,37.1],[49.4,33.5,40.4],[282,215.6,24.5]],"gpm_cq:16":[[34,-296.2,37.6],[124.8,-46.1,37.8],[10.3,-136.4,33.1],[49.4,33.5,40.4]],"sp1:16":[[34,-296.2,37.6],[124.8,-46.1,37.8],[10.2,-136.4,33.1],[49.4,33.5,40.4]],"gpm_coop:16":[[34,-296.2,37.6],[124.8,-46.1,37.8],[10.2,-136.4,33.1],[49.4,33.5,40.4]]},"highway_tampa":{"gpm_cq:64":[[608,-526,27.2],[-493,636.5,27],[-231.7,-503.5,27],[176.8,-614.3,27],[-290.7,-21.1,27],[-284.6,-781.1,27],[-729,-497,27],[105.9,-333.9,27]],"gpm_cq:32":[[608,-526,27.2],[-493,636.5,27],[-231.7,-503.5,27],[176.8,-614.2,27],[-290.7,-21.1,27],[106,-333.9,27]],"gpm_cq:16":[[608,-526,27.2],[106,-334,27],[176.8,-614.2,27],[-284.6,-781.1,27]]},"mashtuur_city":{"gpm_cq:64":[[-262,-21,44],[-368.6,-212.3,38],[-7.5,-82.2,50],[-159,-118.3,44],[-112,-222.3,44],[103.9,-322.9,80.9],[-404,188,84.4]],"gpm_cq:32":[[-262,-21,44],[-368.6,-212.3,38],[-7.5,-82.2,50],[-159,-118.3,44],[-112,-222.3,44]],"gpm_cq:16":[[-151.8,-222.3,44.1],[-261.9,-21,44],[-241.2,-161.4,38.1],[-173,-89,44]]},"midnight_sun":{"gpm_cq:64":[[-252.9,-373.4,82.7],[47,-20,100.3],[-618,-305.2,102.2],[-488,-143.5,82.1,0,0,2,0],[-179.9,-56.8,89.2],[13.6,-272.8,96],[248.4,-136.6,110.8,0,-17.5,0,0],[550.6,5.3,116]],"gpm_cq:32":[[-179.9,-56.8,89.2],[-488,-143.5,81.9,0,0,2,0],[13.6,-272.8,96],[248.4,-136.6,110.9,0,-17.5,0,0],[550.6,5.3,116],[-618,-305.2,102.2]],"gpm_cq:16":[[-188.7,-56.7,89.2,-4,0,0,0],[-488,-143.5,81.9,0,0,2,0],[-199.5,-193.1,85.3],[-385.1,-97,84.1]],"sp1:16":[[-488,-143.5,81.9,0,0,2,0],[-385.1,-97,84.1],[-193.1,-56.8,89.2],[-199.5,-193.1,85.3]],"gpm_coop:16":[[-488,-143.5,81.9,0,0,2,0],[-385.1,-97,84.1],[-193.1,-56.8,89.2],[-199.5,-193.1,85.3]]},"operationharvest":{"gpm_cq:64":[[350.7,-482.9,51.3],[199.3,568.4,30.5],[-438.5,-487.3,31.1],[-253.6,-296.9,33.4],[135.3,-260.2,52.8,-8,0,-10,0],[-137.3,-68.3,31.9,0,0,6,0],[180.2,80.5,29.8,0,0,0,1],[386.6,197.4,25.9,-9,0,5,0],[184,310.6,26.1,3,-5,-8,0]],"gpm_cq:32":[[-438.6,-487.3,31.5],[199.3,568.6,30.5],[-253.4,-296.8,33.3],[-383,-74.3,35.1,-8,-5,-6,0],[183.8,310.6,26.1,2,-5,-8,0],[386.3,196.8,25.9,-10,0,4,0],[180.3,80.5,29.8,0,0,0,1],[-137.6,-68.4,31.9,0,0,6,0]],"gpm_cq:16":[[-136.5,-68.2,31.9,0,0,5,0],[180.1,79.9,29.8,0,0,0,1],[386.9,197.4,25.9,-11,0,4,0],[472.1,435.7,28.9],[184,310.7,26.1,2,-5,-8,0]],"sp1:16":[[180.1,79.9,29.8,0,0,0,1],[386.9,197.4,25.9,-11,0,4,0],[472.1,435.7,28.9],[183.8,310.6,26.1,2,-5,-8,0]],"gpm_coop:16":[[180.1,79.9,29.8,0,0,0,1],[386.9,197.4,25.9,-11,0,4,0],[472.1,435.7,28.9],[183.8,310.6,26.1,2,-5,-8,0]]},"operationroadrage":{"gpm_cq:64":[[91.2,-370.1,48.8],[-186.1,-189.8,47.9],[-32.1,31.9,60.8,0,0,0,1],[86.3,234.6,48.8],[-129,399,51],[-136.2,823.8,57.1],[38,-746,48.8]],"gpm_cq:32":[[-129,399,51],[86.4,234.8,48.8],[-186.1,-189.7,47.9],[91.2,-370.1,48.8],[-32.1,31.9,60.8,0,0,0,1],[38,-746,48.8],[-136.1,824,57.1]],"gpm_cq:16":[[64.6,-148.3,53.9],[217.2,-235.2,59],[315.5,129.7,51.5],[-31.1,54.6,51.3,0,-10,0,1],[-187.2,-188.3,47.9]],"sp1:16":[[-27.6,-235.2,51.3,0,0,0,1],[-187.2,-188.3,47.9],[101.5,-103.8,53.8],[199.8,-165.8,56.8]],"gpm_coop:16":[[-27.6,-235.2,51.3,0,0,0,1],[-187.2,-188.3,47.9],[101.5,-103.8,53.8],[199.8,-165.8,56.8]]},"operationsmokescreen":{"gpm_cq:32":[[7.3,430.4,98.3],[-208.3,208.3,89.5,-1,0,-3,0],[-265.4,-87.6,106],[-110.8,-268.7,109.1],[72.5,-521.9,98.5],[152.7,-138,135.5,-3,0,-3,0],[4.4,-29.3,120.4]],"gpm_cq:16":[[-110.8,-268.8,109.2],[-265.4,-87.6,106],[-208.3,208.3,89.5,-1,0,-3,0],[72.5,-521.9,98.5]],"sp1:32":[[7.4,430.3,99.3],[-211.8,217.8,89.5],[-265.4,-87.6,106],[-110.8,-268.7,106.6],[72.5,-521.9,98.5],[148.4,-142.5,135.5]],"sp1:16":[[72.4,-521.9,98.5],[-110.8,-268.8,109.2,-3,0,-8,0],[-265.4,-87.6,106],[-208.3,208.3,89.5,-1,0,-3,0]],"gpm_coop:16":[[72.4,-521.9,98.5],[-110.8,-268.8,109.2,-3,0,-8,0],[-265.4,-87.6,106],[-208.3,208.3,89.5,-1,0,-3,0]]},"operation_blue_pearl":{"gpm_cq:64":[[19.8,-94,26.5],[-75.1,-197.2,26.2],[-103.3,-74.1,25.3],[-184,-128,22.2],[-304,-65.9,25],[-296.5,84,25],[-251.9,-164.1,25],[260.2,-109.2,25]],"gpm_cq:32":[[-184,-128,22.2],[-304,-66,25],[260.2,-109.2,25],[-75.2,-196.9,26.2],[19.8,-94.1,26.5],[-103.1,-74,25.5],[-251.9,-164,25.1]],"gpm_cq:16":[[-75.2,-196.9,26.2],[-103.3,-74.1,25.3],[-252,-162.8,25],[-304.1,-66,25]]},"operation_clean_sweep":{"gpm_cq:64":[[-552,544,29.7],[644,-96,30],[-538,-36,36.5],[-42,-424.1,32.9],[142,-598,32],[614,-281,32.3],[229.9,-364,36.8],[-308.1,-422.1,30.6]],"gpm_cq:32":[[-552,544,29.7],[-42,-424.1,32.9],[229.9,-364,36.8],[-538,-36,36.5],[-308.1,-422.1,30.6],[142,-598,32]],"gpm_cq:16":[[-552,544,29.7],[-538,-36,36.5],[-42,-424.1,32.9],[-308.1,-422.1,30.6]],"sp1:16":[[-552,544,29.7],[-538,-36,36.5],[-42,-424.1,32.9],[-308.1,-422.1,30.6]],"gpm_coop:16":[[-552,544,29.7],[-538,-36,36.5],[-42,-424.1,32.9],[-308.1,-422.1,30.6]]},"road_to_jalalabad":{"gpm_cq:64":[[-205.4,7.7,45.2],[-16.7,-207.8,39.1,-2,0,-3,0],[91.9,-263.2,40.2],[181.6,-170.3,37.6,-6.5,0,-2,0],[282.9,-138.2,42],[234.9,-42.1,44.4,-1,0,1,0],[293.1,55,47.9],[38.5,-40.9,37.5,3,0,3,0]],"gpm_cq:32":[[293.1,55,47.9],[282.9,-138.2,42],[91.9,-263.2,40.2],[-16.7,-207.8,39.1,-2,0,-3,0],[-205.4,7.7,45.2],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0]],"gpm_cq:16":[[282.9,-138.2,42],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0],[293.1,55,47.9]],"sp1:16":[[282.9,-138.2,42],[293.1,55,47.9],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0]],"gpm_coop:16":[[282.9,-138.2,42],[293.1,55,47.9],[181.6,-170.3,37.6,-6.5,0,-2,0],[234.9,-42.1,44.4,-1,0,1,0]]},"sharqi_peninsula":{"gpm_cq:64":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-316.3,-226.3,79.3],[-647.1,205.1,95.3],[-359,-115,101.2],[-307.6,-25.6,99.8],[-288.6,-597.2,74.1],[-605,-201.1,94.6],[-467.5,-77,99.6]],"gpm_cq:32":[[-112.4,-134.4,104.4,0,0,0,1],[-467.5,-77,99.6],[-647.1,205.1,95.3],[-276.8,-110.6,102.5,0,0,0,1],[-359,-115,101.2],[-316.3,-226.3,79.3],[-288.6,-597.2,74.1],[-605,-201,94.6]],"gpm_cq:16":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-188,-25.6,91.2],[-316.3,-226.3,79.3]],"sp1:16":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-188,-25.6,91.2],[-316.3,-226.3,79.3]],"gpm_coop:16":[[-112.4,-134.4,104.4,0,0,0,1],[-276.8,-110.6,102.5,0,0,0,1],[-188,-25.6,91.2],[-316.3,-226.3,79.3]]},"songhua_stalemate":{"gpm_cq:64":[[201,128,170.4],[113,-179,172.4],[-5.8,-349.3,170.4],[-145.4,-91,168.3],[-176,-442,175],[-269,-175,168.1],[-496.9,-127.8,243.3],[290.7,-164.8,199.2]],"gpm_cq:32":[[113,-179,172.4],[-5.8,-349.3,170.4],[-145.4,-91,168.3],[-269,-175,168.1],[-496.8,-127.8,243.3],[290.7,-164.8,199.2]],"gpm_cq:16":[[113,-179,172.4],[-145.4,-91,168.3],[-269,-175,168.1],[-58,-229,168.9]],"sp1:16":[[113,-179,172.4],[-145.4,-91,168.3],[-269,-175,168.1],[-58,-229,168.9]],"gpm_coop:16":[[113,-179,172.4],[-145.4,-91,168.3],[-269,-175,168.1],[-58,-229,168.9]]},"strike_at_karkand":{"gpm_cq:64":[[-161,-262.8,161.3],[-194.4,11.4,158.2],[-220.1,98.1,155.8],[-122.4,256.6,149.9],[13.9,288.9,156],[29.4,164.4,150],[183,166,152.7],[104,231.1,152.7],[-323.7,220.2,168.4]],"gpm_cq:32":[[-194.4,11.3,158.2],[-220,98.1,155.8],[-122.4,256.6,149.9],[14,289,156],[-161,-262.9,161.3],[-196,183.6,149.9],[-323.8,220.2,168.4]],"gpm_cq:16":[[-194.4,11.4,158.2],[-196,183.6,149.9],[-161,-262.8,161.3],[-184.8,97.3,155.5]],"sp1:16":[[-194.4,11.4,158.2],[-196,183.6,149.9],[-161,-262.8,161.3],[-184.8,97.3,155.5]],"gpm_coop:16":[[-194.4,11.4,158.2],[-196,183.6,149.9],[-161,-262.8,161.3],[-184.8,97.3,155.5]]},"taraba_quarry":{"gpm_cq:32":[[-154.6,451,107.3],[427.2,-461.6,162.9],[159.2,-114.7,152.2],[-488.8,-553.2,165.3],[-396.9,-89.5,149.5],[-360,192.1,134.4],[18.5,186.6,133.7]],"gpm_cq:16":[[245.9,40.8,149.2],[425.2,-477.1,164],[50.3,-137.4,155.1],[18.5,186.3,133.7],[297.1,-242.3,165]],"sp1:32":[[-575.7,353.9,125.9]],"sp1:16":[[18.5,186.3,133.7],[245.9,40.8,149.2],[50.3,-137.4,155.1],[297.1,-242.3,165],[425.2,-477.1,164]],"gpm_coop:16":[[18.5,186.3,133.7],[245.9,40.8,149.2],[50.3,-137.4,155.1],[297.1,-242.3,165],[425.2,-477.1,164]]},"wake_island_2007":{"gpm_cq:64":[[-28,-168.5,91],[359.9,-248.7,101],[259.2,184.8,93.8],[34.9,198.8,95.6],[127.6,-302.4,86.6],[-681.2,694.5,130.7]]},"zatar_wetlands":{"gpm_cq:64":[[-565,482.1,37.5],[-772,102,43.2],[-53.2,-241.6,48],[258.6,-352.6,35.8],[482,-164,46.5],[727,-401.3,62.1],[-367.4,-330.2,39,0,0,0,1],[-441.1,-59,39],[-432.6,925.4,65.6]],"gpm_cq:32":[[-772,102,43.2],[-441.1,-59,39],[-367.4,-330.2,39,0,0,0,1],[-53.2,-241.6,48],[258.6,-352.6,35.8],[482,-164,46.5],[727,-401.3,62.1]],"gpm_cq:16":[[-53.2,-241.6,48],[-367.4,-330.3,39,0,0,0,1],[258.6,-352.6,35.8]],"sp1:16":[[-53.2,-241.6,48],[-367.4,-330.3,39,0,0,0,1],[258.6,-352.6,35.8]],"gpm_coop:16":[[-53.2,-241.6,48],[-367.4,-330.3,39,0,0,0,1],[258.6,-352.6,35.8]]},"kubra_dam":{"gpm_cq:64":[[162,184,74.5],[-72.8,105.1,62.4],[-354,156,54],[-220,294,68.1],[-260,-14,69],[-401.6,-223.4,73],[-205.5,-274.9,131.7],[-495,-105.9,118],[-388.9,-520.2,69.5]],"gpm_cq:32":[[162,184,74.5],[-72.8,105.1,62.4],[-354,156,54],[-260,-14,69],[-205.5,-274.9,131.7],[-495,-105.9,118],[-388.9,-520.2,69.5],[-401.6,-223.4,73]],"gpm_cq:16":[[-401.6,-223.4,73],[-426.8,-244.1,127],[-205.5,-274.9,131.7],[-495,-105.9,118]]}};
 const ZONE_FOOT = 1.2, ZONE_STEP = 0.25;
+// (v185, todo 220) a capture zone the game makes bigger than its radius: Kubra Dam's Bridge Base (radius 5, the pole's foot
+// on the bridge, 62.4 m up) takes men under the deck too, 7.8 m lower and 4-6 m out (2F4Y 2026-10-13 00:30: they alone
+// moved the flag; 28 of the 59 Fast flag hints of 675 rounds were there) - counted as radius 8 (that round: 12 -> 0)
+const CP_R_FIX = { 'kubra_dam|Bridge Base': 8 };
 // (v170) how much further than the level's radius a vehicle's crew take a flag (as far again as it is big; the demos:
 // jeeps 2.5-3.5 m, APCs 4-5.5, tanks 6-7, attack helicopters 10.5-12, transport ones 12-14, jets 10-16), by its
 // minimap icon: [the least, the most] of each - the side moving a flag counted with the most (no one there left out),
@@ -6963,9 +6990,10 @@ function zoneOf(R, k) {
   const Z = R._cz || (R._cz = []); if (Z[k]) return Z[k];
   const f = R.flags[k]; if (!f) return null;
   const c = (cpZones(R) || [])[k] || null, D = losData(), lk = LOS.get(mapKey()), o = c && c.length > 3 ? c.slice(3, 6) : [0, 0, 0];
-  const x = (c ? c[0] : f.x) + o[0], y = (c ? c[1] : f.y) + o[2], R0 = (f.r || 10) + ZONE_FOOT, R2 = R0 * R0;
+  const fr = CP_R_FIX[mapKey() + '|' + f.name] ?? (f.r || 10);   // (v185)
+  const x = (c ? c[0] : f.x) + o[0], y = (c ? c[1] : f.y) + o[2], R0 = fr + ZONE_FOOT, R2 = R0 * R0;
   const g0 = D ? groundAt(D, c ? c[0] : f.x, c ? c[1] : f.y) : -1e9, h = c ? c[2] + o[1] : g0 > -1e8 ? g0 : null;
-  const z = { k, x, y, h, R: R0, r: f.r || 10, hemi: !!(c && c[6]), off: o, known: !!c };
+  const z = { k, x, y, h, R: R0, r: fr, hemi: !!(c && c[6]), off: o, known: !!c };
   if (!D || h == null) { z.flat = true; z.rg = Math.sqrt(R2 - 1); z.g = z.rg; if (lk !== 'loading') Z[k] = z; return z; }
   const S = ZONE_STEP, N = Math.ceil(2 * R0 / S), x0 = x - N * S / 2, y0 = y - N * S / 2, M = new Uint8Array(N * N), wl = WATER[mapKey()] ?? -1e9;
   let g = 0, n2 = 0;
@@ -7316,8 +7344,24 @@ const SNAP_N = 3, HS_P = 1e-4;   // (v182: see above)
 // the first) No line of sight: 0.68% of small-arms kills, one such kill in 266 of 289 soldier-rounds that have any, in 26%
 // of rounds - mostly a gap of the shapes (a tree's crown, a barrel, the ground's grid); a soldier with two or more in a
 // round: 23 soldier-rounds (3% of rounds), the most unlikely 4 of 7 kills. Through smoke: one in 144 of 147.
-const HINT_N = { wall: 2, smoke: 2 };
+// (v185) Beyond fog the same: 42 hints, one in 16 of the 20 soldier-rounds with any (1.07-1.6 times the fog - a target
+// seen through the fog's edge, a spotted one); the other 4 had 3-9 (tolulublessss 8, Shukrija 3)
+const HINT_N = { wall: 2, smoke: 2, fog: 2 };
 const LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vspeed', 'wall', 'thru', 'track']);
+// (v185, todo 185) glitch spots: server/glitch.mjs keeps a grid of the places soldiers stood, alive on foot, over every
+// round of each map (2 m cells, 2.5 m high); data/stats/glitch/<map>.json lists the rounds where someone stayed 20 s or
+// more where no one else ever stood, while 3 or more other players stood in those columns 5-40 m above or below him -
+// for maps with 30+ rounds looked at. Only on the site (a demo opened from a file: its round is not in the grids)
+const GLITCH_V = 1, GLITCH = new Map();
+function glitchData() {
+  const nm = $('#srcLabel').textContent; if (!session?.server || !round || !srvRound(nm)) return null;
+  const f = mapKey().replace(/[^a-z0-9_-]/g, '_'); if (!f) return null;
+  const o = GLITCH.get(f); if (o !== undefined) return o === 'loading' ? undefined : o;
+  GLITCH.set(f, 'loading'); const R = round;
+  fetch('data/stats/glitch/' + f + '.json', { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null)
+    .then(d => { GLITCH.set(f, d && d.gv === GLITCH_V && d.hits ? d : null); if (round === R) { R._adm = null; renderAdmin(); } });
+  return undefined;
+}
 function adminHints() {
   if (round._adm) return round._adm;
   const R = round, pid = id => R.pidx.get(id), D = losData(), out = [], DEG = Math.PI / 180, hs = new Map(), snaps = [];
@@ -7387,6 +7431,25 @@ function adminHints() {
   if (R._geo) for (const h of R._geo) out.push(h);
   else if (!R._geoRun && D) { const tok = R._geoRun = {}; geoScan(R, L => { if (R !== round || R._geoRun !== tok) return; R._geo = L; R._adm = null; renderAdmin(); }); }
   for (const r of speedRuns(R)) if (r.t0 >= (R.times[0] || 0) + SPAWN_START) out.push({ t: r.t0, kind: 'speed', adm: true, actor: R.players[r.i].id, v: r.vmax, vavg: r.vavg, dur: r.dur, n: r.n, span: r.t1 - r.t0, dist: r.dist, x: (r.x + r.x1) / 2, y: (r.y + r.y1) / 2 });   // (v184: not in the round's first SPAWN_START s - the soldiers being put in place: 11 of 40 in 675 rounds)
+  // (v185, todo 185) glitch spots: the server's grids of the places soldiers stood over the map's rounds (glitchData)
+  { const GL = glitchData(), nm = $('#srcLabel').textContent;
+    if (GL === undefined) out.glWait = true;
+    else if (GL) for (const [id, name, t0, t1, x, y, h, others, up, down] of GL.hits[nm] || []) {
+      let i = pid(id); if (i === undefined || R.players[i].vehicle || R.players[i].name.trim() !== name) i = R.players.findIndex(p => !p.vehicle && p.name.trim() === name);
+      if (i === undefined || i < 0) continue;
+      // with the map's shapes: where he was - his chest inside a shape, under the ground, in the air, on top of something (a
+      // roof or a ledge no one else stood on: with the others only below him listed apart, as information), or on the
+      // ground with the others over him (under a bridge: information)
+      let where = D ? '' : null, info = false;
+      if (D) {
+        const OFF = brkOff(D, t0), g = groundAt(D, x, y), fl = floorUnder(D, x, y, h + 0.3, OFF, WATER[mapKey()] ?? -1e9);
+        if (solidAt(D, x, y, h + 1, OFF)) where = 'inside'; else if (h < g - 1) where = 'under';
+        else if (h - fl >= 1.5) where = 'air';
+        else if (fl > g + 2) { where = 'top:' + Math.round(fl - g); info = up == null; }
+        else { where = 'ground'; info = true; }   // (on the ground, others over him: under a bridge or a balcony)
+      }
+      out.push({ t: t0, kind: 'glitch', adm: true, ...(info ? { info: true } : {}), actor: R.players[i].id, dur: t1 - t0, h, others, up, down, where, rounds: GL.rounds, x, y });
+    } }
   // (v184, todo 146) hints one honest kill gives too, only for a soldier with HINT_N[kind] or more of them in the round
   { const cnt = new Map(), key = h => h.kind + '|' + h.actor; for (const h of out) if (HINT_N[h.kind]) cnt.set(key(h), (cnt.get(key(h)) || 0) + 1);
     for (let i = out.length - 1; i >= 0; i--) { const h = out[i], nn = HINT_N[h.kind]; if (!nn) continue; const c = cnt.get(key(h)); if (c < nn) out.splice(i, 1); else h.of = c; } }
@@ -7409,6 +7472,10 @@ function adminHints() {
 //   D  the decoder's counts (what it could not name, flags against the level's layout, records a second).
 // Arrays rather than objects (a small file): the columns are in ANALYZE_COLS, handed over with the numbers.
 const ANALYZE_V = 1;
+// (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
+// again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
+// any change of a hint's rule (not with every page)
+const HINTS_V = 1;
 const ANALYZE_COLS = {
   K: ['t', 'killer', 'victim', 'wid', 'weapon', 'cause', 'hit', 'tk', 'kveh', 'vveh', 'd', 'dz', 'cls', 'kst', 'vst', 'kv', 'vv', 'ping',
     'err', 'brgRate', 'react', 'eng', 'losK', 'losX', 'press', 'fog', 'smoke', 'pitchErr'],
@@ -7536,11 +7603,11 @@ function analysisDump(R) {
       moving: arnd(med(recs), 3), frames: F, step: arnd(T[1] - T[0], 3), noLos: !D, noGeo: !G
     };
   });
-  return { v: ANALYZE_V, page: APP_VERSION, cols: ANALYZE_COLS, name: $('#srcLabel').textContent, map: mapKey(), meta: R.meta, stats: R.raw?.stats || null, dur: arnd(R.duration, 1),
+  return { v: ANALYZE_V, page: APP_VERSION, hv: HINTS_V, cols: ANALYZE_COLS, name: $('#srcLabel').textContent, map: mapKey(), meta: R.meta, stats: R.raw?.stats || null, dur: arnd(R.duration, 1),
     K, H, P, S, F: Fl, J, V, T: R._tvStat || [], D: Dc, errs, ms: Math.round(performance.now() - t0) };
 }
 if (/[?&]analyze\b/.test(location.search)) window.__bf2analyze = {
-  v: ANALYZE_V, page: APP_VERSION,
+  v: ANALYZE_V, page: APP_VERSION, hv: HINTS_V,
   ready: () => !!(session && session.server),
   rounds: () => session.rounds.filter(r => r.status === 'done').map(r => r.name),
   // open a round of the site's list, as a link to it does: true when it is the round on show
@@ -7557,7 +7624,7 @@ if (/[?&]analyze\b/.test(location.search)) window.__bf2analyze = {
       const k = mapKey(), D = LOS.get(k) && LOS.get(k) !== 'loading' ? LOS.get(k) : null;
       if (D) geoData(true);
       R._adm = null; const A = adminHints();
-      const busy = LOS.get(k) === 'loading' || VEG.get(k) === 'loading' || (D && (GEO.get(k) === 'loading' || !R._tracks || !R._geo)) || A.wait > 0;
+      const busy = LOS.get(k) === 'loading' || VEG.get(k) === 'loading' || (D && (GEO.get(k) === 'loading' || !R._tracks || !R._geo)) || A.wait > 0 || A.glWait;
       if (!busy) break;
       if (performance.now() - t0 > maxS * 1000) { waited = true; break; }
       await sleep(400);
@@ -7613,6 +7680,9 @@ function admDescribe0(h) {
   if (h.kind === 'spread') { const cn = { shotgun: 'shotgun', pistol: 'pistol', smg: 'SMG', rifle: 'rifle' }[h.cls], far = h.reach && h.d > h.reach * 0.98; return [Math.round(h.d) + ' m', `<b>No spread</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${esc(e.weapon || cn)} kill from ${Math.round(h.d)} m · ${far ? 'its bullets fly ' + h.reach + ' m at most' : 'honest ' + cn + ' kills: ' + { shotgun: 14, pistol: 108, smg: 56, rifle: 161 }[h.cls] + ' m at the most'}</span>`, `No spread: ${pt(e.killer)} → ${pt(e.victim)}, ${e.weapon || cn} ${Math.round(h.d)} m`]; }
   if (h.kind === 'blindspot') return [h.blind + '/' + h.n, `<b>Spots unseen</b> ${pn(h.actor)} <span class="w">${h.blind} of his ${h.n} spots were of soldiers nobody of his side could see (not counting those he made as commander) · honest players: about 1 in 4, half at the most</span>`, `Spots unseen: ${pt(h.actor)}, ${h.blind} of ${h.n}`];
   if (h.kind === 'chute') { const up = h.up >= CHUTE_UP; return [up ? '+' + h.up.toFixed(1) + ' m/s' : h.hs.toFixed(0) + ' m/s', `<b>Parachute</b> ${pn(h.actor)} <span class="w">under his parachute ${up ? `rose ${h.up.toFixed(1)} m in a second` : `${h.hs.toFixed(1)} m/s across`} · honest parachutes: 9-12 m/s across, always coming down 4-7 m/s</span>`, `Parachute: ${pt(h.actor)} ${up ? 'rising ' + h.up.toFixed(1) + ' m/s' : h.hs.toFixed(0) + ' m/s across'}`]; }
+  if (h.kind === 'glitch') { const at = [h.up != null ? Math.round(h.up) + ' m above him' : '', h.down != null ? Math.round(h.down) + ' m below him' : ''].filter(Boolean).join(' and ');
+    const wh = h.where == null ? 'under a floor, inside a rock or a wall, on a roof no one climbs? (no shapes for this map)' : h.where === 'inside' ? 'his chest inside the map\'s shapes' : h.where === 'under' ? 'under the ground' : h.where === 'air' ? 'in the air over what the map\'s shapes show' : h.where === 'ground' ? 'on the ground, the others over him: under a bridge or a balcony? (listed apart)' : `on top of something ${h.where.slice(4)} m up: a roof or a ledge no one else got onto${h.info ? ' (listed apart: the others only below)' : ''}`;
+    return [h.dur.toFixed(0) + ' s', `<b>Glitch spot</b> ${pn(h.actor)} <span class="w">${h.dur.toFixed(0)} s on foot where no one else stood in ${h.rounds} rounds of this map, while ${h.others}${h.others >= 4 ? '+' : ''} others stood right there ${at} · ${wh} · look in His view</span>`, `Glitch spot: ${pt(h.actor)} ${h.dur.toFixed(0)} s`]; }
   if (h.kind === 'under') return [h.depth.toFixed(1) + ' m', `<b>Under the map</b> ${pn(h.actor)} <span class="w">${h.depth.toFixed(1)} m under the ground for ${h.dur.toFixed(0)} s, alive on foot</span>`, `Under the map: ${pt(h.actor)} ${h.depth.toFixed(1)} m down`];
   if (h.kind === 'guided') { const ws = []; if (h.why.includes('stick')) ws.push(`${h.moving} hits on moving targets, his missile ${h.mid.toFixed(2)}° off the line to the target at the middle (honest gunners: 2-3°)`); if (h.why.includes('rate')) ws.push(`${h.hits} of ${h.n} TV missiles hit (TV gunners hit ${Math.round(h.others * 100)}% - 5596 missiles of 168 rounds)`); return [h.why.includes('stick') ? h.mid.toFixed(1) + '°' : h.hits + '/' + h.n, `<b>Guided missiles</b> ${pn(h.actor)} <span class="w">${esc(h.what)}: ${ws.join('; ')}</span>`, `Guided missiles: ${pt(h.actor)}, ${h.why.includes('stick') ? h.mid.toFixed(2) + '° off moving targets' : h.hits + ' of ' + h.n + ' TV missiles hit'}`]; }
   if (h.kind === 'spotspam') return [h.n60 >= SPAM_60 ? h.n60 + '/min' : h.n10 + '/10 s', `<b>Spot spam</b> ${pn(h.actor)} <span class="w">${h.n60} spots within a minute, ${h.n10} within 10 s (${h.all} in the round, not counting those he made as commander) · honest players spot 26 a minute at the most (the hacks send them without the radio voice); a commander spots from his screen as many as he likes</span>`, `Spot spam: ${pt(h.actor)}, ${h.n60} spots in a minute`];
@@ -9412,6 +9482,7 @@ for (const [id, k, key] of [['tRelShade', 'relShade', 'bf2rr.relShade'], ['tRelA
 relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend);
 // (v181) the sounds in his view: remembered
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
+try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
 { const tb = $('#tSound'); tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); tb.onclick = () => sndSet(!opts.sound); }
 // how far ahead (the slider under "Next N s"): moving it turns the layer on
 const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
@@ -9454,6 +9525,8 @@ const LEGEND = [
   [null, () => 'Crosshair: wall', 'Where the followed soldier\'s crosshair meets a wall, a roof, the ground or the sea (with how far)', () => {
     const k = 8; cx.beginPath(); cx.moveTo(-k, 0); cx.lineTo(k, 0); cx.moveTo(0, -k); cx.lineTo(0, k); cx.moveTo(k * 0.62, 0); cx.arc(0, 0, k * 0.62, 0, Math.PI * 2);
     cx.lineCap = 'round'; cx.lineWidth = 6; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 2.8; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
+  ['aimLn', () => 'Aim line', 'From the followed soldier to where his crosshair meets something; dashed: into the sky, to the fog limit (Aim line in his card, X)', () => {
+    cx.beginPath(); cx.moveTo(-10, 5); cx.lineTo(10, -5); cx.lineCap = 'round'; cx.lineWidth = 4.2; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 1.8; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
   [null, () => 'He sees him', 'Over an enemy the followed soldier sees: in his field of view with nothing in between', () => drawEye(0, 0, 1.1)],
   [null, () => 'Behind cover', 'In the followed soldier\'s field of view, but hidden by a wall, a hill, smoke or bushes', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--muted'); cx.lineWidth = 2.2; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); }],
   ['spots', () => 'Spotted', 'Spotted by the other side (the game\'s Q): until the spot runs out; the tag over it says who spotted', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); spotCorners(0, 0, 17); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 5; cx.stroke(); cx.strokeStyle = css('--spot'); cx.lineWidth = 2.6; cx.stroke(); }],
@@ -9492,7 +9565,7 @@ function legend() {
   box.hidden = !on; if (!on) return;
   const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
   const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() : k === 'sound' ? povOn() && opts.sound : opts[k])), d = (window.devicePixelRatio || 1) * lk;
-  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.lift, opts.sound, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
+  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.lift, opts.sound, opts.aimLn, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
     const cx0 = cx;
@@ -9654,6 +9727,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
   if (e.code==='KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey && round) povSet(!pov);   // (v177: his view only)
+  if (e.code==='KeyX' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aimLnSet(!opts.aimLn);   // (v185: the aim line)
   if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; popToggle($('#namBtn'), $('#namMenu'), false); layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
 // (v136) Tab held: the scoreboard (not while typing in a field)
@@ -11038,6 +11112,23 @@ async function buildTimeline(r) {
   for (const k of active) { const v = teamVotes.get(k); P.set(k, { index: k, name: ent[k].name, team: v ? (v[1] >= v[2] ? 1 : 2) : ent[k].pteam || 1, named: ent[k].named }); }
   // a player can change sides during a round (team balance, or by choice): his team follows each spawn's soldier template
   const teamsOf = new Map(); for (const e of spawns) { const tm = spawnTeam(e), L = teamsOf.get(e.player) || []; if (!L.length || L[L.length - 1][1] !== tm) L.push([e.t, tm]); teamsOf.set(e.player, L); }
+  // (v185, todo 225) the Special Forces rounds of Lost-Soldiers: their kits and soldier templates name no side (KIT_TEAM
+  // knows CH / MEC / US / EU kits) and the preamble gives none - every soldier came out on one side, every kill a team
+  // kill (Mass Destruction 2026-10-18 20:28: 10 soldiers, 88 of 88; Surge). The Player ghost says each player's side
+  // (team 1 / 2, mask 0x200; there: 11 slots on one, 12 on the other): when the kits put everyone on one side and the
+  // ghosts say two, the ghosts decide - each player's most common side and the side from each change on. Every other
+  // round as before (1667 rounds of the analysis: only these two had one side).
+  if (r.pgs && r.pgs.length && new Set([...P.values()].map(p => p.team)).size === 1) {
+    const gv = new Map(), gl = new Map(), keyAt = (idx, tt) => { let nm = null; for (const [ts, n] of epochs.get(idx) || []) if (ts <= tt) nm = n; return entKey.get(nm ? 'n:' + nm : 'i:' + idx); };
+    for (const [tt, idx, f] of r.pgs.slice().sort((a, b) => a[0] - b[0])) {
+      if (f.team !== 1 && f.team !== 2) continue; const pl = keyAt(idx, tt); if (pl === undefined || !P.has(pl)) continue;
+      if (!gv.has(pl)) gv.set(pl, [0, 0, 0]); gv.get(pl)[f.team]++;
+      const L = gl.get(pl) || []; if (!L.length || L[L.length - 1][1] !== f.team) L.push([tt, f.team]); gl.set(pl, L);
+    }
+    if (new Set([...gv.values()].flatMap(v => [v[1] ? 1 : 0, v[2] ? 2 : 0]).filter(Boolean)).size === 2) {
+      for (const [pl, v] of gv) { P.get(pl).team = v[1] >= v[2] ? 1 : 2; teamsOf.set(pl, gl.get(pl)); }
+    }
+  }
   const teamAt = (pl, tt) => { const L = teamsOf.get(pl); if (!L) return P.get(pl)?.team ?? 1; let tm = L[0][1]; for (const [ts, x] of L) { if (ts > tt + 0.5) break; tm = x; } return tm; };
   // a soldier object id is the player's from his spawn until he spawns again (a new soldier, often with another id):
   // records of the old id after that belong to somebody else (a spawn that was not decoded), not to him
@@ -12826,6 +12917,38 @@ function statsPlayer(nick, redraw) {
   if (!o.data) return undefined;
   return { R: o.data.rounds.map(([nm, p]) => ({ r: srvRound(nm), p })).filter(x => x.r), AG: o.data.agg };
 }
+// (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
+// shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
+const hintsCache = new Map();
+function hintsGet(p, bust) {
+  let o = hintsCache.get(p); if (o) return o;
+  o = { wait: true, fns: [] }; hintsCache.set(p, o);
+  fetch('data/stats/' + p + (bust ? '?v=' + encodeURIComponent(bust) : ''), { cache: 'no-cache' }).then(r => r.ok ? r.json() : null).catch(() => null)
+    .then(d => { o.data = d; o.wait = false; const F = o.fns; o.fns = []; for (const f of F) f(); });
+  return o;
+}
+function statsHints(nick, redraw) {
+  const A = hintsGet('hints.json'); if (A.wait) { statsThen(A, redraw); return null; }
+  if (!A.data || A.data.hv !== HINTS_V) return undefined;
+  const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
+  return M.data && M.data.hv === HINTS_V ? { me: M.data, all: A.data } : undefined;
+}
+// the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
+function hintsCard(H, nick) {
+  if (!H) return '';
+  const label = new Map(ADM_KINDS), rows = [];
+  for (const [k, [n, cnt]] of Object.entries(H.me.k || {})) {
+    const sh = H.all.kinds?.[k]; if (!sh || !sh[1]) continue;
+    const p = Math.max(1e-6, sh[0] / sh[1]), lo = aggTail10(n, H.me.rounds, p);
+    rows.push({ k, n, cnt, p, lo, ex: H.me.ex?.[k] || [] });
+  }
+  if (!rows.length) return '';
+  rows.sort((a, b) => a.lo - b.lo || b.n - a.n);
+  const odds = lo => lo > -1 ? 'within chance' : `by chance ~1 in ${lo > -6 ? Math.round(10 ** -lo).toLocaleString('en') : '10^' + Math.floor(-lo)}`;
+  const pc = v => v >= 0.1 ? Math.round(v * 100) + '%' : v >= 0.01 ? (v * 100).toFixed(1) + '%' : (v * 100).toFixed(2) + '%';
+  const li = r => `<li class="${r.lo <= HS_ODD ? 'hodd' : ''}"><span class="nmc"><b>${esc(label.get(r.k) || r.k)}</b> <span class="w">in ${r.n} of his ${H.me.rounds} rounds (everyone ${pc(r.p)} of rounds) · ${odds(r.lo)}${r.ex.length ? ' · ' + r.ex.slice(0, 4).map(([nm, c]) => `<a href="#round=${encodeURIComponent(linkId(nm))}" title="Open the round">${esc(dayName(dayKey(srvRound(nm)?.sum?.date || '')) || linkId(nm))}${c > 1 ? ' ×' + c : ''}</a>`).join(', ') : ''}</span></span></li>`;
+  return `<section class="card"><h2>Hints over his rounds <span class="w">For admins · ${H.me.rounds} of his rounds analysed on the server, ${H.all.rounds} in all · the least likely first</span></h2><ul class="plist hlist">${rows.slice(0, 10).map(li).join('')}</ul>${rows.length > 10 ? `<p class="stnote">${rows.length - 10} more</p>` : ''}</section>`;
+}
 // each nick's latest name (names.json); null while it loads
 function statsNames(redraw) { const o = statsGet('names.json'); if (o.wait) { statsThen(o, redraw); return null; } return o.data ? new Map(o.data.names) : undefined; }
 const statsLoading = what => `<section class="card"><p class="empty">Loading ${esc(what)}…</p></section>`;
@@ -12934,6 +13057,7 @@ function renderPlayerPage() {
       <div><h3>Killed by</h3>${list(kil, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">×${c}</span></li>`)}</div>
     </div>${kinds.length ? `<p class="pkdline">${kinds.map(([c, v]) => `${esc(KN[c] || c)} <b>${Math.round(v / mine.length * 100)}%</b>`).join(' · ')}</p>` : ''}</section>
     ${howDied(AG.died, list, share)}
+    ${S ? hintsCard(statsHints(nick, () => { if (ppage.nick === nick && !ppage.vs && !ppage.map) renderPlayerPage(); }), nick) : ''}
     <section class="card"><div class="pcols">
       <div><h3>Played with <span class="w">rounds on his side</span></h3>${list(withL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c}</span>${vsb(kk)}</li>`, 10)}</div>
       <div><h3>Played against <span class="w">rounds · kills between them, his – theirs</span></h3>${list(vsL, ([kk, c]) => `<li><span class="nmc">${pl(kk)}</span><span class="n">${c} <span class="w">· ${vicN.get(kk) || 0}–${kilN.get(kk) || 0}</span></span>${vsb(kk)}</li>`, 10)}</div>

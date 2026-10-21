@@ -61,7 +61,10 @@ const EF_SF_MAPS = ['greatwall', 'taraba_quarry', 'operationsmokescreen', 'devil
 // for every bit position first; a soldier's rides looked up from where the last frame left off; the map size's 99th
 // percentile picked without sorting every position) - every round comes out byte for byte the same (80 rounds checked),
 // so nothing is decoded again; rounds still made by 1d5536877e keep v156's rule
-const SAME_ROUNDS = { e9d9e7595f: [{ from: ['a629ba2a28'] }, { from: ['1d5536877e'], except: EF_SF_MAPS }] };
+// (v185) 5e7024cf21 is f70674b7e0 with the Special Forces rounds' sides taken from the Player ghost when the kits put
+// everyone on one side (todo 225): every other round comes out byte for byte the same (23 test rounds checked; of the
+// 1667 rounds of the analysis only two had one side, both on SF maps), so only the EF / SF maps are decoded again
+const SAME_ROUNDS = { e9d9e7595f: [{ from: ['a629ba2a28'] }, { from: ['1d5536877e'], except: EF_SF_MAPS }], '5e7024cf21': [{ from: ['f70674b7e0'], except: EF_SF_MAPS }] };
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 // ---------- the page's decoder ----------
