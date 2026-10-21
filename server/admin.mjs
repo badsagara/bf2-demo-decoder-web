@@ -25,7 +25,7 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
-import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf } from './notify.mjs';
+import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS } from './notify.mjs';
 import { expandIndex } from './roundsidx.mjs';
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 
@@ -355,13 +355,16 @@ function notifyState() {
   const names = new Set([...Object.keys(N.servers), ...[...seen].filter(([, o]) => o.newest.slice(0, 10) >= d90).map(([n]) => n)]);
   const servers = [...names].map(name => {
     const c = N.servers[name], o = seen.get(name) || { n30: 0, total: 0, newest: '' };
-    return { name, set: !!c, rounds30: o.n30, rounds: o.total, newest: o.newest || null, minPlayers: c?.minPlayers ?? null, last: c?.last || null,
+    return { name, set: !!c, rounds30: o.n30, rounds: o.total, newest: o.newest || null, minPlayers: c?.minPlayers ?? null, last: c?.last || null, format: c ? c.format : normFormat(null), formatSet: !!c?.formatSet,
       discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null };
   }).sort((a, b) => (b.set - a.set) || String(b.newest || '').localeCompare(String(a.newest || '')) || a.name.localeCompare(b.name));
   return { tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, minPlayers: N.minPlayers, minPlayersConf: N.minPlayersConf, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
-    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf };
+    items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
+    vars: POST_VARS, formatDefault: FORMAT_DEFAULT, templates: Object.entries(N.templates).map(([name, t]) => ({ name, ...t })).sort((a, b) => a.name.localeCompare(b.name)) };   // (v195: the post editor)
 }
 const cleanLines = o => { const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {}; for (const [k, v] of Object.entries(o || {})) if (keys.has(k)) L[k] = !!v; return L; };
+const notifyFile = () => readJson(path.join(DATA, '.notify.json'), {}) || {};
+const linesOf2 = o => Object.fromEntries(POST_ITEMS.map(([k]) => [k, o?.[k] !== false]));
 const knownServer = name => !!notifySettings().servers[name] || (index().rounds || []).some(r => r.sum && !r.sum.empty && serverOf(r) === name);
 function notifySet(b) {
   const said = [];
@@ -384,6 +387,7 @@ function notifySet(b) {
       if (b.telegram.lines) { t.lines = cleanLines(b.telegram.lines); said.push('Telegram parts saved'); }
       srv.telegram = t;
     }
+    if (b.format !== undefined) { srv.format = b.format === null ? null : normFormat(b.format); said.push(b.format === null ? 'the post: back to classic' : `the post saved (${srv.format.style === 'card' ? 'Discord: a card' : srv.format.style === 'text' ? 'Discord: text' : 'classic'})`); }   // (v195)
     if (b.minPlayers !== undefined) {
       if (b.minPlayers === null || b.minPlayers === '' || b.minPlayers === 0) { srv.minPlayers = null; said.push(`fewest players: as all (${N.minPlayers})`); }
       else { const n = Math.floor(+b.minPlayers); if (!(n >= 1 && n <= 64)) return { ok: false, msg: 'players: 1 to 64' }; srv.minPlayers = n; said.push(`rounds with ${n}+ players`); }
@@ -391,6 +395,23 @@ function notifySet(b) {
     if (!said.length) return { ok: false, msg: 'nothing to change' };
     saveNotify({}, name, srv); log(`round posts (${name}):`, said.join(', '));
     return { ok: true, msg: `${name}: ${said.join(' · ')}` };
+  }
+  // (v195) the post's templates (for any server) and one post for every server set up
+  const linesIn = L => ({ discord: cleanLines(L?.discord), telegram: cleanLines(L?.telegram) });
+  if (b.template !== undefined) {
+    const name = String(b.template?.name || '').trim().slice(0, 60); if (!name) return { ok: false, msg: 'a name for the template' };
+    const T = { ...(notifyFile().templates || {}) }; T[name] = { format: normFormat(b.template.format), lines: linesIn(b.template.lines), at: new Date().toISOString() };
+    saveNotify({ templates: T }); log('round posts: template saved:', name); return { ok: true, msg: `template "${name}" saved` };
+  }
+  if (b.templateRemove !== undefined) {
+    const name = String(b.templateRemove || ''), T = { ...(notifyFile().templates || {}) }; if (!(name in T)) return { ok: false, msg: 'no such template' };
+    delete T[name]; saveNotify({ templates: T }); log('round posts: template removed:', name); return { ok: true, msg: `template "${name}" removed` };
+  }
+  if (b.applyAll !== undefined) {
+    const F = normFormat(b.applyAll.format), L = linesIn(b.applyAll.lines), names = Object.keys(notifySettings().servers);
+    if (!names.length) return { ok: false, msg: 'no server is set up yet' };
+    for (const n of names) saveNotify({}, n, { format: F, discord: { linesAll: { ...linesOf2(L.discord) } }, telegram: { linesAll: { ...linesOf2(L.telegram) } } });
+    log(`round posts: one post for all ${names.length} servers`); return { ok: true, msg: `this post now on all ${names.length} server${names.length === 1 ? '' : 's'} set up (their channels stay)` };
   }
   if (b.tgToken !== undefined) {
     const t = String(b.tgToken || '').trim(); if (t && !TG_TOKEN_RE.test(t)) return { ok: false, msg: "not a Telegram bot token (from @BotFather: 123456789:AA…)" };
@@ -409,8 +430,8 @@ function notifyPreview(b) {
   const r = b.round ? roundOf(b.round) : R.sort((x, y) => String(y.sum.date).localeCompare(String(x.sum.date)))[0];
   if (!r || !r.sum) return { ok: false, msg: b.round ? 'no such round on the site' : 'no rounds of this server yet' };
   const c = srv !== null ? notifySettings().servers[srv] : null;
-  const lines = { discord: { ...(c?.discord.lines || {}), ...(b.lines?.discord || {}) }, telegram: { ...(c?.telegram.lines || {}), ...(b.lines?.telegram || {}) } };
-  return { ok: true, round: r.name, server: serverOf(r), hl: !!r.sum.hl, ...postTexts(r, lines) };
+  const cfg = { format: b.format !== undefined ? normFormat(b.format) : c?.format, discord: { lines: { ...(c?.discord.lines || {}), ...(b.lines?.discord || {}) } }, telegram: { lines: { ...(c?.telegram.lines || {}), ...(b.lines?.telegram || {}) } } };
+  return { ok: true, round: r.name, server: serverOf(r), hl: !!r.sum.hl, ...postTexts(r, cfg) };
 }
 async function notifyRun(arg, server) {
   const r = await run(NODE, [path.join(HERE, 'notify.mjs'), arg, ...(server ? [String(server)] : [])], { timeout: 60e3 });

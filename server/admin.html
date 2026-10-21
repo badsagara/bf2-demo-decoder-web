@@ -70,6 +70,19 @@ a.btn { display: inline-block; text-decoration: none; } a.btn.primary { backgrou
 .nsrv > summary::before { content: '▸'; color: var(--muted); width: 1em; } .nsrv[open] > summary::before { content: '▾'; }
 .nsrv .chip { font-size: 11.5px; border: 1px solid var(--line); border-radius: 10px; padding: 0 8px; white-space: nowrap; } .nsrv .chip.on { color: var(--ok); border-color: var(--ok); } .nsrv .chip.no { color: var(--muted); }
 .nsrv .nbody { padding: 4px 0 8px 1.2em; } .nsrv .nrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 6px 0; } .nsrv .nrow input[type=password], .nsrv .nrow input.chat { flex: 1 1 220px; } .nsrv .nrow input.chat { flex: 0 1 220px; }
+/* (v195) the post editor and the card preview */
+.ped { margin-top: 8px; } .pedt { display: grid; gap: 6px; margin: 6px 0; } .pedt label { display: grid; grid-template-columns: 7.5em 1fr; gap: 8px; align-items: center; color: var(--muted); }
+.pedt input, .pedt textarea, .ptext textarea { width: 100%; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 6px 9px; resize: vertical; }
+.ptab td { vertical-align: middle; } .ptab td.mv { white-space: nowrap; width: 4.2em; } .ptab td.mv button { padding: 2px 7px; } .ptab .lblrow { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; } .ptab input.lbl { flex: 0 1 260px; min-width: 140px; padding: 4px 8px; } .ptab .w { font-size: 12px; flex: 1 1 200px; }
+.ptext { margin: 8px 0; } .ptext textarea { margin-top: 6px; font-family: ui-monospace, monospace; font-size: 12.5px; } .phs { display: inline-flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; } button.ph { padding: 1px 6px; font: 11.5px ui-monospace, monospace; }
+.dcard { border-left: 4px solid var(--accent); background: #2b2d31; color: #dbdee1; border-radius: 4px; padding: 10px 14px 12px; white-space: normal; }
+.dcard .dchead { display: flex; gap: 12px; } .dcard .dctext { flex: 1; min-width: 0; } .dcard .dcthumb { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; flex: none; background: #1e1f22; color: #888; font-size: 11px; display: grid; place-items: center; }
+.dcard .dctitle { display: block; font-weight: 600; color: #00a8fc; margin-bottom: 4px; } .dcard .dcdesc { white-space: pre-wrap; margin-bottom: 6px; font-size: 13.5px; }
+.dcard .dcrow { display: grid; gap: 8px 12px; margin-top: 8px; } .dcard .dcfn { font-weight: 600; font-size: 13px; } .dcard .dcfv { white-space: pre-wrap; font-size: 13px; overflow-wrap: anywhere; }
+.dcard .dcimg { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 4px; margin-top: 10px; background: #1e1f22; color: #888; font-size: 12px; text-align: center; padding: 0; min-height: 40px; line-height: 40px; }
+.dcard .dcfoot { margin-top: 8px; font-size: 12px; color: #b5bac1; } .pvt code, .dcard code { font-family: ui-monospace, monospace; background: rgba(0,0,0,.3); padding: 0 3px; border-radius: 3px; }
+@media (max-width: 640px) { .ptab .w { display: none; } .ptab input.lbl { min-width: 0; width: 100%; flex: 1 1 auto; } .ptab th, .ptab td { padding: 4px 3px; font-size: 11.5px; } .ptab td.mv { width: auto; } .ptab td.mv button { padding: 2px 5px; } .nsrv .nbody { padding-left: 0; } .nsrv .nrow input[type=password], .nsrv .nrow input.chat { min-width: 0; flex: 1 1 100%; }
+  .pedt label { grid-template-columns: 1fr; } .ptab td:last-child, .ptab th:last-child { width: 3em; } .dcard .dcrow { grid-template-columns: 1fr !important; } }
 .nsrv .nparts { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); } .nsrv .nparts > summary { color: var(--fg); }
 .nsrv .nrow label.ck { display: flex; gap: 6px; align-items: center; min-width: 7.5em; font-weight: 600; } .nsrv .nrow input[type=number] { width: 4.5em; }
 [hidden] { display: none !important; }
@@ -456,24 +469,46 @@ async function look(what, body, btn) {
 $('#srcForm').addEventListener('submit', e => { e.preventDefault(); const v = $('#srcIn').value.trim(); if (!v) return; act('source-add', { url: v }, e.submitter).then(j => { if (j && j.ok) $('#srcIn').value = ''; }); });
 $('#srcProbe').onclick = () => { const v = $('#srcIn').value.trim(); if (!v) { $('#srcIn').focus(); return; } look('probe', { url: v }, $('#srcProbe')); };
 $('#fetchList').onclick = () => look('fetch-list', {}, $('#fetchList'));
-// (v194) the servers: a block each - Discord (on, webhook), Telegram (on, chat), fewest players, the parts for each app
-// (checkboxes), copy the parts from another server, preview, a test post, the newest round. Drawn again only when
-// something changed and nothing in it is being edited (the 5 s refreshes)
-let nsSig = '', nsList = [];
-const nsOpen = new Set(), nsDirty = new Set();
-const GROUPS = { best: 'The round', foot: 'Most kills', atLong: 'Longest kill', streakFoot: 'Kill streak, K/D', rev: 'Most', first: 'First and last' };
+// (v194) the servers: a block each - Discord (on, webhook), Telegram (on, chat), fewest players, the post (v195: its
+// editor - classic, a card with a table or text; the title and lines, the table's order, names, apps and width, own
+// text; templates for any server), preview, a test post, the newest round. Drawn again only when something changed
+// and nothing in it is being edited (the 5 s refreshes)
+let nsSig = '', nsList = [], nsN = null;
+const nsOpen = new Set(), nsDirty = new Set(), nsField = new WeakMap();
+const STYLE_NAME = { classic: 'classic', card: 'Discord: a card', text: 'Discord: text' };
+function editorHtml(v, F, lines, N) {
+  const it = Object.fromEntries(N.items.map(x => [x.k, x])), cls = F.style === 'classic', on = (app, k) => lines?.[app]?.[k] !== false;
+  const rows = F.order.map(k => { const x = it[k]; if (!x) return ''; return `<tr data-k="${esc(k)}"><td class="mv"><button type="button" data-a="up" aria-label="up"${cls ? ' disabled' : ''}>↑</button><button type="button" data-a="dn" aria-label="down"${cls ? ' disabled' : ''}>↓</button></td>`
+    + `<td><div class="lblrow"><input class="lbl" data-lbl="${esc(k)}" value="${esc(F.labels[k] || '')}" placeholder="${esc(x.name)}" aria-label="Name of ${esc(x.name)} in the post"${cls ? ' disabled' : ''}><span class="muted w">${esc(x.what)}</span></div></td>`
+    + ['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(k)}" aria-label="${esc(x.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${on(app, k) ? ' checked' : ''}></td>`).join('')
+    + `<td class="c"><input type="checkbox" data-w="${esc(k)}" aria-label="${esc(x.name)} across the whole card"${F.wide[k] ? ' checked' : ''}${cls ? ' disabled' : ''}></td></tr>`; }).join('');
+  const chips = N.vars.map(([k, w]) => `<button type="button" class="ph" data-ph="${esc(k)}" title="${esc(w)}">{${esc(k)}}</button>`).join('') + N.items.map(x => `<button type="button" class="ph" data-ph="${esc(x.k)}" title="${esc(x.name)}: ${esc(x.what)}">{${esc(x.k)}}</button>`).join('');
+  const tpls = N.templates.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join(''), others = nsList.map((o, j) => o.set && o.name !== v.name ? `<option value="${j}">${esc(o.name)}</option>` : '').join('');
+  return `<div class="nrow"><label class="muted">Discord as <select data-f="style"><option value="classic"${cls ? ' selected' : ''}>classic (as before)</option><option value="card"${F.style === 'card' ? ' selected' : ''}>a card with a table</option><option value="text"${F.style === 'text' ? ' selected' : ''}>text from the table</option></select></label>`
+    + `<span class="muted">${cls ? 'the parts in groups; only which are on applies - pick a card or text to set the order, names and layout' : F.style === 'card' ? 'Telegram (no cards there): text with the same order and names' : 'Telegram: the same text'}</span></div>`
+    + `<div class="pedt"${cls ? ' hidden' : ''}><label>Title <input data-f="title" value="${esc(F.title)}" placeholder="{map} · {when}"></label><label>Under it <textarea data-f="intro" rows="2" placeholder="{result} · {length} · {players} players · {kills} kills">${esc(F.intro)}</textarea></label><label>At the bottom <input data-f="footer" value="${esc(F.footer)}" placeholder="e.g. {server} · our Discord: …"></label></div>`
+    + `<div class="nrow"${F.style === 'card' ? '' : ' hidden'} data-f="cardOpts"><label class="muted">Stripe <select data-f="colorMode"><option value="winner"${F.color === 'winner' ? ' selected' : ''}>the winner's colour</option><option value="own"${F.color !== 'winner' ? ' selected' : ''}>own</option></select></label><input type="color" data-f="color" value="${F.color !== 'winner' ? esc(F.color) : '#e2b547'}"${F.color === 'winner' ? ' hidden' : ''} aria-label="Stripe colour">`
+    + `<label class="muted">Map picture <select data-f="image"><option value="big"${F.image === 'big' ? ' selected' : ''}>big, at the bottom</option><option value="small"${F.image === 'small' ? ' selected' : ''}>small, top right</option><option value="none"${F.image === 'none' ? ' selected' : ''}>none</option></select></label>`
+    + `<label class="muted">In a row <select data-f="cols"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
+    + `<div class="nrow"${F.style === 'text' ? '' : ' hidden'} data-f="textOpts"><label class="muted">In a line <select data-f="colsT"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3 parts</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
+    + `<table class="pit ptab"><thead><tr><th></th><th>Part · its name in the post</th><th class="c">Discord</th><th class="c">Telegram</th><th class="c" title="A row of its own: across the whole card / a line of its own">Own row</th></tr></thead><tbody>${rows}</tbody></table>`
+    + `<details class="ptext"${F.text ? ' open' : ''}${cls ? ' hidden' : ''}><summary>Own text instead of the table <span class="muted">(Discord as text, and Telegram)${F.text ? ' · <b class="ok">in use</b>' : ''}</span></summary>`
+    + `<textarea data-f="text" rows="7" placeholder="**{map}** · {when}&#10;{result}&#10;🏆 {best}&#10;Піхота: {foot} · Техніка: {veh}&#10;{link}">${esc(F.text)}</textarea>`
+    + `<div class="muted w">Click to add where the cursor is: <span class="phs">${chips}</span><br>**bold** *italic* __underline__ ~~struck~~ \`code\` · a line whose {…} are all empty is left out · the link at the end unless {link} is somewhere · empty: the table above</div></details>`
+    + `<div class="row" style="margin-top:8px"><button type="button" class="primary" data-a="postSave">Save the post</button><button type="button" data-a="allOn">All on</button><button type="button" data-a="allOff">All off</button>${v.formatSet ? '<button type="button" data-a="classic">Back to classic</button>' : ''}</div>`
+    + `<div class="row"><label class="muted">Template <select data-f="tpl"><option value="">…</option>${tpls}</select></label><button type="button" data-a="tplUse">Use it</button><button type="button" data-a="tplSave">Save as a template</button><button type="button" class="danger" data-a="tplRm">Remove it</button>`
+    + `${others ? `<label class="muted">or copy from <select data-f="copy"><option value="">a server…</option>${others}</select></label>` : ''}<span style="flex:1"></span><button type="button" data-a="applyAll" title="This post (saved or not) on every server set up; their channels stay">Use on all servers</button></div>`;
+}
 function renderServers(N) {
-  const box = $('#nServers'), sig = JSON.stringify([N.servers, N.tgToken, N.minPlayers]);
+  const box = $('#nServers'), sig = JSON.stringify([N.servers, N.tgToken, N.minPlayers, N.templates]);
   const ae = document.activeElement;   // (typing in one of its boxes: later)
-  if (sig === nsSig || nsDirty.size || (box.contains(ae) && ae.matches('input[type=password], input[type=number], input.chat, select') && ae.value)) return;
-  nsSig = sig; nsList = N.servers;
+  if (sig === nsSig || nsDirty.size || (box.contains(ae) && ae.matches('input[type=password], input[type=number], input.chat, input.lbl, input[data-f], textarea, select') && ae.value)) return;
+  nsSig = sig; nsList = N.servers; nsN = N;
   if (!nsList.length) { box.innerHTML = '<div class="muted">no rounds yet</div>'; return; }
   const onN = a => N.items.filter(it => a?.lines?.[it.k] !== false).length;
   const chip = (on, set, what, name) => !set ? '' : on ? `<span class="chip on">${name} ✓</span>` : `<span class="chip no">${name} off</span>`;
   box.innerHTML = nsList.map((v, i) => {
     const d = v.discord, t = v.telegram, any = (d && d.on && d.webhook) || (t && t.on && t.chat && N.tgToken);
-    const items = N.items.map(it => `${GROUPS[it.k] ? `<tr class="grp"><td colspan="3">${GROUPS[it.k]}</td></tr>` : ''}<tr><td>${esc(it.name)} <span class="muted" style="font-size:12px">${esc(it.what)}</span></td>${['discord', 'telegram'].map(app => `<td class="c"><input type="checkbox" data-app="${app}" data-k="${esc(it.k)}" aria-label="${esc(it.name)} on ${app === 'discord' ? 'Discord' : 'Telegram'}"${(v[app]?.lines?.[it.k]) !== false ? ' checked' : ''}></td>`).join('')}</tr>`).join('');
-    const others = nsList.map((o, j) => j !== i && o.set ? `<option value="${j}">${esc(o.name)}</option>` : '').join('');
     return `<details class="nsrv" data-i="${i}"${nsOpen.has(v.name) ? ' open' : ''}><summary><b>${esc(v.name)}</b><span class="muted">${v.rounds30} round${v.rounds30 === 1 ? '' : 's'} in 30 days${v.newest ? ` · newest ${esc(v.newest.slice(0, 16))}` : ''}</span>`
       + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') : '<span class="chip no">not posted: not set up</span>')
       + `</summary><div class="nbody">`
@@ -481,63 +516,117 @@ function renderServers(N) {
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="tgOn"${t && t.on ? ' checked' : ''}> Telegram</label><input class="chat" data-f="tgChat" autocomplete="off" spellcheck="false" placeholder="chat: -100… or @channel" value="${esc(t?.chat || '')}" aria-label="Telegram chat for ${esc(v.name)}"><button type="button" data-a="tgSave">Save</button>${N.tgToken ? '' : '<span class="warn">the bot\'s token is needed (above)</span>'}</div>`
       + `<div class="nrow"><span class="muted">Rounds with</span><input type="number" min="1" max="64" data-f="min" placeholder="${N.minPlayers}" value="${v.minPlayers ?? ''}" aria-label="Fewest players for ${esc(v.name)}"><span class="muted">players or more (empty: as all, ${N.minPlayers})</span><button type="button" data-a="minSave">Save</button></div>`
       + (v.last ? `<div class="row muted" style="overflow-wrap:anywhere">last post: <span class="mono">${esc(v.last.what)}</span> ${ago(v.last.at)} · <span class="${v.last.ok ? 'ok' : 'bad'}">${esc(v.last.msg)}</span></div>` : '')
-      + `<details class="nparts"${nsOpen.has(v.name + '\n#parts') ? ' open' : ''}><summary><b>What goes in a post</b> <span class="muted">Discord ${onN(v.discord)} of ${N.items.length} · Telegram ${onN(v.telegram)} of ${N.items.length} · a part shows only when the round has it</span></summary>`
-      + `<table class="pit"><thead><tr><th>Part</th><th class="c">Discord</th><th class="c">Telegram</th></tr></thead><tbody>${items}</tbody></table>`
-      + `<div class="row" style="margin-top:8px"><button type="button" class="primary" data-a="linesSave">Save the parts</button><button type="button" data-a="allOn">All on</button><button type="button" data-a="allOff">All off</button>${others ? `<label class="muted">copy from <select data-f="copy"><option value="">another server…</option>${others}</select></label>` : ''}</div></details>`
+      + `<details class="nparts"${nsOpen.has(v.name + '\n#parts') ? ' open' : ''}><summary><b>The post</b> <span class="muted">${STYLE_NAME[v.format.style]} · Discord ${onN(v.discord)} of ${N.items.length} parts · Telegram ${onN(v.telegram)} of ${N.items.length}${v.format.text ? ' · own text' : ''}</span></summary>`
+      + `<div class="ped">${editorHtml(v, v.format, { discord: v.discord?.lines, telegram: v.telegram?.lines }, N)}</div></details>`
       + `<div class="row" style="margin-top:8px"><button type="button" data-a="prev">Preview</button><button type="button" data-a="test"${any ? '' : ' disabled'}>Send a test post</button><button type="button" data-a="last"${any ? '' : ' disabled'}>Post its newest round</button></div>`
       + `<div class="pvw" data-f="prev" hidden><div class="muted" data-f="prevWhat"></div><div class="pvc"><div><b>Discord</b><div class="pvt" data-f="prevDc"></div></div><div><b>Telegram</b><div class="pvt" data-f="prevTg"></div></div></div></div>`
-      + (v.set ? `<div class="row" style="margin-top:10px"><button type="button" class="danger" data-a="forget">Stop posting this server</button><span class="muted">its channels and parts are forgotten</span></div>` : '')
+      + (v.set ? `<div class="row" style="margin-top:10px"><button type="button" class="danger" data-a="forget">Stop posting this server</button><span class="muted">its channels and post are forgotten</span></div>` : '')
       + `</div></details>`;
   }).join('');
 }
 const nsOf = el => { const d = el.closest('details.nsrv'); return d ? { d, i: +d.dataset.i, v: nsList[+d.dataset.i] } : null; };
-const linesVals = d => { const L = { discord: {}, telegram: {} }; for (const c of d.querySelectorAll('input[data-app]')) L[c.dataset.app][c.dataset.k] = c.checked; return L; };
+const linesVals = d => { const L = { discord: {}, telegram: {} }; for (const c of d.querySelectorAll('.ped input[data-app]')) L[c.dataset.app][c.dataset.k] = c.checked; return L; };
+// the editor as it is now (saved or not)
+function fmtOf(d) {
+  const q = f => d.querySelector(`.ped [data-f=${f}]`), style = q('style').value, labels = {}, wide = {};
+  for (const x of d.querySelectorAll('.ped input[data-lbl]')) if (x.value.trim()) labels[x.dataset.lbl] = x.value.trim();
+  for (const x of d.querySelectorAll('.ped input[data-w]')) wide[x.dataset.w] = x.checked;
+  return { style, title: q('title').value, intro: q('intro').value, footer: q('footer').value, color: q('colorMode').value === 'own' ? q('color').value : 'winner', image: q('image').value,
+    cols: +(style === 'text' ? q('colsT').value : q('cols').value), order: [...d.querySelectorAll('.ped tr[data-k]')].map(tr => tr.dataset.k), labels, wide, text: q('text').value };
+}
+const fillEditor = (o, F, lines) => { o.d.querySelector('.ped').innerHTML = editorHtml(o.v, F, lines, nsN); nsDirty.add(o.v.name); };
 const nsAct = (body, btn, keep) => act('notify-set', body, btn).then(j => { if (j && j.ok) { if (!keep) nsDirty.delete(body.server); nsSig = ''; } return j; });
 $('#nServers').addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.nsrv, details.nparts')) return;
-  const o = nsOf(d.matches('details.nparts') ? d.parentElement : d); if (!o) return; const key = o.v.name + (d.matches('details.nparts') ? '\n#parts' : '');
+  const o = nsOf(d); if (!o) return; const key = o.v.name + (d.matches('details.nparts') ? '\n#parts' : '');
   if (d.open) nsOpen.add(key); else nsOpen.delete(key);
 }, true);
+$('#nServers').addEventListener('focusin', e => { if (e.target.matches('.ped [data-f=title], .ped [data-f=intro], .ped [data-f=footer], .ped [data-f=text]')) { const o = nsOf(e.target); if (o) nsField.set(o.d, e.target); } });
+$('#nServers').addEventListener('input', e => { if (e.target.closest('.ped')) { const o = nsOf(e.target); if (o) nsDirty.add(o.v.name); } });
 $('#nServers').addEventListener('change', e => {
   const o = nsOf(e.target); if (!o) return; const f = e.target.dataset.f, name = o.v.name;
-  if (e.target.matches('input[data-app]')) { nsDirty.add(name); return; }
+  if (e.target.closest('.ped')) {
+    nsDirty.add(name);
+    if (f === 'style') fillEditor(o, { ...fmtOf(o.d) }, linesVals(o.d));
+    if (f === 'colorMode') o.d.querySelector('.ped [data-f=color]').hidden = e.target.value !== 'own';
+    if (f === 'copy' && e.target.value !== '') { const src = nsList[+e.target.value]; fillEditor(o, src.format, { discord: src.discord?.lines, telegram: src.telegram?.lines }); toast(`the post of ${src.name}: "Save the post" to keep it`); }
+    return;
+  }
   if (f === 'dcOn') { if (e.target.checked && !o.v.discord?.webhook) toast('add its webhook below too'); nsAct({ server: name, discord: { on: e.target.checked } }, null, true); }
   if (f === 'tgOn') nsAct({ server: name, telegram: { on: e.target.checked } }, null, true);
-  if (f === 'copy' && e.target.value !== '') { const src = nsList[+e.target.value]; for (const c of o.d.querySelectorAll('input[data-app]')) c.checked = src?.[c.dataset.app]?.lines?.[c.dataset.k] !== false; nsDirty.add(name); e.target.value = ''; toast(`the parts of ${src.name}: "Save the parts" to keep them`); }
 });
 $('#nServers').addEventListener('click', async e => {
+  const ph = e.target.closest('button.ph');
+  if (ph) { const o = nsOf(ph); if (!o) return; const t = nsField.get(o.d) || o.d.querySelector('.ped [data-f=text]'), x = `{${ph.dataset.ph}}`, a0 = t.selectionStart ?? t.value.length, a1 = t.selectionEnd ?? a0;
+    t.value = t.value.slice(0, a0) + x + t.value.slice(a1); t.focus(); t.setSelectionRange(a0 + x.length, a0 + x.length); nsDirty.add(o.v.name); return; }
   const b = e.target.closest('button[data-a]'); if (!b) return; const o = nsOf(b); if (!o) return;
   const a = b.dataset.a, name = o.v.name, q = f => o.d.querySelector(`[data-f=${f}]`);
+  if (a === 'up' || a === 'dn') { const tr = b.closest('tr'), to = a === 'up' ? tr.previousElementSibling : tr.nextElementSibling; if (to) { if (a === 'up') to.before(tr); else to.after(tr); b.focus(); nsDirty.add(name); } return; }
   if (a === 'dcSave') { const v = q('dcHook').value.trim(); if (!v) { q('dcHook').focus(); return; } nsAct({ server: name, discord: { webhook: v } }, b, true).then(j => { if (j && j.ok) q('dcHook').value = ''; }); }
   if (a === 'dcRm') { if (confirm(`Remove the Discord webhook of ${name}?`)) nsAct({ server: name, discord: { webhook: '' } }, b, true); }
   if (a === 'tgSave') nsAct({ server: name, telegram: { chat: q('tgChat').value.trim() } }, b, true);
   if (a === 'minSave') nsAct({ server: name, minPlayers: q('min').value.trim() === '' ? null : +q('min').value }, b, true);
-  if (a === 'linesSave') nsAct({ server: name, discord: { lines: linesVals(o.d).discord }, telegram: { lines: linesVals(o.d).telegram } }, b);
-  if (a === 'allOn' || a === 'allOff') { for (const c of o.d.querySelectorAll('input[data-app]')) c.checked = a === 'allOn'; nsDirty.add(name); }
-  if (a === 'forget') { if (confirm(`Stop posting the rounds of ${name}? Its webhook, chat and parts are forgotten.`)) nsAct({ server: name, remove: true }, b); }
+  if (a === 'postSave') { const L = linesVals(o.d); nsAct({ server: name, format: fmtOf(o.d), discord: { lines: L.discord }, telegram: { lines: L.telegram } }, b); }
+  if (a === 'classic') { if (confirm(`Back to the classic post for ${name}? Its order, names and texts are forgotten (which parts are on stays).`)) nsAct({ server: name, format: null }, b); }
+  if (a === 'allOn' || a === 'allOff') { for (const c of o.d.querySelectorAll('.ped input[data-app]')) c.checked = a === 'allOn'; nsDirty.add(name); }
+  if (a === 'tplUse') { const t = nsN.templates.find(x => x.name === q('tpl').value); if (!t) { toast('pick a template', false); return; } fillEditor(o, t.format, t.lines); toast(`template "${t.name}": "Save the post" to keep it`); }
+  if (a === 'tplSave') { const n = prompt('A name for the template (the same name: it is replaced)', q('tpl').value || ''); if (n && n.trim()) act('notify-set', { template: { name: n.trim(), format: fmtOf(o.d), lines: linesVals(o.d) } }, b).then(() => { nsSig = ''; }); }
+  if (a === 'tplRm') { const n = q('tpl').value; if (!n) { toast('pick a template', false); return; } if (confirm(`Remove the template "${n}"? (Servers using its post keep it.)`)) act('notify-set', { templateRemove: n }, b).then(() => { nsSig = ''; }); }
+  if (a === 'applyAll') { if (confirm('This post (as it is in the editor now) on every server set up? Their own posts are replaced; their channels stay.')) act('notify-set', { applyAll: { format: fmtOf(o.d), lines: linesVals(o.d) } }, b).then(j => { if (j && j.ok) { nsDirty.clear(); nsSig = ''; } }); }
+  if (a === 'forget') { if (confirm(`Stop posting the rounds of ${name}? Its webhook, chat and post are forgotten.`)) nsAct({ server: name, remove: true }, b); }
   if (a === 'test') act('notify-test', { server: name }, b);
   if (a === 'last') act('notify-last', { server: name }, b);
   if (a === 'prev') {
     b.disabled = true;
     try {
-      const j = await api('notify-preview', { server: name, lines: linesVals(o.d) });
+      const j = await api('notify-preview', { server: name, lines: linesVals(o.d), format: fmtOf(o.d) });
       if (!j.ok) { toast(j.msg || j.error || 'no', false); return; }
-      q('prev').hidden = false; q('prevWhat').innerHTML = `<span class="mono">${esc(j.round)}</span> · its newest round, with the boxes as they are now (saved or not)${j.hl ? '' : ' · <span class="warn">this round was summed up before v187: no highlights</span>'}`;
-      drawPost(q('prevDc'), j.discord, 'discord'); drawPost(q('prevTg'), j.telegram, 'telegram');
+      q('prev').hidden = false; q('prevWhat').innerHTML = `<span class="mono">${esc(j.round)}</span> · its newest round, with the editor as it is now (saved or not)${j.hl ? '' : ' · <span class="warn">this round was summed up before v187: no highlights</span>'}`;
+      if (j.discord.card) drawCard(q('prevDc'), j.discord.card); else drawPost(q('prevDc'), j.discord.text, 'discord');
+      drawPost(q('prevTg'), j.telegram, 'telegram');
     } catch (err) { toast(err.message, false); } finally { b.disabled = false; }
   }
 });
-// the preview: each app's text drawn as it shows it (bold; Discord's \ escapes gone) - built as text, never as HTML
-function drawPost(box, text, app) {
-  box.textContent = '';
-  const parts = app === 'discord' ? text.split(/(\*\*[\s\S]*?\*\*)/) : text.split(/(<b>[\s\S]*?<\/b>)/);
-  const plain = t => app === 'discord' ? t.replace(/\\([\\*_~`|>#\[\]()@-])/g, '$1') : t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-  for (const p of parts) {
-    if (!p) continue;
-    const bold = app === 'discord' ? /^\*\*[\s\S]*\*\*$/.test(p) : /^<b>[\s\S]*<\/b>$/.test(p);
-    if (bold) { const b = document.createElement('b'); b.textContent = plain(app === 'discord' ? p.slice(2, -2) : p.slice(3, -4)); box.appendChild(b); }
-    else box.appendChild(document.createTextNode(plain(p)));
+// the preview: each app's text drawn as it shows it - built as elements and text, never as HTML. Discord: its
+// markdown (**, __, ~~, *, `; \ escapes); Telegram: the tags it takes (b, i, u, s, code) and &amp; &lt; &gt;
+function mdInto(box, text, app) {
+  const stack = [box], top = () => stack[stack.length - 1], TAGS = { b: 'b', i: 'i', u: 'u', s: 's', code: 'code' };
+  const put = t => { if (t) top().appendChild(document.createTextNode(t)); };
+  if (app === 'telegram') {
+    for (const p of String(text).split(/(<\/?(?:b|i|u|s|code)>)/)) {
+      const m = /^<(\/?)(b|i|u|s|code)>$/.exec(p);
+      if (!m) { put(p.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')); continue; }
+      if (!m[1]) { const el = document.createElement(TAGS[m[2]]); top().appendChild(el); stack.push(el); } else if (stack.length > 1) stack.pop();
+    }
+    return;
   }
+  const MK = [['**', 'b'], ['__', 'u'], ['~~', 's'], ['*', 'i'], ['`', 'code']], t = String(text); let i = 0, buf = '';
+  while (i < t.length) {
+    if (t[i] === '\\' && i + 1 < t.length) { buf += t[i + 1]; i += 2; continue; }
+    const mk = MK.find(([m]) => t.startsWith(m, i));
+    if (!mk) { buf += t[i]; i++; continue; }
+    put(buf); buf = '';
+    const at = stack.findIndex((el, j) => j && el.tagName.toLowerCase() === mk[1]);
+    if (at < 0) { const el = document.createElement(mk[1]); top().appendChild(el); stack.push(el); } else stack.length = at;
+    i += mk[0].length;
+  }
+  put(buf);
+}
+function drawPost(box, text, app) { box.textContent = ''; box.className = 'pvt'; mdInto(box, text, app); }
+// a Discord card as Discord draws it: the stripe, the title (a link), the text, the fields (up to 3 in a row), the
+// picture (from this site when it is the same one), the bottom line
+function drawCard(box, E) {
+  box.textContent = ''; box.className = 'pvt dcard'; box.style.borderLeftColor = '#' + (E.color ?? 0).toString(16).padStart(6, '0');
+  const add = (tag, cls, parent = box) => { const el = document.createElement(tag); if (cls) el.className = cls; parent.appendChild(el); return el; };
+  const img = u => { try { const x = new URL(u); return x.host === location.host ? x.pathname : null; } catch (e) { return null; } };
+  let head = box; if (E.thumbnail) { head = add('div', 'dchead'); const tb = add('div', 'dctext', head); const th = img(E.thumbnail.url); const t = add(th ? 'img' : 'div', 'dcthumb', head); if (th) t.src = th; else t.textContent = 'map'; head = tb; }
+  if (E.title) { const t = add(E.url ? 'a' : 'div', 'dctitle', head); t.textContent = E.title; if (E.url) { t.href = E.url; t.target = '_blank'; t.rel = 'noopener'; } }
+  if (E.description) mdInto(add('div', 'dcdesc', head), E.description, 'discord');
+  // (as Discord lays them out: up to 3 inline fields share a row, a field that is not inline has a row of its own)
+  const rows = []; for (const f of E.fields || []) { const r = rows[rows.length - 1]; if (f.inline && r && r.inline && r.f.length < 3) r.f.push(f); else rows.push({ inline: f.inline, f: [f] }); }
+  const Z = '\u200b'; for (const r of rows) { const g = add('div', 'dcrow'); g.style.gridTemplateColumns = `repeat(${r.f.length}, minmax(0, 1fr))`; for (const f of r.f) { const c = add('div', 'dcf', g); add('div', 'dcfn', c).textContent = f.name === Z ? '' : f.name; mdInto(add('div', 'dcfv', c), f.value === Z ? '' : f.value, 'discord'); } }
+  if (E.image) { const u = img(E.image.url); const i = add(u ? 'img' : 'div', 'dcimg'); if (u) { i.src = u; i.onerror = () => { const d = document.createElement('div'); d.className = 'dcimg'; d.textContent = 'the map\'s picture'; i.replaceWith(d); }; } else i.textContent = 'the map\'s picture'; }
+  if (E.footer) add('div', 'dcfoot').textContent = E.footer.text;
 }
 // round posts (v153): the Telegram bot and the fewest players for all
 $('#nTgForm').addEventListener('submit', e => { e.preventDefault(); const t = $('#nTgT').value.trim(); if (!t) { $('#nTgT').focus(); return; } act('notify-set', { tgToken: t }, e.submitter).then(j => { if (j && j.ok) { $('#nTgT').value = ''; nsSig = ''; } }); });

@@ -79,7 +79,7 @@ function migrate(j) {
 const srvCfg = c => ({
   discord: { on: !!c?.discord?.on, webhook: typeof c?.discord?.webhook === 'string' ? c.discord.webhook : '', lines: linesOf(c?.discord?.lines) },
   telegram: { on: !!c?.telegram?.on, chat: typeof c?.telegram?.chat === 'string' ? c.telegram.chat : '', lines: linesOf(c?.telegram?.lines) },
-  minPlayers: c?.minPlayers ? Math.max(1, Math.min(64, Math.floor(+c.minPlayers))) : null, last: c?.last || null
+  minPlayers: c?.minPlayers ? Math.max(1, Math.min(64, Math.floor(+c.minPlayers))) : null, last: c?.last || null, format: normFormat(c?.format), formatSet: !!c?.format
 });
 // the settings: /etc/bf2replay.conf first (the bot's token, the fewest players), then the admin page's file
 export function notifySettings() {
@@ -87,8 +87,9 @@ export function notifySettings() {
   const ct = opt('BF2R_TELEGRAM_TOKEN', ''), tok = ct || (typeof j.telegram?.token === 'string' ? j.telegram.token : '');
   const mp = Math.floor(+opt('BF2R_NOTIFY_MIN_PLAYERS', '') || +j.minPlayers || 6);
   const servers = {}; for (const [n, c] of Object.entries(j.servers || {})) servers[n] = srvCfg(c);
+  const templates = {}; for (const [n, t] of Object.entries(j.templates || {})) templates[n] = { format: normFormat(t?.format), lines: { discord: linesOf(t?.lines?.discord), telegram: linesOf(t?.lines?.telegram) }, at: t?.at || null };
   return { tgToken: tok, tgTokenConf: !!ct, minPlayers: Math.max(1, Math.min(64, mp)), minPlayersConf: !!opt('BF2R_NOTIFY_MIN_PLAYERS', ''), last: j.last || null, servers,
-    migrated: j.migrated || null, ignoredConf: ['BF2R_DISCORD_WEBHOOK', 'BF2R_TELEGRAM_CHAT'].filter(k => opt(k, '')) };
+    templates, migrated: j.migrated || null, ignoredConf: ['BF2R_DISCORD_WEBHOOK', 'BF2R_TELEGRAM_CHAT'].filter(k => opt(k, '')) };
 }
 // change: { telegram: { token }, minPlayers, last } and / or server: name with srv: { discord: {...}, telegram: {...},
 // minPlayers, last } (merged; srv null: the server's settings gone - its rounds no more posted)
@@ -100,7 +101,8 @@ export function saveNotify(change, server, srv) {
     else {
       const o = j.servers[server] || {};
       for (const app of ['discord', 'telegram']) if (srv[app]) { const a = { ...(o[app] || {}), ...srv[app] }; if (srv[app].lines) a.lines = { ...(o[app]?.lines || {}), ...srv[app].lines }; o[app] = a; }
-      for (const k of ['minPlayers', 'last']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
+      for (const k of ['minPlayers', 'last', 'format']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
+      for (const app of ['discord', 'telegram']) if (srv[app]?.linesAll) { o[app].lines = srv[app].linesAll; delete o[app].linesAll; }   // (v195: a template's lines, whole)
       j.servers[server] = o;
     }
   }
@@ -124,9 +126,60 @@ function mapName(m) {
 const when = d => { const m = /^(\d{4})-(\d\d)-(\d\d)\s+(\d\d):(\d\d)/.exec(d || ''); if (!m) return d || ''; return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' }) + ` ${m[4]}:${m[5]}`; };
 const recent = d => { const m = /^(\d{4})-(\d\d)-(\d\d)\s+(\d\d):(\d\d)/.exec(d || ''); if (!m) return true; const t = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]); return Math.abs(Date.now() - t) < (MAX_AGE_H + 14) * 3600e3; };   // (the server's clock may be any time zone: ±14 h)
 
-// the post: lines, each a list of [text, kind] - kind 'b' bold, 'l' a link, '' plain - for each app's own markup; on:
-// which parts (POST_ITEMS) this app gets
+// ---------- (v195) the post: its layout, each server its own (servers[name].format) ----------
+// Classic (as before, the default: the parts in groups, only which are on applies); or Discord as a card (an embed: a
+// stripe in the winner's colour, the title a link to the round, the parts as fields - up to 3 in a row or across the
+// whole card: the table - the map's picture, a line at the bottom) or as text; Telegram (no cards there) as text with
+// the same order and names. The title, the line under it, the line at the bottom and the own
+// text (instead of the table) are templates: {map} {when} ... and each part's key ({foot}, {best} ...); a line whose
+// placeholders are all empty is left out; **bold** *italic* __underline__ ~~struck~~ `code` (Discord's own; turned into
+// Telegram's HTML). The parts' order, names and width are the table's; which go to which app: lines (as before).
+export const POST_VARS = [['map', 'the map'], ['when', 'day and time it started (Tue 13 Oct 21:14)'], ['date', 'the day (2026-10-13)'], ['time', 'the time (21:14)'], ['result', 'who won and the tickets'],
+  ['winner', 'the side that won'], ['loser', 'the side that lost'], ['tickets', 'tickets left (87 : 72)'], ['length', 'how long (45 min)'], ['players', 'how many players'], ['kills', 'how many kills'], ['server', "the server's name"], ['link', 'the link to the round']];
+export const FORMAT_DEFAULT = { style: 'classic', title: '{map} · {when}', intro: '{result} · {length} · {players} players · {kills} kills', footer: '', color: 'winner', image: 'big', cols: 3, order: POST_ITEMS.map(([k]) => k).filter(k => k !== 'server').concat('server'), labels: {}, wide: { best: true, server: true }, text: '' };
+const KEYS = POST_ITEMS.map(([k]) => k), LABEL = Object.fromEntries(POST_ITEMS.map(([k, n]) => [k, n]));
+const str = (v, d, n) => typeof v === 'string' ? v.replace(/\r/g, '').slice(0, n) : d;
+export function normFormat(f) {
+  const D = FORMAT_DEFAULT; f = f && typeof f === 'object' ? f : {};
+  const order = []; for (const k of Array.isArray(f.order) ? f.order : []) if (KEYS.includes(k) && !order.includes(k)) order.push(k);
+  for (const k of D.order) if (!order.includes(k)) order.push(k);   // (a part added in a later version: at the end)
+  const labels = {}; for (const [k, v] of Object.entries(f.labels || {})) if (KEYS.includes(k) && typeof v === 'string' && v.trim() && v.trim() !== LABEL[k]) labels[k] = v.trim().slice(0, 80);
+  const wide = {}; for (const k of KEYS) { const w = f.wide && k in f.wide ? !!f.wide[k] : !!D.wide[k]; if (w) wide[k] = true; }
+  return { style: ['card', 'text'].includes(f.style) ? f.style : 'classic', title: str(f.title, D.title, 250).replace(/\n/g, ' '), intro: str(f.intro, D.intro, 1000), footer: str(f.footer, D.footer, 500), color: /^#[0-9a-f]{6}$/i.test(f.color || '') ? f.color.toLowerCase() : 'winner',
+    image: ['big', 'small', 'none'].includes(f.image) ? f.image : D.image, cols: +f.cols === 2 ? 2 : 3, order, labels, wide, text: str(f.text, '', 3500) };
+}
+const labelOf = (F, k) => F.labels[k] || LABEL[k];
 const mmss = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+// each part's value for a round: { v: one line, vm: on several lines (the card) }; on: the parts this app gets (the
+// longest kill with any weapon only when it is none of those three shown already)
+function itemVals(entry, on) {
+  const s = entry.sum, T = s.teams || [], H = s.hl || {}, V = {};
+  const top = (s.P || []).slice().sort((a, b) => (b.score || 0) - (a.score || 0) || b.k - a.k).slice(0, 3);
+  if (top.length) { const L = top.map((p, k) => `${k + 1}. ${p.name}${T[p.team] ? ` (${T[p.team]})` : ''} ${p.score ?? 0}`); V.best = { v: L.join(' · '), vm: L.join('\n') }; }
+  const who = o => o.who.join(', ') + (o.more ? ` +${o.more}` : ''), wpn = w => w ? ` (${w})` : '', put = (k, f) => { if (H[k]) V[k] = { v: f(H[k]) }; };
+  for (const k of ['foot', 'veh', 'hs', 'knife', 'clay', 'mine', 'atInf', 'road', 'expl', 'streakFoot', 'streakVeh', 'rev', 'heal', 'rep']) put(k, o => `${who(o)} ${o.n}`);
+  const same = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
+  for (const k of ['atLong', 'smallLong', 'snipLong', 'longest']) if (!(k === 'longest' && ['atLong', 'smallLong', 'snipLong'].some(q => on[q] && same(H[q], H.longest)))) put(k, o => `${o.who} ${o.d} m${wpn(o.w)}`);
+  put('kd', o => `${o.who} ${o.r} (${o.k}/${o.d})`);
+  put('flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`);
+  put('first', o => `${o.who} → ${o.vic}${o.w ? ` (${o.w}, ${mmss(o.t)})` : ` (${mmss(o.t)})`}`);
+  put('last', o => `${o.vic} by ${o.who}${o.tk ? ' (team kill' + (o.w ? ', ' + o.w : '') + ')' : wpn(o.w)} at ${mmss(o.t)}`);
+  if (s.server) V.server = { v: s.server };
+  return V;
+}
+const linkOf = entry => DOMAIN ? `https://${DOMAIN}/r/${encodeURIComponent(entry.name.replace(/\.bf2demo(\.gz)?$/i, ''))}` : '';
+function varsOf(entry, V) {
+  const s = entry.sum, tk = s.tickets, T = s.teams || [], dm = /^(\d{4}-\d\d-\d\d)\s+(\d\d:\d\d)/.exec(s.date || '');
+  const tickets = tk ? `${tk[0][1]} : ${tk[1][1]}` : '', won = s.winner != null && T[s.winner] ? `${T[s.winner]} won${tickets ? `, tickets ${tickets}` : ''}` : tickets ? `tickets ${tickets}` : '';
+  const out = { map: mapName(s.map), when: when(s.date), date: dm ? dm[1] : '', time: dm ? dm[2] : '', result: won, winner: s.winner != null ? T[s.winner] || '' : '', loser: s.winner === 0 || s.winner === 1 ? T[1 - s.winner] || '' : '',
+    tickets, length: `${Math.round((s.duration || 0) / 60)} min`, players: String(s.players ?? ''), kills: String(s.kills ?? ''), server: s.server || '', link: linkOf(entry) };
+  for (const k of KEYS) if (V[k]) out[k] = V[k].v; else if (!(k in out)) out[k] = '';
+  return out;
+}
+const escTg = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+const escDc = s => String(s).replace(/([\\*_~`|>#[\]()@-])/g, '\\$1');
+// (v187-v194) the classic post, as before: the highlights in groups ("Most kills - on foot: A 14 · in vehicles: B 37"), only
+// which parts are on applies; the post of a server not changed in the editor (v195: style 'classic')
 function postLines(entry, on = linesOf({})) {
   const s = entry.sum, id = entry.name.replace(/\.bf2demo(\.gz)?$/i, ''), tk = s.tickets, T = s.teams || [], H = s.hl || {};
   const won = s.winner != null && T[s.winner] ? `${T[s.winner]} won${tk ? `, tickets ${tk[0][1]} : ${tk[1][1]}` : ''}` : tk ? `tickets ${tk[0][1]} : ${tk[1][1]}` : '';
@@ -153,8 +206,104 @@ function postLines(entry, on = linesOf({})) {
   if (DOMAIN) L.push([[`https://${DOMAIN}/r/${encodeURIComponent(id)}`, 'l']]);
   return L;
 }
-const escTg = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-const escDc = s => String(s).replace(/([\\*_~`|>#[\]()@-])/g, '\\$1');
+const asDiscord = L => L.map(seg => seg.map(([t, k]) => { if (k === 'l') return t; if (k !== 'b') return escDc(t); const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(t); return m[2] ? `${m[1]}**${escDc(m[2])}**${m[3]}` : t; }).join('')).join('\n').slice(0, 1900);   // (Discord's bold takes no spaces inside its stars)
+const asTelegram = L => L.map(seg => seg.map(([t, k]) => k === 'b' ? `<b>${escTg(t)}</b>` : escTg(t)).join('')).join('\n').slice(0, 3900);
+const MARKS = [['**', 'b'], ['__', 'u'], ['~~', 's'], ['*', 'i'], ['`', 'code']];
+// one line of a template: null when it has placeholders and all of them are empty. app: 'discord' (its markdown as
+// written, the values escaped), 'telegram' (the markup made HTML, all escaped) or 'plain' (markup taken out: a card's
+// title and bottom line, which show no markdown). Separators (· |) left at an end or doubled by an empty value go.
+function tplLine(line, vars, app) {
+  const tok = []; let i = 0;
+  for (const m of line.matchAll(/\{(\w+)\}/g)) { if (m.index > i) tok.push([0, line.slice(i, m.index)]); tok.push(m[1] in vars ? [m[1] === 'link' ? 2 : 1, String(vars[m[1]] ?? '')] : [0, m[0]]); i = m.index + m[0].length; }
+  if (i < line.length) tok.push([0, line.slice(i)]);
+  const vals = tok.filter(t => t[0]); if (vals.length && vals.every(t => !t[1])) return null;
+  const T = []; for (const t of tok) { if (t[0] && !t[1]) continue; if (!t[0] && T.length && !T[T.length - 1][0]) T[T.length - 1][1] += t[1]; else T.push([t[0], t[1]]); }
+  const SEP = /(\s*[·|]\s*){2,}/g;
+  T.forEach((t, j) => { if (t[0]) return; let x = t[1].replace(SEP, m => ' ' + m.trim().slice(-1) + ' '); if (j === 0) x = x.replace(/^\s*[·|]\s*/, ''); if (j === T.length - 1) x = x.replace(/\s*[·|]\s*$/, ''); t[1] = x; });
+  if (app === 'discord') return T.map(([v, x]) => v === 2 ? x : v ? escDc(x) : x).join('');
+  if (app === 'plain') return T.map(([v, x]) => v ? x : x.replace(/\*\*|__|~~|`/g, '').replace(/(^|[^\\])\*/g, '$1')).join('').trim();
+  // Telegram: each mark opens or closes its tag (nested right: closing one under others closes and opens them again)
+  let out = ''; const open = [];
+  for (const [v, x] of T) {
+    if (v) { out += escTg(x); continue; }
+    let k = 0;
+    while (k < x.length) {
+      const mk = MARKS.find(([m]) => x.startsWith(m, k));
+      if (!mk) { out += escTg(x[k]); k++; continue; }
+      const tag = mk[1], at = open.lastIndexOf(tag);
+      if (at < 0) { out += `<${tag}>`; open.push(tag); }
+      else { const above = open.splice(at); out += above.slice().reverse().map(t => `</${t}>`).join(''); above.shift(); for (const t of above) { out += `<${t}>`; open.push(t); } }
+      k += mk[0].length;
+    }
+  }
+  return out + open.slice().reverse().map(t => `</${t}>`).join('');
+}
+const tpl = (text, vars, app) => String(text || '').split('\n').map(l => tplLine(l, vars, app)).filter(l => l !== null).join('\n').trim();
+const hasLink = F => [F.title, F.intro, F.footer, F.style === 'text' || F.text ? F.text : ''].some(t => /\{link\}/.test(t || ''));
+// the post as text for an app: the title (bold), the line under it, the table (a part a line, or up to F.cols in a
+// row: "Name: value · Name: value"), the bottom line, the link; or the own text (F.text) instead of all that
+function textPost(entry, F, on, app) {
+  const V = itemVals(entry, on), vars = varsOf(entry, V), L = [];
+  const b = t => app === 'telegram' ? `<b>${escTg(t)}</b>` : `**${escDc(t)}**`, e = t => app === 'telegram' ? escTg(t) : escDc(t);
+  if (F.text.trim()) L.push(tpl(F.text, vars, app));
+  else {
+    const t = tpl(F.title, vars, app); if (t) L.push(/\*\*|<b>/.test(t) ? t : app === 'telegram' ? `<b>${t}</b>` : `**${t}**`);
+    const i = tpl(F.intro, vars, app); if (i) L.push(i);
+    let run = [];
+    const flush = () => { if (run.length) { L.push(run.join(' · ')); run = []; } };
+    for (const k of F.order) {
+      if (!on[k] || !V[k]) continue;
+      const seg = `${b(labelOf(F, k) + ':')} ${e(V[k].v)}`;
+      if (F.wide[k]) { flush(); L.push(seg); } else { run.push(seg); if (run.length >= F.cols) flush(); }
+    }
+    flush();
+    const f = tpl(F.footer, vars, app); if (f) L.push(f);
+  }
+  // (too long for the app - Telegram 4096, Discord 2000: whole lines from the end go, the link stays; never a cut tag)
+  const max = app === 'telegram' ? 3900 : 1990, link = vars.link && !hasLink(F) ? (app === 'telegram' ? escTg(vars.link) : vars.link) : '';
+  const lines = L.filter(Boolean).join('\n').split('\n'), keep = []; let n = link.length;
+  for (const l of lines) {
+    if (n + l.length + 1 > max) {   // (a line too long by itself, the first: cut - for Telegram without its tags, no cut entity)
+      if (!keep.length) keep.push(app === 'telegram' ? l.replace(/<\/?\w+>/g, '').slice(0, max - n - 1).replace(/&[a-z]*$/, '') : l.slice(0, max - n - 1));
+      break;
+    }
+    keep.push(l); n += l.length + 1;
+  }
+  if (link) keep.push(link);
+  return keep.join('\n');
+}
+// the post as a Discord card (an embed; Discord's limits: 25 fields, a name 256, a value 1024, the whole 6000)
+const TEAM_RGB = [0xff6b4f, 0x5ea8ff], DRAW_RGB = 0xe2b547;
+const cut = (t, n) => { t = String(t || ''); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+function cardPost(entry, F, on) {
+  const s = entry.sum, V = itemVals(entry, on), vars = varsOf(entry, V), E = {};
+  const title = tpl(F.title, vars, 'plain'); if (title) E.title = cut(title, 256);
+  if (vars.link) E.url = vars.link;
+  const d = tpl(F.intro, vars, 'discord'); if (d) E.description = cut(d, 4096);
+  E.color = F.color !== 'winner' ? parseInt(F.color.slice(1), 16) : s.winner === 0 || s.winner === 1 ? TEAM_RGB[s.winner] : DRAW_RGB;
+  const fields = []; let run = 0;
+  for (const k of F.order) {
+    if (!on[k] || !V[k]) continue;
+    const wide = !!F.wide[k];
+    if (!wide && F.cols === 2 && run === 2) { fields.push({ name: '\u200b', value: '\u200b', inline: true, blank: true }); run = 0; }   // (2 in a row: an empty third)
+    fields.push({ name: cut(labelOf(F, k), 256), value: cut(escDc(V[k].vm || V[k].v), 1024), inline: !wide }); run = wide ? 0 : run + 1;
+  }
+  while (fields.length > 25) { const j = fields.findIndex(x => x.blank); if (j >= 0) fields.splice(j, 1); else fields.pop(); }
+  E.fields = fields.map(({ name, value, inline }) => ({ name, value, inline }));
+  const ft = tpl(F.footer, vars, 'plain'); if (ft) E.footer = { text: cut(ft, 2048) };
+  if (DOMAIN && F.image !== 'none') { const m = String(s.map || '').toLowerCase(), img = `https://${DOMAIN}/assets/og/${fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg`; E[F.image === 'small' ? 'thumbnail' : 'image'] = { url: img }; }
+  const size = () => (E.title || '').length + (E.description || '').length + (E.footer?.text || '').length + E.fields.reduce((n, x) => n + x.name.length + x.value.length, 0);
+  while (size() > 5900 && E.fields.length) E.fields.pop();
+  return E;
+}
+// (v195) the post about a round for each app, with a server's settings (c: srvCfg - format, lines; missing: the
+// standard ones): { discord: { content } | { embeds }, telegram: HTML text }
+export function renderPost(entry, c) {
+  const F = normFormat(c?.format), on = app => linesOf(c?.[app]?.lines);
+  if (F.style === 'classic') return { discord: { content: asDiscord(postLines(entry, on('discord'))) }, telegram: asTelegram(postLines(entry, on('telegram'))) };
+  const dc = F.style === 'card' ? { embeds: [cardPost(entry, F, on('discord'))] } : { content: textPost(entry, F, on('discord'), 'discord') };
+  return { discord: dc, telegram: textPost(entry, F, on('telegram'), 'telegram') };
+}
 async function post(url, body) {
   const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 15e3);
   try {
@@ -165,17 +314,14 @@ async function post(url, body) {
   } catch (e) { return { ok: false, msg: e.name === 'AbortError' ? 'no answer in 15 s' : e.message }; }
   finally { clearTimeout(tm); }
 }
-// each app's text: Discord's markdown, Telegram's HTML
-const asDiscord = L => L.map(seg => seg.map(([t, k]) => { if (k === 'l') return t; if (k !== 'b') return escDc(t); const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(t); return m[2] ? `${m[1]}**${escDc(m[2])}**${m[3]}` : t; }).join('')).join('\n').slice(0, 1900);   // (Discord's bold takes no spaces inside its stars)
-const asTelegram = L => L.map(seg => seg.map(([t, k]) => k === 'b' ? `<b>${escTg(t)}</b>` : escTg(t)).join('')).join('\n').slice(0, 3900);
-// (v187) the post for a round as each app gets it (the admin page's preview); v194: with the lines given for each app
-export function postTexts(entry, lines) { return { discord: asDiscord(postLines(entry, linesOf(lines?.discord))), telegram: asTelegram(postLines(entry, linesOf(lines?.telegram))) }; }
-// L: the lines for every target, or a function target -> lines; T: targetsOf
-async function send(L, T, S) {
-  const out = [], of = t => typeof L === 'function' ? L(t) : L;
+// (v187) the post for a round as each app gets it (the admin page's preview); v195: with a server's settings
+export function postTexts(entry, c) { const P = renderPost(entry, c); return { discord: P.discord.embeds ? { card: P.discord.embeds[0] } : { text: P.discord.content }, telegram: P.telegram }; }
+// P: { discord: { content } | { embeds }, telegram: text } for the targets T (targetsOf)
+async function send(P, T, S) {
+  const out = [];
   for (const t of T) {
-    if (t.app === 'discord') out.push(['Discord', await post(t.url, { content: asDiscord(of(t)), username: 'BF2 Round Replay', allowed_mentions: { parse: [] } })]);
-    else out.push(['Telegram', await post(`https://api.telegram.org/bot${S.tgToken}/sendMessage`, { chat_id: t.chat, text: asTelegram(of(t)), parse_mode: 'HTML' })]);
+    if (t.app === 'discord') out.push(['Discord', await post(t.url, { ...P.discord, username: 'BF2 Round Replay', allowed_mentions: { parse: [] } })]);
+    else out.push(['Telegram', await post(`https://api.telegram.org/bot${S.tgToken}/sendMessage`, { chat_id: t.chat, text: P.telegram, parse_mode: 'HTML' })]);
   }
   return out;
 }
@@ -190,7 +336,7 @@ export async function notifyRounds(entries) {
     const srv = serverOf(e), c = S.servers[srv], T = targetsOf(S, srv);
     if (!c || !T.length) { const k = `"${srv}" ${c ? (c.telegram.on && c.telegram.chat && !S.tgToken ? '(its Telegram chat needs the bot\'s token on the admin page)' : '(set up, but no Discord webhook or Telegram chat on)') : '(not set up on the admin page)'}`; skipped.set(k, (skipped.get(k) || 0) + 1); continue; }
     if (s.players < (c.minPlayers || S.minPlayers)) continue;
-    const R = await send(t => postLines(e, t.lines), T, S), m = told(R);
+    const R = await send(renderPost(e, c), T, S), m = told(R);
     log('round post', e.name, `(${srv})`, '-', m); remember(e.name, R.every(([, r]) => r.ok), m, srv);
   }
   for (const [k, n] of skipped) log(`round posts: ${n} new round${n === 1 ? '' : 's'} of ${k} not posted`);
@@ -210,10 +356,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   let all = true; const said = [];
   for (const n of servers) {
     const T = targetsOf(S, n); if (!T.length) continue;
-    let L;
-    if (a.includes('--test')) L = [[['BF2 Round Replay', 'b']], [[`A test post: new rounds of ${n} will be posted here like this.`, '']], ...(DOMAIN ? [[[`https://${DOMAIN}/`, 'l']]] : [])];
-    else { const e = newestRound(n); if (!e) { said.push(`${n}: no rounds yet`); all = false; continue; } L = t => postLines(e, t.lines); }
-    const R = await send(L, T, S), m = told(R), ok = R.every(([, r]) => r.ok); all = all && ok;
+    let P;
+    if (a.includes('--test')) { const t = `A test post: new rounds of ${n} will be posted here like this.`; P = { discord: { content: `**BF2 Round Replay**\n${escDc(t)}${DOMAIN ? `\nhttps://${DOMAIN}/` : ''}` }, telegram: `<b>BF2 Round Replay</b>\n${escTg(t)}${DOMAIN ? `\nhttps://${DOMAIN}/` : ''}` }; }
+    else { const e = newestRound(n); if (!e) { said.push(`${n}: no rounds yet`); all = false; continue; } P = renderPost(e, S.servers[n]); }
+    const R = await send(P, T, S), m = told(R), ok = R.every(([, r]) => r.ok); all = all && ok;
     said.push(servers.length > 1 || want === undefined ? `${n}: ${m}` : m); remember(a.includes('--test') ? 'test' : 'newest round', ok, m, n);
   }
   console.log(said.join(' | ')); process.exit(all ? 0 : 1);
