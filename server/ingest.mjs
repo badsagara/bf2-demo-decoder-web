@@ -144,8 +144,8 @@ function bfrBuild(obj) {
 // against his weapons, todo 219 / 221; 3, v187: hl - the round's highlights for the posts about it, notify.mjs; 4, v188:
 // and the mines' kills, as the site's Round stats has them; 5, v190: the kill streaks on foot and in vehicles apart; 6,
 // v192: each soldier's own of them, P[].x, for the records over many rounds; 7, v201: the kills' distances - a throw only
-// for a kill by what it is, todo 245)
-const SUM_V = 7;
+// for a kill by what it is, todo 245; 8, v202: a soldier's longest kill without the commander's artillery)
+const SUM_V = 8;
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -208,7 +208,7 @@ function summarize(tl, hdr, dec) {
       sui: ev.filter(e => mine(e) && e.victim === id).length, hs: enemy.filter(e => e.hit === 'head').length,
       rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
       rep: ev.filter(e => e.type === 'repair' && e.by === id).length, score: pl.sb ? pl.sb[pl.sb.length - 1][1] : (pl.pts || []).reduce((a, q) => a + q[1], 0),   // (v132: the game's own score)
-      streak: streak(i), long: Math.max(0, ...enemy.map(e => e.dist || 0)), alive: Math.round(s.foot + s.veh) };
+      streak: streak(i), long: Math.max(0, ...enemy.filter(e => e.dist !== undefined && !/artillery/i.test(e.weapon || '')).map(e => e.dist)), alive: Math.round(s.foot + s.veh) };   // (v202: not the commander's artillery, as the page's longKill)
   });
   const top = P.slice().sort((a, b) => b.score - a.score)[0];
   // the kills for the heatmap of all rounds on the map: [victim x, y, killer x, y, victim's side, killer's side, kind, weapon, killer, victim,

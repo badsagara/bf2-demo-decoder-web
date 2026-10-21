@@ -1054,7 +1054,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v202';
+const APP_VERSION = 'v203';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1320,6 +1320,9 @@ function neutralSide(players, flags, times, n, nf, X, Y, L, DN, FO, FC) {
   }
   return st;
 }
+// (v202) a kill for "Longest kill": with a distance, and not the commander's artillery (he called it; the shell came from a
+// gun far off - Wake 18 Oct 18:52: 1353 m and 1038 m; the Records leave it out too)
+const longKill = e => e.dist !== undefined && !/artillery/i.test(e.weapon || '');
 // (v201) the throws that a kill's distance may start from, by kind: the kill's weapon names (ingest.mjs summarize: the same)
 const THROW_FOR = { Grenade: /grenade|^GP-\d|^M203$/i, SRAW: /SRAW|RPG/i, Eryx: /Eryx/i, TOW: /TOW|HJ-8|missile/i, 'TV missile': /missile|Hellfire|Maverick|HJ-8/i, 'D-30 shell': /artillery/i, 'M777 shell': /artillery/i };
 function normalize(d) {
@@ -5396,7 +5399,7 @@ function panels(force) {
     const p = round.players[sel], q = playerAt(sel,t);
     const col = 'ABCDEFGH'[Math.max(0,Math.min(7,Math.floor((q.x+W/2)/W*8)))], row = Math.max(1,Math.min(8,Math.floor((W/2-q.y)/W*8)+1));
     const lastKill = round.events.filter(e=>e.t<=t && e.type==='kill' && e.killer===p.id).pop();
-    const longest = round.events.filter(e => e.t <= t && e.type === 'kill' && e.killer === p.id && e.victim !== p.id && e.dist !== undefined).reduce((b, e) => !b || e.dist > b.dist ? e : b, null);
+    const longest = round.events.filter(e => e.t <= t && e.type === 'kill' && e.killer === p.id && e.victim !== p.id && longKill(e)).reduce((b, e) => !b || e.dist > b.dist ? e : b, null);
     const lastDeath = round.events.filter(e=>e.t<=t && e.type==='kill' && e.victim===p.id && !(e.revived && e.revived <= t)).pop();
     const status = p.vehicle ? (q.hp === null ? 'In play' : q.hp <= 0 ? 'Destroyed' : `Hit points ${Math.round(q.hp)}%`)
       : q.alive ? 'Alive' + ((p.chute || []).some(([a, b]) => a <= t && t < b) ? ' · on a parachute' : '') + (q.hp !== null && !q.veh ? ` · health ${Math.max(0, Math.round(q.hp))}%` : '') + ((hg => hg != null && hg >= LIFT_MIN ? ` · ${Math.round(hg)} m over the ground` : '')(overGround(sel, q))) + (firingNow(p, t) ? ' · firing' : '') + (outsideNow(p, t) !== null ? ` · <span class="outs">outside the combat area ${outsideNow(p, t)} s</span>` : '')
@@ -5838,7 +5841,7 @@ function roundPlayerRows() {
   const rows = S.P.filter(p => p.foot + p.veh > 0 || p.k[0] + p.k[1] + p.d[0] + p.d[1] > 0).map(p => {
     const pl = R.players[p.i], id = pl.id;
     const enemy = ev.filter(e => e.type === 'kill' && e.killer === id && e.victim !== id && R.pidx.has(e.victim) && teamOf(R.pidx.get(e.victim), e.t) !== teamOf(p.i, e.t));
-    const st = S.streaks.find(x => x.i === p.i), lg = enemy.filter(e => e.dist !== undefined).reduce((b, e) => !b || e.dist > b.dist ? e : b, null);
+    const st = S.streaks.find(x => x.i === p.i), lg = enemy.filter(longKill).reduce((b, e) => !b || e.dist > b.dist ? e : b, null);
     const k = p.k[0] + p.k[1], d = p.d[0] + p.d[1];
     return { i: p.i, team: teamOf(p.i, T), score: hasScore ? scoreNow(pl, T) : 0, tw: pl.sb ? sbNow(pl, T)[5] : 0, as: ev.reduce((n, e) => n + (e.type === 'kill' && e.assists?.includes(id) ? 1 : 0), 0), k, d, kd: k / Math.max(1, d), hs: enemy.filter(e => e.hit === 'head').length, tk: p.tk,
       kF: p.k[0], dF: p.d[0], kV: p.k[1], dV: p.d[1], veh: p.veh, foot: p.foot, alive: p.foot + p.veh,
@@ -8414,7 +8417,7 @@ function csvPlayers() {
     const k = p.k[0] + p.k[1], d = p.d[0] + p.d[1];
     return [pl.name.trim(), R.teams[tm]?.name || '', scoreNow(pl, T), k, d, d ? k / d : k, p.tk, kills.filter(e => e.killer === id && e.victim === id).length, p.k[0], p.d[0], p.k[1], p.d[1], Math.round(p.foot + p.veh), Math.round(p.veh),
       hc.head, hc.body, hc.limb, ev.filter(e => e.type === 'revive' && e.medic === id).length, ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length, ev.filter(e => e.type === 'repair' && e.by === id).length,
-      Math.max(0, ...S.streaks.filter(x => x.i === p.i).map(x => x.n)), Math.max(0, ...enemy.map(e => e.dist || 0)), eg.first || 0, eg.even || 0, eg.second || 0, eg.ambush || 0, eg.blind || 0, never, react.length ? react[react.length >> 1] : null];
+      Math.max(0, ...S.streaks.filter(x => x.i === p.i).map(x => x.n)), Math.max(0, ...enemy.filter(longKill).map(e => e.dist)), eg.first || 0, eg.even || 0, eg.second || 0, eg.ambush || 0, eg.blind || 0, never, react.length ? react[react.length >> 1] : null];
   }).sort((a, b) => String(a[1]).localeCompare(String(b[1])) || b[2] - a[2]);
   saveCsv(csvBase() + '_players.csv', toCsv(head, rows));
 }
@@ -13391,7 +13394,7 @@ function summarizeRound(tl, info, name) {
         sui: ev.filter(e => mine(e) && e.victim === id).length, hs: enemy.filter(e => e.hit === 'head').length,
         rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
         rep: ev.filter(e => e.type === 'repair' && e.by === id).length, score: scoreNow(pl, T),
-        streak: Math.max(0, ...S.streaks.filter(s => s.i === p.i).map(s => s.n)), long: Math.max(0, ...enemy.map(e => e.dist || 0)), alive: p.foot + p.veh };
+        streak: Math.max(0, ...S.streaks.filter(s => s.i === p.i).map(s => s.n)), long: Math.max(0, ...enemy.filter(longKill).map(e => e.dist)), alive: p.foot + p.veh };
     });
     const top = P.slice().sort((a, b) => b.score - a.score)[0];
     const pts = ev.filter(e => e.type === 'kill').map(heatKill).filter(Boolean);

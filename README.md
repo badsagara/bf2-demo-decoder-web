@@ -73,7 +73,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 (`site/`, `server/`, `README.md`…). На Mac:
 
 ```bash
-V=v202   # номер версії з назви архіву
+V=v203   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -200,6 +200,8 @@ Admin ✓, перехід у вкладку Admin раунду, адмінка, 
 мобільна верстка (`<meta name="viewport">`). Перемикач **Aim line** є ще й у Filters ▾.
 З v202 — кнопка **⬇ Demo** у кожного раунду (і на його сторінці `/rounds/…`): демо з сервера, а якщо його прибрано —
 посилання туди, звідки воно скачане (INSTALL, розділ 21).
+З v203 — «Longest kill» гравця (таблиця Players · all rounds, картка, Round stats, CSV) без артилерії командира (снаряд
+летить від гармати: на Wake 18 Oct 18:52 — 1353 м і 1038 м), як і в Records; SUM_V 8 — підсумки раундів ще раз.
 
 ### Перевірити локально перед push
 
