@@ -477,13 +477,23 @@ export function monoTable(head, rows, sep = '  ') {
 // `On foot       | =SWE= =BRANDONMARTIN= |` **20**. Markdown has no bold inside code (and Discord's ANSI blocks show as
 // codes on phones), so the number is out of it. A player wider than WHO_MAX: a tie shortened (A, B +3), a name cut.
 // F.mono: all of it in one code block (v208), the |s too, nothing bold
+// (v217, Sagara: "one space after the longest nick" - the rows wrapped again) the players' column as wide as its widest
+// row in its shortest form: a nick, or a tie's first nick and "+N" (until v216 a tie in full, "A, B, C", to WHO_MAX: up
+// to 9 spaces after the longest nick); a tie then as many of its nicks as fit that width (A, B / A +3)
 const NBSP = '\u00a0', WHO_MAX = 26;
 const codeText = t => String(t ?? '').replace(/`/g, 'ˋ').replace(/\n/g, ' ');
+const whoShort = W => W.L.length > 1 || W.more ? `${W.L[0]} +${W.L.length - 1 + W.more}` : W.L[0] ?? '';
+// a row's players in w letters at most: a tie's "+N" kept, its first nick cut instead (A. +3)
+function whoFit(W, w) {
+  const t = codeText(whoText(W, w)); if (t.length <= w) return t;
+  const m = / \+\d+$/.exec(t); if (!m || w <= m[0].length + 1) return t.slice(0, w - 1) + '.';
+  return t.slice(0, w - m[0].length - 1) + '.' + m[0];
+}
 export function alignedRows(rows) {
   const R = rows.filter(r => r && typeof r === 'object');
-  const lw = Math.min(LBL_MAX, Math.max(1, ...R.map(r => codeText(r.label).length))), ww = Math.min(WHO_MAX, Math.max(1, ...R.map(r => codeText(whoText(r.who, Infinity)).length)));
+  const lw = Math.min(LBL_MAX, Math.max(1, ...R.map(r => codeText(r.label).length))), ww = Math.min(WHO_MAX, Math.max(1, ...R.map(r => codeText(whoShort(r.who)).length)));
   const cell = (t, w) => { t = codeText(t); if (t.length > w) t = t.slice(0, w - 1) + '.'; return t + NBSP.repeat(w - t.length); };
-  return rows.map(r => !r || typeof r !== 'object' ? `*${escDc(r)}*` : '`' + cell(r.label, lw) + ' | ' + cell(whoText(r.who, ww), ww) + ' |` **' + escDc(r.v) + '**' + (r.ex ? ' ' + escDc(r.ex) : '')).join('\n');
+  return rows.map(r => !r || typeof r !== 'object' ? `*${escDc(r)}*` : '`' + cell(r.label, lw) + ' | ' + cell(whoFit(r.who, ww), ww) + ' |` **' + escDc(r.v) + '**' + (r.ex ? ' ' + escDc(r.ex) : '')).join('\n');
 }
 const monoRows = rows => rows.map(r => !r || typeof r !== 'object' ? r : [r.label, r.v, whoText(r.who, Infinity) + (r.ex ? ' ' + r.ex : '')]);   // (first blood: "A → B (gun)", last killed: "B by A (gun)")
 const PER_HEAD = { ever: 'All time', month: 'Last 30 days', week: 'Last 7 days' };

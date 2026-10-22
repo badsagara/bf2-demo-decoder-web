@@ -149,7 +149,7 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-const SUM_V = 13;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags)
+const SUM_V = 14;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels)
 const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
@@ -170,7 +170,7 @@ function summarize(tl, hdr, dec) {
     const bear = (v, k) => Math.atan2(k.x - v.x, k.y - v.y), ok = (v, k) => v.alive && k.alive && !v.veh && Number.isFinite(v.yaw) && Number.isFinite(k.x) && Math.hypot(k.x - v.x, k.y - v.y) > 0.5;
     const v0 = at(vi, t - 0.1), k0 = at(ki, t - 0.1); let face = null, seen = null;
     if (ok(v0, k0)) { const d = angOff(v0.yaw, bear(v0, k0)); face = d < Math.PI / 3 ? 0 : d > Math.PI * 2 / 3 ? 2 : 1; }
-    for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(vi, tt), k = at(ki, tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= Math.atan(Math.tan(0.55) * 4 / 3)) { seen = 1; break; } }   // (the page's VIEW_HALF)
+    for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(vi, tt), k = at(ki, tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= Math.PI / 4) { seen = 1; break; } }   // (the page's VIEW_HALF: 90° across, v216 - SUM_V 14)
     return [face, seen === null ? null : seen ? 0 : 1];
   };
   const ev = tl.events.slice().sort((a, b) => a.t - b.t), kills = ev.filter(e => e.type === 'kill');
@@ -338,7 +338,7 @@ function extraStats(tl, C, P0, pidx, team, at, ev, kills, sold, P, dur) {
   const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
   const kind = v => String(v || '').replace(/ \d+$/, '');
   // duels: from the view test of the kills (as pts' unseen)
-  const VIEW = Math.atan(Math.tan(0.55) * 4 / 3);
+  const VIEW = Math.PI / 4;   // (the page's VIEW_HALF: 90° across, v216)
   const sawIn = (a, b, t) => { for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(a, tt), k = at(b, tt); if (!v.alive || !k.alive || v.veh || !Number.isFinite(v.yaw) || !Number.isFinite(k.x) || Math.hypot(k.x - v.x, k.y - v.y) < 0.5) continue; if (angOff(v.yaw, Math.atan2(k.x - v.x, k.y - v.y)) <= VIEW) return true; } return false; };
   for (const e of kills) {
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || team(ki, e.t) === team(vi, e.t) || !Y.has(ki) || !Y.has(vi)) continue;
