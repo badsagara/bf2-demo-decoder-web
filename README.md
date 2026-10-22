@@ -14,6 +14,7 @@ server/       для VPS: install.sh (ставить усе одним запу�
               roundsidx.mjs (формат rounds.json, v176),
               systemd/, Caddyfile.in, INSTALL.md
 gameserver/   необов'язково: скрипт для ігрового сервера, який сам відсилає демо (якщо є доступ до сервера)
+docs/         документація англійською: встановлення, адмінка, для гравців, особливості функцій
 ```
 
 Як усе працює:
@@ -33,6 +34,10 @@ GitHub (цей репозиторій)  ──(щохвилини, update.sh: gi
 ```
 
 Встановлення на VPS — [server/INSTALL.md](server/INSTALL.md).
+
+**Документація англійською** — [docs/](docs/README.md): встановлення й налаштування VPS ([install.md](docs/install.md)),
+адмінка й інструменти адмінів ([admin-guide.md](docs/admin-guide.md), [admin-hints.md](docs/admin-hints.md) — лише для адмінів),
+для гравців і відвідувачів ([user-guide.md](docs/user-guide.md)), як працює кожна функція і її межі ([features.md](docs/features.md)).
 
 ## Оновлення сайту через GitHub
 
@@ -73,7 +78,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 (`site/`, `server/`, `README.md`…). На Mac:
 
 ```bash
-V=v221   # номер версії з назви архіву
+V=v222   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -260,6 +265,9 @@ SUM_V 14 — сервер підсумує всі раунди знову сам
 З v221 — рекорди без неможливих відстаней і зброї: вбивство міною, яке гра назвала «SRAW», — міна; ручна зброя з літака,
 зброя техніки пішки, далі за дальність кулі — без відстані; ракета «повітря–повітря» — від місця пуску; ручна зброя за туманом —
 не рекорд; ремонти — як рахує гра. SUM_V 16, HINTS_V 6 — сервер усе перерахує сам.
+З v222 — документація англійською в `docs/`: встановлення й налаштування (install.md), адмінка, пости, вкладка Admin і розгляд
+(admin-guide.md), підказки для адмінів (admin-hints.md — не для гравців), для гравців (user-guide.md) і особливості кожної
+функції (features.md). Код сайту не змінився: ні перерозбору, ні перерахунку.
 
 ### Перевірити локально перед push
 
