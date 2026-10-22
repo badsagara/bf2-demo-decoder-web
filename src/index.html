@@ -1070,7 +1070,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v220';
+const APP_VERSION = 'v221';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1341,6 +1341,76 @@ function neutralSide(players, flags, times, n, nf, X, Y, L, DN, FO, FC) {
 const longKill = e => e.dist !== undefined && !/artillery/i.test(e.weapon || '');
 // (v201) the throws that a kill's distance may start from, by kind: the kill's weapon names (ingest.mjs summarize: the same)
 const THROW_FOR = { Grenade: /grenade|^GP-\d|^M203$/i, SRAW: /SRAW|RPG/i, Eryx: /Eryx/i, TOW: /TOW|HJ-8|missile/i, 'TV missile': /missile|Hellfire|Maverick|HJ-8/i, 'D-30 shell': /artillery/i, 'M777 shell': /artillery/i };
+// Kill distance (m): from the killer's place in the frame of the kill (a soldier in a vehicle is where the vehicle is)
+// to the victim's, with height; for a grenade or rocket from where it was thrown or fired (the thrower can run on for
+// the 2.8 s of a grenade's fuse). None for placed C4 / claymores / AT mines (the owner can be anywhere when one goes
+// off) or kills without a weapon. Checked against the round logger's positions: tests 2-12, 207 of 208 kills within
+// 2 m (the other: the victim's jeep ride was not decoded).
+// (v201) a throw only for a kill by what it is (TF: a grenade, a launcher's rocket, a missile, a shell) - never for
+// small arms: Wake Island 18 Oct 18:52 a DAO-12 kill at 3 m read 502 m and an L96A1 one at 148 m read 910 m, from some
+// other throw of the killer's ending then (the commander's artillery shells too); of several the one that came down
+// nearest the victim; from where it started only when the killer was there then (30 m; an artillery shell: from its
+// gun), else from where the killer was at the kill
+// (v221, Sagara: "907 m SRAW on Dragon Valley 17.10 - a bomb, not a launcher; the other records don't look real") the
+// game names in a kill at times what the killer holds, not what killed: T2000.BE's AT mine under a Type 98, "SRAW",
+// while he flew an F-35B 900 m up (its blast by him there in the same 0.5 s). Put right, the archive of 2779 rounds
+// and the 27 here looked at:
+// - a placed charge of his (an AT mine, a claymore, C4: its blast) went off by the victim (12 m) within 1 s of the kill
+//   and the hand-held weapon named could not have done it - he sat in a vehicle, the victim did, or he was 60 m+ off:
+//   the kill is the charge's (e.via: [the name, the id] the game gave). 27 rounds: 3 of 252 charge kills named otherwise;
+// - a hand-held weapon named while he sat in a vehicle (5329 of 351 294 such kills in the archive: up to 2.2 km, from
+//   a jet - an AT mine, a vehicle he had set burning) or a vehicle's weapon while he was on foot (he had bailed out:
+//   AH-1Z Hellfire 1215 m, the Vehicles record): no distance (e.noDist 'veh' / 'foot');
+// - farther than its bullet or rocket flies (REACH: the projectile's timeToLive x its speed - Objects/Weapons; SRAW
+//   and Eryx 45 m/s x 10 s): no distance ('reach') - AK-101 1442 m, the hand-held record;
+// - an air-to-air missile from an aircraft (no throw of it in the demo): from where he was when he fired it - his last
+//   press of a weapon button but the first (the gun) before the kill that a missile could have flown from (175 m/s
+//   and the jet's own speed: 400 m/s at most; 12 s) - a pilot presses again and again for a lock, and the latest such
+//   press is the nearest the shot can have been; none: no distance ('fired'). Up to v220 from where his jet was at the
+//   kill (2121 m, the record) - Wake 14.10 15:51 Clumsy77: 418 m then, 748 m from his press 2.8 s before (one 1.0 s
+//   before, 569 m off, no missile flies so fast).
+// - a hand-held weapon's kill past the map's fog limit (+10%: nobody sees him there - the Beyond fog hint for admins):
+//   its distance shown, but no record (e.noRec 'fog') - L96A1 826 m on Dalian Plant, SCAR-L 1037 m on Zatar.
+// events sorted; C the columns (times, n, X, Y, HH, VT); players (their fire presses); again: a decoded round's
+// distances worked out anew; fog: the map's (GAME.maps[...].view; none for a map not known)
+function killFix(events, pidx, C, players, again, fog) {
+  const TF = { Grenade: /grenade|^GP-\d|^M203$/i, SRAW: /SRAW|RPG/i, Eryx: /Eryx/i, TOW: /TOW|HJ-8|missile/i, 'TV missile': /missile|Hellfire|Maverick|HJ-8/i, 'D-30 shell': /artillery/i, 'M777 shell': /artillery/i };
+  const CHARGE = { 'AT mine': [5359, 'AT mine'], Claymore: [5460, 'Claymore'], C4: [5367, 'C4'] }, PLACED = new Set([5359, 5460, 5367]);
+  const REACH = { 5370: 500, 5372: 300, 5374: 300, 5376: 500, 5378: 500, 5380: 150, 5382: 150, 5384: 1000, 5388: 1000, 5390: 1000, 5392: 500, 5394: 500, 5398: 150, 5400: 1000, 5402: 500, 5413: 500, 5415: 500, 5417: 300, 5419: 300, 5425: 500, 5427: 500, 5429: 500, 5431: 1000, 5433: 500, 5435: 500, 5437: 500, 5439: 1000, 5444: 1000, 5446: 1000, 5448: 500, 5450: 1000, 5458: 500, 5462: 300, 5464: 300, 5468: 1000, 5470: 500, 5472: 500, 5474: 500, 5476: 500, 5478: 1000, 5480: 500, 5482: 500, 5483: 150, 5485: 500, 5487: 150, 5489: 1000, 5491: 1000, 5455: 450, 5369: 450,
+    5406: 10, 5386: 10, 5456: 120, 5421: 260, 5423: 260, 5466: 260, 5396: 260, 5441: 260 };   // (the knife and the paddles 10 m; a hand grenade 120 - the archive's 99.9% 89 m; a grenade launcher's 50 m/s: 255 m at most)
+  const A2A = /Sidewinder|Archer missile|^Eurofighter missiles$/i, A2A_V = 400, A2A_T = 12;
+  const { times: T, n, X, Y, HH, VT } = C, F = T.length, hh = e => HH ? HH[e] || 0 : 0;
+  const frameAt = tt => { if (!F || T[0] > tt) return -1; let lo = 0, hi = F - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= tt) lo = m; else hi = m - 1; } return lo; };
+  const hand = w => w >= 5357 && w <= 5493, vehW = w => w >= 4200 && w <= 5300;
+  const blasts = events.filter(e => e.type === 'blast' && CHARGE[e.kind] && e.x != null), thrown = events.filter(e => e.type === 'throw' && e.path?.length && TF[e.kind]);
+  for (const e of events) {
+    if (e.type !== 'kill') continue;
+    if (again) { delete e.dist; delete e.noDist; delete e.noRec; delete e.from; if (Array.isArray(e.via)) { [e.weapon, e.wid] = e.via; delete e.via; } }
+    if (e.dist !== undefined || e.killer === e.victim || !(e.wid || e.weapon)) continue;
+    const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
+    const a = k * n + ki, b = k * n + vi, kVeh = !!(VT && VT[a]), vVeh = !!(VT && VT[b]), dNow = Math.hypot(X[a] - X[b], Y[a] - Y[b], hh(a) - hh(b));
+    if (e.wid && hand(e.wid) && !PLACED.has(e.wid)) {   // (a placed charge of his)
+      const ex = e.x ?? X[b], ey = e.y ?? Y[b], bl = blasts.find(q => q.by === e.killer && Math.abs(q.t - e.t) <= 1 && Math.hypot(q.x - ex, q.y - ey) <= 12);
+      if (bl && (kVeh || vVeh || dNow > 60)) { e.via = [e.weapon, e.wid]; [e.wid, e.weapon] = CHARGE[bl.kind]; }
+    }
+    if (PLACED.has(e.wid)) continue;
+    if (e.wid && hand(e.wid) && kVeh) { e.noDist = 'veh'; continue; }
+    if (e.wid && vehW(e.wid) && !kVeh) { e.noDist = 'foot'; continue; }
+    if (A2A.test(e.weapon || '') && kVeh) {   // (from where he fired it)
+      const pr = (players[ki]?.fire || []).filter(f => f[2] > 0 && f[0] <= e.t + 0.05 && f[0] >= e.t - A2A_T).sort((x, y) => y[0] - x[0]);
+      let from = null; for (const f of pr) { const k0 = frameAt(f[0]); if (k0 < 0) continue; const a0 = k0 * n + ki, d0 = Math.hypot(X[a0] - X[b], Y[a0] - Y[b], hh(a0) - hh(b)); if (d0 <= A2A_V * (e.t - f[0]) + 50) { from = [X[a0], Y[a0], hh(a0)]; break; } }
+      if (!from) { e.noDist = 'fired'; continue; }
+      e.from = from.map(v => Math.round(v * 10) / 10); e.dist = Math.round(Math.hypot(from[0] - X[b], from[1] - Y[b], from[2] - hh(b))); continue;
+    }
+    const endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - X[b], q[2] - Y[b]); };   // (of several - shells - the one that came down by the victim)
+    let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && TF[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
+    if (th && !/shell/i.test(th.kind)) { const k0 = frameAt(th.path[0][0]), a0 = k0 * n + ki; if (k0 < 0 || !(Math.hypot(th.path[0][1] - X[a0], th.path[0][2] - Y[a0]) <= 30)) th = null; }
+    const dist = Math.round(th ? Math.hypot(th.path[0][1] - X[b], th.path[0][2] - Y[b]) : dNow);
+    if (REACH[e.wid] && dist > REACH[e.wid] * 1.05) { e.noDist = 'reach'; continue; }
+    e.dist = dist;
+    if (fog && e.wid && hand(e.wid) && dist > fog * 1.1 + 10) e.noRec = 'fog';   // (shown, but no record: past the map's fog limit - see the Beyond fog hint)
+  }
+}
 function normalize(d) {
   if (!d || !Array.isArray(d.players) || !(d.cols || Array.isArray(d.frames))) throw new Error('Timeline needs "players" and "frames" arrays.');
   const pidx = new Map(d.players.map((p,i)=>[p.id,i]));
@@ -1366,32 +1436,10 @@ function normalize(d) {
   for (const e of events) if (e.type==='death' && e._x === undefined) e._x = events.some(k => k.type==='kill' && k.victim===e.player && k.t <= e.t+0.5 && e.t-k.t < 60 &&
     !events.some(s => s.type==='spawn' && s.player===e.player && s.t > k.t && s.t <= e.t-1));
   const duration = d.meta?.duration || (F ? times[F-1] : 0);
-  // kill distance (m): from the killer's place in the frame of the kill (a soldier in a vehicle is where the vehicle is)
-  // to the victim's, with height; for a grenade or rocket from where it was thrown or fired (the thrower can run on for
-  // the 2.8 s of a grenade's fuse). None for placed C4 / claymores / AT mines (the owner can be anywhere when one goes
-  // off) or kills without a weapon. Checked against the round logger's positions: tests 2-12, 207 of 208 kills within
-  // 2 m (the other: the victim's jeep ride was not decoded).
-  // (v201) a throw only for a kill by what it is (THROW_FOR: a grenade, a launcher's rocket, a missile, a shell) - never for
-  // small arms: Wake Island 18 Oct 18:52 a DAO-12 kill at 3 m read 502 m and an L96A1 one at 148 m read 910 m, from some
-  // other throw of the killer's ending then (the commander's artillery shells too); of several the one that came down
-  // nearest the victim; from where it started only when the killer was there then (30 m; an artillery shell: from its
-  // gun), else from where the killer was at the kill
-  const PLACED = new Set(Object.values(CHARGE_WEAPON)), thrown = events.filter(e => e.type === 'throw' && e.path?.length && THROW_FOR[e.kind]);
-  const frameAt = tt => { if (!F || times[0] > tt) return -1; let lo = 0, hi = F - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (times[m] <= tt) lo = m; else hi = m - 1; } return lo; };
-  // (v204) a decoded round's file (.bfr) has each kill's distance as the code that decoded it worked it out (ingest.mjs
-  // summarize writes it into the events): worked out again here, always - only a logger's file keeps its own
-  const again = d.meta?.source === 'demo';
-  for (const e of events) {
-    if (e.type !== 'kill') continue;
-    if (again) delete e.dist;
-    if (e.dist !== undefined || e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
-    const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
-    const a = k * n + ki, b = k * n + vi;
-    const endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - X[b], q[2] - Y[b]); };   // (of several - shells - the one that came down by the victim)
-    let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && THROW_FOR[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
-    if (th && !/shell/i.test(th.kind)) { const k0 = frameAt(th.path[0][0]), a0 = k0 * n + ki; if (k0 < 0 || !(Math.hypot(th.path[0][1] - X[a0], th.path[0][2] - Y[a0]) <= 30)) th = null; }
-    e.dist = Math.round(th ? Math.hypot(th.path[0][1] - X[b], th.path[0][2] - Y[b]) : Math.hypot(X[a] - X[b], Y[a] - Y[b], HH[a] - HH[b]));
-  }
+  // kill distance (m), and a kill's weapon put right where the game named one it can't be: killFix (v221; the same in
+  // ingest.mjs summarize). (v204) a decoded round's file (.bfr) has each kill's distance as the code that decoded it worked
+  // it out: worked out again here, always - only a logger's file keeps its own
+  killFix(events, pidx, C, d.players, d.meta?.source === 'demo', GAME.maps[String(d.meta?.map || '').toLowerCase()]?.view);
   // destroyed vehicles: [from, until respawn, wreck removed] per vehicle id
   // man-down windows (decoded demos): [fell, end, kill event] per victim, for the revive countdown
   const downOf = new Map(); for (const e of events) if (e.type === 'kill' && e.down) { if (!downOf.has(e.victim)) downOf.set(e.victim, []); downOf.get(e.victim).push([e.t, e.down, e]); }
@@ -5932,6 +5980,13 @@ function statsCursor() {
     ln.setAttribute('x1', x); ln.setAttribute('x2', x);
   }
 }
+// (v221) his repairs as the game counts them - its "repair" score points - where the demo has the score's reasons (the
+// players' pts); else (and for older files) the decoded ones: hit points rising by a nearby engineer, which counted an
+// engineer by vehicles mending themselves (at a base, a carrier) - 747 in one round, the record (ingest.mjs: the same)
+function repairsOf(pl, ev) {
+  if (round.players.some(p => (p.pts || []).some(q => q[2]))) return (pl.pts || []).filter(q => /^repair$/i.test(q[2] || '')).length;
+  return ev.filter(e => e.type === 'repair' && e.by === pl.id).length;
+}
 // ---------- every soldier over the whole round: the players table (Round stats) and the player card (Battle) ----------
 function roundPlayerRows() {
   if (round._prows) return round._prows;
@@ -5945,7 +6000,7 @@ function roundPlayerRows() {
     return { i: p.i, team: teamOf(p.i, T), score: hasScore ? scoreNow(pl, T) : 0, tw: pl.sb ? sbNow(pl, T)[5] : 0, as: ev.reduce((n, e) => n + (e.type === 'kill' && e.assists?.includes(id) ? 1 : 0), 0), k, d, kd: k / Math.max(1, d), hs: enemy.filter(e => e.hit === 'head').length, tk: p.tk,
       kF: p.k[0], dF: p.d[0], kV: p.k[1], dV: p.d[1], veh: p.veh, foot: p.foot, alive: p.foot + p.veh,
       rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
-      rep: ev.filter(e => e.type === 'repair' && e.by === id).length, streak: st ? st.n : 0, st, long: lg ? lg.dist : 0, lg, enemy };
+      rep: repairsOf(pl, ev), streak: st ? st.n : 0, st, long: lg ? lg.dist : 0, lg, enemy };
   });
   return (round._prows = { rows, hasScore });
 }
@@ -6080,7 +6135,8 @@ function roundHighlights() {
     if (e.type !== 'kill') continue;
     const ki = pidx(e.killer), vi = pidx(e.victim); if (ki === undefined || vi === undefined || ki === vi || R.players[ki].vehicle) continue;
     const kq = playerAt(ki, e.t - 0.05), vq = playerAt(vi, e.t - 0.05), w = killGuess(e) || '', cause = killCause({ ...e, weapon: w }, !!kq.veh);
-    let d = e.dist; if (d === undefined && kq.alive) { const a = playerAt(ki, e.t), b = playerAt(vi, e.t); if (Number.isFinite(a.x) && Number.isFinite(b.x)) d = Math.round(Math.hypot(a.x - b.x, a.y - b.y, (a.h ?? 0) - (b.h ?? 0))); }
+    let d = e.noRec ? null : e.dist; if (d === undefined && kq.alive && !e.noDist) { const a = playerAt(ki, e.t), b = playerAt(vi, e.t);   // (v221: not one killFix found he could not have made from there)
+      if (Number.isFinite(a.x) && Number.isFinite(b.x)) d = Math.round(Math.hypot(a.x - b.x, a.y - b.y, (a.h ?? 0) - (b.h ?? 0))); }
     K.push({ e, t: e.t, ki, vi, w, raw: e.weapon || '', cause, kv: !!kq.veh, vv: !!vq.veh, tk: teamOf(ki, e.t) === teamOf(vi, e.t), d: Number.isFinite(d) ? d : null, head: e.hit === 'head', placed: HL_PLACED.has(e.wid) || /claymore|mine\b|^C4$/i.test(w) });
   }
   const E = K.filter(x => !x.tk), G = [];
@@ -6672,7 +6728,8 @@ function cheatHints(R) {
   // whose view distance is known (v213 archive: on 2779 rounds such kills of the other weapons, 2 or more of one soldier
   // in a round, in about 60 soldier-rounds); from an aircraft the distance in 3 dimensions
   const air = airNames(), fogKnown = !!GAME.maps[mapKey()]?.view;
-  const fogKill = (e, vi) => { const w = e.weapon || ''; if (!w || FOG_SKIP.test(w)) return false; for (let k = 0; k <= 5; k++) if (air.has(playerAt(vi, e.t - 0.05 - k).veh)) return false; return true; };
+  const fogKill = (e, vi) => { const w = e.weapon || ''; if (!w || FOG_SKIP.test(w) || e.noDist === 'veh' || e.noDist === 'foot' || e.noDist === 'fired') return false;   // (v221: not where killFix found the weapon named is not what he shot from there)
+    for (let k = 0; k <= 5; k++) if (air.has(playerAt(vi, e.t - 0.05 - k).veh)) return false; return true; };
   for (const e of ev) {
     if (e.type !== 'kill' || e.killer === e.victim) continue;
     const ki = pid(e.killer), vi = pid(e.victim); if (ki === undefined || vi === undefined || R.players[ki].vehicle) continue;
@@ -7973,7 +8030,7 @@ const ANALYZE_V = 2;   // (v214: Q, U - the fire presses; K's hp)
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 5;   // (v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°)
+const HINTS_V = 6;   // (v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
 const ANALYZE_COLS = {
   K: ['t', 'killer', 'victim', 'wid', 'weapon', 'cause', 'hit', 'tk', 'kveh', 'vveh', 'd', 'dz', 'cls', 'kst', 'vst', 'kv', 'vv', 'ping',
     'err', 'brgRate', 'react', 'eng', 'losK', 'losX', 'press', 'fog', 'smoke', 'pitchErr', 'hp'],
@@ -13772,7 +13829,7 @@ function summarizeRound(tl, info, name) {
       return { name: pl.name.trim(), team, win: winner !== null && team === winner, k: p.k[0] + p.k[1], kVeh: p.k[1], d: p.d[0] + p.d[1], tk: p.tk,
         sui: ev.filter(e => mine(e) && e.victim === id).length, hs: enemy.filter(e => e.hit === 'head').length,
         rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
-        rep: ev.filter(e => e.type === 'repair' && e.by === id).length, score: scoreNow(pl, T),
+        rep: repairsOf(pl, ev), score: scoreNow(pl, T),
         streak: Math.max(0, ...S.streaks.filter(s => s.i === p.i).map(s => s.n)), long: Math.max(0, ...enemy.filter(longKill).map(e => e.dist)), alive: p.foot + p.veh };
     });
     const top = P.slice().sort((a, b) => b.score - a.score)[0];

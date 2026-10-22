@@ -99,7 +99,11 @@ function loadDecoder() {
   // for the summary's kills; out of the hash too (a change to it sums the rounds up again: SUM_V)
   let killWeaponGuess = null; const kw = fnText('function killWeaponGuess(');
   if (kw) { try { killWeaponGuess = new Function(kw + '\nreturn killWeaponGuess;')(); } catch (e) { log('killWeaponGuess did not load:', e.message); } }
-  return { ...mod, ...clipFns, killWeaponGuess, hash };
+  // (v221) the kills' distances and a weapon the game named wrong put right (killFix: the page's normalize does the same)
+  // - out of the hash too (SUM_V)
+  let killFix = null; const kf = fnText('function killFix(');
+  if (kf) { try { killFix = new Function(kf + '\nreturn killFix;')(); } catch (e) { log('killFix did not load:', e.message); } }
+  return { ...mod, ...clipFns, killWeaponGuess, killFix, hash };
 }
 // (v183) the decoded round file back: { name, info, tl } (as the page's bfrParse) - to sum a round up again without
 // decoding its demo (SUM_V)
@@ -149,7 +153,7 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-const SUM_V = 15;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom)
+const SUM_V = 16;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
 const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
 // (v219) the page's field of view (VIEW_HALF, viewZoom) for the summaries: 95° across (a 16:9 screen: Hor+ since the 1.5
 // patch, the camera 1.1 rad high); through the sights or a scope (the Player ghost's move code 16) narrower - here without
@@ -187,21 +191,12 @@ function summarize(tl, hdr, dec) {
     return [face, seen === null ? null : seen ? 0 : 1];
   };
   const ev = tl.events.slice().sort((a, b) => a.t - b.t), kills = ev.filter(e => e.type === 'kill');
-  // kill distances as the page works them out (normalize): killer to victim in the frame of the kill, from where a grenade
-  // or rocket was thrown, none for placed charges and kills without a weapon
-  // (v201) a throw only for a kill by what it is (THROW_FOR, as the page's), of several the one that came down nearest the
-  // victim, from where it started only when the killer was there then (30 m; a shell: from its gun) - SUM_V 7
-  const THROW_FOR = { Grenade: /grenade|^GP-\d|^M203$/i, SRAW: /SRAW|RPG/i, Eryx: /Eryx/i, TOW: /TOW|HJ-8|missile/i, 'TV missile': /missile|Hellfire|Maverick|HJ-8/i, 'D-30 shell': /artillery/i, 'M777 shell': /artillery/i };
-  const PLACED = new Set([5367, 5460, 5359]), thrown = ev.filter(e => e.type === 'throw' && e.path?.length && THROW_FOR[e.kind]);
-  for (const e of kills) {
-    delete e.dist;   // (v204: a round summed up again from its .bfr has the distances of the code that decoded it - worked out again)
-    if (e.killer === e.victim || PLACED.has(e.wid) || !(e.wid || e.weapon)) continue;
-    const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
-    const a = k * n + ki, b = k * n + vi, endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - C.X[b], q[2] - C.Y[b]); };
-    let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && THROW_FOR[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
-    if (th && !/shell/i.test(th.kind)) { const k0 = frameAt(th.path[0][0]), a0 = k0 * n + ki; if (k0 < 0 || !(Math.hypot(th.path[0][1] - C.X[a0], th.path[0][2] - C.Y[a0]) <= 30)) th = null; }
-    e.dist = Math.round(th ? Math.hypot(th.path[0][1] - C.X[b], th.path[0][2] - C.Y[b]) : Math.hypot(C.X[a] - C.X[b], C.Y[a] - C.Y[b], C.HH[a] - C.HH[b]));
-  }
+  // kill distances as the page works them out (normalize, killFix): killer to victim in the frame of the kill, from where
+  // a grenade or rocket was thrown, an air-to-air missile fired; none for placed charges, kills without a weapon, one the
+  // killer could not have made from where he was (e.noDist); a weapon the game named wrong put right (a placed charge's
+  // kill named as what he held) - v221, SUM_V 16 (v201: the throws, SUM_V 7)
+  const PLACED = new Set([5367, 5460, 5359]);
+  if (dec.killFix) dec.killFix(ev, pidx, C, P0, true, dec.GAME?.maps?.[String(tl.meta?.map || '').toLowerCase()]?.view); else for (const e of kills) delete e.dist;
   for (const e of ev) if (e.type === 'death' && e._x === undefined) e._x = kills.some(k => k.victim === e.player && k.t <= e.t + 0.5 && e.t - k.t < 60 && !ev.some(s => s.type === 'spawn' && s.player === e.player && s.t > k.t && s.t <= e.t - 1));
   const sold = P0.map((p, i) => i).filter(i => !P0[i].vehicle);
   const S = new Map(sold.map(i => [i, { k: [0, 0], d: [0, 0], tk: 0, foot: 0, veh: 0 }])), killsOf = new Map(), deathsOf = new Map();
@@ -220,13 +215,14 @@ function summarize(tl, hdr, dec) {
   const streak = i => { const L = killsOf.get(i) || [], D = deathsOf.get(i) || []; let cur = 0, best = 0; for (const [, isK] of L.map(e => [e.t, 1]).concat(D.map(t => [t, 0])).sort((a, b) => a[0] - b[0] || b[1] - a[1])) { if (isK) best = Math.max(best, ++cur); else cur = 0; } return best >= 2 ? best : 0; };
   const tk0 = [C.TK[0], C.TK[1]], tk1 = [C.TK[(F - 1) * 2], C.TK[(F - 1) * 2 + 1]], hasTk = tk0[0] > 0 || tk0[1] > 0;
   const tickets = hasTk ? [[tk0[0], tk1[0]], [tk0[1], tk1[1]]] : null, winner = tickets ? (tickets[0][1] > tickets[1][1] ? 0 : tickets[1][1] > tickets[0][1] ? 1 : null) : null;
+  const ptsLab = P0.some(p => (p.pts || []).some(q => q[2]));   // (the score's reasons in the demo: repairs as the game counts them)
   const P = [...S].filter(([, s]) => s.foot + s.veh > 0).map(([i, s]) => {
     const pl = P0[i], id = pl.id, tm = team(i, dur), mine = e => e.type === 'kill' && e.killer === id;
     const enemy = ev.filter(e => mine(e) && e.victim !== id && team(pidx.get(e.victim), e.t) !== team(i, e.t));
     return { name: pl.name.trim(), team: tm, win: winner !== null && tm === winner, k: s.k[0] + s.k[1], kVeh: s.k[1], d: s.d[0] + s.d[1], tk: s.tk,
       sui: ev.filter(e => mine(e) && e.victim === id).length, hs: enemy.filter(e => e.hit === 'head').length,
       rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
-      rep: ev.filter(e => e.type === 'repair' && e.by === id).length, score: pl.sb ? pl.sb[pl.sb.length - 1][1] : (pl.pts || []).reduce((a, q) => a + q[1], 0),   // (v132: the game's own score)
+      rep: ptsLab ? (pl.pts || []).filter(q => /^repair$/i.test(q[2] || '')).length : ev.filter(e => e.type === 'repair' && e.by === id).length,   // (v221: as the game counts them - the page's repairsOf) score: pl.sb ? pl.sb[pl.sb.length - 1][1] : (pl.pts || []).reduce((a, q) => a + q[1], 0),   // (v132: the game's own score)
       streak: streak(i), long: Math.max(0, ...enemy.filter(e => e.dist !== undefined && !/artillery/i.test(e.weapon || '')).map(e => e.dist)), alive: Math.round(s.foot + s.veh) };   // (v202: not the commander's artillery, as the page's longKill)
   });
   const top = P.slice().sort((a, b) => b.score - a.score)[0];
@@ -252,7 +248,7 @@ function summarize(tl, hdr, dec) {
     for (const e of kills) {
       const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || P0[ki].vehicle) continue;
       const kq = at(ki, e.t - 0.05), vq = at(vi, e.t - 0.05), w = wOf(e) || '', cause = killCause({ ...e, weapon: w }, !!kq.veh);
-      let d = e.dist; if (d === undefined && kq.alive) { const k = frameAt(e.t); if (k >= 0) { const a = k * n + ki, b = k * n + vi; d = Math.round(Math.hypot(C.X[a] - C.X[b], C.Y[a] - C.Y[b], C.HH[a] - C.HH[b])); } }
+      let d = e.noRec ? null : e.dist; if (d === undefined && kq.alive && !e.noDist) { const k = frameAt(e.t); if (k >= 0) { const a = k * n + ki, b = k * n + vi; d = Math.round(Math.hypot(C.X[a] - C.X[b], C.Y[a] - C.Y[b], C.HH[a] - C.HH[b])); } }
       K.push({ t: e.t, ki, k: P0[ki].name.trim(), v: P0[vi].name.trim(), w, raw: e.weapon || '', cause, kv: !!kq.veh, vv: !!vq.veh, tk: team(ki, e.t) === team(vi, e.t), d: Number.isFinite(d) ? d : null, head: e.hit === 'head', placed: PLACED.has(e.wid) || /claymore|mine\b|^C4$/i.test(w) });
     }
     const E = K.filter(x => !x.tk);
