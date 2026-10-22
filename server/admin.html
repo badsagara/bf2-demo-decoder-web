@@ -94,6 +94,8 @@ details.hlp { margin: 0 0 10px; } details.hlp > summary { font-size: 12.5px; } d
 .dgh { margin: 12px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; } .dgh .w { font-weight: 400; } .dged .pit td.c { width: 3em; }
 /* (v196) the servers' admins */
 .urow { border-top: 1px solid var(--line); padding: 8px 0; } .urow:first-child { border-top: 0; } .usrv { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; } .usrv label.ck { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
+.ugrp { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin: 5px 0; } .ugrp > b { min-width: 6.5em; font-size: 12.5px; color: var(--muted); font-weight: 600; } .ugrp label.ck { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
+.accst { margin: 4px 0 8px; } .accst b.open { color: var(--ok); } .accst b.shut { color: var(--warn, #e2b547); }
 .ufrm { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); } .ufrm .usrv { flex: 1 1 100%; } .tag.ok { color: var(--ok); border-color: var(--ok); }
 [hidden] { display: none !important; }
 td.mono { overflow-wrap: anywhere; }
@@ -117,7 +119,8 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 <section class="card login" id="login" hidden>
   <h2>BF2 Round Replay · Admin</h2>
   <form id="loginForm" method="post" action="/admin/api/login" autocomplete="on">
-    <input type="text" name="username" value="admin" autocomplete="username" hidden>
+    <label for="un" class="muted">Name <span class="w">(the site's owner: empty)</span></label>
+    <input type="text" id="un" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" maxlength="64">
     <label for="pw" class="muted">Password</label>
     <input type="password" id="pw" autocomplete="current-password" required autofocus>
     <button class="primary" type="submit">Log in</button>
@@ -134,7 +137,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
   <button id="logout">Log out</button>
 </header>
 <main>
-  <section class="card" aria-labelledby="hR">
+  <section class="card" data-card="rounds" aria-labelledby="hR">
     <h2 id="hR">Rounds</h2>
     <p class="help">How many rounds the site has and which decoder made them - one an older decoder made is decoded again by itself after an update. Under it: the rounds of each game server, and the newest. <b>Recalculate all records</b> sums every round up again from its decoded file (no decoding, about 0.5 s a round, the site stays up): for when the Records page or the players' numbers look wrong.</p>
     <div class="big" id="rTotal">–</div>
@@ -144,7 +147,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <div class="row" id="recRow" style="align-items:center"><button type="button" id="recAgain" title="Every round summed up again from its decoded file (no decoding, ~0.5 s a round): its kills and their distances, the highlights for the posts, the records - then the Records page, the players' and maps' pages and the numbers over all rounds">Recalculate all records</button><span class="muted" id="recNote"></span></div>
   </section>
 
-  <section class="card" aria-labelledby="hQ">
+  <section class="card" data-card="decode" aria-labelledby="hQ">
     <h2 id="hQ">Being decoded</h2>
     <p class="help">Demos waiting to be decoded (from the demo pages below, or uploaded by hand) and, after an update, the old rounds being decoded again. <b>Failed demos</b>: those the decoder could not read - "Try them again" after an update. <b>Demos at once</b>: how many are decoded side by side; more is faster until the memory runs out - the table shows what was measured on this VPS.</p>
     <div class="row"><span class="big" id="qN">–</span><span class="muted" id="qInfo"></span></div>
@@ -153,7 +156,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <div class="jobs" id="jobs"></div>
   </section>
 
-  <section class="card" aria-labelledby="hD">
+  <section class="card" data-card="disk" aria-labelledby="hD">
     <h2 id="hD">Disk, last download</h2>
     <p class="help">Free room on the VPS and when the demo pages were last read. When the disk is nearly full, the oldest demos go first (see "Demos: what to keep") - the rounds stay on the site.</p>
     <div class="row"><span class="big" id="dFree">–</span><span class="muted" id="dTot"></span></div>
@@ -161,7 +164,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <div class="row muted" id="fLast"></div>
   </section>
 
-  <section class="card wide" aria-labelledby="hDm">
+  <section class="card wide" data-card="demos" aria-labelledby="hDm">
     <h2 id="hDm">Demos: what to keep</h2>
     <p class="muted" style="margin:0 0 8px">A round on the site lives in its decoded file (data/rounds): the map, the stats, the hints, the player pages. Its demo, 4-5 times bigger, is needed only to decode it again when the decoder changes and for a clip for the game. Old demos can go - their rounds stay and open as before.</p>
     <table class="du"><tbody id="dmDu"></tbody></table>
@@ -182,21 +185,21 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     </div>
   </section>
 
-  <section class="card wide" aria-labelledby="hS">
+  <section class="card wide" data-card="services" aria-labelledby="hS">
     <h2 id="hS">Services</h2>
     <p class="help">The VPS's jobs. Each runs by itself at its own time; its button starts it now. <b>State</b>: running, idle (waiting for its next time) or failed - then look at its lines in the Log below. <b>Last run</b> / <b>Next</b>: when it ran and when it runs again. A decoding run can be stopped: what it has not done waits for the next run, nothing is lost.</p>
     <table id="unitsT"><thead><tr><th>Service</th><th>State</th><th>Last run</th><th>Next</th><th></th></tr></thead><tbody id="units"></tbody></table>
     <div class="muted" id="sysNote" hidden></div>
   </section>
 
-  <section class="card wide" aria-labelledby="hAn">
+  <section class="card wide" data-card="analysis" aria-labelledby="hAn">
     <h2 id="hAn">Background analysis</h2>
     <details class="hlp"><summary>What the buttons do</summary><ul><li><b>Run now</b>: a run at once, instead of waiting 5 minutes.</li><li><b>All rounds now</b>: no 40-round limit, several rounds at a time, run after run until all are done - after an update that changes the hint rules. <b>Back to 40 a run</b> ends it.</li><li><b>Pause</b>: the rounds it is on are finished, then nothing until <b>Go on</b> (e.g. while the VPS is busy decoding).</li><li><b>Its log</b>: its lines in the Log below.</li><li><b>Glitch spot</b>: the maps' grids of where soldiers stood (a map needs enough rounds before it gives hints).</li><li><b>Highest suspicion scores</b>: the players to look at first (their pages on the site, the Admin tab of their rounds).</li><li><b>Archive for Claude</b>: every round's numbers in one file - make it, download it, send it to Claude to set the hints' thresholds, then remove it here.</li></ul></details>
     <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, a few at a time, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. 40 rounds a run, one at a time, 5 minutes after the last run (or all of them at once: "All rounds now"). When it is near 100%, the archive below is what Claude needs to set the thresholds.</p>
     <div id="anBox"></div>
   </section>
 
-  <section class="card wide" aria-labelledby="hF">
+  <section class="card wide" data-card="sources" aria-labelledby="hF">
     <h2 id="hF">Where demos come from</h2>
     <p class="help">The demo pages (a web folder listing .bf2demo files) and game servers (their address: the demo page they announce is found by itself) new demos are downloaded from. <b>read</b>: how often each is looked at. <b>Check</b>: reads it now and says what is there - downloads nothing. <b>Remove</b>: no more downloads from it (its rounds stay). <b>What would be downloaded?</b> lists the new demos on every page.</p>
     <div id="srcList"></div>
@@ -209,7 +212,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <pre id="srcOut" hidden></pre>
   </section>
 
-  <section class="card wide" aria-labelledby="hN">
+  <section class="card wide" data-card="posts" aria-labelledby="hN">
     <h2 id="hN">Posts about new rounds</h2>
     <p class="muted" style="margin:0 0 8px">Each game server its own: its new rounds go only to its own Discord channel and / or Telegram chat, with the parts picked for it - the map, who won and the link (the chat shows the map under it) always. A server not set up here is not posted. Rounds downloaded in a batch (recorded more than 12 h before) and clips are not posted.</p>
     <div id="nState"></div>
@@ -226,20 +229,21 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <details style="margin-top:8px"><summary>Where to get these</summary><p class="muted">Discord: the channel's settings (the gear) → Integrations → Webhooks → New Webhook → Copy Webhook URL. A channel a server: a webhook each.<br>Telegram: write to @BotFather, /newbot, copy the token it gives (one bot is enough for every server); add the bot to each group (or as an admin of each channel). The chat: @channelname for a public channel; for a group, its id - send a message in it, open https://api.telegram.org/bot&lt;token&gt;/getUpdates and take "chat":{"id": -100…}.<br>A server is known by the name in its demos: if its admins rename it, the new name shows here as a new server, not posted until set up.<br>Kept on the VPS only (data/.notify.json, which the web server never serves); here only the last 4 characters of the secrets show. In /etc/bf2replay.conf BF2R_TELEGRAM_TOKEN and BF2R_NOTIFY_MIN_PLAYERS win over these.</p></details>
   </section>
 
-  <section class="card wide" aria-labelledby="hU">
-    <h2 id="hU">Servers' admins</h2>
-    <p class="muted" style="margin:0 0 8px">Accounts for the admins of the game servers: each logs in on a round's <b>Admin</b> tab on the site (his name and password) and sees the hints of his servers' rounds there - nothing of this page. You log in there with an empty name and this page's password, and see every server's.</p>
-    <p class="help"><b>Set</b>: his new password. <b>Save his servers</b>: the servers whose rounds' hints he sees (none: he sees nothing). <b>Remove</b>: the account goes and he is logged out. Give each admin his own account - one can be removed without touching the others.</p>
+  <section class="card wide" data-card="owner" aria-labelledby="hU">
+    <h2 id="hU">Users and access</h2>
+    <p class="help">Who may open what. <b>Guests</b> are visitors who are not logged in: untick a part of the site and it needs a login - untick all and the whole site is closed (a page then goes to the login page, <span class="mono">/login</span>). <b>Accounts</b>: each one may open what guests may and what is ticked for it - parts of the site, the <b>Admin tab</b> of its servers' rounds (hints and review), and <b>cards of this page</b> (Posts: only its servers'). An account's admin powers (the Admin tab, this page) last 12 h from its login; "keep me logged in" keeps only the watching for 30 days. You log in everywhere with an empty name and this page's password.</p>
+    <div id="accGuests"></div>
+    <h3 class="anh">Accounts</h3>
     <div id="uList"></div>
     <form class="ufrm" id="uForm" autocomplete="off">
       <input id="uName" placeholder="name (letters, digits, . _ -)" aria-label="Account name" spellcheck="false" autocomplete="off">
       <input id="uPw" type="password" placeholder="password (8+)" aria-label="Password" autocomplete="new-password">
       <button type="submit" class="primary">Add</button>
-      <div class="usrv" id="uSrv" aria-label="His servers"></div>
+      <span class="muted">a new account may watch everything but the demos; tick the rest in its row</span>
     </form>
   </section>
 
-  <section class="card wide" aria-labelledby="hL">
+  <section class="card wide" data-card="log" aria-labelledby="hL">
     <h2 id="hL">Log</h2>
     <p class="help">What the services wrote (the VPS's system journal), the newest at the bottom. Pick a service and how many lines; "every 10 s" keeps it fresh. The first place to look when a service failed, a demo did not decode or a post did not arrive.</p>
     <div class="row">
@@ -253,7 +257,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <pre id="log">…</pre>
   </section>
 
-  <section class="card wide" aria-labelledby="hC">
+  <section class="card wide" data-card="owner" aria-labelledby="hC">
     <details><summary id="hC">Settings (/etc/bf2replay.conf, read only)</summary><p class="help" style="margin-top:8px">What /etc/bf2replay.conf on the VPS sets: the domain, the demo pages given there, the timers' times and the like. Edited there (then the services restarted), not here; a value set there wins over this page's choices (they show its name as a tag).</p><table><tbody id="settings"></tbody></table></details>
   </section>
 
@@ -261,6 +265,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <h2 id="hH">How to use this page</h2>
     <h3>Every day</h3><p>Nothing needs doing: demos are downloaded, decoded, posted and analysed by themselves. A glance is enough - <b>Rounds</b> grows, <b>Being decoded</b> empties, <b>Disk</b> has room, <b>Services</b> shows no "failed".</p>
     <h3>A new game server</h3><ul><li><b>Where demos come from</b>: its demo page or its address → Check → Add. Its rounds show up under Rounds within minutes.</li><li><b>Posts about new rounds</b> → open the server → its Discord webhook and / or Telegram chat → <b>The post</b> → Preview → Send a test post.</li><li>The <b>Summaries</b> under it: tick Day, Week or Month, choose their channel and look at <b>The summary</b> → Preview the summary.</li><li>Its admins: an <b>Admin channel</b> for the hints of each round, and accounts under <b>Servers' admins</b> for the Admin tab of the rounds on the site.</li></ul>
+    <h3>Who may open the site</h3><ul><li>Open to everyone: <b>Users and access</b> → Guests all ticked. Closed: untick the parts (or all) → Save; then each person an account: <b>Add</b> (a name, a password), open his row, tick what he may open → <b>Save his rights</b>.</li><li>A server's admins: an account with the <b>Admin tab</b> and their servers ticked; for their posts and summaries too, the card <b>Posts about new rounds</b> (only their servers).</li><li>Someone can't get in: his row - a new password (<b>Set</b>), his rights. The login page is <span class="mono">/login</span>; a page closed to a visitor goes there by itself.</li></ul>
     <h3>After an update</h3><p>"Update from GitHub" looks for a new version every minute. When the decoder or the hint rules change, the old rounds are decoded and analysed again by themselves - watch <b>Being decoded</b> and <b>Background analysis</b> (the site works all the while).</p>
     <h3>When something is wrong</h3><ul><li>A service <b>failed</b>: the Log, that service - then its button to run it again.</li><li><b>Failed demos</b> under Being decoded: "Try them again" (after an update most decode).</li><li>The disk nearly full: <b>Demos: what to keep</b> - fewer days or a GB limit; "What would go?" before Save.</li><li>A post or summary did not arrive: the server's "last post" / "last summaries" lines say why; then Send a test post.</li><li>A page of the site looks wrong after a change to the records: <b>Recalculate all records</b>.</li></ul>
     <h3>Safe keeping</h3><p>Webhooks, the bot's token and the passwords stay on the VPS (here only their last 4 characters show). Log out on a shared computer. This page's password is set on the VPS: <span class="mono">sudo node /srv/bf2replay/repo/server/admin.mjs --set-password</span>.</p>
@@ -281,20 +286,21 @@ const sdt = s => s && s !== 'n/a' && s !== '0' ? String(s).replace(/^[A-Z][a-z]{
 async function api(path, body) {
   const o = body === undefined ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-BF2R': '1' }, body: JSON.stringify(body) };
   const r = await fetch('/admin/api/' + path, o); let j = null; try { j = await r.json(); } catch (e) { j = { error: 'no answer (' + r.status + ')' }; }
-  if (r.status === 401 && path !== 'login') { showLogin(); throw new Error('log in'); }
+  if (r.status === 401 && path !== 'login') { showLogin(j && j.again ? 'Log in again: the admin powers of a login last 12 hours (2 without a step here).' : ''); throw new Error('log in'); }
   if (!r.ok && !j.error) j.error = 'error ' + r.status; return j;
 }
 let toastT = 0;
 function toast(msg, ok = true) { const t = $('#toast'); t.textContent = msg; t.className = ok ? 'ok' : 'bad'; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 7000); }
 
 // ---- logging in ----
-function showLogin(msg) { $('#app').hidden = true; $('#login').hidden = false; $('#loginMsg').textContent = msg || ''; $('#pw').focus(); stopPoll(); }
+function showLogin(msg) { $('#app').hidden = true; $('#login').hidden = false; for (const el of $('#loginForm').querySelectorAll('input, button, label')) el.hidden = false; $('#loginMsg').className = 'msg bad'; $('#loginMsg').textContent = msg || ''; ($('#un').value ? $('#pw') : $('#un')).focus(); stopPoll(); }
 function showApp() { $('#login').hidden = true; $('#app').hidden = false; refresh(); loadLog(); startPoll(); }
-// (v196) a server admin's login (made for the rounds' Admin tab): nothing here for him
-function showRoundOnly(j) { stopPoll(); $('#app').hidden = true; $('#login').hidden = false; for (const el of $('#loginForm').querySelectorAll('input, button, label')) el.hidden = true; $('#loginMsg').className = 'msg'; $('#loginMsg').innerHTML = `Logged in as <b>${esc(j.user || '')}</b>: this account is for the rounds' <b>Admin</b> tab on the site, not this page. <a href="/">The site</a> · <button type="button" id="roOut">Log out</button>`; $('#roOut').onclick = async () => { try { await api('logout', {}); } catch (e) {} location.reload(); }; }
+// (v196) a server admin's login (made for the rounds' Admin tab): nothing here for him (v224: an account with no card of
+// this page among its rights)
+function showRoundOnly(j) { stopPoll(); $('#app').hidden = true; $('#login').hidden = false; for (const el of $('#loginForm').querySelectorAll('input, button, label')) el.hidden = true; $('#loginMsg').className = 'msg'; $('#loginMsg').innerHTML = `Logged in as <b>${esc(j.user || '')}</b>: this account has no part of this page${j.admin ? " - it is for the rounds' <b>Admin</b> tab on the site" : ''}. <a href="/">The site</a> · <button type="button" id="roOut">Log out</button>`; $('#roOut').onclick = async () => { try { await api('logout', {}); } catch (e) {} location.reload(); }; }
 $('#loginForm').addEventListener('submit', async e => {
   e.preventDefault(); const b = e.submitter || $('#loginForm button'); b.disabled = true; $('#loginMsg').textContent = '';
-  try { const j = await api('login', { password: $('#pw').value }); if (j.ok) { $('#pw').value = ''; showApp(); } else $('#loginMsg').textContent = j.error || 'could not log in'; }
+  try { const j = await api('login', { user: $('#un').value.trim(), password: $('#pw').value }); $('#pw').value = ''; if (j.ok) { const me = await api('me'); if (me.page) showApp(); else showRoundOnly(me); } else $('#loginMsg').textContent = j.error || 'could not log in'; }
   catch (err) { $('#loginMsg').textContent = err.message; } finally { b.disabled = false; }
 });
 $('#logout').onclick = async () => { try { await api('logout', {}); } catch (e) {} showLogin(); };
@@ -310,9 +316,25 @@ const UNIT_ROWS = [
   ['backup', 'Back up', 'Back up now', 'the round list, logs and settings into /srv/bf2replay/backup (Sundays by itself)'],
   ['hints', 'Hints over all rounds', 'Run now', 'glitch spots, a few rounds in the page, then each player\'s hints card (5 min after each run by itself; the page part needs analyze.sh start once)'],
 ];
+// (v224) the cards this login may see (the owner: all; "owner": the owner's only)
+const cardOn = k => !S?.me || S.me.owner || (k !== 'owner' && (S.me.cards || []).includes(k));
 function render() {
   if (!S) return;
-  $('#ver').textContent = `site ${S.site.version} · decoder ${S.site.decoder}`;
+  for (const sec of document.querySelectorAll('section[data-card]')) sec.hidden = !cardOn(sec.dataset.card);
+  $('#ver').textContent = `site ${S.site.version} · decoder ${S.site.decoder}${S.me && !S.me.owner ? ` · ${S.me.user}` : ''}`;
+  if (S.rounds && cardOn('rounds')) renderRounds();
+  if (S.queue) renderQueue();
+  if (S.disk !== undefined) renderDisk();
+  if (S.units) renderUnits();
+  if (S.sources) renderSources();
+  renderNotify();
+  if (S.decode) renderJobs();
+  if (S.demos) renderDemos();
+  if (S.analysis) renderAnalysis();
+  if (S.users) { renderAccess(); renderUsers(); }
+  if (S.settings) $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
+}
+function renderRounds() {
   const R = S.rounds;
   $('#rTotal').innerHTML = `${R.total} <small>rounds on the site</small>`;
   $('#rDec').innerHTML = R.old ? `<span class="warn">${R.old} made by an older decoder</span><span class="muted">· ${R.current} by this one</span>` : `<span class="ok">all made by this decoder</span>`;
@@ -324,6 +346,8 @@ function render() {
       : done?.end ? `last time ${ago(done.end)}: ${done.n} rounds${done.ms ? ' in ' + hm(done.ms / 1000) : ''}${done.bad ? ` · <span class="warn">${done.bad} could not be read</span>` : ''}` : '';
     $('#recAgain').disabled = busy; }
   $('#rNewest').innerHTML = R.newest ? `newest: <span class="mono">${esc(R.newest.name)}</span> ${R.newest.added ? '· added ' + ago(R.newest.added) : ''}` : '';
+}
+function renderQueue() {
   // the queue and decoding again
   const Q = S.queue;
   $('#qN').textContent = Q.demos; $('#qInfo').innerHTML = `demos waiting in upload/incoming${Q.bytes ? ' · ' + mb(Q.bytes) : ''}${Q.parts ? ` · ${Q.parts} still uploading` : ''}${Q.files.length ? `<br><span class="mono">${Q.files.map(esc).join('<br>')}${Q.demos > Q.files.length ? '<br>…' : ''}</span>` : ''}`;
@@ -337,10 +361,14 @@ function render() {
   const B = S.bad;
   $('#badRow').innerHTML = B.demos ? `<span class="warn">${B.demos} demo${B.demos === 1 ? '' : 's'} could not be decoded</span> (data/bad) <button type="button" id="retryBad">Try them again</button><details style="width:100%"><summary>which</summary><div class="mono">${B.files.map(esc).join('<br>')}${B.demos > B.files.length ? '<br>…' : ''}</div></details>` : '<span class="muted">no failed demos</span>';
   if ($('#retryBad')) $('#retryBad').onclick = () => act('retry-bad', {}, $('#retryBad'));
+}
+function renderDisk() {
   // disk, last download
   if (S.disk) { const used = 1 - S.disk.free / S.disk.total; $('#dFree').textContent = mb(S.disk.free); $('#dTot').textContent = `free of ${mb(S.disk.total)}`; $('#dBar i').style.width = (100 * used).toFixed(1) + '%'; $('#dBar i').style.background = S.disk.free < 5 * 2 ** 30 ? 'var(--bad)' : 'var(--accent)'; }
   const F = S.fetchLast;
   $('#fLast').innerHTML = F ? `demo pages looked at ${ago(F.at)}: ${F.listed} listed, ${F.new} new${F.got ? ', ' + F.got + ' downloaded' : ''}${F.busy ? ', ' + F.busy + ' still being written' : ''}${F.failed ? `, <span class="bad">${F.failed} failed</span>` : ''}` : 'no download yet';
+}
+function renderUnits() {
   // services
   const U = S.units || {};
   $('#units').innerHTML = UNIT_ROWS.map(([k, name, btn, what]) => {
@@ -357,6 +385,8 @@ function render() {
     act('start', { unit: u }, b);
   };
   $('#sysNote').hidden = S.systemd; $('#sysNote').textContent = 'systemctl gave no answer: the states are unknown.';
+}
+function renderSources() {
   // sources
   const fe = S.sources.fetched || {}, host = u => { try { return new URL(/^https?:/.test(u) ? u : 'http://' + u).host; } catch (e) { return u; } };
   const got = u => { const o = fe[host(u)]; return o ? `<span class="tag">${o.n} demos · ${mb(o.bytes)}${o.last ? ' · last ' + ago(o.last) : ''}</span>` : ''; };
@@ -372,11 +402,15 @@ function render() {
   }
   for (const b of document.querySelectorAll('#srcList [data-remove]')) b.onclick = () => { if (confirm(`Stop downloading from ${b.dataset.remove}? (Rounds already downloaded stay.)`)) act('source-remove', { url: b.dataset.remove }, b); };
   for (const b of document.querySelectorAll('#srcList [data-probe]')) b.onclick = () => look('probe', { url: b.dataset.probe }, b);
+}
+function renderNotify() {
   // round posts (v153; v194: a server each)
   const N = S.notify;
   if (N) {
+    const mine = !!N.mine;   // (v224: an account's own servers only - the shared settings are the owner's)
+    $('#nTgForm').hidden = mine; $('#nMin').closest('.row').hidden = mine;
     const L = N.last;
-    $('#nState').innerHTML = `<div class="src"><b style="min-width:6.5em">Telegram bot</b><span class="u">${N.tgToken ? `<span class="ok">set</span> <span class="mono muted">${esc(N.tgToken)}</span>` : '<span class="muted">not set (needed for Telegram chats)</span>'}</span>${N.tgTokenConf ? '<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS">bf2replay.conf</span>' : N.tgToken ? '<button type="button" class="danger" id="nTgRm">Remove</button>' : ''}</div>`
+    $('#nState').innerHTML = `<div class="src"><b style="min-width:6.5em">Telegram bot</b><span class="u">${N.tgToken ? `<span class="ok">set</span>${mine ? '' : ` <span class="mono muted">${esc(N.tgToken)}</span>`}` : '<span class="muted">not set (needed for Telegram chats)</span>'}</span>${mine ? '<span class="muted">(the site\'s owner sets the bot)</span>' : N.tgTokenConf ? '<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS">bf2replay.conf</span>' : N.tgToken ? '<button type="button" class="danger" id="nTgRm">Remove</button>' : ''}</div>`
       + (L ? `<div class="row muted" style="overflow-wrap:anywhere">last post: ${L.server ? esc(L.server) + ' · ' : ''}<span class="mono" style="min-width:0">${esc(L.what)}</span> ${ago(L.at)} · <span class="${L.ok ? 'ok' : 'bad'}">${esc(L.msg)}</span></div>` : '')
       + (N.domain ? '' : '<div class="row warn">BF2R_DOMAIN is not set in /etc/bf2replay.conf: the posts go without a link to the round</div>')
       + (N.ignoredConf && N.ignoredConf.length ? `<div class="row warn">${N.ignoredConf.map(esc).join(', ')} in /etc/bf2replay.conf: not used any more (each server has its own channels here, v194) - they can go from there</div>` : '')
@@ -386,11 +420,6 @@ function render() {
     $('#nMin').disabled = $('#nMinSave').disabled = !!N.minPlayersConf;
     renderServers(N);
   }
-  renderJobs();
-  renderDemos();
-  renderAnalysis();
-  renderUsers();
-  $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
 }
 // (v162) how many demos are decoded at once: the choice, the machine, what is being decoded now, how fast each number went
 const GB = 2 ** 30, PER_JOB = 1.2 * GB;
@@ -474,27 +503,59 @@ $('#anBox').addEventListener('click', e => {
   act('analysis', { do: d, file: b.dataset.file }, b);
 });
 // (v196) the servers' admins: a row each (his servers as checkboxes, a new password, remove); the form adds one
-let uDirty = false;
-function srvBoxes(sel, name) { return (S.servers || []).map(sv => `<label class="ck"><input type="checkbox" data-sv="${esc(sv)}"${sel.includes(sv) ? ' checked' : ''}> ${esc(sv)}</label>`).join('') || '<span class="muted">no servers in the rounds yet</span>'; }
+// (v224) "Users and access": the guests' parts of the site (all unticked: the site closed), and each account's rights -
+// parts of the site, the Admin tab (with his servers), cards of this page
+let uDirty = false, accDirty = false;
+function srvBoxes(sel) { return (S.servers || []).map(sv => `<label class="ck"><input type="checkbox" data-sv="${esc(sv)}"${sel.includes(sv) ? ' checked' : ''}> ${esc(sv)}</label>`).join('') || '<span class="muted">no servers in the rounds yet</span>'; }
+const ckBox = (attr, k, name, what, on) => `<label class="ck" title="${esc(what || '')}"><input type="checkbox" ${attr}="${esc(k)}"${on ? ' checked' : ''}> ${esc(name)}</label>`;
+function renderAccess() {
+  const A = S.access; if (!A) return; const box = $('#accGuests');
+  if (accDirty || box.contains(document.activeElement)) return;
+  const G = A.guests, keys = [...A.site, ...A.guestExtra], open = keys.filter(([k]) => G[k]), all = open.length === keys.length;
+  const st = all ? '<b class="open">Open to everyone</b> <span class="muted">- nobody needs to log in</span>' : !open.length ? '<b class="shut">Closed</b> <span class="muted">- every page needs a login (it goes to /login); link previews and the posts\' map pictures too</span>' : `<b class="shut">Closed in part</b> <span class="muted">- guests may open: ${open.map(([, n]) => esc(n)).join(', ')}; the rest needs a login</span>`;
+  box.innerHTML = `<div class="accst">${st}${A.gate ? '' : all ? '' : ' <span class="warn">(the web server\'s flag is missing: Save again)</span>'}</div>`
+    + `<div class="ugrp"><b>Guests</b>${A.site.map(([k, n, w]) => ckBox('data-g', k, n, w, G[k])).join('')}${A.guestExtra.map(([k, n, w]) => ckBox('data-g', k, n, w, G[k])).join('')}</div>`
+    + `<div class="row"><button type="button" class="primary" id="accSave">Save</button><button type="button" id="accAll">Tick all (open)</button><button type="button" id="accNone">Untick all (closed)</button><span class="muted">a part unticked: its pages go to the login, its files answer 401</span></div>`;
+  box.oninput = () => { accDirty = true; };
+  $('#accAll').onclick = () => { for (const c of box.querySelectorAll('input[data-g]')) c.checked = true; accDirty = true; };
+  $('#accNone').onclick = () => { for (const c of box.querySelectorAll('input[data-g]')) c.checked = false; accDirty = true; };
+  $('#accSave').onclick = () => {
+    const g = {}; for (const c of box.querySelectorAll('input[data-g]')) g[c.dataset.g] = c.checked;
+    const shut = Object.values(g).some(v => !v);
+    if (shut && !confirm(`Close ${Object.values(g).some(v => v) ? 'these parts of' : ''} the site to visitors who are not logged in? Their pages go to the login page.${!g.share ? ' Link previews in chats and the map pictures of the posts stop showing.' : ''} Accounts: below.`)) return;
+    act('access-set', { guests: g }, $('#accSave')).then(j => { if (j && j.ok) accDirty = false; });
+  };
+}
+function rightsBoxes(u) {
+  const A = S.access, R = u.rights || { site: {}, cards: {} };
+  return `<div class="ugrp"><b>The site</b>${A.site.map(([k, n, w]) => ckBox('data-rs', k, n, w, R.site[k])).join('')}</div>`
+    + `<div class="ugrp"><b>Admin tab</b>${ckBox('data-ra', 'admin', "his servers' rounds: hints, players, kills, review", "The Admin tab of a round (and the hint cards on players' pages) for the rounds of the servers ticked under it", R.admin)}</div>`
+    + `<div class="ugrp"><b>His servers</b>${srvBoxes(u.servers || [])}</div>`
+    + `<div class="ugrp"><b>This page</b>${A.cards.map(([k, n]) => ckBox('data-rc', k, n, '', R.cards[k])).join('')}</div>`;
+}
 function renderUsers() {
   const U = S.users || [], box = $('#uList');
-  if (!uDirty && !box.contains(document.activeElement)) box.innerHTML = U.length ? U.map(u => `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.in ? '<span class="tag ok">logged in now</span>' : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
+  if (uDirty || box.contains(document.activeElement) || box.querySelector('details.urights[open]')) return;   // (being changed: drawn again after Save)
+  box.innerHTML = U.length ? U.map(u => { const R = u.rights || { site: {}, cards: {} }, site = S.access.site.filter(([k]) => R.site[k]).map(([, n]) => n), cards = S.access.cards.filter(([k]) => R.cards[k]).map(([, n]) => n);
+    return `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.in ? '<span class="tag ok">logged in now</span>' : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
     + `<input type="password" data-f="pw" placeholder="new password" aria-label="New password for ${esc(u.name)}" autocomplete="new-password" style="width:11em"><button type="button" data-a="pw">Set</button><button type="button" class="danger" data-a="rm">Remove</button></div>`
-    + `<div class="usrv">${srvBoxes(u.servers)}</div><div class="row"><button type="button" data-a="srv">Save his servers</button><span class="muted">${u.servers.length ? u.servers.length + ' server' + (u.servers.length === 1 ? '' : 's') : '<span class="warn">no server: he sees nothing</span>'}</span></div></div>`).join('') : '<div class="muted">no accounts yet</div>';
-  const f = $('#uSrv'); if (!f.contains(document.activeElement) && !f.dataset.touched) f.innerHTML = srvBoxes([]);
+    + `<details class="urights"><summary><span class="muted">${site.length ? esc(site.join(', ')) : 'nothing of the site but what guests may'}${R.admin ? ` · <b>Admin tab</b> (${u.servers.length ? esc(u.servers.join(', ')) : '<span class="warn">no server: no rounds</span>'})` : ''}${cards.length ? ` · this page: ${esc(cards.join(', '))}` : ''}</span></summary>${rightsBoxes(u)}`
+    + `<div class="row"><button type="button" class="primary" data-a="rights">Save his rights</button></div></details></div>`; }).join('') : '<div class="muted">no accounts yet</div>';
 }
 $('#uList').addEventListener('change', () => { uDirty = true; });
 $('#uList').addEventListener('click', e => {
   const b = e.target.closest('button[data-a]'); if (!b) return; const row = b.closest('.urow'), name = row.dataset.u;
   if (b.dataset.a === 'rm') { if (confirm(`Remove the account ${name}? He is logged out.`)) act('user-remove', { name }, b).then(() => { uDirty = false; }); }
   if (b.dataset.a === 'pw') { const pw = row.querySelector('[data-f=pw]').value; if (pw.length < 8) { toast('the password: at least 8 characters', false); return; } act('user-set', { name, password: pw }, b).then(j => { if (j && j.ok) { row.querySelector('[data-f=pw]').value = ''; uDirty = false; } }); }
-  if (b.dataset.a === 'srv') act('user-set', { name, servers: [...row.querySelectorAll('input[data-sv]:checked')].map(x => x.dataset.sv) }, b).then(j => { if (j && j.ok) uDirty = false; });
+  if (b.dataset.a === 'rights') {
+    const site = {}, cards = {}; for (const c of row.querySelectorAll('input[data-rs]')) site[c.dataset.rs] = c.checked; for (const c of row.querySelectorAll('input[data-rc]')) cards[c.dataset.rc] = c.checked;
+    act('user-set', { name, servers: [...row.querySelectorAll('input[data-sv]:checked')].map(x => x.dataset.sv), rights: { site, admin: !!row.querySelector('input[data-ra]')?.checked, cards } }, b).then(j => { if (j && j.ok) { uDirty = false; const d = row.querySelector('details.urights'); if (d) d.open = false; } });
+  }
 });
-$('#uSrv').addEventListener('change', () => { $('#uSrv').dataset.touched = '1'; });
 $('#uForm').addEventListener('submit', e => {
-  e.preventDefault(); const name = $('#uName').value.trim(), password = $('#uPw').value, servers = [...document.querySelectorAll('#uSrv input[data-sv]:checked')].map(x => x.dataset.sv);
+  e.preventDefault(); const name = $('#uName').value.trim(), password = $('#uPw').value;
   if (!name || !password) { toast('a name and a password', false); return; }
-  act('user-set', { name, password, servers }, e.submitter).then(j => { if (j && j.ok) { $('#uName').value = ''; $('#uPw').value = ''; delete $('#uSrv').dataset.touched; } });
+  act('user-set', { name, password }, e.submitter).then(j => { if (j && j.ok) { $('#uName').value = ''; $('#uPw').value = ''; uDirty = false; } });
 });
 // (v186) demos: what takes the room, which old ones go (data/.demos.json; ingest.mjs removes them), the keep list
 let dmDirty = false, dmPreview = null;
@@ -579,8 +640,8 @@ function editorHtml(v, F, lines, N) {
     + `<textarea data-f="text" rows="7" placeholder="**{map}** · {when}&#10;{result}&#10;🏆 {best}&#10;Піхота: {foot} · Техніка: {veh}&#10;{link}">${esc(F.text)}</textarea>`
     + `<div class="muted w">Click to add where the cursor is: <span class="phs">${chips}</span><br>**bold** *italic* __underline__ ~~struck~~ \`code\` · a line whose {…} are all empty is left out · the link at the end unless {link} is somewhere · empty: the table above</div></details>`
     + `<div class="row" style="margin-top:8px"><button type="button" class="primary" data-a="postSave">Save the post</button><button type="button" data-a="allOn">All on</button><button type="button" data-a="allOff">All off</button>${v.formatSet ? '<button type="button" data-a="classic">Back to classic</button>' : ''}</div>`
-    + `<div class="row"><label class="muted">Template <select data-f="tpl"><option value="">…</option>${tpls}</select></label><button type="button" data-a="tplUse">Use it</button><button type="button" data-a="tplSave">Save as a template</button><button type="button" class="danger" data-a="tplRm">Remove it</button>`
-    + `${others ? `<label class="muted">or copy from <select data-f="copy"><option value="">a server…</option>${others}</select></label>` : ''}<span style="flex:1"></span><button type="button" data-a="applyAll" title="This post (saved or not) on every server set up; their channels stay">Use on all servers</button></div>`;
+    + `<div class="row"><label class="muted">Template <select data-f="tpl"><option value="">…</option>${tpls}</select></label><button type="button" data-a="tplUse">Use it</button>${N.mine ? '' : '<button type="button" data-a="tplSave">Save as a template</button><button type="button" class="danger" data-a="tplRm">Remove it</button>'}`
+    + `${others ? `<label class="muted">or copy from <select data-f="copy"><option value="">a server…</option>${others}</select></label>` : ''}<span style="flex:1"></span>${N.mine ? '' : '<button type="button" data-a="applyAll" title="This post (saved or not) on every server set up; their channels stay">Use on all servers</button>'}</div>`;
 }
 // (v209) the summaries of a server's rounds (digest.mjs): a day, a week, a month - on or off; a preview and a post now of
 // the last one over; the last of each sent. (v220, Sagara: "Discord settings for the digests too") their own channels -
@@ -819,7 +880,7 @@ function startPoll() { stopPoll(); pS = setInterval(() => { if (!document.hidden
 function stopPoll() { clearInterval(pS); clearInterval(pL); }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#app').hidden) refresh(); });
 
-api('me').then(j => { if (j.in) { if (j.role && j.role !== 'owner') showRoundOnly(j); else showApp(); } else showLogin(j.password === false ? 'No password set yet. On the VPS: sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' : ''); }).catch(() => showLogin('The admin service does not answer.'));
+api('me').then(j => { if (j.in) { if (j.page) showApp(); else if (j.pageCards) showLogin('Log in again: the admin powers of a login last 12 hours (2 without a step here).'); else showRoundOnly(j); } else showLogin(j.password === false ? 'No password set yet. On the VPS: sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' : ''); }).catch(() => showLogin('The admin service does not answer.'));
 })();
 </script>
 </body>

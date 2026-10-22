@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Log in · BF2 Round Replay</title>
+<!-- (v224) the site's login: served by admin.mjs at /login; the web server sends here whoever may not open a page of the
+     site (the guests' rights, and each account's: the admin page, card "Users and access"). Everything inline: nothing
+     else of the site is needed to see it. -->
+<style>
+:root { --bg: #11161a; --panel: #192127; --fg: #e3e9e1; --muted: #9ba897; --line: #2b363d; --accent: #e2b547; --bad: #ff7b6b; --ok: #7fd18b; color-scheme: dark; }
+@media (prefers-color-scheme: light) { :root { --bg: #f2f4f1; --panel: #ffffff; --fg: #1a231d; --muted: #5d6b5c; --line: #d6dcd4; --accent: #9a6d00; --bad: #b3261e; --ok: #1e7b34; color-scheme: light; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; }
+main { width: 100%; max-width: 380px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px 22px 18px; }
+h1 { font-size: 18px; margin: 0 0 4px; } h1 b { color: var(--accent); }
+p { margin: 6px 0; } .muted { color: var(--muted); font-size: 13.5px; }
+form { display: grid; gap: 10px; margin-top: 14px; }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+input[type=text], input[type=password] { font: 15px system-ui, sans-serif; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; }
+input:focus-visible, button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.ck { display: flex; gap: 8px; align-items: center; color: var(--fg); font-size: 14px; }
+button { font: 600 14px system-ui, sans-serif; border-radius: 6px; padding: 9px 14px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #1a1a1a; }
+button:disabled { opacity: .6; cursor: default; }
+.msg { min-height: 1.4em; font-size: 13.5px; } .msg.bad { color: var(--bad); } .msg.ok { color: var(--ok); }
+.warn { color: var(--bad); font-size: 13px; }
+.open { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13.5px; }
+a { color: var(--accent); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>BF2 Round Replay · <b>Log in</b></h1>
+  <p class="muted" id="why">This site is open to its users: log in with the name and password you were given.</p>
+  <div id="who" hidden></div>
+  <p class="warn" id="insecure" hidden>This page is not on https: the password would cross the network unencrypted.</p>
+  <form id="f" method="post" action="/admin/api/login" autocomplete="on">
+    <label>Name <input type="text" id="u" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64"></label>
+    <label>Password <input type="password" id="p" name="password" autocomplete="current-password" maxlength="256" required></label>
+    <label class="ck"><input type="checkbox" id="k"> Keep me logged in on this computer (30 days)</label>
+    <div class="row"><button class="primary" type="submit" id="go">Log in</button></div>
+    <div class="msg" id="m" role="status" aria-live="polite"></div>
+  </form>
+  <div class="open" id="open" hidden></div>
+</main>
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+// where to go after the login: a path of this site only. "?next=<path>[&no=1]": the path encoded (Caddy's way, from
+// admin.mjs) or as it was (nginx's: its own ? and & in it)
+let qs = location.search.slice(1), no = false;
+if (/(^|&)no=1$/.test(qs)) { no = true; qs = qs.replace(/&?no=1$/, ''); }
+let next = qs.startsWith('next=') ? qs.slice(5) : '/';
+if (/^%2F/i.test(next)) { try { next = decodeURIComponent(next); } catch (e) { next = '/'; } }
+next = next.replace(/[\u0000-\u001f\u007f\s]/g, '');   // (browsers drop these from an address: "/\t/x" would be "//x", another site)
+if (!/^\/(?![\/\\])/.test(next)) next = '/';
+// (a link with #round=… sent here: the browser keeps its # on the way - it goes on with it)
+if (location.hash && !next.includes('#')) next += location.hash;
+if (location.protocol === 'http:' && !/^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(location.hostname)) $('#insecure').hidden = false;
+const api = async (p, body) => {
+  const o = body === undefined ? { credentials: 'same-origin', cache: 'no-store' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-BF2R': '1' }, body: JSON.stringify(body) };
+  const r = await fetch('/admin/api/' + p, o); let j = {}; try { j = await r.json(); } catch (e) { j = { error: 'no answer (' + r.status + ')' }; } return j;
+};
+function openList(L) {
+  const box = $('#open'); if (!L || !L.length) { box.hidden = true; return; }
+  box.hidden = false; box.innerHTML = 'Open to everyone: ' + L.map(([h, n]) => `<a href="${esc(h)}">${esc(n)}</a>`).join(' · ');
+}
+api('me').then(j => {
+  openList(j.open);
+  if (j.in) {
+    const who = j.owner ? "the site's owner" : j.user;
+    $('#who').hidden = false;
+    $('#who').innerHTML = `<p>Logged in as <b>${esc(who)}</b>${no ? ': this account may not open that page.' : '.'}</p><div class="row"><a href="/">The site</a>${j.page ? ' · <a href="/admin">Admin page</a>' : ''}<span style="flex:1"></span><button type="button" id="out">Log out</button></div><p class="muted">Or log in with another account:</p>`;
+    $('#why').hidden = true;
+    $('#out').onclick = async () => { await api('logout', {}); location.reload(); };
+  }
+}).catch(() => { $('#m').className = 'msg bad'; $('#m').textContent = 'The login service does not answer: try again in a minute.'; });
+$('#f').addEventListener('submit', async e => {
+  e.preventDefault();
+  const pw = $('#p').value, m = $('#m'); if (!pw) { $('#p').focus(); return; }
+  $('#p').value = ''; $('#go').disabled = true; m.className = 'msg'; m.textContent = 'Logging in…';
+  try {
+    const j = await api('login', { user: $('#u').value.trim(), password: pw, keep: $('#k').checked });
+    if (!j.ok) { m.className = 'msg bad'; m.textContent = j.error || 'Could not log in.'; $('#p').focus(); return; }
+    m.className = 'msg ok'; m.textContent = 'Logged in.'; location.replace(next);
+  } catch (err) { m.className = 'msg bad'; m.textContent = err.message; } finally { $('#go').disabled = false; }
+});
+$('#u').focus();
+})();
+</script>
+</body>
+</html>

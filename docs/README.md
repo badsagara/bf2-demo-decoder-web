@@ -4,9 +4,10 @@ BF2 Round Replay is a web site that replays Battlefield 2 rounds from their `.bf
 Recorder). It shows the round on the map: where every soldier and vehicle went, who killed whom and from where, flags,
 tickets, and who could see whom. A small VPS downloads new demos from the game servers' demo pages, decodes them, and
 publishes rounds, player pages, maps, records and statistics. It can also post each round to Discord and Telegram, and
-it gives the servers' admins a private set of tools for checking suspicious play.
+it gives the servers' admins a private set of tools for checking suspicious play. The site can be open to everyone, or
+closed — whole or in parts — to visitors without an account.
 
-This folder documents version **v223**. [CHANGELOG.md](../CHANGELOG.md) has what every version changed, and
+This folder documents version **v224**. [CHANGELOG.md](../CHANGELOG.md) has what every version changed, and
 [server/INSTALL.md](../server/INSTALL.md) has the detailed notes on each part of the server.
 
 ## Which document to read
@@ -14,7 +15,7 @@ This folder documents version **v223**. [CHANGELOG.md](../CHANGELOG.md) has what
 | You are… | Read |
 |---|---|
 | the site's owner, setting up or running the VPS | [install.md](install.md): install, configure, update, back up, fix |
-| the owner or an admin of a game server | [admin-guide.md](admin-guide.md): the admin page `/admin`, posts and summaries, the Admin tab of a round, review |
+| the owner or an admin of a game server | [admin-guide.md](admin-guide.md): the admin page `/admin`, who may open the site (users and access), posts and summaries, the Admin tab of a round, review |
 | an admin who needs to know what each hint means | [admin-hints.md](admin-hints.md) (**for admins only** — don't share it with players) |
 | a player or a visitor | [user-guide.md](user-guide.md): watching rounds, player pages, records, statistics, clips |
 | anyone who wants to know how a number is worked out, and where its limits are | [features.md](features.md): what a demo holds, visibility, distances, records, statistics, posts, hints, demo storage |
@@ -73,8 +74,9 @@ Without a server, `site/index.html` is also a plain viewer: open it in a browser
 | decoder hash | when the decoder changes, every round with a demo is decoded again by itself |
 | hint | an admin-only mark on a moment worth a closer look (possible cheating or a rule break); not proof |
 | hint rules version | `HINTS_V`; when it changes, the background analysis goes over every round again |
-| the owner | the person who runs the VPS and logs into `/admin` |
-| server admin | an account the owner makes for a game server's admins: it sees the Admin tab of that server's rounds |
+| the owner | the person who runs the VPS and logs into `/admin` (with an empty name) |
+| account | a name and password the owner makes on the admin page, with what it may open: parts of the site, the Admin tab of its game servers' rounds, cards of the admin page |
+| guest | a visitor who is not logged in; the owner chooses which parts of the site guests may open |
 
 ## Credits
 

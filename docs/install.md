@@ -221,10 +221,16 @@ Set on the VPS, once (asked twice, not shown on screen); the same command change
 sudo node /srv/bf2replay/repo/server/admin.mjs --set-password
 ```
 
-Only its scrypt hash is kept, in `/etc/bf2replay-admin.json` (root:bf2replay, 640) — never in the repository. A login
-lasts 12 hours (2 hours without activity). Five wrong passwords from one address pause logins from it for 15 min; 30 an
-hour from everyone pause all logins. The same password (with an empty name) logs you into the Admin tab of every round on
-the site. Accounts for game servers' admins are made on the admin page ([admin-guide.md](admin-guide.md#servers-admins)).
+Only its scrypt hash is kept, in `/etc/bf2replay-admin.json` (root:bf2replay, 640) — never in the repository; a new one
+logs the owner out everywhere. The same password with an empty name logs you in everywhere: the admin page, the site's
+**Log in**, the Admin tab of every round, `/login`. A login lasts 12 hours (2 without a visit), or 30 days with "keep me
+logged in"; the admin powers in it 12 hours (2 without a step). Five wrong passwords from one address pause logins from
+it for 15 min; after 30 wrong ones an hour from everywhere, the addresses that got one wrong wait too.
+
+**Who may open the site** — open to everyone (as installed), or closed, whole or in parts, to visitors who are not logged
+in, with an account (name, password, what it may open) for each person: the admin page, card **Users and access**
+([admin-guide.md](admin-guide.md#users-and-access)). Nothing to set up on the VPS for it with Caddy (`units.sh` puts the
+gate into its config); with nginx see §13. How it works: [features.md](features.md#who-may-open-what).
 
 ## 8. Services and timers
 
@@ -272,7 +278,9 @@ so the new code takes over. A sudoers rule (`/etc/sudoers.d/bf2replay-admin`) le
     .copies/                   the second copies of demos listed on two pages
     .admin/                    admin-only: hints cards, Glitch spot, review marks and notes, alerts sent
     .notify.json               posts, summaries, webhooks, bot token (600)
-    .admin-users.json          server admins' accounts (600, scrypt hashes)
+    .admin-users.json          accounts: scrypt hashes, servers, rights (600)
+    .access.json               what guests may open (600); .access-gate - there while a part is closed to them
+    .sessions.json             the logins (600: hashes of the tokens)
     .fetched.json .fetch-sources.json .fetch-due.json .source-list.json   downloading
     .demos.json .demos-last.json .refetch*.json .hint-rounds.json         which demos to keep
     .ingest.json .ingest-stats.json .resum-request.json                   decoding settings and measurements
@@ -292,7 +300,7 @@ it, publishes `site/` and updates the services. Don't want to wait: `sudo system
 A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v223   # the version in the archive's name
+V=v224   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push
@@ -354,9 +362,14 @@ journalctl -u bf2replay-ingest | grep 'round post'                              
 If something already listens on 80/443, `install.sh` stops. Run it with `BF2R_WEB=none` (Caddy is not installed) and
 set nginx up from `server/nginx-example.conf`: the site root, `/data/` (with its private paths returning 404), the link
 previews `/r/` and `/p/`, the static pages `/rounds|players|maps|records`, `rss.xml`, `sitemap.xml`, `robots.txt`, and
-the proxy for `/admin` to `127.0.0.1:8781`. HTTPS: `certbot --nginx -d replay.your-domain`. Keep `charset utf-8;` in the
-`server { }` block. With Caddy all of this is done and kept up to date by `units.sh`; with nginx, new blocks in future
-versions have to be added by hand.
+the proxy for `/admin` and `/login` to `127.0.0.1:8781`, and (v224) the gate: `auth_request /_bf2r_gate` with its
+`location`, `error_page 401 / 403` to the login, and the `map $http_sec_fetch_mode` line in the http block. HTTPS:
+`certbot --nginx -d replay.your-domain`. Keep `charset utf-8;` in the `server { }` block. With Caddy all of this is done
+and kept up to date by `units.sh`; with nginx, new blocks in future versions have to be added by hand.
+
+With nginx every request of the site asks `admin.mjs` first (Caddy asks only while the site is closed in part): while
+the site is open the answer is "yes" at once, but if `admin.mjs` is down, nginx answers 500 until it is back (systemd
+restarts it at once).
 
 ## 14. Game servers that upload their demos
 
@@ -393,14 +406,14 @@ still needs decoding again, never goes.
 `bf2replay-backup` (Sundays 04:40, or `sudo systemctl start bf2replay-backup`) writes
 `/srv/bf2replay/backup/bf2replay-YYYY-MM-DD.tar.gz` with what the demos can't give back: `rounds.json`,
 `.rounds-full.json`, the round logs, `.fetched.json`, the admin page's settings (`.fetch-sources.json`, `.notify.json`,
-`.ingest.json`) and `/etc/bf2replay.conf` — and with `BF2R_BACKUP_ROUNDS=1` the decoded rounds (the only copy of a round
+`.ingest.json`, `.demos.json`), who may open what (`.access.json`, the accounts `.admin-users.json`), the admins' review
+(`.admin/review/`) and `/etc/bf2replay.conf` — and with `BF2R_BACKUP_ROUNDS=1` the decoded rounds (the only copy of a round
 whose demo is gone). The last `BF2R_BACKUP_KEEP` copies are kept; a copy that wouldn't leave `BF2R_MIN_FREE_GB` free is
 skipped.
 
 The copy is on the same disk — keep one elsewhere: `scp 'root@VPS:/srv/bf2replay/backup/bf2replay-*.tar.gz' .` (on your computer).
-Not in the weekly copy: the admins' review marks and notes (`data/.admin/review/`), the server admins' accounts
-(`data/.admin-users.json`) and the admin password (`/etc/bf2replay-admin.json`) — copy them yourself if you want them
-kept. Everything else (statistics, pages, previews) is rebuilt from the demos and rounds (`ingest.mjs --rebuild`).
+Not in the weekly copy: the admin password (`/etc/bf2replay-admin.json`; set it again with `--set-password`) and the
+logins (everyone logs in again). Everything else (statistics, pages, previews) is rebuilt from the demos and rounds (`ingest.mjs --rebuild`).
 
 ## 17. Everyday commands
 

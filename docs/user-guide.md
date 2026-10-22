@@ -4,7 +4,7 @@ For players and visitors: how to watch a round, follow a soldier, read the stati
 records, and make a clip to share. Everything here works in any modern browser, on a computer or a phone. How the
 numbers are worked out (and what a demo can't tell) is in [features.md](features.md).
 
-Contents: [The site at a glance](#the-site-at-a-glance) · [Watching a round](#watching-a-round) ·
+Contents: [The site at a glance](#the-site-at-a-glance) · [Logging in](#logging-in) · [Watching a round](#watching-a-round) ·
 [Following a soldier](#following-a-soldier) · [What the map shows (Filters)](#what-the-map-shows-filters) ·
 [The panels and tabs](#the-panels-and-tabs) · [Clips](#clips-video-gif-or-a-demo-for-the-game) ·
 [All rounds](#all-rounds) · [A player's page](#a-players-page) · [A map's page](#a-maps-page) · [Records](#records) ·
@@ -21,7 +21,7 @@ The page opens on the newest round. At the top:
 | **Records** | the best in one round and who did most: last 7 days, 30 days, all time ([Records](#records)) |
 | **Stats** | clans, vehicles, the servers, search moments ([Stats](#stats)) |
 | **Tools ▾** | open a demo of your own, and what the decoder reads from the demo file ([On your own computer](#on-your-own-computer)) |
-| **Admin** | log in — for the site's and the servers' admins only |
+| **Log in** | for the site's users and admins ([Logging in](#logging-in)); logged in, it shows your name |
 | the theme button | light or dark colours (remembered in this browser) |
 
 Over the map, the **round bar**: the map, day and time, length, players, the server, who won and the tickets. Click it
@@ -30,6 +30,20 @@ rounds; **⬇ Demo** downloads the round's demo (or links to where it came from,
 
 When a new version of the site comes out while you watch, a bar says **A new version is out · Reload**; Reload brings you
 back to the same moment with the same soldier.
+
+## Logging in
+
+A site can be open to everyone, or closed — as a whole or in parts — to visitors who are not logged in. On a closed
+site any page you may not open sends you to the login page (`/login`), and after the login you are back where you
+were going (the same round and moment). On an open site the **Log in** button at the top right does the same.
+
+- **Name and password**: as the site's owner gave them to you.
+- **Keep me logged in on this computer**: 30 days (14 without a visit) instead of 12 hours (2 without a visit). Don't
+  tick it on a shared computer.
+- Logged in, the button shows your name; its window says what your account may open, and has **Log out**.
+- What your account may not open is not shown: for example without "All rounds" there is no Rounds button and no
+  ‹ Newer / Older › — a round opens from its link; without "Download demos" there is no ⬇ Demo.
+- "This account may not open that page" on the login page: ask the site's owner, or log in with another account.
 
 ## Watching a round
 

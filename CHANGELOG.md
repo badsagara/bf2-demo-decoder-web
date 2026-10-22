@@ -5,6 +5,18 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v224
+
+**Who may open the site.** On the admin page the card *Servers' admins* became **Users and access**: ticks for what
+guests (visitors not logged in) may open — watching rounds, the list of rounds, players and maps, records, stats,
+downloading demos, video clips, link previews — so the site can be closed as a whole or in parts; and for each account
+what it may open on top of that, the Admin tab of its servers, and which cards of the admin page it may use (posts: its
+servers only). One login for the site, the Admin tab and the admin page: the page `/login` (where a closed page sends a
+visitor, and back after it), the site's **Log in** button, "keep me logged in" for 30 days; the admin powers of a login
+last 12 hours. The logins survive updates. Caddy asks `admin.mjs` about each request only while something is closed;
+nginx: new blocks in `nginx-example.conf`. The weekly backup also keeps the accounts, the access settings and the
+admins' review. Accounts made before keep what they had. (§23)
+
 ## v223
 
 The README is in English, without paths of one particular computer, and has the installation steps; the version history

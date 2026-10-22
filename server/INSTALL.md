@@ -1058,6 +1058,48 @@ now", with what it said).
   server doesn't serve it. The API of `admin.mjs` (POST, any admin, only his servers' rounds): `review-get`,
   `review-mark`, `review-note`, `trusted`.
 
+(v224) The card **Servers' admins** is now **Users and access** (§23): the same accounts, each with its rights; the
+accounts made before v224 keep what they had (they may watch everything and have the Admin tab of their servers).
+
 For development: the page is built from `src/index.html` with `node server/splitpage.mjs` (the parts between
 `// @admin-begin` and `// @admin-end` go into `server/admin-round.js`); Claude does it before each release; `analyze.mjs`
 gives the admins' part to its browser itself.
+
+## 23. Who may open the site: guests, accounts, the login (v224)
+
+The site can be closed, as a whole or in parts, to visitors who are not logged in, and each person gets an account with
+what he may open. Everything is on the admin page, card **Users and access** (the owner's only; the full description:
+[docs/admin-guide.md](../docs/admin-guide.md#users-and-access), how it works: [docs/features.md](../docs/features.md#who-may-open-what)).
+
+- **Guests** — ticks for the parts of the site: Watch rounds, All rounds, Players and maps, Records, Stats, Download demos,
+  Video clips, and Link previews (the cards chat apps show under a link, and the map pictures of the round posts). All
+  ticked: open, as before. Some unticked: those need a login. None: every page goes to the login page `/login`.
+- **Accounts** — a name and a password, and in its row: the parts of the site (on top of the guests'), the **Admin tab**
+  (hints and review of the rounds of **his servers**), and **cards of the admin page** he may see and use (Posts: his
+  servers only; Users and access and Settings stay the owner's). A new account may watch everything but the demos.
+- **One login** for the site, the Admin tab and the admin page: `/login`, the site's **Log in** button (it shows the name
+  once logged in), the Admin tab, the admin page (a Name field: empty for the owner). 12 hours (2 without a visit), or
+  with **Keep me logged in** 30 days (14 without a visit); the admin powers in any login last 12 hours (2 without a step),
+  then the password again. The logins survive updates: `data/.sessions.json` (600, only the tokens' hashes); the cookie
+  `bf2r_s` (HttpOnly, SameSite=Lax, Secure over https) on the whole site.
+
+How the web server checks it: while some part is closed to guests, `admin.mjs` keeps the file `data/.access-gate`, and
+Caddy asks `admin.mjs` about every request of the site before it answers (`forward_auth` to `/admin/api/gate`, with the
+address the visitor asked for): a page he may not open goes to `/login?next=…` (after the login, back to it, with its
+`#round=…`), a file gets 401 / 403. With the site open the file is not there and Caddy asks nothing. The new Caddy config
+comes by itself with the update (`units.sh`; checked with `caddy validate` first). With nginx: the gate's blocks from
+`nginx-example.conf` (`auth_request`, `/login`, the `map` line) have to be added by hand — nginx asks on every request.
+
+New files in `data/`: `.access.json` (the guests' rights), `.access-gate` (the flag for Caddy), `.sessions.json` (the
+logins); the accounts' rights are in `.admin-users.json`. The weekly copy (`backup.sh`) now has `.access.json`,
+`.admin-users.json`, `.demos.json` and the admins' review `.admin/review/`. The login page is `server/login.html`.
+
+```bash
+ls -la /srv/bf2replay/data/.access-gate             # there: a part of the site is closed to guests
+journalctl -u bf2replay-admin -n 30 --no-pager      # logins, "access for guests: …", accounts changed
+curl -sI https://your-domain/data/rounds.json       # a guest: 200 open, 401 closed
+```
+
+Locked out (the owner's password forgotten): `sudo node /srv/bf2replay/repo/server/admin.mjs --set-password`. To open the
+whole site from the console: `sudo rm /srv/bf2replay/data/.access.json` (guests then may open everything; the flag goes
+within a minute).

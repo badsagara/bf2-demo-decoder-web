@@ -87,7 +87,8 @@ The full guide is [docs/install.md](docs/install.md). In short:
    ```
 
    Then open `https://replay.your-domain/admin`: add more demo pages or game servers (*Where demos come from*), set up
-   posts to Discord / Telegram (*Posts about new rounds*), and accounts for the servers' admins (*Servers' admins*).
+   posts to Discord / Telegram (*Posts about new rounds*), and who may open the site — open to everyone, or closed in
+   whole or in part with an account per person (*Users and access*).
 5. **Background analysis** (the hints for admins) — install its browser once:
    `sudo bash /srv/bf2replay/repo/server/analyze.sh start`.
 
@@ -128,7 +129,7 @@ the exact collision shapes of the maps `site/assets/geo`, the maps' trees `site/
 minimaps `site/assets/maps_hd`). Unpack it over your clone and push:
 
 ```bash
-V=v223                                   # the version in the archive's name
+V=v224                                   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

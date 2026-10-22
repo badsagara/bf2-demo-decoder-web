@@ -13,6 +13,10 @@
 // filled in) and get only that: the admins' part of the page (server/admin-round.js, cut out of the public page by
 // splitpage.mjs) and the private files of the analysis (data/.admin: the players' hint cards, Glitch spot, the headshot
 // odds). Everything else here is the owner's (an empty name and the password of --set-password).
+// (v224) Who may open what (access.mjs): the guests' parts of the site (data/.access.json) and each account's - the parts
+// of the site, the Admin tab, cards of this page; one login for all of them (the page /login, the site's Log in, this
+// page), kept in data/.sessions.json (only the tokens' hashes) so that a restart logs nobody out. While some part is
+// closed to guests, the web server asks /admin/api/gate about every request (data/.access-gate: Caddy's forward_auth).
 //
 //   node admin.mjs                  the admin server (bf2replay-admin.service, as bf2replay): http://127.0.0.1:8781,
 //                                   Caddy sends /admin* to it
@@ -34,6 +38,7 @@ import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_I
 import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
 import { expandIndex } from './roundsidx.mjs';
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
+import { ACCESS_FILE, GATE_FILE, SITE as ACC_SITE, GUEST_EXTRA as ACC_GUEST, CARDS as ACC_CARDS, guestsOf, userRights, normRights, normGuests, gateNeeded, siteRights, needOf, allowed, openPlaces } from './access.mjs';   // (v224)
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -49,22 +54,36 @@ const SUDO = opt('BF2R_ADMIN_SUDO', '/usr/bin/sudo'), JOURNALCTL = opt('BF2R_ADM
 const NODE = process.execPath;
 const UNITS = ['ingest', 'reprocess', 'rebuild', 'fetch', 'update', 'backup', 'hints'];   // (the ones the page may start)
 const STOPPABLE = ['ingest', 'reprocess', 'rebuild'];   // (v163: and stop - the decoding ones; units.sh allows it)
-const SESSION_H = 12, IDLE_H = 2;   // a login lasts 12 h, or 2 h without a look at the page
+const SESSION_H = 12, IDLE_H = 2;   // a login lasts 12 h, or 2 h without a look at the page - and an admin's powers (the Admin tab, this page) as long in any login
+const KEEP_D = 30, KEEP_IDLE_D = 14;   // (v224) "keep me logged in": 30 days, or 14 without a visit (watching only: the admin powers ask again after 12 h)
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 // ---------- the password: scrypt, kept as { salt, hash, N, r, p } ----------
 const KDF = { N: 2 ** 15, r: 8, p: 1, len: 64 };
 const kdf = (pw, salt, k = KDF) => crypto.scryptSync(String(pw).normalize('NFC'), Buffer.from(salt, 'base64'), k.len, { N: k.N, r: k.r, p: k.p, maxmem: 256 * k.N * k.r });
-function readPass() { try { const j = JSON.parse(fs.readFileSync(PASS_FILE, 'utf8')); return j && j.salt && j.hash ? j : null; } catch (e) { return null; } }
+let passCache = { mt: -1, v: null };   // (v224: read again only when it changes - every request of a closed site asks)
+function readPass() { let mt = 0; try { mt = fs.statSync(PASS_FILE).mtimeMs; } catch (e) { return null; } if (mt === passCache.mt) return passCache.v; let v = null; try { const j = JSON.parse(fs.readFileSync(PASS_FILE, 'utf8')); v = j && j.salt && j.hash ? j : null; } catch (e) {} passCache = { mt, v }; return v; }
 function checkPass(pw) {
   const j = readPass(); if (!j || typeof pw !== 'string' || pw.length > 200) return false;
   const want = Buffer.from(j.hash, 'base64'), got = kdf(pw, j.salt, { N: j.N || KDF.N, r: j.r || KDF.r, p: j.p || KDF.p, len: want.length });
   return want.length === got.length && crypto.timingSafeEqual(want, got);
 }
 // (v196) the servers' admins: { users: { name: { salt, hash, N, r, p, servers: [game server names], created, by, last } } }
+// (v224) and each one's rights: { site: { view, list, … }, admin (the Admin tab), cards: { rounds, … } } (access.mjs)
 const USERS_FILE = path.join(DATA, '.admin-users.json'), USER_RE = /^[A-Za-z0-9_.-]{2,32}$/;
-const readUsers = () => { const j = readJson(USERS_FILE, null); return j && j.users && typeof j.users === 'object' ? j : { users: {} }; };
-const writeUsers = j => { const tmp = USERS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, USERS_FILE); };
+let usersCache = { mt: -1, v: null };
+const readUsers = () => { let mt = 0; try { mt = fs.statSync(USERS_FILE).mtimeMs; } catch (e) { return { users: {} }; } if (mt !== usersCache.mt) { const j = readJson(USERS_FILE, null); usersCache = { mt, v: j && j.users && typeof j.users === 'object' ? j : { users: {} } }; } return JSON.parse(JSON.stringify(usersCache.v)); };
+const userOf = name => { readUsers(); return name && usersCache.v ? usersCache.v.users[name] || null : null; };   // (read only: not a copy)
+const writeUsers = j => { const tmp = USERS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, USERS_FILE); usersCache.mt = -1; };
+// (v224) the guests' rights (data/.access.json) and the gate's flag for the web server (data/.access-gate)
+const ACC_F = path.join(DATA, ACCESS_FILE), GATE_F = path.join(DATA, GATE_FILE);
+let accCache = { mt: -1, v: null };
+function guests() { let mt = 0; try { mt = fs.statSync(ACC_F).mtimeMs; } catch (e) { mt = 0; } if (mt !== accCache.mt) accCache = { mt, v: guestsOf(mt ? readJson(ACC_F, {}) : {}) }; return accCache.v; }
+function syncGate() {
+  const on = gateNeeded(guests());
+  try { if (on) { if (!fs.existsSync(GATE_F)) { fs.writeFileSync(GATE_F, 'closed: the web server asks admin.mjs about each request (written by admin.mjs)\n'); log('access: the site is closed to guests in part - the web server asks about each request'); } } else if (fs.existsSync(GATE_F)) { fs.unlinkSync(GATE_F); log('access: the site is open to guests'); } } catch (e) { log('access: could not write', GATE_F + ':', e.message); }
+  return on;
+}
 function checkUser(name, pw) {
   const u = readUsers().users[name]; if (!u || !u.salt || !u.hash || typeof pw !== 'string' || pw.length > 200) { kdf('x', 'AAAAAAAAAAAAAAAAAAAAAA=='); return null; }   // (as long either way)
   const want = Buffer.from(u.hash, 'base64'), got = kdf(pw, u.salt, { N: u.N || KDF.N, r: u.r || KDF.r, p: u.p || KDF.p, len: want.length });
@@ -86,7 +105,12 @@ async function setPassword() {
 }
 
 // ---------- logins: a random token in an HttpOnly cookie; brute force held off per address and overall ----------
-const sessions = new Map();   // token -> { exp, seen, ip }
+// (v224) One login for the site, its Admin tab and this page: the cookie bf2r_s on the whole site (Path=/, SameSite=Lax:
+// sent when a link from a chat opens the site; a POST here still needs this page's own header, sameSite below). The
+// sessions are kept in data/.sessions.json by the token's hash (a restart of admin.mjs - every update - logs nobody
+// out). A login lasts 12 h (2 h without a visit), or with "keep me logged in" 30 days (14 without a visit); the admin
+// powers of any login (the Admin tab, cards of this page, the owner's) last 12 h from it and 2 h without an admin's step.
+const sessions = new Map();   // sha256(token) -> { exp, seen, ip, user, role ('owner' | 'user'), keep, at, admSeen, pw }
 const fails = new Map();      // ip -> [times]
 let allFails = [];
 const FAIL_N = 5, FAIL_WIN = 15 * 60e3, ALL_N = 30, ALL_WIN = 60 * 60e3;
@@ -95,18 +119,50 @@ function blocked(ip) {
   const now = Date.now(); allFails = allFails.filter(t => now - t < ALL_WIN);
   const L = (fails.get(ip) || []).filter(t => now - t < FAIL_WIN); fails.set(ip, L);
   if (L.length >= FAIL_N) return Math.ceil((L[0] + FAIL_WIN - now) / 60e3);
-  if (allFails.length >= ALL_N) return Math.ceil((allFails[0] + ALL_WIN - now) / 60e3);
+  // (v224) the overall pause only for addresses with a wrong password of their own lately: many wrong ones from
+  // elsewhere don't lock everybody out (a user with no mistake still gets in)
+  if (allFails.length >= ALL_N && L.length) return Math.ceil((allFails[0] + ALL_WIN - now) / 60e3);
   return 0;
 }
-const cookieOf = req => { const m = /(?:^|;\s*)bf2r_admin=([A-Za-z0-9_-]{20,})/.exec(req.headers.cookie || ''); return m ? m[1] : null; };
-function sessionOf(req) {
-  const tok = cookieOf(req), s = tok && sessions.get(tok), now = Date.now();
-  if (!s) return null;
-  if (now > s.exp || now - s.seen > IDLE_H * 3600e3) { sessions.delete(tok); return null; }
-  s.seen = now; return { tok, ...s };
+const SESS_F = path.join(DATA, '.sessions.json'), COOKIE = 'bf2r_s';
+const tokHash = t => crypto.createHash('sha256').update(String(t)).digest('base64url');
+let sessDirty = false, sessTimer = 0;
+function sessLoad() {
+  const j = readJson(SESS_F, null), now = Date.now();
+  if (j && j.s && typeof j.s === 'object') for (const [h, x] of Object.entries(j.s)) if (x && now < x.exp) sessions.set(h, x);
 }
+function sessSave(now) {
+  clearTimeout(sessTimer); sessTimer = 0; sessDirty = false;
+  const t = Date.now(); for (const [h, x] of sessions) if (t > x.exp) sessions.delete(h);
+  try { const tmp = SESS_F + '.tmp'; fs.writeFileSync(tmp, JSON.stringify({ v: 1, s: Object.fromEntries(sessions) }) + '\n', { mode: 0o600 }); fs.renameSync(tmp, SESS_F); } catch (e) { log('sessions not saved:', e.message); }
+}
+const sessLater = () => { sessDirty = true; if (!sessTimer) sessTimer = setTimeout(sessSave, 60e3); };   // (a visit's time: at most once a minute)
+const cookieOf = req => { const m = new RegExp(`(?:^|;\\s*)${COOKIE}=([A-Za-z0-9_-]{20,})`).exec(req.headers.cookie || ''); return m ? m[1] : null; };
+function sessionOf(req) {
+  const tok = cookieOf(req); if (!tok) return null;
+  const h = tokHash(tok), s = sessions.get(h), now = Date.now(); if (!s) return null;
+  const idle = s.keep ? KEEP_IDLE_D * 86400e3 : IDLE_H * 3600e3;
+  let gone = now > s.exp || now - s.seen > idle;
+  if (!gone && s.role === 'owner') { const P = readPass(); if (!P || (s.pw && P.set && s.pw !== P.set)) gone = true; }   // (a new owner's password: logged out)
+  if (!gone && s.role !== 'owner') { const u = userOf(s.user); if (!u) gone = true; else s.servers = Array.isArray(u.servers) ? u.servers : []; }
+  if (gone) { sessions.delete(h); sessLater(); return null; }
+  if (now - s.seen > 30e3) { s.seen = now; sessLater(); }
+  s.h = h; return s;
+}
+const admOk = s => !!s && Date.now() - (s.at || 0) < SESSION_H * 3600e3 && Date.now() - (s.admSeen || s.at || 0) < IDLE_H * 3600e3;
+const admTouch = s => { if (s && Date.now() - (s.admSeen || 0) > 30e3) { s.admSeen = Date.now(); sessLater(); } };
+const isOwnerS = s => !!s && s.role === 'owner';
+// what a login may do: the site's parts (with the guests'), the Admin tab and its servers, this page's cards (owner: all)
+function rightsOfS(s) {
+  const G = guests(), own = isOwnerS(s), u = s && !own ? userOf(s.user) : null, R = userRights(u);
+  return { site: siteRights(G, u, own), admin: own || (!!u && R.admin), cards: own ? Object.fromEntries(ACC_CARDS.map(([k]) => [k, true])) : (u ? R.cards : {}), owner: own, servers: own ? null : (u?.servers || []) };
+}
+const canCard = (s, k) => admOk(s) && (isOwnerS(s) || !!rightsOfS(s).cards[k]);
+const srvOk = (s, name) => isOwnerS(s) || (s?.servers || []).includes(name);
 const secure = req => String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
-const setCookie = (req, res, tok, maxAge) => res.setHeader('Set-Cookie', `bf2r_admin=${tok}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure(req) ? '; Secure' : ''}`);
+const cookieStr = (req, tok, maxAge) => `${COOKIE}=${tok}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure(req) ? '; Secure' : ''}`;
+// (the cookie of before v224, Path=/admin, cleared too)
+const setCookie = (req, res, tok, maxAge) => res.setHeader('Set-Cookie', [cookieStr(req, tok, maxAge), `bf2r_admin=x; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${secure(req) ? '; Secure' : ''}`]);
 
 // ---------- helpers ----------
 function run(cmd, args, { timeout = 20e3, cwd } = {}) {
@@ -183,27 +239,39 @@ function fetchedByHost() {
   return by;
 }
 
-async function state() {
-  const dec = siteDecoder(), idx = index(), R = idx.rounds || [];
-  const cur = R.filter(r => r.decoder === dec.hash).length, servers = {};
-  for (const r of R) { const s = r.server || r.sum?.server || '?'; servers[s] = (servers[s] || 0) + 1; }
-  const newest = R.reduce((b, r) => !b || (r.added || '') > (b.added || '') ? r : b, null);
-  const inc = listDir(INC), incDemos = inc.filter(f => /\.bf2demo(\.gz)?$/i.test(f)), parts = inc.filter(f => f.endsWith('.part'));
-  const bad = demoFiles(BAD);
-  let disk = null; try { const st = fs.statfsSync(DATA); disk = { free: st.bavail * st.bsize, total: st.blocks * st.bsize }; } catch (e) {}
-  const u = await units();
-  const settings = Object.fromEntries(Object.keys({ ...conf, ...process.env }).filter(k => /^BF2R_/.test(k) && !/PASS/.test(k)).sort().map(k => [k, /TOKEN|WEBHOOK|SECRET|KEY/.test(k) && opt(k, '') ? '(set: not shown)' : opt(k, '')]));
-  return {
-    now: new Date().toISOString(), site: { version: dec.ver, decoder: dec.hash },
-    rounds: { total: R.length, current: cur, old: R.length - cur, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null },
-    records: recordsState(),   // (v206)
-    reprocess: idx.reprocess || null, lastReprocess: readJson(path.join(DATA, 'reprocess.json'), null),
-    queue: { demos: incDemos.length, bytes: incDemos.reduce((s, f) => s + sizeOf(path.join(INC, f)), 0), parts: parts.length, files: incDemos.sort().slice(0, 12) },
-    bad: { demos: bad.length, files: bad.sort().slice(-12) },
-    units: u.units, systemd: u.ok, fetchLast: readJson(path.join(DATA, '.fetch-last.json'), null), disk,
-    sources: { env: envSources(), added: addedSources(), fetched: fetchedByHost(), every: srcEvery(), def: defEvery(), at: String(opt('BF2R_FETCH_AT', '05:30')).trim() || '05:30', looked: readJson(path.join(DATA, '.fetch-due.json'), {})?.looked || {}, choices: EVERY_OK },
-    settings, password: !!readPass(), users: usersState(), servers: knownServers(), notify: notifyState(), decode: decodeState(), demos: demoState(), analysis: analysisState()
-  };
+// (v224) C: the cards of an account that is not the owner's ({ rounds: true, … }) - only what they show; null: all
+async function state(C = null) {
+  const want = k => !C || !!C[k], dec = siteDecoder(), o = { now: new Date().toISOString(), site: { version: dec.ver, decoder: dec.hash } };
+  if (want('rounds')) {
+    const idx = index(), R = idx.rounds || [], cur = R.filter(r => r.decoder === dec.hash).length, servers = {};
+    for (const r of R) { const s = r.server || r.sum?.server || '?'; servers[s] = (servers[s] || 0) + 1; }
+    const newest = R.reduce((b, r) => !b || (r.added || '') > (b.added || '') ? r : b, null);
+    o.rounds = { total: R.length, current: cur, old: R.length - cur, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null };
+    o.records = recordsState();   // (v206)
+  }
+  if (want('decode')) {
+    const idx = index(), inc = listDir(INC), incDemos = inc.filter(f => /\.bf2demo(\.gz)?$/i.test(f)), parts = inc.filter(f => f.endsWith('.part')), bad = demoFiles(BAD);
+    Object.assign(o, { reprocess: idx.reprocess || null, lastReprocess: readJson(path.join(DATA, 'reprocess.json'), null),
+      queue: { demos: incDemos.length, bytes: incDemos.reduce((s, f) => s + sizeOf(path.join(INC, f)), 0), parts: parts.length, files: incDemos.sort().slice(0, 12) },
+      bad: { demos: bad.length, files: bad.sort().slice(-12) }, decode: decodeState() });
+    if (!o.rounds) o.rounds = { total: (idx.rounds || []).length };   // (the "decode every round again" question says how many)
+  }
+  if (want('disk')) { let disk = null; try { const st = fs.statfsSync(DATA); disk = { free: st.bavail * st.bsize, total: st.blocks * st.bsize }; } catch (e) {} o.disk = disk; o.fetchLast = readJson(path.join(DATA, '.fetch-last.json'), null); }
+  if (want('services')) { const u = await units(); o.units = u.units; o.systemd = u.ok; if (!o.rounds) o.rounds = { total: (index().rounds || []).length }; }
+  if (want('sources')) o.sources = { env: envSources(), added: addedSources(), fetched: fetchedByHost(), every: srcEvery(), def: defEvery(), at: String(opt('BF2R_FETCH_AT', '05:30')).trim() || '05:30', looked: readJson(path.join(DATA, '.fetch-due.json'), {})?.looked || {}, choices: EVERY_OK };
+  if (want('posts')) o.notify = notifyState();
+  if (want('demos')) o.demos = demoState();
+  if (want('analysis')) o.analysis = analysisState();
+  if (!C) {
+    o.settings = Object.fromEntries(Object.keys({ ...conf, ...process.env }).filter(k => /^BF2R_/.test(k) && !/PASS/.test(k)).sort().map(k => [k, /TOKEN|WEBHOOK|SECRET|KEY/.test(k) && opt(k, '') ? '(set: not shown)' : opt(k, '')]));
+    Object.assign(o, { password: !!readPass(), users: usersState(), servers: knownServers(), access: accessState() });
+  }
+  return o;
+}
+// (v224) the post settings an account with the card "Posts" sees: his servers only, and none of the shared ones' secrets
+function notifyFor(N, s) {
+  if (isOwnerS(s)) return N;
+  return { ...N, servers: N.servers.filter(v => srvOk(s, v.name)), tgToken: N.tgToken ? 'set' : '', mine: true };
 }
 // (v162) how many demos ingest.mjs decodes at once: BF2R_JOBS from /etc/bf2replay.conf when set (it wins), else the
 // number chosen here (data/.ingest.json; 0 = automatic), else automatic - the cores, the memory at ~1.2 GB a demo, at
@@ -617,7 +685,7 @@ let planCache = { at: 0, v: null };
 function demoPlanNow() { if (planCache.v && Date.now() - planCache.at < 60e3) return planCache.v; const I = demoInputs(), plan = demoPlan({ ...I, policy: demoPolicy(DATA, opt) }); planCache = { at: Date.now(), v: new Map(plan.remove.map(x => [x.name, x.why])) }; return planCache.v; }
 function roundInfo(name, s) {
   const r = roundOf(name); if (!r || !r.sum) return { ok: false, msg: 'no such round' };
-  if ((s.role || 'owner') !== 'owner' && !(s.servers || []).includes(r.sum.server)) return { ok: false, msg: 'not one of the servers of your account' };
+  if (!srvOk(s, r.sum.server)) return { ok: false, msg: 'not one of the servers of your account' };
   const F = readJsonMt(path.join(DATA, '.fetched.json'), {}) || {}, C = readJsonMt(path.join(DATA, '.copies.json'), {})?.copies || {};
   const last = u => { try { return decodeURIComponent(String(u).split('?')[0].split('/').pop() || ''); } catch (e) { return ''; } };
   const got = Object.entries(F).filter(([u, v]) => last(u) === r.name || (v && v.of === r.name)).map(([u, v]) => ({ url: u, at: v?.at || null, bytes: v?.bytes ?? null, skipped: v?.skipped || null }));
@@ -641,11 +709,11 @@ const nickSlugS = nick => { const n = String(nick), s = n.replace(/[^A-Za-z0-9_.
 const revRoundFile = name => path.join(REV, 'rounds', linkId(name).replace(/[^A-Za-z0-9._-]/g, '_') + '.json');
 const revPlayerFile = nick => path.join(REV, 'players', nickSlugS(nick) + '.json');
 const revWrite = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); writeJson(f, v); };
-const whoOf = s => s.user || 'owner', isOwner = s => (s.role || 'owner') === 'owner';
+const whoOf = s => s.role === 'owner' ? 'owner' : s.user || 'owner', isOwner = isOwnerS;
 const txt = (v, n) => String(v ?? '').replace(/\r/g, '').trim().slice(0, n);
 function revRound(s, name) {
   const r = roundOf(name); if (!r || !r.sum) return { err: 'no such round' };
-  if (!isOwner(s) && !(s.servers || []).includes(r.sum.server)) return { err: 'not one of the servers of your account' };
+  if (!srvOk(s, r.sum.server)) return { err: 'not one of the servers of your account' };
   return { r };
 }
 function trustedFor(server) { const T = readJson(path.join(REV, 'trusted.json'), {})?.nicks || {}, out = {}; for (const [n, e] of Object.entries(T)) if (!e.servers || !server || e.servers.includes(server)) out[n] = e; return out; }
@@ -686,11 +754,15 @@ function revTrusted(b, s) {
   delete J.nicks[n]; revWrite(f, J); log(`review: ${me} no more trusts ${n}`); return { ok: true, msg: `${n}: no more trusted` };
 }
 // (v196) the servers' admins: made, changed (password, servers) and removed by the owner; a change ends their logins
+// (v224) the users: each one's rights too (access.mjs: the site's parts, the Admin tab, this page's cards); and the
+// guests' (data/.access.json) - which closes the site, or parts of it, to whoever is not logged in
 function usersState() {
-  const U = readUsers().users;
-  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], created: u.created || null, last: u.last || null, by: u.by || null, in: [...sessions.values()].some(x => x.user === name && Date.now() < x.exp) })).sort((a, b) => a.name.localeCompare(b.name));
+  const U = readUsers().users, now = Date.now();
+  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], rights: userRights(u), created: u.created || null, last: u.last || null, by: u.by || null, in: [...sessions.values()].some(x => x.user === name && x.role !== 'owner' && now < x.exp) })).sort((a, b) => a.name.localeCompare(b.name));
 }
+function accessState() { return { guests: guests(), gate: fs.existsSync(GATE_F), site: ACC_SITE, guestExtra: ACC_GUEST, cards: ACC_CARDS, open: openPlaces(guests()) }; }
 function knownServers() { const S = new Set(); for (const r of index().rounds || []) if (r.sum && !r.sum.empty && r.sum.server) S.add(r.sum.server); return [...S].sort(); }
+const logoutUser = name => { let n = 0; for (const [k, x] of sessions) if (x.user === name && x.role !== 'owner') { sessions.delete(k); n++; } if (n) sessSave(); return n; };
 function userSet(b) {
   const name = String(b.name || '').trim(); if (!USER_RE.test(name) || name.toLowerCase() === 'owner') return { ok: false, msg: 'a name: 2-32 letters, digits, . _ - (not "owner")' };
   const j = readUsers(), u = j.users[name], said = [];
@@ -698,15 +770,28 @@ function userSet(b) {
   const o = u ? { ...u } : { created: new Date().toISOString(), by: 'owner', servers: [] };
   if (b.password) { const pw = String(b.password); if (pw.length < 8 || pw.length > 200) return { ok: false, msg: 'the password: at least 8 characters' }; const salt = crypto.randomBytes(16).toString('base64'); Object.assign(o, { salt, hash: kdf(pw, salt).toString('base64'), N: KDF.N, r: KDF.r, p: KDF.p, pwSet: new Date().toISOString() }); said.push(u ? 'password changed' : 'made'); }
   if (Array.isArray(b.servers)) { o.servers = [...new Set(b.servers.map(x => String(x).slice(0, 300)).filter(Boolean))]; said.push(`servers: ${o.servers.length ? o.servers.join(', ') : 'none'}`); }
+  if (b.rights !== undefined) {   // (v224)
+    const R = normRights(b.rights); o.rights = R;
+    const site = ACC_SITE.filter(([k]) => R.site[k]).map(([, n]) => n), cards = ACC_CARDS.filter(([k]) => R.cards[k]).map(([, n]) => n);
+    said.push(`may open: ${site.length ? site.join(', ') : 'nothing of the site but what guests may'}${R.admin ? '; the Admin tab' : ''}${cards.length ? '; on the admin page: ' + cards.join(', ') : ''}`);
+  } else if (!u) o.rights = normRights({ site: { view: true, list: true, players: true, records: true, stats: true, clips: true } });   // (a new account without rights given: watching, no admin)
   if (!said.length) return { ok: false, msg: 'nothing to change' };
   j.users[name] = o; writeUsers(j);
-  if (u && b.password) for (const [k, x] of sessions) if (x.user === name) sessions.delete(k);   // (a new password: logged out)
-  log(`round admin ${name}:`, said.join(', ')); return { ok: true, msg: `${name}: ${said.join(' · ')}` };
+  if (u && b.password) logoutUser(name);   // (a new password: logged out)
+  log(`account ${name}:`, said.join(', ')); return { ok: true, msg: `${name}: ${said.join(' · ')}` };
 }
 function userRemove(b) {
   const name = String(b.name || ''), j = readUsers(); if (!j.users[name]) return { ok: false, msg: 'no such account' };
-  delete j.users[name]; writeUsers(j); for (const [k, x] of sessions) if (x.user === name) sessions.delete(k);
-  log(`round admin ${name}: removed`); return { ok: true, msg: `${name}: removed (logged out)` };
+  delete j.users[name]; writeUsers(j); logoutUser(name);
+  log(`account ${name}: removed`); return { ok: true, msg: `${name}: removed (logged out)` };
+}
+function accessSet(b) {
+  const G = normGuests(b.guests), J = readJson(ACC_F, {}) || {};
+  writeJson(ACC_F, { ...J, guests: G, set: new Date().toISOString() }); try { fs.chmodSync(ACC_F, 0o600); } catch (e) {}
+  accCache.mt = -1; const on = syncGate();
+  const open = [...ACC_SITE, ...ACC_GUEST].filter(([k]) => G[k]).map(([, n]) => n);
+  log('access for guests:', open.length ? open.join(', ') : 'nothing');
+  return { ok: true, msg: on ? (open.length ? `guests may open: ${open.join(', ')} - the rest needs a login` : 'the site is closed: everything needs a login') : 'the site is open to everyone' };
 }
 // the demos that could not be decoded (data/bad) back into the queue: the ingest service's path unit sees them at once
 function retryBad() {
@@ -742,7 +827,6 @@ async function journal(u, n) {
 }
 
 // ---------- the server ----------
-const PAGE = path.join(HERE, 'admin.html');
 function send(res, code, body, type = 'application/json; charset=utf-8') {
   res.writeHead(code, { 'Content-Type': type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'" });
   res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body));
@@ -756,65 +840,131 @@ const bodyOf = req => new Promise((ok, no) => { let s = ''; req.on('data', c => 
 // (a POST must come from the page itself: the same host, and the header only a script on the page sends)
 const sameSite = req => { const o = req.headers.origin, h = req.headers['x-forwarded-host'] || req.headers.host; if (req.headers['x-bf2r'] !== '1') return false; if (!o) return true; try { return new URL(o).host === h; } catch (e) { return false; } };
 
+// (v224) a round by its name for a visitor who may watch rounds but not see the list (rounds.json closed to him): its
+// line of rounds.json, as the page would have it there
+let refCache = { mt: -1, d: null };
+function roundRef(name) {
+  const f = path.join(DATA, 'rounds.json'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return null; }
+  if (mt !== refCache.mt) refCache = { mt, d: expandIndex(readJson(f, { rounds: [] })) };
+  const d = refCache.d || { rounds: [] }, id = linkId(String(name || '').trim()), meta = { share: !!d.share, stats: d.stats || null, decoder: d.decoder || null, updated: d.updated || null };
+  if (!id) return { ok: false, msg: 'which round?', ...meta };   // (no name: what the page needs besides - the statistics' version, the previews)
+  const L = (d.rounds || []).filter(r => r && r.sum && !r.sum.empty);
+  const r = L.find(x => linkId(x.name) === id) || L.find(x => id.endsWith('_' + linkId(x.name)) || linkId(x.name).endsWith('_' + id));
+  return r ? { ok: true, round: r, ...meta } : { ok: false, msg: 'no such round', ...meta };
+}
+const PAGE = path.join(HERE, 'admin.html'), LOGIN_PAGE = path.join(HERE, 'login.html');
+const noStore = { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
+const AGAIN = { error: "log in again: an admin's powers last 12 h from the login (2 h without a step)", again: true };
 const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://x'), p = url.pathname.replace(/\/+$/, '') || '/';
     if (req.method === 'GET' && (p === '/admin' || p === '/admin/index.html')) return send(res, 200, fs.readFileSync(PAGE), 'text/html; charset=utf-8');
+    if (req.method === 'GET' && (p === '/login' || p === '/admin/login')) return send(res, 200, fs.readFileSync(LOGIN_PAGE), 'text/html; charset=utf-8');   // (v224)
     if (!p.startsWith('/admin/api/')) return send(res, 404, { error: 'not found' });
     const what = p.slice('/admin/api/'.length), ip = clientIp(req);
+    // (v224) the web server's question about a request of the site (Caddy forward_auth while data/.access-gate is
+    // there; nginx auth_request): may this visitor open it - yes (204), no: a page goes to the login, the rest 401 / 403
+    if (what === 'gate') {
+      const G = guests(); if (!gateNeeded(G)) { res.writeHead(204, noStore); return res.end(); }
+      const uri = String(req.headers['x-bf2r-uri'] || req.headers['x-original-uri'] || '/');
+      // the path as the web server may read it - as sent, and decoded (/data/rounds/..%2fdemos/x is data/demos/x to a
+      // file server), each with its . and .. resolved: every reading must be allowed
+      let raw = '/'; try { raw = new URL(uri, 'http://x').pathname; } catch (e) { raw = '/'; }
+      let dec = raw; try { dec = decodeURIComponent(raw); } catch (e) { dec = raw; }
+      const reads = [...new Set([raw, dec].map(x => path.posix.normalize(x.replace(/\\/g, '/'))))];
+      const s = sessionOf(req), R = s ? rightsOfS(s).site : G;
+      if (!/\0/.test(dec) && reads.every(x => allowed(R, needOf(x)))) { res.writeHead(204, noStore); return res.end(); }
+      if (req.headers['x-bf2r-nginx']) return send(res, s ? 403 : 401, { error: 'no' });   // (nginx's auth_request takes only 2xx / 401 / 403: it sends a page to the login itself)
+      const nav = req.headers['sec-fetch-mode'] === 'navigate' || (!req.headers['sec-fetch-mode'] && /text\/html/.test(String(req.headers.accept || '')));
+      if (nav) { res.writeHead(302, { ...noStore, Location: '/login?next=' + encodeURIComponent(uri.startsWith('/') && !uri.startsWith('//') ? uri : '/') + (s ? '&no=1' : '') }); return res.end(); }
+      return send(res, s ? 403 : 401, { error: s ? 'your account may not open this' : 'log in first', login: '/login' });
+    }
     if (req.method === 'POST' && !sameSite(req)) return send(res, 403, { error: 'not from the admin page' });
     if (what === 'login' && req.method === 'POST') {
       const wait = blocked(ip); if (wait) return send(res, 429, { error: `too many wrong passwords: try again in ${wait} min` });
       const b = await bodyOf(req), user = String(b.user || '').trim();
       if (!user && !readPass()) return send(res, 503, { error: 'no password set yet: on the VPS run  sudo node /srv/bf2replay/repo/server/admin.mjs --set-password' });
-      // (v196) no name: the site's owner; a name: one of the servers' admins (accounts made on this page)
+      // (v196) no name: the site's owner; a name: one of the accounts made on this page
       const u = user ? (USER_RE.test(user) ? checkUser(user, b.password) : null) : null;
-      if (user ? !u : !checkPass(b.password)) { const now = Date.now(); fails.set(ip, [...(fails.get(ip) || []), now]); allFails.push(now); log('wrong admin password from', ip, user ? `(${user})` : ''); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: user ? 'wrong name or password' : 'wrong password' }); }
+      if (user ? !u : !checkPass(b.password)) { const now = Date.now(); fails.set(ip, [...(fails.get(ip) || []), now]); allFails.push(now); log('wrong password from', ip, user ? `(${user})` : '(owner)'); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: user ? 'wrong name or password' : 'wrong password' }); }
       fails.delete(ip);
-      const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now();
-      sessions.set(tok, { exp: now + SESSION_H * 3600e3, seen: now, ip, user: user || null, role: user ? 'admin' : 'owner' });
-      for (const [k, s] of sessions) if (now > s.exp) sessions.delete(k);
+      const old = cookieOf(req); if (old) sessions.delete(tokHash(old));   // (a login again: the old one goes)
+      const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now(), keep = !!b.keep, life = keep ? KEEP_D * 86400e3 : SESSION_H * 3600e3;
+      sessions.set(tokHash(tok), { exp: now + life, seen: now, ip, user: user || null, role: user ? 'user' : 'owner', keep, at: now, admSeen: now, ...(user ? {} : { pw: readPass()?.set || null }) });
+      sessSave();
       if (user) { try { const j = readUsers(); if (j.users[user]) { j.users[user].last = new Date().toISOString(); writeUsers(j); } } catch (e) {} }
-      setCookie(req, res, tok, SESSION_H * 3600); log(user ? `admin ${user} logged in from` : 'admin logged in from', ip); return send(res, 200, { ok: true, role: user ? 'admin' : 'owner' });
+      setCookie(req, res, tok, Math.round(life / 1000)); log(user ? `${user} logged in from` : 'the owner logged in from', ip, keep ? '(kept)' : '');
+      return send(res, 200, { ok: true, role: user ? 'admin' : 'owner', user: user || 'owner' });
     }
     const s = sessionOf(req);
-    // (v196) a server's admin: his servers (as they are now: changed or removed here, his login goes with it)
-    if (s && s.role !== 'owner') { const u = readUsers().users[s.user]; if (!u) { sessions.delete(s.tok); return what === 'me' ? send(res, 200, { in: false, password: !!readPass() }) : send(res, 401, { error: 'log in first' }); } s.servers = Array.isArray(u.servers) ? u.servers : []; }
-    if (what === 'me') return send(res, 200, { in: !!s, password: !!readPass(), round: !!s, user: s ? s.user || 'owner' : null, role: s ? s.role || 'owner' : null, servers: s && s.role !== 'owner' ? s.servers : null });
+    if (what === 'me') {
+      const G = guests();
+      if (!s) return send(res, 200, { in: false, password: !!readPass(), round: false, rights: G, gated: gateNeeded(G), open: openPlaces(G) });
+      const R = rightsOfS(s), adm = admOk(s), cards = Object.keys(R.cards);
+      return send(res, 200, { in: true, password: !!readPass(), user: R.owner ? 'owner' : s.user, role: R.owner ? 'owner' : 'admin', owner: R.owner, keep: !!s.keep, adm,
+        rights: R.site, admin: R.admin, round: R.admin && adm, servers: R.servers, cards, page: adm && (R.owner || cards.length > 0), pageCards: R.owner || cards.length > 0, gated: gateNeeded(G), open: openPlaces(R.site) });
+    }
+    if (what === 'round-ref' && req.method === 'GET') {   // (v224: a round from a link, without the list)
+      const R = s ? rightsOfS(s).site : guests(); if (!R.view) return send(res, s ? 403 : 401, { error: 'may not watch rounds' });
+      return send(res, 200, roundRef(url.searchParams.get('name')) || { ok: false, msg: 'no rounds' });
+    }
     if (!s) return send(res, 401, { error: 'log in first' });
-    if (what === 'logout' && req.method === 'POST') { sessions.delete(s.tok); setCookie(req, res, 'x'.repeat(20), 0); return send(res, 200, { ok: true }); }
-    // (v196) what a server's admin may have too: the admins' part of the page, the analysis's private files
-    if (what === 'admin.js' && req.method === 'GET') return sendFile(res, path.join(HERE, 'admin-round.js'), 'text/javascript; charset=utf-8');
-    if (what.startsWith('data/') && req.method === 'GET') { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..')) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
-    if (what === 'round' && req.method === 'GET') return send(res, 200, roundInfo(url.searchParams.get('name'), s));   // (v197)
-    if (req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what)) {   // (v198: any admin, his servers' rounds)
-      const b = await bodyOf(req);
+    if (what === 'logout' && req.method === 'POST') { sessions.delete(s.h); sessSave(); setCookie(req, res, 'x'.repeat(20), 0); return send(res, 200, { ok: true }); }
+    const R = rightsOfS(s), own = R.owner;
+    // (v196) the Admin tab: the admins' part of the page, the analysis's private files, a round's server side, the review
+    // (v224: the accounts with the Admin tab among their rights, while their admin powers last)
+    const tab = (what === 'admin.js' || what === 'round') && req.method === 'GET' || what.startsWith('data/') && req.method === 'GET' || req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what);
+    if (tab) {
+      if (!R.admin) return send(res, 403, { error: 'this account has no Admin tab' });
+      if (!admOk(s)) return send(res, 401, AGAIN);
+      admTouch(s);
+      if (what === 'admin.js') return sendFile(res, path.join(HERE, 'admin-round.js'), 'text/javascript; charset=utf-8');
+      if (what.startsWith('data/')) { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..')) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
+      if (what === 'round') return send(res, 200, roundInfo(url.searchParams.get('name'), s));   // (v197)
+      const b = await bodyOf(req);   // (v198)
       return send(res, 200, what === 'review-get' ? revGet(b, s) : what === 'review-mark' ? revMark(b, s) : what === 'review-note' ? revNote(b, s) : revTrusted(b, s));
     }
-    if ((s.role || 'owner') !== 'owner') return send(res, 403, { error: 'this account is for the rounds\' Admin tab only', round: true });
-    if (what === 'state' && req.method === 'GET') return send(res, 200, await state());
-    if (what === 'log' && req.method === 'GET') return send(res, 200, await journal(url.searchParams.get('unit') || 'all', +url.searchParams.get('n')));
-    if (what === 'analysis-file' && (req.method === 'GET' || req.method === 'HEAD')) return sendArchive(req, res, url.searchParams.get('name'));
+    // this page: the owner's - or (v224) an account's cards
+    if (!own && !Object.keys(R.cards).length) return send(res, 403, { error: 'this account has no part of the admin page', round: R.admin });
+    if (!admOk(s)) return send(res, 401, AGAIN);
+    admTouch(s);
+    const no = (msg = 'not for this account') => send(res, 403, { ok: false, msg, error: msg }), card = k => own || !!R.cards[k];
+    const srv = n => own || srvOk(s, String(n || ''));
+    if (what === 'state' && req.method === 'GET') { const S = await state(own ? null : R.cards); if (S.notify) S.notify = notifyFor(S.notify, s); S.me = { user: own ? 'owner' : s.user, owner: own, cards: own ? ACC_CARDS.map(([k]) => k) : Object.keys(R.cards), servers: R.servers }; return send(res, 200, S); }
+    if (what === 'log' && req.method === 'GET') return card('log') ? send(res, 200, await journal(url.searchParams.get('unit') || 'all', +url.searchParams.get('n'))) : no();
+    if (what === 'analysis-file' && (req.method === 'GET' || req.method === 'HEAD')) return card('analysis') ? sendArchive(req, res, url.searchParams.get('name')) : no();
     if (req.method !== 'POST') return send(res, 405, { error: 'method' });
     const b = await bodyOf(req);
-    if (what === 'start') return send(res, 200, await startUnit(String(b.unit)));
-    if (what === 'records-again') return send(res, 200, await recordsAgain());   // (v206)
-    if (what === 'stop') return send(res, 200, await stopUnit(String(b.unit)));
-    if (what === 'retry-bad') return send(res, 200, retryBad());
+    if (what === 'start') { const u = String(b.unit); return card('services') || (u === 'ingest' && (card('demos') || card('decode'))) ? send(res, 200, await startUnit(u)) : no(); }
+    if (what === 'records-again') return card('rounds') ? send(res, 200, await recordsAgain()) : no();   // (v206)
+    if (what === 'stop') return card('decode') || card('services') ? send(res, 200, await stopUnit(String(b.unit))) : no();
+    if (what === 'retry-bad') return card('decode') ? send(res, 200, retryBad()) : no();
+    if (['source-add', 'source-remove', 'source-every', 'probe', 'fetch-list'].includes(what) && !card('sources')) return no();
     if (what === 'source-add') return send(res, 200, addSource(b.url));
     if (what === 'source-remove') return send(res, 200, removeSource(String(b.url || '')));
     if (what === 'source-every') return send(res, 200, sourceEvery(b));   // (v210)
     if (what === 'probe') { const a = String(b.url || '').trim(); if (a && !SOURCE_RE.test(a)) return send(res, 200, { ok: false, out: 'not an address' }); return send(res, 200, await fetchLook(a ? ['--probe', a] : ['--probe'], 60e3)); }
     if (what === 'fetch-list') return send(res, 200, await fetchLook(['--list'], 180e3));
+    // (v224) the posts: a server of his (the owner: any; what is shared by all servers - the bot, the templates, the
+    // fewest players for all, one post on all servers - the owner's only)
+    if (['notify-set', 'notify-test', 'notify-last', 'notify-preview', 'alert-test', 'digest-preview', 'digest-post'].includes(what)) {
+      if (!card('posts')) return no();
+      if (!own && (b.server === undefined || b.server === null || b.server === '')) return no("the posts' shared settings are the site owner's");
+      if (b.server !== undefined && b.server !== null && b.server !== '' && !srv(b.server)) return no('not one of the servers of your account');
+    }
     if (what === 'notify-set') return send(res, 200, notifySet(b));
+    if (['jobs-set'].includes(what) && !card('decode')) return no();
     if (what === 'jobs-set') return send(res, 200, jobsSet(b));
+    if (['demos-set', 'demos-preview', 'demos-keep', 'copies-delete'].includes(what) && !card('demos')) return no();
     if (what === 'demos-set') return send(res, 200, demosSet(b));
     if (what === 'demos-preview') return send(res, 200, demosPreview(b));
     if (what === 'demos-keep') return send(res, 200, demosKeep(b));
     if (what === 'copies-delete') return send(res, 200, copiesDelete());
-    if (what === 'analysis') return send(res, 200, await analysisAct(b));
+    if (what === 'analysis') return card('analysis') ? send(res, 200, await analysisAct(b)) : no();
+    if (['user-set', 'user-remove', 'access-set'].includes(what) && !own) return no("the accounts and the site's access are the owner's");
     if (what === 'user-set') return send(res, 200, userSet(b));
     if (what === 'user-remove') return send(res, 200, userRemove(b));
+    if (what === 'access-set') return send(res, 200, accessSet(b));   // (v224)
     if (what === 'notify-test') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--test', b.server));
     if (what === 'alert-test') {   // (v214) a test post to a server's admin channel
       if (!b.server || !knownServer(String(b.server))) return send(res, 200, { ok: false, msg: 'no such server' });
@@ -831,8 +981,12 @@ const server = http.createServer(async (req, res) => {
 
 if (process.argv.includes('--set-password')) await setPassword();
 else {
-  server.listen(PORT, HOST, () => log(`admin page on http://${HOST}:${PORT}/admin${readPass() ? '' : ' (no password set yet: sudo node ' + path.join(HERE, 'admin.mjs') + ' --set-password)'}`));
+  sessLoad(); syncGate();   // (v224: the logins kept over a restart; the web server's gate as the guests' rights say)
+  server.listen(PORT, HOST, () => log(`admin page on http://${HOST}:${PORT}/admin${readPass() ? '' : ' (no password set yet: sudo node ' + path.join(HERE, 'admin.mjs') + ' --set-password)'}${fs.existsSync(GATE_F) ? ' · the site closed to guests in part (data/.access-gate)' : ''}`));
+  const bye = () => { if (sessDirty) sessSave(); process.exit(0); };
+  process.on('SIGTERM', bye); process.on('SIGINT', bye);
   // a new version of this file (after a site update): exit, and systemd starts the new one (Restart=always)
-  const me = new URL(import.meta.url).pathname; let mt = 0; try { mt = fs.statSync(me).mtimeMs; } catch (e) {}
-  setInterval(() => { let m = 0; try { m = fs.statSync(me).mtimeMs; } catch (e) { return; } if (m !== mt) { log('admin.mjs changed: restarting'); process.exit(0); } }, 30e3).unref();
+  const me = new URL(import.meta.url).pathname, mine = [me, path.join(HERE, 'access.mjs')], mtOf = f => { try { return fs.statSync(f).mtimeMs; } catch (e) { return 0; } }, mt = mine.map(mtOf).join();
+  setInterval(() => { const m = mine.map(mtOf).join(); if (m !== mt && !m.split(',').includes('0')) { log('admin.mjs changed: restarting'); bye(); } }, 30e3).unref();
+  setInterval(() => { syncGate(); }, 60e3).unref();   // (data/.access.json put back by hand, or the flag removed: as it should be within a minute)
 }

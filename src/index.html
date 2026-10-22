@@ -83,6 +83,7 @@ a.btn { text-decoration: none; }
 .btn.admb.on { border-color: var(--accent); color: var(--accent); }
 .admlogin { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: flex-end; }
 .admlogin label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.admlogin label.admkeep { display: flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--fg); flex-basis: 100%; } .admlogin label.admkeep input { width: auto; padding: 0; }
 .admlogin input { font: 14px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px; width: 15em; max-width: 100%; box-sizing: border-box; }
 .admlogin input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .admlogin .admmsg { flex: 1 1 100%; min-height: 1.3em; font-size: 12.5px; color: var(--hp-low); }
@@ -1070,7 +1071,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v223';
+const APP_VERSION = 'v224';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -6111,7 +6112,7 @@ function renderPCard(i) {
       <div><h3>Killed by</h3>${list(kil, o => `<li><span class="nmc">${pn(o.e.killer, o.e.t)}${teamOf(R.pidx.get(o.e.killer), o.e.t) === teamOf(i, o.e.t) ? ' <span class="w">team</span>' : ''}</span><span class="n">×${o.n}</span></li>`, 'soldiers')}</div>
     </div>
     ${me && (me.kF + me.dF + me.kV + me.dV) ? `<p class="pkdline">On foot <b>${me.kF}–${me.dF}</b> (${kd(me.kF, me.dF)}) · in vehicles <b>${me.kV}–${me.dV}</b> (${kd(me.kV, me.dV)})</p>` : ''}
-    <div class="chips">${session && playerRounds(nickOf(p.name)).length ? `<button class="btn sm" data-pp="${esc(nickOf(p.name))}" title="His page: all his rounds, weapons, who he played with and against">All his rounds ›</button>` : ''}</div>`;
+    <div class="chips">${session && can('players') && (statsOn() || playerRounds(nickOf(p.name)).length) ? `<button class="btn sm" data-pp="${esc(nickOf(p.name))}" title="His page: all his rounds, weapons, who he played with and against">All his rounds ›</button>` : ''}</div>`;
   box.hidden = false;
   const lf = $('#pLife');
   if (lf) {
@@ -9195,6 +9196,7 @@ function setClip(a, b) {
 }
 // open the clip bar: on the stretch given, the one picked before in this round, or 8 s before to 7 s after the playhead
 function openClip(a, b) {
+  if (!can('clips')) { toast('This account may not make clips'); return; }   // (v224)
   if (!round) return;
   if (a !== undefined) setClip(a, b); else if (clip.round !== round) setClip(t - 8, t + 7);
   clip.open = true; clipMsg(''); renderClipBar(); drawTimeline();
@@ -10304,7 +10306,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='ArrowRight') { t = Math.min(round.duration, t+10); refresh(true); }
   if (e.code==='ArrowLeft') { t = Math.max(0, t-10); refresh(true); }
   if ((e.code==='KeyN' || e.code==='KeyP') && !e.ctrlKey && !e.metaKey && !e.altKey) stepMoment(e.code==='KeyN' ? 1 : -1);
-  if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round) clipMark(e.code==='KeyI' ? 'a' : 'b');
+  if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round && can('clips')) clipMark(e.code==='KeyI' ? 'a' : 'b');
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
   if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
   if (e.code==='KeyG' && !e.ctrlKey && !e.metaKey && !e.altKey) { setCursor({ off: 'height', height: 'grid', grid: 'off' }[opts.cursor]); toast('Cursor: ' + { off: 'nothing', height: 'height', grid: 'grid square and metres' }[opts.cursor]); }
@@ -10324,6 +10326,41 @@ window.addEventListener('blur', () => { if (tabHold) { tabHold = false; renderTa
 $('#vTab').onclick = () => { tabOn = !tabOn; renderTab(true); };
 $('#tabBoard').addEventListener('click', e => { const r = e.target.closest('tr[data-i]'); if (!r) return; sel = +r.dataset.i; refresh(true); });
 $('#mapSize').addEventListener('change', e => { const v = Math.max(256, Math.min(8192, +e.target.value||2048)); if (source === 'sim') { loadSim(simSeed, v, round?.meta?.map); } else { W = v; viewFit(); refresh(true); } });
+
+// ---------- (v224) who may open what: the visitor's rights (admin.mjs /admin/api/me) ----------
+// The guests' parts of the site and his account's (the admin page, "Users and access"): what he may not open is hidden
+// here - the web server refuses it anyway. No answer (the page on its own, an older server): everything, as before.
+let acc = null;
+const can = k => !acc || !acc.rights || acc.rights[k] !== false;
+function accSet(me) { acc = me; accApply(); }
+function accApply() {
+  const site = !!(session && session.server);
+  const hide = (sel, off) => { const el = $(sel); if (el) el.hidden = el.hidden || off; };
+  if (site) { hide('#rndLink', !can('list')); hide('#recLink', !can('records')); hide('#statLink', !can('stats')); }
+  const tc = $('#tClip'); if (tc) tc.hidden = !can('clips');
+  const dm = $('#cFmt option[value=demo]'); if (dm) { dm.disabled = !can('demos'); if (!can('demos') && clip.fmt === 'demo') clip.fmt = 'video'; }
+  const pa = $('#ptAdmin'); if (pa) pa.hidden = !!(acc && acc.in && !acc.admin);
+  if (!can('players')) { const pp = $('#ptPlayers'); if (pp) pp.hidden = true; }
+  admBtnSet();
+}
+// (v224) a round by its name from the admin server, for a visitor who may watch but not see the list: into the session
+async function refRound(want) {
+  const id = linkId(want); let r = findSrv(id); if (r) return r;
+  let j = null; try { j = await admApi('round-ref?name=' + encodeURIComponent(id)); } catch (e) {}
+  if (!j || !j.ok || !j.round) { $('#notice').innerHTML = `<strong>No round ${esc(id)}</strong> on this site (or this account may not open it).`; $('#notice').classList.add('err'); return null; }
+  if (j.stats && !serverData.stats) serverData.stats = j.stats; if (j.share) serverData.share = true; if (j.decoder) serverData.decoder = j.decoder;
+  r = { name: j.round.name, status: 'done', sum: j.round.sum, srv: j.round, file: null };
+  session.rounds.push(r); renderSession(); return r;
+}
+async function refMeta() { let j = null; try { j = await admApi('round-ref'); } catch (e) {} if (j) { if (j.stats) serverData.stats = j.stats; if (j.share) serverData.share = true; if (j.decoder) serverData.decoder = j.decoder; } }
+function linkOnlyNote() { $('#notice').innerHTML = '<strong>This account opens rounds from their links.</strong> A link to a round (from Discord, a friend, a player\'s page) opens it here.'; }
+// the address of this moment (the round, the time, the soldier, the tab; or the player's / map's page) - for a reload
+function hereHash() {
+  const r = session && session.rounds.find(x => x.name === $('#srcLabel').textContent), p = sel !== null && round ? round.players[sel] : null;
+  return ppage.nick ? '#player=' + encodeURIComponent(ppage.nick) + (ppage.vs ? '&vs=' + encodeURIComponent(ppage.vs) : '') : ppage.map ? '#map=' + encodeURIComponent(ppage.map)
+    : r && round ? '#round=' + encodeURIComponent(linkId(r.name)) + '&t=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '') : location.hash;
+}
+function reloadHere() { history.replaceState(null, '', location.pathname + location.search + hereHash()); location.reload(); }
 
 // ---------- (v196) the Admin tab: logging in, and the admins' part of the page ----------
 // Every round has an Admin tab: for a visitor only a login (an admin's name and password: the admin server's, server/
@@ -10345,7 +10382,7 @@ function adminLoad(analyze) {
   if (!/^https?:$/.test(location.protocol)) return Promise.resolve(null);
   admLoading = (async () => {
     try {
-      if (!analyze) { const me = await admApi('me'); admSrv = !!me && typeof me.in === 'boolean'; if (!me || !me.in || !me.round) { admMe = null; return null; } admMe = me; }
+      if (!analyze) { const me = await admApi('me'); admSrv = !!me && typeof me.in === 'boolean'; if (admSrv && (!acc || acc.in !== me.in || acc.user !== me.user || acc.adm !== me.adm)) acc = me; if (!me || !me.in || !me.round) { admMe = null; return null; } admMe = me; }
       else admMe = { in: true, user: 'analysis', role: 'owner', servers: null };
       const r = await fetch('/admin/api/admin.js?v=' + encodeURIComponent(APP_VERSION), { credentials: 'same-origin', cache: 'no-store' });
       if (!r.ok) return null;
@@ -10365,17 +10402,19 @@ function renderAdmPane() {
   if (ADM.loaded && ADM.renderPane) { try { ADM.renderPane(box); } catch (e) { console.error(e); box.innerHTML = '<p class="empty">Something went wrong here (the console says what).</p>'; } return; }
   if (admLoading) { box.innerHTML = '<p class="empty">Loading…</p>'; return; }
   const local = !/^https?:$/.test(location.protocol);
+  const again = acc && acc.in && acc.admin && !acc.adm;   // (v224: logged in, his admin powers over: the password again)
   box.innerHTML = `<h2>Admin <span class="w">for the admins of the site and of its servers</span></h2>
-    ${local ? '<p class="empty">Only on the site: open the round there.</p>' : admFormHtml('admLogin', 'admU', 'admP', 'admMsg')}`;
+    ${local ? '<p class="empty">Only on the site: open the round there.</p>' : acc && acc.in && !acc.admin ? '<p class="empty">This account has no Admin tab.</p>' : (again ? '<p class="w">Logged in, but an admin\'s powers last 12 hours from the login (2 without a step): the password again, please.</p>' : '') + admFormHtml('admLogin', 'admU', 'admP', 'admMsg', again ? (acc.owner ? '' : acc.user) : null)}`;
   const f = $('#admLogin'); if (f) admLoginBind(f);
 }
 // (v199) the login form: the Admin tab's and the header's dialog's. method post + action: even if the script stops
 // before it (or there is none), the browser sends it in the request's body to the admin server - never in the address;
 // the admin server takes a login only from this page's script (X-BF2R) and keeps no password, only its hash
 const admInsecure = () => location.protocol === 'http:' && !/^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(location.hostname);
-const admFormHtml = (id, u, pw, msg) => `${admInsecure() ? '<p class="admwarnp">This page is not on https: the password would cross the network unencrypted.</p>' : ''}<form class="admlogin" id="${id}" method="post" action="/admin/api/login" autocomplete="on">
-      <label>Name<input id="${u}" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64" placeholder="empty: the site's owner"></label>
+const admFormHtml = (id, u, pw, msg, name) => `${admInsecure() ? '<p class="admwarnp">This page is not on https: the password would cross the network unencrypted.</p>' : ''}<form class="admlogin" id="${id}" method="post" action="/admin/api/login" autocomplete="on">
+      <label>Name<input id="${u}" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="64" placeholder="empty: the site's owner"${name != null ? ` value="${esc(name)}"` : ''}></label>
       <label>Password<input id="${pw}" name="password" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" maxlength="256" required></label>
+      <label class="admkeep"><input type="checkbox" name="keep"> Keep me logged in on this computer (30 days)</label>
       <button class="btn primary" type="submit">Log in</button><span class="admmsg" id="${msg}" role="status" aria-live="polite"></span></form>`;
 function admLoginBind(f, done) {
   const U = f.querySelector('input[name=username]'), P = f.querySelector('input[type=password]'), b = f.querySelector('button[type=submit]'), m = f.querySelector('.admmsg');
@@ -10385,35 +10424,43 @@ function admLoginBind(f, done) {
     P.value = '';   // (out of the page the moment it is sent; a wrong one is typed again)
     b.disabled = true; m.textContent = 'Logging in…';
     try {
-      const j = await admApi('login', { user: U.value.trim(), password: pw });
+      const K = f.querySelector('input[name=keep]');
+      const j = await admApi('login', { user: U.value.trim(), password: pw, keep: !!(K && K.checked) });
       if (!j.ok) { m.textContent = j.error || 'Could not log in.'; P.focus(); return; }
-      m.textContent = ''; await adminLoad();
-      if (!ADM.loaded) { m.textContent = 'Logged in, but the admins\' part did not come: try again in a moment.'; return; }
+      // (v224) the rights this login brings: the page again, at the same moment, when it may open more (or less) now
+      const was = acc, me = await admApi('me').catch(() => null);
+      if (!me || !was || JSON.stringify(me.rights) !== JSON.stringify(was.rights) || me.admin !== was.admin) { m.textContent = 'Logged in.'; reloadHere(); return; }
+      acc = me; accApply(); m.textContent = '';
+      if (me.admin) { await adminLoad(); if (!ADM.loaded) { m.textContent = 'Logged in, but the admins\' part did not come: try again in a moment.'; return; } }
       if (done) done();
     } catch (err) { m.textContent = err.message; } finally { b.disabled = false; }
   });
 }
-async function admLogout() { try { await admApi('logout', {}); } catch (e) {} location.reload(); }   // (the admins' code goes with the page)
+async function admLogout() { try { await admApi('logout', {}); } catch (e) {} reloadHere(); }   // (the admins' code goes with the page; v224: a closed site's page goes to the login)
 // (v199) the header's Admin button: shown on the site when its admin server answers; logged in - who, and where to go
 let admSrv = false;
 function admBtnSet() {
   const b = $('#admBtn'); if (!b) return;
-  b.hidden = !admSrv; if (!admSrv) return;
-  const on = !!(ADM.loaded && admMe), who = on ? (admMe.user === 'owner' ? "the site's owner" : admMe.user) : '';
-  b.textContent = on ? 'Admin ✓' : 'Admin'; b.classList.toggle('on', on);
-  b.title = on ? `Logged in as ${who}` : 'Log in: the admins of the site and of its servers';
+  b.hidden = !admSrv && !acc; if (b.hidden) return;
+  // (v224) one login for the site and the admins: "Log in"; logged in - his name (the owner: Admin)
+  const on = !!(acc && acc.in), who = on ? (acc.owner ? "the site's owner" : acc.user) : '';
+  b.textContent = on ? (acc.owner ? 'Admin ✓' : `${acc.user} ✓`) : 'Log in'; b.classList.toggle('on', on);
+  b.title = on ? `Logged in as ${who}` : 'Log in: the site\'s users and admins';
   if ($('#admDlg')?.open && !admLoading) admDlgDraw();
 }
 function admDlgDraw() {
-  const box = $('#admDlgBody'), on = !!(ADM.loaded && admMe), own = on && admMe.role === 'owner';
+  const box = $('#admDlgBody'), on = !!(acc && acc.in), own = on && acc.owner, again = on && acc.admin && !acc.adm;
   const roundOpen = !!round && round.meta?.source !== 'sim';
-  box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">Admin</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
-    + (on ? `<p>Logged in as <b>${esc(own ? "the site's owner" : admMe.user)}</b>${own ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}.</p>
-      <p class="admacts">${roundOpen ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${own ? '<a class="btn" href="/admin">Admin page</a>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
-      : `<p class="w">For the admins of the site and of its servers. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}`);
+  const RN = { view: 'rounds', list: 'the list', players: 'players and maps', records: 'records', stats: 'stats', demos: 'demos', clips: 'clips' };
+  const may = on && !own ? Object.keys(RN).filter(k => acc.rights?.[k]).map(k => RN[k]) : [];
+  box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">${on ? 'Logged in' : 'Log in'}</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
+    + (on ? `<p>Logged in as <b>${esc(own ? "the site's owner" : acc.user)}</b>${own ? '' : `${acc.admin ? ` <span class="w">· Admin tab: ${esc((acc.servers || []).join(', ') || 'no servers')}</span>` : ''}<br><span class="w">may open: ${esc(may.join(', ') || 'nothing more than guests')}</span>`}.</p>
+      ${again ? `<p class="w">An admin's powers (the Admin tab${acc.pageCards ? ', the admin page' : ''}) last 12 hours from the login (2 without a step): the password again for them.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg', own ? '' : acc.user)}` : ''}
+      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
+      : `<p class="w">With the name and password you were given. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}`);
   $('#admDlgX').onclick = () => $('#admDlg').close();
   const f = $('#admDlgForm');
-  if (f) admLoginBind(f, () => { $('#admDlg').close(); toast(`Logged in as ${admMe.role === 'owner' ? "the site's owner" : admMe.user}`); });
+  if (f) admLoginBind(f, () => { $('#admDlg').close(); toast(`Logged in as ${acc?.owner ? "the site's owner" : acc?.user || ''}`); });
   if ($('#admDlgTab')) $('#admDlgTab').onclick = () => { $('#admDlg').close(); if (ppage.nick || ppage.map) closePlayerPage(); paneSet('admin', true); $('#pnAdmin')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   if ($('#admDlgOut')) $('#admDlgOut').onclick = admLogout;
 }
@@ -13919,7 +13966,7 @@ const clockHM = d => (/(\d\d:\d\d)(:\d\d)?$/.exec(d || '') || ['', ''])[1];
 // (v202, Sagara) the round's demo: from this server; gone from it - from where it came (its source page still lists it, or
 // where it was downloaded from: ingest.mjs demoSrcMark, src / srcOk); a demo a game server uploaded and since removed: none
 function demoLink(r) {
-  const x = r.srv || {};
+  const x = r.srv || {}; if (!can('demos')) return '';   // (v224)
   if (x.demo) return `<a class="btn sm" id="rDemo" href="${esc('data/' + x.demo)}" download="${esc(r.name)}" title="Download this round's demo (${esc(r.name)}): to watch it in the game's Battle Recorder, or to open it here (Open .bf2demo)">⬇ Demo</a>`;
   if (x.src && /^https?:\/\//i.test(x.src)) return `<a class="btn sm" id="rDemo" href="${esc(x.src)}" target="_blank" rel="noopener noreferrer nofollow" title="${x.srcOk ? 'The demo is no longer on this server - its source still lists it' : 'The demo is no longer on this server - where it was downloaded from (it may be gone there too)'}">⬇ Demo at its source ↗</a>`;
   return `<button class="btn sm" id="rDemo" disabled title="The demo is no longer on this server, and where it came from is not known (a game server uploaded it)">Demo removed</button>`;
@@ -13928,14 +13975,14 @@ const rpTk = s => s.tickets ? s.tickets.map((x, k) => `<span class="t${k}">${x[0
 function renderRoundBar(box, R, cur, tkCell) {
   box.classList.add('roundbar');
   const L = R.filter(r => r.status === 'done'), nSrv = new Set(L.map(r => r.sum?.server).filter(Boolean)).size;
-  const ci = L.findIndex(r => r.name === cur), s = ci >= 0 ? L[ci].sum : null;
+  const ci = L.findIndex(r => r.name === cur), s = ci >= 0 ? L[ci].sum : null, lst = can('list') && !serverData?.linkOnly;   // (v224: the list - or only this round)
   const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${nSrv > 1 && s.server ? `<span>${esc(s.server)}</span>` : ''}${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
     : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
-  box.innerHTML = `<div class="rbar"><a class="rcur" id="rCur" href="${esc(rpHref())}" title="All the site's rounds: by server, map, day, player">${what}<span class="caret">All rounds ›</span></a>
-    <span class="rnav"><span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button>${s ? `<button class="btn sm" id="rMapPg" title="${esc(mapName(s.map))} over all rounds: where they die most, who kills most">Map page</button>` : ''}${ci >= 0 ? demoLink(L[ci]) : ''}</span></div>`;
-  $('#rCur').addEventListener('click', e => { e.currentTarget.href = rpHref(); });   // (the page's filters as they are now)
+  box.innerHTML = `<div class="rbar">${lst ? `<a class="rcur" id="rCur" href="${esc(rpHref())}" title="All the site's rounds: by server, map, day, player">${what}<span class="caret">All rounds ›</span></a>` : `<span class="rcur">${what}</span>`}
+    <span class="rnav">${lst ? `<span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button>` : ''}${s && lst && can('players') ? `<button class="btn sm" id="rMapPg" title="${esc(mapName(s.map))} over all rounds: where they die most, who kills most">Map page</button>` : ''}${ci >= 0 ? demoLink(L[ci]) : ''}</span></div>`;
+  if ($('#rCur') && lst) $('#rCur').addEventListener('click', e => { e.currentTarget.href = rpHref(); });   // (the page's filters as they are now)
   const go = d => { const x = L[ci + d]; if (x) { closePlayerPage(); openServerRound(x); } };
-  $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1);
+  if (lst) { $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1); }
   const mpg = $('#rMapPg'); if (mpg) mpg.onclick = () => openMapPage(s.map);
   rpBackSet();   // (v200: the rounds page's "Back to", when the round came in after it)
 }
@@ -13966,6 +14013,7 @@ function rpFromHash(h) {
 function rpHashSet() { hashSet({ ...Object.fromEntries(RP_KEYS.map(k => [k, null])), ...rpParams() }); }
 function openRoundsPage(h) {
   if (!session || !session.server) return false;
+  if (!can('list') || serverData?.linkOnly) return false;   // (v224)
   if (h) rpFromHash(h);
   if (ppage.nick || ppage.map) closePlayerPage(true);
   const was = rpage.on; rpage.on = true; rpage.n = RP_STEP;
@@ -14093,6 +14141,7 @@ function rpBody() {
 // the players' numbers over all the rounds (a folder of demos, or the site's rounds): the last view under the map
 function renderSessPlayers(nDone, busy) {
   const pbox = $('#sessPlayers'), ptab = $('#ptPlayers'); if (!pbox || !ptab) return;
+  if (session && session.server && !can('players')) { ptab.hidden = true; pbox.innerHTML = ''; if (pane === 'players') paneSet('battle'); return; }   // (v224)
   if (statsOn() && pane !== 'players') { ptab.hidden = !sessRoundsByDate().length; pbox.innerHTML = ''; return; }   // (v165: the server's table, loaded when the view is opened)
   const P = session ? sessionPlayers() : [];
   if (P === null) { ptab.hidden = false; pbox.innerHTML = '<p class="empty">Loading the players…</p>'; return; }   // (v165: the server's table)
@@ -14462,6 +14511,7 @@ const ppage = { nick: null, all: false, vs: null, map: null, page: null, arg: nu
 let WID_BY_NAME = null;
 const widOf = w => { if (!WID_BY_NAME) { WID_BY_NAME = new Map(); for (const [id, n] of Object.entries(WEAPONS)) if (!WID_BY_NAME.has(n)) WID_BY_NAME.set(n, +id); } return WID_BY_NAME.get(w) || 0; };
 function openPlayerPage(nick, fromLink, vs) {
+  if (!can('players')) { if (!fromLink) toast("This account may not open players' pages"); return false; }   // (v224)
   const known = k => statsOn() || playerRounds(k).length > 0;   // (v166: on the site his file says - the page shows when there is none)
   if (!session || !nick || !known(nick)) return false;
   if (rpage.on) closeRoundsPage(!!fromLink);   // (v200)
@@ -14681,6 +14731,7 @@ function renderComparePage() {
 // themselves.
 const mapRounds = key => sessRoundsByDate().filter(r => String(r.sum.map || '').toLowerCase() === key);
 function openMapPage(key, fromLink) {
+  if (!can('players')) { if (!fromLink) toast("This account may not open maps' pages"); return false; }   // (v224)
   key = String(key || '').toLowerCase();
   if (!session || !key || !mapRounds(key).length) return false;
   if (rpage.on) closeRoundsPage(!!fromLink);   // (v200)
@@ -14800,6 +14851,7 @@ function vehCard(vt, title) {
 // ---- the pages ----
 const STATS_PAGES = ['hub', 'clans', 'vehicles', 'server', 'find'];
 function openStatsPage(page, arg, fromLink) {
+  if (!can('stats')) { if (!fromLink) toast('This account may not open the statistics'); return false; }   // (v224)
   if (!session || !STATS_PAGES.includes(page)) return false;
   if (rpage.on) closeRoundsPage(!!fromLink);
   ppage.nick = null; ppage.vs = null; ppage.map = null; ppage.page = page; ppage.arg = arg ?? null; ppage.all = false;
@@ -15099,12 +15151,7 @@ async function versionCheck() {
   const bar = document.createElement('div'); bar.className = 'newver'; bar.setAttribute('role', 'status');
   bar.innerHTML = `<span>A new version is out: <b>${esc(v)}</b> (this page: ${esc(APP_VERSION)})</span><button class="btn primary" type="button">Reload</button><button class="btn" type="button" aria-label="Later">Later</button>`;
   const [go, later] = bar.querySelectorAll('button');
-  go.onclick = () => {
-    const r = session.rounds.find(x => x.name === $('#srcLabel').textContent), p = sel !== null && round ? round.players[sel] : null;
-    const h = ppage.nick ? '#player=' + encodeURIComponent(ppage.nick) + (ppage.vs ? '&vs=' + encodeURIComponent(ppage.vs) : '') : ppage.map ? '#map=' + encodeURIComponent(ppage.map)
-      : r && round ? '#round=' + encodeURIComponent(linkId(r.name)) + '&t=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '') : '';
-    history.replaceState(null, '', location.pathname + location.search + h); location.reload();
-  };
+  go.onclick = reloadHere;
   later.onclick = () => bar.remove();
   document.body.appendChild(bar);
 }
@@ -15139,7 +15186,12 @@ function expandIndex(d) {
 }
 async function serverBoot() {
   if (!/^https?:$/.test(location.protocol)) return;
-  let d = null; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); if (res.ok) d = expandIndex(await res.json()); } catch (e) { return; }
+  const meP = admApi('me').catch(() => null);   // (v224: what this visitor may open)
+  let d = null, st = 0; try { const res = await fetch('data/rounds.json', { cache: 'no-cache' }); st = res.status; if (res.ok) d = expandIndex(await res.json()); } catch (e) { return; }
+  const me = await meP; accSet(me && typeof me.in === 'boolean' ? me : null);
+  // (v224) watching without the list (rounds.json closed to him): a round opens only from a link - its line from the
+  // admin server (round-ref); the rest of the page as usual
+  if (!d && (st === 401 || st === 403) && acc && acc.rights?.view) d = { rounds: [], linkOnly: true };
   if (!d || !Array.isArray(d.rounds)) return;
   serverData = d;
   // links with previews only when the web server serves them (its config may not have /r/ and /p/ yet)
@@ -15151,6 +15203,8 @@ async function serverBoot() {
   renderSession();
   const h = new URLSearchParams(location.hash.slice(1)), want = h.get('round');
   if (h.get('tab')) paneSet(h.get('tab'));
+  accApply();
+  if (d.linkOnly) { await refMeta(); if (want) await refRound(want); else if (!h.get('player') && !h.get('map')) linkOnlyNote(); }
   const hit = findSrv(want), pick = hit || session.rounds.find(r => r.status === 'done');
   if (hit) pendingLink = { r: hit, t: h.has('t') ? +h.get('t') : null, p: h.get('p') };
   if (pick) openServerRound(pick);
@@ -15167,7 +15221,8 @@ function statsFromHash(h) {
 $('#statLink').addEventListener('click', e => { if (session && session.server) { e.preventDefault(); openStatsPage('hub'); } });
 $('#rndLink').addEventListener('click', e => { if (session && session.server) e.currentTarget.href = rpHref(); });   // (the filters as last set)
 $('#recLink').addEventListener('click', e => { if (session && session.server) e.currentTarget.href = siteBase() + 'records/' + (session.srvF ? nickSlug(session.srvF) + '.html' : ''); });   // (v201: the server picked - the Records page of each server)
-window.addEventListener('hashchange', () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)), r = findSrv(h.get('round'));
+window.addEventListener('hashchange', async () => { if (!session || !session.server) return; const h = new URLSearchParams(location.hash.slice(1)); let r = findSrv(h.get('round'));
+  if (!r && h.get('round') && serverData?.linkOnly) r = await refRound(h.get('round'));   // (v224)
   if (h.has('rounds')) { openRoundsPage(h); return; }   // (v200)
   closeRoundsPage(true);
   if (h.get('player')) { if (ppage.nick !== h.get('player') || ppage.vs !== (h.get('vs') || null)) openPlayerPage(h.get('player'), true, h.get('vs')); return; }

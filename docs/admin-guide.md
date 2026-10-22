@@ -1,22 +1,24 @@
 # Admin guide
 
-For the site's owner and for the admins of the game servers. Part 1 is the admin page `/admin` (the owner only).
-Part 2 is what admins see on the site itself after logging in: the **Admin** tab of each round, the **For admins** tab
-next to the map, and the hint cards on players' pages. Part 3 is how to work with hints. What every hint means is in
+For the site's owner and for the admins of the game servers. Part 1 is the admin page `/admin` (the owner's; an account
+sees the cards it was given), including **who may open the site** ([Users and access](#users-and-access)). Part 2 is what
+admins see on the site itself after logging in: the **Admin** tab of each round, the **For admins** tab next to the map,
+and the hint cards on players' pages. Part 3 is how to work with hints. What every hint means is in
 [admin-hints.md](admin-hints.md); how the numbers behind them are worked out is in [features.md](features.md).
 
 > Admin tools and hints are deliberately not visible to players: the hint rules and thresholds are not in the public
 > page at all. Keep this guide and `admin-hints.md` among admins.
 
-Contents: [Part 1 — the admin page](#part-1--the-admin-page-admin) · [Part 2 — admins on the site](#part-2--admins-on-the-site) ·
+Contents: [Part 1 — the admin page](#part-1--the-admin-page-admin) · [Users and access](#users-and-access) · [Part 2 — admins on the site](#part-2--admins-on-the-site) ·
 [Part 3 — working with hints](#part-3--working-with-hints) · [Security](#security)
 
 ---
 
 ## Part 1 — the admin page (/admin)
 
-`https://your-domain/admin`, with the password set on the VPS ([install.md §7](install.md#7-the-admin-password)). It
-shows the state of the VPS, starts its jobs and holds every setting that isn't in `/etc/bf2replay.conf`. Nothing on
+`https://your-domain/admin`: the owner logs in with an empty name and the password set on the VPS
+([install.md §7](install.md#7-the-admin-password)); an account given cards of this page logs in with its own name and
+sees only those cards ([Users and access](#users-and-access)). It shows the state of the VPS, starts its jobs and holds every setting that isn't in `/etc/bf2replay.conf`. Nothing on
 it deletes rounds. Each card has a short explanation under its title; the card **How to use this page** at the bottom
 lists the usual tasks. The page refreshes itself.
 
@@ -234,12 +236,51 @@ round's hints for admins — the player, what, and a link to the moment. Choose 
 (minor ones — team kills, claymores, server rules — never). Each round goes once; old rounds analysed again with new
 rules are not sent. **Send a test**. Hints only come when the background analysis runs and Chromium is installed.
 
-### Servers' admins
+### Users and access
 
-Accounts for the admins of the game servers: a name, a password (8+ characters) and ticks for the servers whose rounds
-they may see. Change their servers (**Save his servers**), set a new password (logs him out), **Remove**. Accounts are kept
-in `data/.admin-users.json` (scrypt hashes only). These accounts see the Admin tab of their servers' rounds on the site;
-the admin page shows them nothing.
+Who may open what (v224; before it this card was *Servers' admins*). The owner's only.
+
+**Guests** — everyone who is not logged in. One tick per part of the site:
+
+| Part | What it opens |
+|---|---|
+| Watch rounds | the site's page: a round on the map, its Round stats and Weapons; a round's plain page `/rounds/<round>.html` |
+| All rounds | the list: the Rounds page, ‹ Newer / Older ›, `/rounds/` and its months, RSS. Without it, a round opens only from a link to it |
+| Players and maps | players' pages and comparisons, Players · all rounds, maps' pages and heat maps; `/players/`, `/maps/` |
+| Records | `/records/` |
+| Stats | clans, vehicles, the servers' pages, search moments |
+| Download demos | ⬇ Demo, and clips for the game |
+| Video clips | the Clip button (a video or GIF made in the browser) |
+| Link previews (guests only) | the cards Discord / Telegram show under a link to a round or player, and the map pictures of the round posts — chat apps never log in |
+
+All ticked: the site is **open** (as before v224; the web server asks nothing). Some unticked: **closed in part** —
+those parts need a login. None ticked: **closed** — every page goes to the login page `/login`. **Tick all** / **Untick
+all**, then **Save** (it asks before closing).
+
+**Accounts** — **Add** (a name: 2–32 letters, digits, `. _ -`; a password: 8+ characters). A new account may watch
+everything but the demos (Watch rounds, All rounds, Players and maps, Records, Stats, Video clips); open its row to change
+that:
+
+- **The site** — the parts above. An account may always open what guests may, plus what is ticked here.
+- **Admin tab** — the Admin tab of the rounds of **his servers** (hints, players, kills, the round, review), the For
+  admins tab and the hint cards on players' pages.
+- **His servers** — the game servers of the Admin tab, and of the Posts card below.
+- **This page** — cards of the admin page he may see and use: Rounds, Being decoded, Disk, Demos: what to keep, Services,
+  Background analysis, Where demos come from, **Posts about new rounds** (his servers only — not the Telegram bot, the
+  default minimum of players, templates or "Use on all servers", which stay the owner's), Log. *Users and access* and
+  *Settings* are always the owner's.
+- **Save his rights**; **Set** a new password (logs him out everywhere); **Remove** (logs him out).
+
+The row shows when he last logged in and whether he is logged in now. Accounts made before v224 (server admins) keep what
+they had: they may watch everything and have the Admin tab of their servers.
+
+**Logins.** One login for everything — the site, the Admin tab and this page — at `/login`, the site's **Log in** button,
+the Admin tab, or this page. A login lasts 12 hours (2 without a visit); with **Keep me logged in on this computer**, 30
+days (14 without a visit). An admin's powers (the Admin tab, this page) last 12 hours from the login and 2 hours without a
+step, whatever "keep" says — then the password again. The logins survive an update of the site (kept in
+`data/.sessions.json`, only their hashes). A new owner's password logs the owner out everywhere.
+
+How it works and its limits: [features.md, "Who may open what"](features.md#who-may-open-what).
 
 ### Log
 
@@ -251,7 +292,10 @@ it fresh. The first place to look when a service failed, a demo didn't decode or
 - **Every day** nothing needs doing: Rounds grows, Being decoded empties, Disk has room, Services shows no *failed*.
 - **A new game server**: Where demos come from → its page or address → Check → Add (rounds appear within minutes). Posts
   about new rounds → its block → webhook / chat → The post → Preview → Send a test post. Summaries: tick Day / Week /
-  Month, choose the channel, Preview the summary. Its admins: an Admin channel, and accounts under Servers' admins.
+  Month, choose the channel, Preview the summary. Its admins: an Admin channel, and accounts under Users and access
+  (the Admin tab with their servers; the Posts card if they set up their posts themselves).
+- **Close the site**: Users and access → untick the parts guests may not open (or all) → Save; then an account per
+  person, with what he may open.
 - **After an update** the old rounds are decoded and analysed again by themselves — watch Being decoded and Background
   analysis.
 - **When something is wrong**: a failed service → Log → its button; failed demos → Try them again; a full disk → Demos:
@@ -264,18 +308,20 @@ it fresh. The first place to look when a service failed, a demo didn't decode or
 
 ### Logging in
 
-Two ways: the **Admin** button at the top right of any page (next to Tools; it shows when the admin server answers), or
-the **Admin** tab of a round (under the map, next to Round stats). Enter a name and the password:
+The **Log in** button at the top right of any page (next to Tools), the **Admin** tab of a round (under the map, next
+to Round stats), or the page `/login` (where a closed site sends you). Enter a name and the password:
 
 - the owner: an **empty name** and the admin page's password — sees every server; already logged into `/admin` means
   already logged in here;
-- a server's admin: his account from *Servers' admins* — sees only his servers' rounds (others say so).
+- an account with the Admin tab: its name — sees only its servers' rounds (others say so).
 
-After logging in the button reads **Admin ✓**; its window shows who you are, **This round's Admin tab**, for the owner
-**Admin page**, and **Log out**. A login lasts 12 hours (2 hours without activity) and ends when `admin.mjs` restarts
-after an update. The password goes only in a POST request, is cleared from the field at once, and never appears in an
-address, in the page or in the browser's storage; the login cookie is HttpOnly, SameSite=Strict, Secure over https. On a
-non-https address the window warns that the password would cross the network unencrypted.
+After logging in the button shows your name (the owner: **Admin ✓**); its window shows who you are and what you may
+open, **This round's Admin tab**, **Admin page** (the owner, and accounts with cards of it), and **Log out**. A login lasts
+12 hours (2 without a visit) or, with **Keep me logged in**, 30 days; the admin powers in it last 12 hours (2 without a
+step) — then the window and the Admin tab ask for the password again. The password goes only in a POST request, is
+cleared from the field at once, and never appears in an address, in the page or in the browser's storage; the login
+cookie is HttpOnly, SameSite=Lax, Secure over https. On a non-https address the window warns that the password would
+cross the network unencrypted.
 
 ### The Admin tab of a round
 
@@ -412,9 +458,13 @@ shapes, the hint also says where he was (chest in an object, under the ground, i
 ## Security
 
 - The admin page and the Admin tab are served by `admin.mjs` on 127.0.0.1:8781 behind Caddy; the admins' code
-  (`server/admin-round.js`) and data (`data/.admin/`) go out only after logging in.
+  (`server/admin-round.js`) and data (`data/.admin/`) go out only to an account with the Admin tab, while its admin
+  powers last.
 - Passwords: only scrypt hashes on the VPS (`/etc/bf2replay-admin.json`, `data/.admin-users.json`); never in the
-  repository. Logins are rate-limited (5 wrong from one address → 15 min; 30 an hour from all → a pause for all).
+  repository. Logins are rate-limited: 5 wrong from one address → 15 minutes; 30 an hour from all → a pause for the
+  addresses that got one wrong (someone with no mistake still gets in).
+- A closed site: every request (but the login's and the admin page's) is checked by `admin.mjs` before the web server
+  answers; a page goes to `/login`, a file gets 401 / 403.
 - Webhooks and the bot token stay on the VPS (`data/.notify.json`); the page shows only their last 4 characters.
 - The admin page can start only the bf2replay services (a sudoers rule); it can't run anything else.
 - Log out on a shared computer.

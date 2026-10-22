@@ -21,6 +21,22 @@ __SITE__ {
 	header X-Content-Type-Options nosniff
 	header Referrer-Policy strict-origin-when-cross-origin
 
+	# (v224) who may open what: while a part of the site is closed to guests (the admin page, "Users and access"),
+	# admin.mjs keeps data/.access-gate, and every request but the login's and the admin page's is asked about first
+	# (/admin/api/gate: the visitor's login and rights against the part of the site the path is) - a page he may not open
+	# goes to /login, a file gets 401 / 403. An open site (no such file) asks nothing.
+	@gate {
+		not path /admin /admin/* /login /robots.txt
+		file {
+			root /srv/bf2replay/data
+			try_files /.access-gate
+		}
+	}
+	forward_auth @gate 127.0.0.1:8781 {
+		uri /admin/api/gate
+		header_up X-BF2R-Uri {http.request.orig_uri}
+	}
+
 	# link previews: /r/<round> and /p/<player> are small pages (data/share/r|p/*.html, written by ingest.mjs) with
 	# the title and picture chat apps show under a link; they send the visitor on to the page
 	@share path_regexp share ^/([rp])/([A-Za-z0-9_.-]+)$
@@ -44,8 +60,12 @@ __SITE__ {
 		respond @private 404
 		file_server
 	}
-	# the admin page (server/admin.mjs on 127.0.0.1:8781, behind a password: admin.mjs --set-password)
+	# the admin page (server/admin.mjs on 127.0.0.1:8781, behind a password: admin.mjs --set-password); (v224) the site's
+	# login page
 	handle /admin* {
+		reverse_proxy 127.0.0.1:8781
+	}
+	handle /login {
 		reverse_proxy 127.0.0.1:8781
 	}
 	# the site (from the repository's site/ folder)

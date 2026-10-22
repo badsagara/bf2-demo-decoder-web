@@ -8,7 +8,7 @@ Contents: [What a demo holds](#what-a-demo-holds--and-what-it-doesnt) · [Decodi
 [Score](#score-teamwork-assists) · [Highlights](#highlights) · [Records](#records) ·
 [Statistics over all rounds](#statistics-over-all-rounds) · [Rating (Elo)](#rating-elo) · [Clips](#clips) ·
 [Posts and summaries](#posts-and-summaries) · [Hints for admins](#hints-for-admins) ·
-[Keeping demos](#keeping-demos) · [Pages, previews, RSS](#pages-previews-rss) · [Privacy and security](#privacy-and-security) ·
+[Keeping demos](#keeping-demos) · [Pages, previews, RSS](#pages-previews-rss) · [Who may open what](#who-may-open-what) · [Privacy and security](#privacy-and-security) ·
 [Speed and size](#speed-and-size)
 
 ## What a demo holds — and what it doesn't
@@ -265,11 +265,47 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   site. They are rewritten only when they change; pages of rounds no longer there are removed.
 - `rounds.json` is a light list (~0.5 KB → 0.15 KB a round); the full list and all kills stay on the server.
 
+## Who may open what
+
+Set on the admin page, card **Users and access** ([admin-guide.md](admin-guide.md#users-and-access)).
+
+- **Guests** (not logged in) and **accounts** have the same parts of the site to tick: Watch rounds, All rounds, Players
+  and maps, Records, Stats, Download demos, Video clips; guests also Link previews. An account may open what guests may
+  plus its own ticks; the owner may open everything. Accounts may also have the Admin tab (of their servers) and cards
+  of the admin page.
+- **Where it is checked.** While some part is closed to guests, `admin.mjs` keeps `data/.access-gate`, and Caddy asks it
+  about every request of the site (`forward_auth` to `/admin/api/gate`) before answering: the visitor's login against
+  the part of the site the address belongs to. A page goes to `/login` (and back after the login, with its `#round=…`); a
+  file gets 401 (not logged in) or 403 (logged in, not his). With every part open there is no file, and Caddy asks
+  nothing — the open site never waits for `admin.mjs`. (nginx asks on every request; the answer is "yes" at once while
+  the site is open.)
+- **What decides a request**: the page itself, its version and `data/reprocess.json`, the decoded rounds — Watch rounds;
+  `rounds.json`, `/rounds/` and its months, `rss.xml`, `sitemap.xml` — All rounds; `data/stats/players|maps|table`,
+  `names.json`, `data/heat/`, `/players/`, `/maps/` — Players and maps; `data/stats/clans|vehicles|servers|server/|find/` —
+  Stats; `/records/` — Records; `data/demos/` — Download demos; `/r/<round>` — Link previews or Watch rounds; `/p/<player>`
+  — Link previews or Players and maps; the pictures and icons in `/assets/` — any part at all; `robots.txt`, `/login`,
+  `/admin` — always.
+- **The page hides** what a visitor may not open: Rounds, Records, Stats, ⬇ Demo, the Players tab, Map page, ‹ Newer /
+  Older ›, the Clip button, players' pages. Its header button reads **Log in**, or the account's name.
+- **Without All rounds** an account watches the rounds it gets a link to (a round's link, a player's page): the page
+  asks `admin.mjs` for that round alone (`/admin/api/round-ref`). Round names follow their time
+  (`auto_2026_10_18_20_28_05`), so this hides the list, not the rounds themselves.
+- **Video clips** is the only part checked by the page alone: a clip is drawn in the browser from what the page shows, so
+  there is no file to refuse. (A clip for the game needs the demo, and so Download demos.)
+- **Closed link previews**: Discord, Telegram and the others never log in, so with Link previews unticked (and Watch
+  rounds closed to guests) a link shows no card and the round posts show no map picture.
+- **If `admin.mjs` is down** while the site is closed, Caddy can't ask, and the closed parts answer with an error until
+  it is back (systemd restarts it at once). An open site doesn't depend on it.
+- **Logins**: one cookie for the whole site (`bf2r_s`, HttpOnly, SameSite=Lax, Secure over https); 12 hours, or 30 days
+  with "keep me logged in"; the admin powers of any login 12 hours (2 without a step). Kept in `data/.sessions.json` by
+  the hash of each token, so an update logs nobody out.
+
 ## Privacy and security
 
 - Visitors' choices (theme, columns, clip settings, layers) are kept only in their own browser.
-- The admins' code, the hint rules and all admin data are not in the public page or folders; they are served only to a
-  logged-in admin. Server admins see only their servers' rounds.
+- The admins' code, the hint rules and all admin data are not in the public page or folders; they are served only to an
+  account with the Admin tab. Its servers' rounds only.
+- The site can be closed to visitors who are not logged in, as a whole or in parts ([above](#who-may-open-what)).
 - Passwords exist only as scrypt hashes on the VPS; logins are rate-limited; the login cookie is HttpOnly, SameSite=Strict
   and Secure over https. Webhooks and the bot token never leave the VPS.
 - The web server never serves the server's private files (`data/.*`, logs, failed and dropped demos).
