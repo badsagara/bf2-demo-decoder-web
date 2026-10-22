@@ -53,11 +53,12 @@ export function periodOf(kind, now = Date.now()) {
 }
 
 // the rows: added up over the period (each kind of kill; K/D apart), and the best in one round
-const SUM_KEYS = [['foot', 'On foot'], ['kVeh', 'In vehicles'], ['hs', 'Headshots'], ['kn', 'Knife'], ['cl', 'Claymores'], ['mi', 'Mines'], ['ai', 'AT on infantry'], ['rd', 'Run over'], ['gr', 'Grenades'], ['gl', 'Grenade launcher'], ['c4', 'C4'],
-  ['hk', 'Hand-held'], ['atk', 'Hand-held AT'], ['stk', 'TOW / HJ-8'], ['tck', 'Tank cannon'], ['vk', 'Vehicle weapons'], ['agk', 'AA guns'], ['ark', 'AA rockets'], ['aak', 'Air-to-air'],
+// (v213) the short names of the round posts' table (Sagara's)
+const SUM_KEYS = [['foot', 'On foot'], ['kVeh', 'Veh'], ['hs', 'Hs'], ['kn', 'Knife'], ['cl', 'Claymores'], ['mi', 'Mines'], ['ai', 'AT on inf'], ['rd', 'Run over'], ['gr', 'Grenades'], ['gl', 'GL'], ['c4', 'C4'],
+  ['hk', 'Hand-held'], ['atk', 'AT'], ['stk', 'TOW'], ['tck', 'Tank'], ['vk', 'Veh weap'], ['agk', 'AA gun'], ['ark', 'SAM'], ['aak', 'Air2Air'],
   ['rev', 'Revives'], ['heal', 'Heals'], ['rep', 'Repairs'], ['fl', 'Flags']];
-const BEST_KEYS = [['k', 'Kills'], ['score', 'Score'], ['sf', 'Streak on foot'], ['sv', 'Streak in vehicles'], ['kd', 'K/D (10+ kills)'], ['lg', 'Longest kill'], ['sl', 'Longest small arms'], ['sn', 'Longest sniper'],
-  ['al', 'Longest launcher'], ['stl', 'Longest TOW / HJ-8'], ['tcl', 'Longest tank cannon'], ['vl', 'Longest vehicle'], ['agl', 'Longest AA gun'], ['arl', 'Longest AA rocket'], ['aal', 'Longest air-to-air']];
+const BEST_KEYS = [['k', 'Kills'], ['score', 'Score'], ['sf', 'Inf Spree'], ['sv', 'Veh Spree'], ['kd', 'K/D (10+ kills)'], ['lg', 'Far kill'], ['sl', 'Far Gun'], ['sn', 'Far Sniper'],
+  ['al', 'Far AT'], ['stl', 'Far TOW'], ['tcl', 'Far Tank'], ['vl', 'Far Veh'], ['agl', 'Far AA'], ['arl', 'Far SAM'], ['aal', 'Far Air2Air']];
 const whoOf = L => L.slice(0, 3).join(', ') + (L.length > 3 ? ` +${L.length - 3}` : '');
 const num = v => Number(v).toLocaleString('en-GB');
 
@@ -77,13 +78,17 @@ export function digestOf(server, kind, now = Date.now()) {
   // each player over the period, by nick (his name of the newest round)
   const M = new Map();
   for (const r of R) { const seen = new Set(); for (const p of r.sum.P) {
-    if (bot(p.name)) continue; const nk = A.nickOf(p.name); let a = M.get(nk); if (!a) M.set(nk, a = { name: p.name, rounds: 0, score: 0, k: 0, d: 0, sums: {} });
+    if (bot(p.name)) continue; const nk = A.nickOf(p.name); let a = M.get(nk); if (!a) M.set(nk, a = { name: p.name, rounds: 0, score: 0, k: 0, d: 0, sums: {}, y: { dw: 0, dl: 0, dm: 0, n: 0 } });
     a.name = p.name; if (!seen.has(nk)) { a.rounds++; seen.add(nk); }
     a.score += p.score || 0; a.k += p.k || 0; a.d += p.d || 0;
+    if (p.y) { a.y.dw += p.y.dw || 0; a.y.dl += p.y.dl || 0; a.y.dm += p.y.dm || 0; a.y.n++; }   // (v215: duels, damage)
     for (const [k] of SUM_KEYS) { const [v] = A.recVal(p, k); if (v > 0) a.sums[k] = (a.sums[k] || 0) + v; }
   } }
   const all = [...M.values()];
   out.top = all.slice().sort((a, b) => b.score - a.score || b.k - a.k || a.d - b.d).slice(0, 10).map(a => ({ name: a.name, score: a.score, k: a.k, d: a.d, kd: Math.round(a.k / Math.max(1, a.d) * 100) / 100, rounds: a.rounds }));
+  // (v215, Sagara's todo 265) the player of the day / week / month: the most score a round, with 2 / 3 / 5 rounds or more
+  { const min = { day: 2, week: 3, month: 5 }[kind] || 3, C = all.filter(a => a.rounds >= min).sort((a, b) => b.score / b.rounds - a.score / a.rounds || b.k / Math.max(1, b.d) - a.k / Math.max(1, a.d));
+    if (C.length) { const a = C[0]; out.pow = { name: a.name, rounds: a.rounds, spr: Math.round(a.score / a.rounds), k: a.k, d: a.d, kd: Math.round(a.k / Math.max(1, a.d) * 100) / 100, min, ...(a.y.dw + a.y.dl ? { duel: Math.round(a.y.dw / (a.y.dw + a.y.dl) * 100) } : {}), ...(a.y.n ? { dmr: Math.round(a.y.dm / a.y.n) } : {}) }; } }
   // the leaders, added up (a tie: all of them, the first three named)
   out.leaders = [];
   for (const [k, label] of SUM_KEYS) {
@@ -110,12 +115,14 @@ const mapsLine = (N, n = 5) => N.maps.slice(0, n).map(([m, c]) => `${m} ${c}`).j
 
 // Discord: cards (a message holds 10 and 6000 letters: more messages when it is more) - the numbers and the best ten;
 // the leaders; the best in one round
+const POW_OF = { day: 'of the day', week: 'of the week', month: 'of the month' };
+const powLine = a => `${num(a.spr)} score a round over ${a.rounds} rounds · ${a.k}-${a.d} (K/D ${a.kd.toFixed(2)})${a.duel != null ? ` · duels won ${a.duel}%` : ''}${a.dmr != null ? ` · damage ${a.dmr} a round` : ''}`;
 export function discordOf(D) {
   const N = D.numbers, E = [];
   const fitRows = (head, rows, build) => { let d = build(rows); while (d.length > 4090 && rows.length > 1) { rows = rows.slice(0, -1); d = build(rows); } return d; };
   const first = { title: cut(titleOf(D), 256), color: DRAW_RGB };
   const link = linkOf(D); if (link) first.url = link;
-  const head = `**${num(N.rounds)} round${N.rounds === 1 ? '' : 's'}** · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h\n${escDc('Maps: ' + mapsLine(N))}`;
+  const head = `**${num(N.rounds)} round${N.rounds === 1 ? '' : 's'}** · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h\n${escDc('Maps: ' + mapsLine(N))}` + (D.pow ? `\n**Player ${POW_OF[D.kind] || ''}: ${escDc(D.pow.name)}** · ${escDc(powLine(D.pow))}` : '');
   const top = D.top.map((a, i) => [String(i + 1), num(a.score), `${a.k}-${a.d}`, a.kd.toFixed(2), String(a.rounds), a.name]);
   first.description = fitRows(['#'], top, rows => `${head}\n**Top ${rows.length} by score**\n${monoTable(['#', 'Score', 'K-D', 'K/D', 'Rnd', 'Player'], rows)}`);
   if (DOMAIN) { const m = N.maps[0]?.[2] || ''; first.thumbnail = { url: `https://${DOMAIN}/assets/og/${m && fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg` }; }   // (the map played most)
@@ -133,6 +140,7 @@ export function discordOf(D) {
 // Telegram: text (HTML), as many messages as it takes (4096 letters each; whole lines)
 export function telegramOf(D) {
   const N = D.numbers, b = t => `<b>${escTg(t)}</b>`, L = [b(titleOf(D)), escTg(`${num(N.rounds)} round${N.rounds === 1 ? '' : 's'} · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h`), escTg('Maps: ' + mapsLine(N))];
+  if (D.pow) L.push('', `${b(`Player ${POW_OF[D.kind] || ''}:`)} ${escTg(D.pow.name)} · ${escTg(powLine(D.pow))}`);   // (v215)
   L.push('', b(`Top ${D.top.length} by score`)); D.top.forEach((a, i) => L.push(escTg(`${i + 1}. ${a.name} ${num(a.score)} (${a.k}–${a.d}, K/D ${a.kd.toFixed(2)}, ${a.rounds} round${a.rounds === 1 ? '' : 's'})`)));
   if (D.leaders.length) { L.push('', b(`Leaders ${KIND_OF[D.kind]} (added up)`)); for (const x of D.leaders) L.push(`${b(x.label + ':')} ${escTg(`${x.who} ${x.v}`)}`); }
   if (D.bests.length) { L.push('', b(`Best in one round ${KIND_OF[D.kind]}`)); for (const x of D.bests) L.push(`${b(x.label + ':')} ${escTg(`${x.who} ${x.v}${x.where ? ` (${x.where})` : ''}`)}`); }

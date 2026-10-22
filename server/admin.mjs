@@ -297,7 +297,7 @@ function analysisState() {
     archives: archives(), roundsBytes: dirBytes(path.join(OUTD, 'rounds')),
     manual: run ? { started: run.started, ended: run.ended || null, on: runOn, done: run.done || 0, rounds: run.rounds || 0 } : null,
     running: autoOn ? 'auto' : runOn ? 'manual' : null, eta: left && cycle ? Math.round(left / perRun * cycle) : left ? null : 0, playwright: pw, off: opt('BF2R_HINTS', '1') === '0',
-    glitch: gl ? { at: gl.at, minRounds: gl.minRounds, maps: gl.maps, left: gl.left, stays: gl.stays, hints: gl.hints } : null, cards: hc ? { at: hc.at, rounds: hc.rounds, players: hc.players } : null };
+    glitch: gl ? { at: gl.at, minRounds: gl.minRounds, maps: gl.maps, left: gl.left, stays: gl.stays, hints: gl.hints } : null, cards: hc ? { at: hc.at, rounds: hc.rounds, players: hc.players, scores: hc.scores || null } : null };   // (v214: + the suspicion scores' top)
   anCache = { at: Date.now(), v }; return v;
 }
 
@@ -392,7 +392,8 @@ function notifyState() {
     const c = N.servers[name], o = seen.get(name) || { n30: 0, total: 0, newest: '' };
     return { name, set: !!c, rounds30: o.n30, rounds: o.total, newest: o.newest || null, minPlayers: c?.minPlayers ?? null, last: c?.last || null, format: c ? c.format : normFormat(null), formatSet: !!c?.formatSet,
       discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null,
-      digest: c ? { ...c.digest } : null, digestLog: c ? c.digestLog : null, digestTry: c ? c.digestTry : null };   // (v209)
+      digest: c ? { ...c.digest } : null, digestLog: c ? c.digestLog : null, digestTry: c ? c.digestTry : null,   // (v209)
+      alert: c ? { on: c.alert.on, webhook: tail(c.alert.webhook), min: c.alert.min, log: c.alert.log } : null };   // (v214)
   }).sort((a, b) => (b.set - a.set) || String(b.newest || '').localeCompare(String(a.newest || '')) || a.name.localeCompare(b.name));
   return { tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, minPlayers: N.minPlayers, minPlayersConf: N.minPlayersConf, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
     items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what, on: linesOf({})[k], ...(TLABEL[k] ? { short: TLABEL[k] } : {}) })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
@@ -434,6 +435,13 @@ function notifySet(b) {
       for (const k of DIGEST_KINDS) { d[k] = b.digest[k] !== undefined ? !!b.digest[k] : !!was[k]; if (d[k] && !was[k]) last[k] = periodOf(k).key; }
       srv.digest = d; srv.digestLast = last;
       const on = DIGEST_KINDS.filter(k => d[k]); said.push(on.length ? `summaries: ${on.join(', ')} (at ${DIGEST_AT})` : 'no summaries');
+    }
+    if (b.alert !== undefined) {   // (v214) the admins' private channel
+      const a = {};
+      if (b.alert.webhook !== undefined) { const v = String(b.alert.webhook || '').trim(); if (v && !DISCORD_RE.test(v)) return { ok: false, msg: 'not a Discord webhook address (https://discord.com/api/webhooks/<number>/<token>)' }; if (v && v === cur?.discord?.webhook) return { ok: false, msg: 'that is the public channel\'s webhook: the admin channel must be a private one' }; a.webhook = v; a.on = !!v; said.push(v ? 'admin channel webhook saved (on)' : 'admin channel webhook removed'); }
+      if (b.alert.on !== undefined) { a.on = !!b.alert.on; said.push(`admin channel ${a.on ? 'on' : 'off'}${a.on && !cur?.alert?.webhook && !a.webhook ? ' (no webhook yet: add one)' : ''}`); }
+      if (b.alert.min !== undefined) { a.min = b.alert.min === 'hint' ? 'hint' : 'strong'; said.push(`admin channel: ${a.min === 'hint' ? 'strong and ordinary hints' : 'strong hints'}`); }
+      srv.alert = a;
     }
     if (!said.length) return { ok: false, msg: 'nothing to change' };
     saveNotify({}, name, srv); log(`round posts (${name}):`, said.join(', '));
@@ -792,6 +800,11 @@ const server = http.createServer(async (req, res) => {
     if (what === 'user-set') return send(res, 200, userSet(b));
     if (what === 'user-remove') return send(res, 200, userRemove(b));
     if (what === 'notify-test') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--test', b.server));
+    if (what === 'alert-test') {   // (v214) a test post to a server's admin channel
+      if (!b.server || !knownServer(String(b.server))) return send(res, 200, { ok: false, msg: 'no such server' });
+      const r = await run(NODE, [path.join(HERE, 'alerts.mjs'), '--test', String(b.server)], { timeout: 60e3 }), out = (r.out + (r.err ? '\n' + r.err : '')).trim();
+      return send(res, 200, { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'sent' : 'failed') });
+    }
     if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
     if (what === 'digest-preview') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); try { return send(res, 200, digestTexts(n, k)); } catch (e) { return send(res, 200, { ok: false, msg: e.message }); } }
     if (what === 'digest-post') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); const r = await run(NODE, [path.join(HERE, 'digest.mjs'), '--post', k, n], { timeout: 120e3 }); const out = (r.out + (r.err ? '\n' + r.err : '')).trim(); return send(res, 200, { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'posted' : 'failed') }); }

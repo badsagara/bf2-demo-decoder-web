@@ -73,7 +73,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 (`site/`, `server/`, `README.md`…). На Mac:
 
 ```bash
-V=v212   # номер версії з назви архіву
+V=v215   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -227,6 +227,23 @@ Highlights, Records і підсумках; SUM_V 12.
 рядках на одному місці, жирні числа — з одного рівня (INSTALL, розділ 15).
 З v212 — виправлено **Make an archive** в адмінці («Cannot access 'pageHv' before initialization»: архів аналізу не
 робився з v193) і створення папок Glitch spot на новому встановленні.
+З v213 — підказки за архівом 2779 раундів: місця мап, де гра сама «телепортує» чи розганяє (Dragon Valley, Gulf of
+Oman, Kubra Dam), точки спавну, яких бракує в розкладках (Mashtuur City та ін.), ракета БТР 4 с, Fired at a wall від 6
+черг, Fast flag на +2 солдати; Beyond fog — для всієї зброї, крім мін, клейморів, C4, артилерії, ракет ППО і керованих
+ракет; фільтр «з якої зброї» в Kill feed / Highlights / For admins; короткі назви рядків поста-таблиці; подяка
+High Definition Minimap (знизу сторінки). HINTS_V 2 — фоновий аналіз переганяє раунди.
+З v214 — декодер бере з демо ще й скільки набоїв у магазині при кожному натисканні курка і натискання, коротші за такт гри
+(лічильник натискань): **хеш декодера змінився — сервер сам перерозбере всі раунди** (як після кожної зміни декодера).
+Нові підказки For admins: Clicker, Bullet rate, Spot rhythm, Anti-AFK script, Prone spam, Bunny hop, Lag switch, One-hit kills,
+Silent aim, Aim lock, Spin, Side switch, TK + revive, Sniper headshots; Pre-aim снайперів — проти снайперів; Through walls — не на
+авіаносці, Kill farming — не з авіації. Бал підозри на картці гравця і список найвищих в адмінці; канал адмінів у Discord
+(alerts.mjs) — підказки кожного нового раунду після фонового аналізу. В архіві аналізу — усі натискання (Q, U) і здоров'я жертви
+перед вбивством. HINTS_V 3, ANALYZE_V 2. Short name «Far Veh».
+З v215 — більше статистики: підсумок раунду має дуелі, шкоду, асисти, сквад, прапори, реанімації й техніку кожного гравця,
+час і техніку кожного вбивства та прапори раунду (SUM_V 13 — сервер підсумує всі раунди знову сам, без перерозбору демо).
+Рейтинг (Elo) і колонки «Duels & teamwork» у таблиці Players; на сторінці гравця — рейтинг, дуелі, шкода, немезида, техніка й
+теплова карта; на сторінці мапи — теплова карта; кнопка Stats: клани, техніка, сторінки серверів (коли грають, мапи, прапори, що
+вирішують раунд) і пошук моментів. У пості про раунд — Milestones; у підсумках — гравець дня / тижня / місяця.
 
 ### Перевірити локально перед push
 
@@ -237,6 +254,12 @@ cd ~/bf2-round-replay/site && python3 -m http.server 8000
 і відкрити http://localhost:8000 — без `data/` сайт працює як звичайний переглядач (кнопка «Open .bf2demo»).
 
 ## Подяки та сторонній код
+
+Дякуємо:
+- **Kakarotto22** — за [bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer) (MIT): розкладки записів
+  демо, на яких стоїть декодер (подробиці нижче);
+- **Deine-Augen** — за [High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) (ModDB):
+  мінімапи Battlefield 2 у 8192 px, з яких зроблено чіткі картинки мап на сайті (подробиці в кінці розділу).
 
 Починаючи з v132 частина декодера (табло гравця з його Player ghost, спотер у повідомленні UnitSpotted, розкладка
 KilledBy, id шаблонів решти авіації: Mi-28, Su-30MKK, MiG-29, Su-34, Mi-17, F-15E) перенесена з

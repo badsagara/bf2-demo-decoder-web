@@ -104,6 +104,7 @@ td.mono { overflow-wrap: anywhere; }
   #units td.act { grid-column: 2; grid-row: 2 / span 3; align-self: center; }
   .src { flex-wrap: wrap; }
 }
+table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } table.mini th, table.mini td { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid var(--line, #333); } table.mini td:nth-child(2), table.mini td:nth-child(3) { text-align: right; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -429,6 +430,8 @@ function renderAnalysis() {
       + `<details><summary>the maps</summary><div class="mono" style="font-size:12px">${M.sort((a, b) => b[1] - a[1]).map(([m, n]) => `<span class="${n >= G.minRounds ? 'ok' : 'muted'}">${esc(m)} ${n}</span>`).join(' · ')}</div></details>`); }
   else L.push('<div class="row muted">Glitch spot: no grids yet (the first background run makes them, or <span class="mono">sudo bash /srv/bf2replay/repo/server/analyze.sh glitch</span>)</div>');
   const C = A.cards; L.push(C ? `<div class="row muted">players' hint cards: ${C.players} players from ${C.rounds} rounds, written ${ago(C.at)}</div>` : '<div class="row muted">players\' hint cards: not written yet</div>');
+  // (v214) the highest suspicion scores (players with 10+ rounds analysed): their pages on the site
+  if (C && C.scores && C.scores.top && C.scores.top.length) L.push(`<details class="row"><summary>Highest suspicion scores (${C.scores.n} players with ${C.scores.minRounds}+ rounds; 9 in 10 score ${C.scores.p90} or less)</summary><table class="mini"><tr><th>Player</th><th>Score</th><th>Rounds</th><th>Most from</th></tr>${C.scores.top.slice(0, 20).map(([nick, name, sc, n, k]) => `<tr><td><a href="/#player=${encodeURIComponent(nick)}" target="_blank" rel="noopener">${esc(name)}</a></td><td>${sc}</td><td>${n}</td><td class="muted">${esc(k.join(', '))}</td></tr>`).join('')}</table></details>`);
   // (v193) the archive for Claude: made here, named with the site's version, downloaded here
   const P = A.pack, AR = A.archives || [], vers = o => o ? Object.entries(o).sort((a, b) => b[1] - a[1]).map(([k, n]) => `${esc(k)} ${n}`).join(', ') : '';
   L.push(`<h3 class="anh">Archive for Claude</h3><div class="row muted">Every round's numbers in one file (about ${mb(A.roundsBytes * 1.02)}), to set the hints' thresholds; named with the site's version it is made with (now ${esc(A.site || '?')}). Best when the bar above is near 100%.</div>`);
@@ -544,7 +547,7 @@ function editorHtml(v, F, lines, N) {
     + `<span class="muted">${cls ? 'the parts in groups; only which are on applies - pick a card, a table or text to set the order, names and layout' : tbl ? 'a row each kind of kill - its name, the number (bold), the player; the new records a list of their own; the scoreboard under it, a side a column. Telegram (no cards there): text with the same order and names' : F.style === 'card' ? 'Telegram (no cards there): text with the same order and names' : 'Telegram: the same text'}</span></div>`
     + `<div class="pedt"${cls ? ' hidden' : ''}><label>Title <input data-f="title" value="${esc(F.title)}" placeholder="{map} · {when}"></label><label>Under it <textarea data-f="intro" rows="2" placeholder="{result} · {length} · {players} players · {kills} kills">${esc(F.intro)}</textarea></label><label>At the bottom <input data-f="footer" value="${esc(F.footer)}" placeholder="e.g. {server} · our Discord: …"></label></div>`
     + `<div class="nrow"${F.style === 'card' || tbl ? '' : ' hidden'} data-f="cardOpts"><label class="muted">Stripe <select data-f="colorMode"><option value="winner"${F.color === 'winner' ? ' selected' : ''}>the winner's colour</option><option value="own"${F.color !== 'winner' ? ' selected' : ''}>own</option></select></label><input type="color" data-f="color" value="${F.color !== 'winner' ? esc(F.color) : '#e2b547'}"${F.color === 'winner' ? ' hidden' : ''} aria-label="Stripe colour">`
-    + `<label class="muted">Map picture <select data-f="image"><option value="big"${F.image === 'big' ? ' selected' : ''}>big, at the bottom</option><option value="small"${F.image === 'small' ? ' selected' : ''}>small, top right</option><option value="none"${F.image === 'none' ? ' selected' : ''}>none</option></select></label>`
+    + `<label class="muted">Map picture <select data-f="image"><option value="big"${F.image === 'big' || (tbl && F.image === 'small') ? ' selected' : ''}>big, at the bottom</option><option value="small"${F.image === 'small' && !tbl ? ' selected' : ''}${tbl ? ' disabled' : ''}>small, top right${tbl ? ' (not with a table: it narrows the rows)' : ''}</option><option value="none"${F.image === 'none' ? ' selected' : ''}>none</option></select></label>`
     + `<label class="muted"${tbl ? '' : ' hidden'} title="Bold numbers: the name in monospace up to a |, the number bold, then the player (the players' column not exactly in line). Exact columns: the whole table in monospace - in line, but nothing bold (Discord has no bold there)">Numbers <select data-f="mono"><option value="0"${F.mono ? '' : ' selected'}>bold, a | before them</option><option value="1"${F.mono ? ' selected' : ''}>exact columns, not bold</option></select></label><label class="muted"${tbl ? ' hidden' : ''}>In a row <select data-f="cols"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
     + `<div class="nrow"${F.style === 'text' ? '' : ' hidden'} data-f="textOpts"><label class="muted">In a line <select data-f="colsT"><option value="3"${F.cols === 3 ? ' selected' : ''}>up to 3 parts</option><option value="2"${F.cols === 2 ? ' selected' : ''}>up to 2</option></select></label></div>`
     + `<table class="pit ptab"><thead><tr><th></th><th>Part · its name in the post</th><th class="c">Discord</th><th class="c">Telegram</th><th class="c" title="A row of its own: across the whole card / a line of its own">Own row</th></tr></thead><tbody>${rows}</tbody></table>`
@@ -566,6 +569,12 @@ function digestRow(v, N, any) {
     + `<div class="nrow"><select data-f="dgKind" aria-label="Which summary of ${esc(v.name)}">${DG_KINDS.map(k => `<option value="${k}">${DG_T[k]}: ${esc(P[k]?.label || '')}</option>`).join('')}</select><button type="button" data-a="dgPrev">Preview the summary</button><button type="button" data-a="dgPost"${any ? '' : ' disabled'}>Post it now</button></div>`
     + (last ? `<div class="row muted" style="font-size:12.5px;overflow-wrap:anywhere">last summaries:<br>${last}</div>` : '');
 }
+// (v214, todo 265) the admins' private channel: a round's hints for admins once the server has analysed it (alerts.mjs)
+function alertRow(v) {
+  const A = v.alert || {};
+  return `<div class="nrow"><label class="ck" title="A private channel of the server's admins: after the background analysis of each new round (played in the last 2 days), its hints for admins - with the players' names - go there"><input type="checkbox" data-f="alOn"${A.on ? ' checked' : ''}> Admin channel</label><span class="muted mono">${A.webhook ? esc(A.webhook) : 'no webhook'}</span><input type="password" data-f="alHook" autocomplete="new-password" spellcheck="false" placeholder="${A.webhook ? 'a new webhook…' : 'a private channel\'s Discord webhook'}" aria-label="Admin channel webhook for ${esc(v.name)}"><button type="button" data-a="alSave">Save</button>${A.webhook ? '<button type="button" data-a="alRm">Remove</button>' : ''}<select data-f="alMin" aria-label="Which hints for ${esc(v.name)}"><option value="strong"${A.min !== 'hint' ? ' selected' : ''}>strong hints</option><option value="hint"${A.min === 'hint' ? ' selected' : ''}>strong and ordinary</option></select><button type="button" data-a="alTest"${A.webhook ? '' : ' disabled'}>Send a test</button></div>`
+    + (A.log ? `<div class="row muted" style="font-size:12.5px;overflow-wrap:anywhere">admin channel: ${ago(A.log.at)} · <span class="${A.log.ok ? 'ok' : 'bad'}">${esc(A.log.msg)}</span></div>` : '');
+}
 function renderServers(N) {
   const box = $('#nServers'), sig = JSON.stringify([N.servers, N.tgToken, N.minPlayers, N.templates, N.digestPeriods]);
   const ae = document.activeElement;   // (typing in one of its boxes: later)
@@ -577,12 +586,13 @@ function renderServers(N) {
   box.innerHTML = nsList.map((v, i) => {
     const d = v.discord, t = v.telegram, any = (d && d.on && d.webhook) || (t && t.on && t.chat && N.tgToken);
     return `<details class="nsrv" data-i="${i}"${nsOpen.has(v.name) ? ' open' : ''}><summary><b>${esc(v.name)}</b><span class="muted">${v.rounds30} round${v.rounds30 === 1 ? '' : 's'} in 30 days${v.newest ? ` · newest ${esc(v.newest.slice(0, 16))}` : ''}</span>`
-      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') + (v.digest && DG_KINDS.some(k => v.digest[k]) ? `<span class="chip on">summaries: ${DG_KINDS.filter(k => v.digest[k]).join(', ')}</span>` : '') : '<span class="chip no">not posted: not set up</span>')
+      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') + (v.digest && DG_KINDS.some(k => v.digest[k]) ? `<span class="chip on">summaries: ${DG_KINDS.filter(k => v.digest[k]).join(', ')}</span>` : '') + (v.alert?.on && v.alert.webhook ? '<span class="chip on">admin channel ✓</span>' : '') : '<span class="chip no">not posted: not set up</span>')
       + `</summary><div class="nbody">`
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="dcOn"${d && d.on ? ' checked' : ''}> Discord</label><span class="muted mono">${d && d.webhook ? esc(d.webhook) : 'no webhook'}</span><input type="password" data-f="dcHook" autocomplete="new-password" spellcheck="false" placeholder="${d && d.webhook ? 'a new webhook' : 'webhook: https://discord.com/api/webhooks/…'}" aria-label="Discord webhook for ${esc(v.name)}"><button type="button" data-a="dcSave">Save</button>${d && d.webhook ? '<button type="button" class="danger" data-a="dcRm">Remove</button>' : ''}</div>`
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="tgOn"${t && t.on ? ' checked' : ''}> Telegram</label><input class="chat" data-f="tgChat" autocomplete="off" spellcheck="false" placeholder="chat: -100… or @channel" value="${esc(t?.chat || '')}" aria-label="Telegram chat for ${esc(v.name)}"><button type="button" data-a="tgSave">Save</button>${N.tgToken ? '' : '<span class="warn">the bot\'s token is needed (above)</span>'}</div>`
       + `<div class="nrow"><span class="muted">Rounds with</span><input type="number" min="1" max="64" data-f="min" placeholder="${N.minPlayers}" value="${v.minPlayers ?? ''}" aria-label="Fewest players for ${esc(v.name)}"><span class="muted">players or more (empty: as all, ${N.minPlayers})</span><button type="button" data-a="minSave">Save</button></div>`
       + (v.set ? digestRow(v, N, any) : '')
+      + (v.set ? alertRow(v) : '')
       + (v.last ? `<div class="row muted" style="overflow-wrap:anywhere">last post: <span class="mono">${esc(v.last.what)}</span> ${ago(v.last.at)} · <span class="${v.last.ok ? 'ok' : 'bad'}">${esc(v.last.msg)}</span></div>` : '')
       + `<details class="nparts"${nsOpen.has(v.name + '\n#parts') ? ' open' : ''}><summary><b>The post</b> <span class="muted">${STYLE_NAME[v.format.style]} · Discord ${onN(v.discord)} of ${N.items.length} parts · Telegram ${onN(v.telegram)} of ${N.items.length}${v.format.text ? ' · own text' : ''}</span></summary>`
       + `<div class="ped">${editorHtml(v, v.format, { discord: v.discord?.lines, telegram: v.telegram?.lines }, N)}</div></details>`
@@ -623,6 +633,8 @@ $('#nServers').addEventListener('change', e => {
   if (f === 'dcOn') { if (e.target.checked && !o.v.discord?.webhook) toast('add its webhook below too'); nsAct({ server: name, discord: { on: e.target.checked } }, null, true); }
   if (f === 'tgOn') nsAct({ server: name, telegram: { on: e.target.checked } }, null, true);
   if (e.target.dataset.dg) nsAct({ server: name, digest: { [e.target.dataset.dg]: e.target.checked } }, null, true);   // (v209)
+  if (f === 'alOn') { if (e.target.checked && !o.v.alert?.webhook) toast('add the admin channel\'s webhook too'); nsAct({ server: name, alert: { on: e.target.checked } }, null, true); }   // (v214)
+  if (f === 'alMin') nsAct({ server: name, alert: { min: e.target.value } }, null, true);
 });
 $('#nServers').addEventListener('click', async e => {
   const ph = e.target.closest('button.ph');
@@ -644,6 +656,9 @@ $('#nServers').addEventListener('click', async e => {
   if (a === 'applyAll') { if (confirm('This post (as it is in the editor now) on every server set up? Their own posts are replaced; their channels stay.')) act('notify-set', { applyAll: { format: fmtOf(o.d), lines: linesVals(o.d) } }, b).then(j => { if (j && j.ok) { nsDirty.clear(); nsSig = ''; } }); }
   if (a === 'forget') { if (confirm(`Stop posting the rounds of ${name}? Its webhook, chat and post are forgotten.`)) nsAct({ server: name, remove: true }, b); }
   if (a === 'test') act('notify-test', { server: name }, b);
+  if (a === 'alSave') { const v = q('alHook').value.trim(); if (!v) { q('alHook').focus(); return; } nsAct({ server: name, alert: { webhook: v } }, b, true).then(j => { if (j && j.ok) q('alHook').value = ''; }); }   // (v214)
+  if (a === 'alRm') { if (confirm(`Remove the admin channel of ${name}?`)) nsAct({ server: name, alert: { webhook: '' } }, b, true); }
+  if (a === 'alTest') act('alert-test', { server: name }, b);
   if (a === 'last') act('notify-last', { server: name }, b);
   if (a === 'dgPost') { const k = q('dgKind').value; if (confirm(`Post the summary "${q('dgKind').selectedOptions[0].textContent}" of ${name} to its channels now?`)) act('digest-post', { server: name, kind: k }, b); }
   if (a === 'dgPrev') {   // (v209: the summary as it would go, nothing sent)

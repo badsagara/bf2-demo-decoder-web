@@ -47,6 +47,7 @@ import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { readRoundList } from './roundsidx.mjs';
 import { aggGlitch } from './glitch.mjs';
+import { alertRound } from './alerts.mjs';   // (v214)
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -139,7 +140,15 @@ let hvIdx = null;
 const hvLoad = () => { if (!hvIdx) { try { hvIdx = JSON.parse(fs.readFileSync(HVI, 'utf8')); } catch (e) { hvIdx = {}; } } return hvIdx; };
 const hvSave = () => { if (hvIdx) { try { fs.writeFileSync(HVI + '.tmp', JSON.stringify(hvIdx)); fs.renameSync(HVI + '.tmp', HVI); } catch (e) {} } };
 const hvOf = f => { const I = hvLoad(); if (I[f] !== undefined) return I[f]; let v = 0; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).hv || 0; } catch (e) {} return (I[f] = v); };
-const NOT_SUS = new Set(['tk', 'claycap', 'clay', 'idle', 'spotspam', 'outside']);
+const NOT_SUS = new Set(['tk', 'claycap', 'clay', 'idle', 'spotspam', 'outside', 'teamsw', 'tkrev', 'prone', 'bhop', 'afkbot']);   // (v214: + the new rule ones)
+// (v214, todo 265: a suspicion score on the player card) log10 of P(X >= k), X ~ Binomial(n, p), summed in logs
+function tail10(k, n, p) {
+  if (k <= 0) return 0; if (p <= 0) return -Infinity; if (p >= 1) return 0;
+  const lp = Math.log(p), lq = Math.log(1 - p); let lc = 0, m = -Infinity; const L = [];
+  for (let j = 1; j <= n; j++) { lc += Math.log((n - j + 1) / j); if (j >= k) { const v = lc + j * lp + (n - j) * lq; L.push(v); if (v > m) m = v; } }
+  let sm = 0; for (const v of L) sm += Math.exp(v - m); return Math.min(0, (m + Math.log(sm)) / Math.LN10);
+}
+const SCORE_KIND_MAX = 10, SCORE_MIN_ROUNDS = 10, NOT_SCORED = new Set([...NOT_SUS, 'thru']);
 function aggHints() {
   const F = aggFns(), HV = pageHv(); if (!F || !HV) { log('hints: the page has no hint rules version (HINTS_V)'); return; }
   if (!fs.existsSync(RDIR)) return;
@@ -179,7 +188,9 @@ function aggHints() {
     const seen = new Map(); for (const [j, kind, n] of c.h) { const k = j + '|' + kind; seen.set(k, n); }
     c.pl.forEach((name, j) => {
       const nick = F.nickOf(name); if (/^Player \d+$/.test(nick)) return;
-      let o = P.get(nick); if (!o) P.set(nick, o = { name, rounds: 0, k: {}, ex: {} }); o.rounds++;
+      let o = P.get(nick); if (!o) P.set(nick, o = { name, rounds: 0, k: {}, ex: {}, mon: {} }); o.rounds++;
+      // (v214) by month: his rounds, and those with a hint that counts (not the rules' ones)
+      const ym = String(c.date || '').slice(0, 7); if (ym) { const m = o.mon[ym] || (o.mon[ym] = [0, 0]); m[0]++; if (c.h.some(([j2, kind]) => j2 === j && !NOT_SCORED.has(kind))) m[1]++; }
     });
     const done = new Set();
     for (const [j, kind, n] of c.h) {
@@ -191,12 +202,24 @@ function aggHints() {
     }
   }
   for (const k of Object.keys(kinds)) kinds[k][1] = sr;
+  // (v214) the suspicion score: over each kind of hint he had, how unlikely his share of rounds with it is at everyone's
+  // (log10 odds, the same as the card's lines), at most SCORE_KIND_MAX a kind, kinds under 1 in 10 left out; where he
+  // stands among the players with SCORE_MIN_ROUNDS rounds or more
+  for (const o of P.values()) {
+    let v = 0; const top = [];
+    for (const [kind, [n]] of Object.entries(o.k)) { if (NOT_SCORED.has(kind) || !kinds[kind] || !sr) continue; const lo = tail10(n, o.rounds, Math.max(1e-6, kinds[kind][0] / sr)); if (lo <= -1) { v += Math.min(SCORE_KIND_MAX, -lo); top.push([kind, Math.round(lo * 10) / 10]); } }
+    o.score = Math.round(v * 10) / 10; o.top = top.sort((a, b) => a[1] - b[1]).slice(0, 4);
+  }
+  const ranked = [...P.values()].filter(o => o.rounds >= SCORE_MIN_ROUNDS).map(o => o.score).sort((a, b) => a - b);
+  const pctOf = v => { let lo = 0, hi = ranked.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ranked[m] < v) lo = m + 1; else hi = m; } return ranked.length ? Math.round(lo / ranked.length * 1000) / 10 : null; };
+  const qs = f => ranked.length ? ranked[Math.min(ranked.length - 1, Math.floor(ranked.length * f))] : null;
+  const topList = [...P.entries()].filter(([, o]) => o.rounds >= SCORE_MIN_ROUNDS && o.score > 0).sort((a, b) => b[1].score - a[1].score).slice(0, 30).map(([nick, o]) => [nick, o.name, o.score, o.rounds, o.top.map(x => x[0])]);
   const SD = path.join(DATA, '.admin'), HD = path.join(SD, 'hints'); fs.mkdirSync(HD, { recursive: true });   // (v196: the admins' - admin.mjs hands them over after a login)
   const put = (f, v) => { const t = JSON.stringify(v); let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {} if (old !== t) { fs.writeFileSync(f + '.tmp', t); fs.renameSync(f + '.tmp', f); return 1; } return 0; };
   let wrote = 0; const keep = new Set();
-  for (const [nick, o] of P) { if (!Object.keys(o.k).length) continue; const fn = F.nickSlug(nick) + '.json'; keep.add(fn); wrote += put(path.join(HD, fn), { hv: HV, nick, name: o.name, rounds: o.rounds, k: o.k, ex: o.ex }); }
+  for (const [nick, o] of P) { if (!Object.keys(o.k).length) continue; const fn = F.nickSlug(nick) + '.json'; keep.add(fn); wrote += put(path.join(HD, fn), { hv: HV, nick, name: o.name, rounds: o.rounds, k: o.k, ex: o.ex, score: { v: o.score, pct: o.rounds >= SCORE_MIN_ROUNDS ? pctOf(o.score) : null, of: ranked.length, top: o.top, mon: Object.entries(o.mon).sort().map(([k, v]) => [k, ...v]) } }); }
   for (const f of fs.readdirSync(HD)) if (f.endsWith('.json') && !keep.has(f)) { try { fs.unlinkSync(path.join(HD, f)); } catch (e) {} }
-  put(path.join(SD, 'hints.json'), { hv: HV, at: new Date().toISOString(), rounds, soldierRounds: sr, players: P.size, kinds });
+  put(path.join(SD, 'hints.json'), { hv: HV, at: new Date().toISOString(), rounds, soldierRounds: sr, players: P.size, kinds, scores: { n: ranked.length, minRounds: SCORE_MIN_ROUNDS, p50: qs(0.5), p90: qs(0.9), p99: qs(0.99), top: topList } });
   // (v186) every round looked at, with its hints for admins: which demos to keep (demos.mjs; ingest.mjs, the admin page)
   { const HR = {}; for (const c of Object.values(out)) if (c.name) HR[c.name] = c.sus || [];
     const t = path.join(DATA, '.hint-rounds.json'); try { fs.writeFileSync(t + '.tmp', JSON.stringify({ at: new Date().toISOString(), rounds: HR })); fs.renameSync(t + '.tmp', t); } catch (e) { log('hint rounds not written:', e.message); } }
@@ -341,6 +364,7 @@ async function worker(w) {
       d.round = { name: r.name, decoder: r.decoder || null, bytes: r.bytes || null, sum: r.sum ? { ...r.sum, P: undefined, top: undefined } : null }; d.pageErrors = page._errs; d.wallMs = Date.now() - t0;
       fs.writeFileSync(fileOf(r.name) + '.part', zlib.gzipSync(JSON.stringify(d), { level: 9 })); fs.renameSync(fileOf(r.name) + '.part', fileOf(r.name));
       hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0;
+      await alertRound(d);   // (v214: its hints to the server's admin channel, when it has one and the round is new)
       delete failed[r.name]; page._n++; done++; kills += d.K.length; hints += d.H.length;
       runInfo.done = done; try { fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); } catch (e) {}   // (v193: how far, for the admin page)
       const el = (Date.now() - started) / 1000, left = el / done * todo.length;

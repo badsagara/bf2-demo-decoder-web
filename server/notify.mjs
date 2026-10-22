@@ -49,6 +49,8 @@ export const POST_ITEMS = [
   // (v207, Sagara: "the end of the round in Discord, and more") the scoreboard as at the round's end, the records it broke
   ['board', 'Scoreboard', "each side's best five by score, with kills and deaths - as the game's screen at the round's end"],
   ['records', 'New records', "a record of the server the round broke (in one round: of all time, the last 30 or 7 days - as the site's Records)"],
+  // (v215, Sagara's todo 265) a player passing 1,000 / 2,500 / 5,000 / 10,000 / 25,000 kills or 100 / 250 / 500 / 1,000 rounds on the server
+  ['miles', 'Milestones', 'a player who passed 1,000 / 2,500 / 5,000 / 10,000 kills or 100 / 250 / 500 / 1,000 rounds on this server with this round'],
   ['server', 'Server', "the server's name"],
   ['foot', 'Kills on foot', 'most enemies killed on foot'], ['veh', 'Kills in vehicles', 'most enemies killed from vehicles'],
   ['hs', 'Headshots', 'most headshots'], ['knife', 'Knife', 'most knife kills'], ['clay', 'Claymores', 'most claymore kills'], ['mine', 'Mines', 'most kills with AT mines'],
@@ -72,10 +74,11 @@ export const POST_ITEMS = [
 ];
 // (v208, Sagara: "a table - one row, one kind of kill, not a group") Discord as a table: the short names of its rows
 // (a part's own name from the editor wins)
-export const TLABEL = { foot: 'On foot', veh: 'In vehicles', hs: 'Headshots', knife: 'Knife', clay: 'Claymores', mine: 'Mines', atInf: 'AT on infantry', road: 'Run over', gren: 'Grenades', gl: 'Grenade launcher', c4: 'C4',
-  atLong: 'Longest launcher', smallLong: 'Longest small arms', snipLong: 'Longest sniper', longest: 'Longest kill', handMost: 'Hand-held', atMost: 'Hand-held AT', standMost: 'TOW / HJ-8', standLong: 'Longest TOW / HJ-8',
-  tankMost: 'Tank cannon', tankLong: 'Longest tank cannon', vehMost: 'Vehicle weapons', vehLong: 'Longest vehicle', aaGunMost: 'AA guns', aaGunLong: 'Longest AA gun', aaRktMost: 'AA rockets', aaRktLong: 'Longest AA rocket',
-  a2aMost: 'Air-to-air', a2aLong: 'Longest air-to-air', streakFoot: 'Streak on foot', streakVeh: 'Streak in vehicles', kd: 'Best K/D', rev: 'Revives', heal: 'Heals', rep: 'Repairs', flags: 'Flags', first: 'First blood', last: 'Last killed' };
+export const TLABEL = {   // (v213: Sagara's short names, so a row fits a narrow card)
+  foot: 'On foot', veh: 'Veh', hs: 'Hs', knife: 'Knife', clay: 'Claymores', mine: 'Mines', atInf: 'AT on inf', road: 'Run over', gren: 'Grenades', gl: 'GL', c4: 'C4',
+  atLong: 'Far AT', smallLong: 'Far Gun', snipLong: 'Far Sniper', longest: 'Far kill', handMost: 'Hand-held', atMost: 'AT', standMost: 'TOW', standLong: 'Far TOW',
+  tankMost: 'Tank', tankLong: 'Far Tank', vehMost: 'Veh weap', vehLong: 'Far Veh', aaGunMost: 'AA gun', aaGunLong: 'Far AA', aaRktMost: 'SAM', aaRktLong: 'Far SAM',
+  a2aMost: 'Air2Air', a2aLong: 'Far Air2Air', streakFoot: 'Inf Spree', streakVeh: 'Veh Spree', kd: 'Best K/D', rev: 'Revives', heal: 'Heals', rep: 'Repairs', flags: 'Flags', first: 'First blood', last: 'Last killed' };
 // (missing: on - but the weapons' groups of v207: off, so a server's posts don't grow by themselves)
 const OFF_NEW = new Set(['handMost', 'atMost', 'standMost', 'standLong', 'tankMost', 'tankLong', 'vehMost', 'vehLong', 'aaGunMost', 'aaGunLong', 'aaRktMost', 'aaRktLong', 'a2aMost', 'a2aLong']);
 // (v210) the three parts that were "Explosives": on or off as that one was
@@ -106,7 +109,10 @@ const srvCfg = c => ({
   minPlayers: c?.minPlayers ? Math.max(1, Math.min(64, Math.floor(+c.minPlayers))) : null, last: c?.last || null, format: normFormat(c?.format), formatSet: !!c?.format,
   // (v209) the summaries of its rounds (digest.mjs): which are on, the last period each was done for, the last one sent
   digest: { day: !!c?.digest?.day, week: !!c?.digest?.week, month: !!c?.digest?.month }, digestLast: c?.digestLast && typeof c.digestLast === 'object' ? { ...c.digestLast } : {},
-  digestTry: c?.digestTry && typeof c.digestTry === 'object' ? { ...c.digestTry } : {}, digestLog: c?.digestLog && typeof c.digestLog === 'object' && !c.digestLog.at ? { ...c.digestLog } : {}
+  digestTry: c?.digestTry && typeof c.digestTry === 'object' ? { ...c.digestTry } : {}, digestLog: c?.digestLog && typeof c.digestLog === 'object' && !c.digestLog.at ? { ...c.digestLog } : {},
+  // (v214, todo 265) the admins' private channel: a round's hints for admins once the background analysis has done it
+  // (alerts.mjs) - strong ones only, or strong and ordinary ones
+  alert: { on: !!c?.alert?.on, webhook: typeof c?.alert?.webhook === 'string' ? c.alert.webhook : '', min: c?.alert?.min === 'hint' ? 'hint' : 'strong', log: c?.alert?.log || null }
 });
 // the settings: /etc/bf2replay.conf first (the bot's token, the fewest players), then the admin page's file
 export function notifySettings() {
@@ -129,6 +135,7 @@ export function saveNotify(change, server, srv) {
       const o = j.servers[server] || {};
       for (const app of ['discord', 'telegram']) if (srv[app]) { const a = { ...(o[app] || {}), ...srv[app] }; if (srv[app].lines) a.lines = { ...(o[app]?.lines || {}), ...srv[app].lines }; o[app] = a; }
       for (const k of ['minPlayers', 'last', 'format', 'digest', 'digestLast', 'digestTry', 'digestLog']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
+      if (srv.alert !== undefined) o.alert = { ...(o.alert || {}), ...srv.alert };   // (v214)
       for (const app of ['discord', 'telegram']) if (srv[app]?.linesAll) { o[app].lines = srv[app].linesAll; delete o[app].linesAll; }   // (v195: a template's lines, whole)
       j.servers[server] = o;
     }
@@ -190,6 +197,7 @@ function itemVals(entry, on) {
   // (v207) the scoreboard: each side's best five; the records the round broke
   const B = boardOf(s); if (B.length) V.board = { v: B.map(x => `${x.side}: ${x.rows.join(' · ')}`).join(' | '), vm: B.map(x => `${x.side}\n${x.rows.map((r, i) => `${i + 1}. ${r}`).join('\n')}`).join('\n\n'), sides: B };
   const NR = on.records ? newRecords(entry) : []; if (NR.length) { const L = NR.map(recText); V.records = { v: L.join(' · '), vm: L.join('\n'), list: NR }; }
+  const MI = on.miles ? milestones(entry) : []; if (MI.length) { const L = MI.map(m => `${m.who}: ${m.what}`); V.miles = { v: L.join(' · '), vm: L.join('\n'), list: MI }; }   // (v215)
   put('kd', o => `${o.who} ${o.r} (${o.k}/${o.d})`);
   put('flags', o => `${o.who} ${o.n} (${o.cap} captured, ${o.neu} neutralised)`);
   put('first', o => `${o.who} → ${o.vic}${o.w ? ` (${o.w}, ${mmss(o.t)})` : ` (${mmss(o.t)})`}`);
@@ -254,6 +262,22 @@ export function newRecords(entry, max = 6) {
   const rank = { ever: 0, month: 1, week: 2 };
   return out.sort((a, b) => rank[a.per] - rank[b.per]).slice(0, max);
 }
+// (v215) the milestones this round took players past on its server: kills (enemies) and rounds
+const MILE_K = [1000, 2500, 5000, 10000, 25000, 50000], MILE_R = [100, 250, 500, 1000, 2000];
+export function milestones(entry) {
+  const A = aggFns(), s = entry.sum; if (!A || !s || !Array.isArray(s.P)) return [];
+  const t0 = playedAt(s.date); if (t0 === null) return [];
+  const here = new Map(); for (const p of s.P) { const k = A.nickOf(p.name); if (!/^Player \d+$/.test(k) && !here.has(k)) here.set(k, { name: p.name, k: p.k || 0 }); }
+  if (!here.size) return [];
+  const tot = new Map(); for (const k of here.keys()) tot.set(k, { k: 0, r: 0 });
+  for (const r of allRounds()) { if (r.name === entry.name || !r.sum || r.sum.empty || !Array.isArray(r.sum.P) || r.sum.server !== s.server) continue; const t = playedAt(r.sum.date); if (t === null || t >= t0) continue;
+    const seen = new Set(); for (const p of r.sum.P) { const k = A.nickOf(p.name), o = tot.get(k); if (!o) continue; o.k += p.k || 0; if (!seen.has(k)) { o.r++; seen.add(k); } } }
+  const out = [], fmtN = n => n.toLocaleString('en-GB');
+  for (const [k, h] of here) { const o = tot.get(k);
+    const mk = MILE_K.filter(m => o.k < m && o.k + h.k >= m).pop(); if (mk) out.push({ who: h.name, what: `${fmtN(mk)} kills on this server`, n: mk, kind: 'k' });
+    const mr = MILE_R.filter(m => o.r < m && o.r + 1 >= m).pop(); if (mr) out.push({ who: h.name, what: `${fmtN(mr)} rounds on this server`, n: mr, kind: 'r' }); }
+  return out.sort((a, b) => b.n - a.n).slice(0, 6);
+}
 const recNum = (r, v) => r.unit === 'm' ? `${v} m` : r.k === 'kd' ? Number(v).toFixed(2) : String(v);
 const recText = r => `${r.name}: ${r.who} ${recNum(r, r.v)}${r.w ? ` (${r.w})` : ''} - ${r.label} (was ${recNum(r, r.prev)})`;
 const linkOf = entry => DOMAIN ? `https://${DOMAIN}/r/${encodeURIComponent(entry.name.replace(/\.bf2demo(\.gz)?$/i, ''))}` : '';
@@ -277,6 +301,7 @@ function postLines(entry, on = linesOf({})) {
   if (on.best && top.length) L.push([['Best: ', 'b'], [top.map((p, k) => `${k + 1}. ${p.name}${T[p.team] ? ` (${T[p.team]})` : ''} ${p.score ?? 0}`).join(' · '), '']]);
   if (on.board) for (const x of boardOf(s)) L.push([[x.side + ': ', 'b'], [x.rows.map((r, i) => `${i + 1}. ${r}`).join(' · '), '']]);   // (v207)
   if (on.records) for (const r of newRecords(entry)) L.push([['New record: ', 'b'], [recText(r), '']]);
+  if (on.miles) for (const m of milestones(entry)) L.push([['Milestone: ', 'b'], [`${m.who} - ${m.what}`, '']]);   // (v215)
   // (v187) the highlights: a line for each group, its parts joined
   const who = o => o.who.join(', ') + (o.more ? ` +${o.more}` : ''), wpn = w => w ? ` (${w})` : '';
   // (a titled group: the title bold, its parts plain - "Most kills - on foot: A 14 · in vehicles: B 37"; untitled: each
@@ -345,7 +370,7 @@ function textPost(entry, F, on, app) {
     const flush = () => { if (run.length) { L.push(run.join(' · ')); run = []; } };
     for (const k of F.order) {
       if (!on[k] || !V[k]) continue;
-      if (k === 'board' || k === 'records') { flush(); L.push(`${b(labelOf(F, k) + ':')}\n${V[k].vm.split('\n').filter(Boolean).map(e).join('\n')}`); continue; }   // (v207: a line each)
+      if (k === 'board' || k === 'records' || k === 'miles') { flush(); L.push(`${b(labelOf(F, k) + ':')}\n${V[k].vm.split('\n').filter(Boolean).map(e).join('\n')}`); continue; }   // (v207: a line each)
       const seg = `${b(labelOf(F, k) + ':')} ${e(V[k].v)}`;
       if (F.wide[k]) { flush(); L.push(seg); } else { run.push(seg); if (run.length >= F.cols) flush(); }
     }
@@ -400,7 +425,7 @@ function cardPost(entry, F, on) {
 // columns stay); the new records a table of their own (the record, now, was, the player, under each time it beats);
 // the best three and the server as text where they are in the order; the scoreboard after the text (Discord puts a
 // card's fields there), each side a column. The card's title, line under it, stripe, map picture and bottom line.
-const ROW_SKIP = new Set(['best', 'board', 'records', 'server']);
+const ROW_SKIP = new Set(['best', 'board', 'records', 'server', 'miles']);
 const sameKill = (a, b) => a && b && a.who === b.who && a.d === b.d && a.w === b.w;
 function rowOf(k, H, on) {   // (v211) { v: the number, who: { L: names, more }, ex: what goes after the number }
   const o = H[k]; if (!o) return null;
@@ -492,7 +517,9 @@ function tablePost(entry, F, on) {
   if (on.board && V.board?.sides) for (const x of V.board.sides) fields.push({ name: cut(x.side, 256), value: cut(escDc(x.rows.map((r, i) => `${i + 1}. ${r}`).join('\n')), 1024), inline: true });
   E.fields = fields;
   const ft = tpl(F.footer, vars, 'plain'); if (ft) E.footer = { text: cut(ft, 2048) };
-  if (DOMAIN && F.image !== 'none') { const m = String(s.map || '').toLowerCase(), img = `https://${DOMAIN}/assets/og/${fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg`; E[F.image === 'small' ? 'thumbnail' : 'image'] = { url: img }; }
+  // (v213, Sagara: "the big picture at the bottom") a table never with the small picture top right: it takes its width
+  // from the whole text of the card, and the rows wrap
+  if (DOMAIN && F.image !== 'none') { const m = String(s.map || '').toLowerCase(), img = `https://${DOMAIN}/assets/og/${fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg`; E.image = { url: img }; }
   const size = () => (E.title || '').length + (E.description || '').length + (E.footer?.text || '').length + E.fields.reduce((n, x) => n + x.name.length + x.value.length, 0);
   while (size() > 5900 && E.fields.length) E.fields.pop();
   return E;

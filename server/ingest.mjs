@@ -149,7 +149,7 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-const SUM_V = 12;
+const SUM_V = 13;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags)
 const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
@@ -227,7 +227,9 @@ function summarize(tl, hdr, dec) {
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (vi === undefined || e.killer === e.victim) return null;
     const kq = ki !== undefined ? at(ki, e.t - 0.05) : null, vq = at(vi, e.t), fc = ki !== undefined ? facing(vi, ki, e.t) : [null, null];
     return [r1(e.x ?? vq.x), r1(e.y ?? vq.y), kq && kq.alive ? r1(kq.x) : null, kq && kq.alive ? r1(kq.y) : null, tl.teams[team(vi, e.t)]?.name || '', ki !== undefined ? tl.teams[team(ki, e.t)]?.name || '' : '',
-      killCause(e, !!(kq && kq.veh)), wOf(e), ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim(), fc[0], fc[1], HIT[e.hit] || null];
+      killCause(e, !!(kq && kq.veh)), wOf(e), ki !== undefined ? P0[ki].name.trim() : '', P0[vi].name.trim(), fc[0], fc[1], HIT[e.hit] || null,
+      // (v215, SUM_V 13) the kill's time; the killer's and the victim's vehicle (its kind: the name without its number)
+      Math.round(e.t * 10) / 10, kq && kq.alive && kq.veh ? String(kq.veh).replace(/ \d+$/, '') : '', vq.veh ? String(vq.veh).replace(/ \d+$/, '') : ''];
   }).filter(Boolean);
   // (v187) the round's highlights for the posts about it (notify.mjs: each a part the admin page turns on or off for
   // Discord and Telegram): the most kills of each kind (enemies only), the longest kills, the first and the last, with
@@ -309,11 +311,109 @@ function summarize(tl, hdr, dec) {
     for (const i of sold) { const n = (P0[i].pts || []).filter(q => /flag (captured|neutrali[sz]ed)/i.test(q[2] || '')).length; if (n) xo(i).fl = n; }
     const byName = new Map(P.map(p => [p.name, p])); for (const [i, o] of X) { const p = byName.get(P0[i].name.trim()); if (p && Object.keys(o).length) p.x = o; }
   }
+  // (v215, Sagara's todo 265: statistics) each soldier's P[].y and the round's flags (fl) - SUM_V 13
+  const fl = extraStats(tl, C, P0, pidx, team, at, ev, kills, sold, P, dur);
   const map = hdr ? (hdr.fields[2].split('/').pop() || hdr.fields[2]) : String(tl.meta.map || '');
   return { date: hdr ? hdr.fields[1] : '', map, server: hdr ? hdr.fields[0] : '', duration: dur, empty: !P.length, players: P.length, kills: kills.length,
-    teams: tl.teams.map(x => x.name), tickets, winner, top: top ? { name: top.name, score: top.score, team: top.team } : null, P, pts, hl };
+    teams: tl.teams.map(x => x.name), tickets, winner, top: top ? { name: top.name, score: top.score, team: top.team } : null, P, pts, hl, fl };
 }
 
+// (v215) more of each soldier's round (P[].y, zeros left out), and the round's flags:
+//   dw / dl  duels won / lost: kills of a man who had him in view in the 3 s before / deaths with the killer in view (the
+//            same view test as the kills' "unseen" - the sector, no walls); ak ambush kills (the victim never had him in
+//            view), bd deaths blind (he never had the killer in view)
+//   dm       damage done (health points): each drop of an enemy's health (10 times a second) goes to the enemies firing
+//            then with their view on him within 10 deg (on foot), or firing from a vehicle within 400 m, or whose blast
+//            it was (shared when several); st kills stolen - his kills of a man who lost under 30% of the health he lost
+//            in the 10 s before to him and 50% or more to another; su kills set up - the other way round
+//   as       kill assists (the game's, in the kill message)
+//   sp / sq  spawns / of them on his squad (a squad spawn group); sl seconds near his squad leader (50 m, alive, in a
+//            squad, not the leader) of ss seconds in a squad; fz seconds in a flag's zone (not the main bases)
+//   rv       [seconds from a man's fall to his revive, revives] as a medic
+//   vt       { vehicle kind: [seconds in it, kills from it, deaths in it] } (10 s or more)
+// fl: [[flag, seconds held by side 0, by side 1, owner at the end]] (not the main bases)
+function extraStats(tl, C, P0, pidx, team, at, ev, kills, sold, P, dur) {
+  const n = C.n, T = C.times, F = T.length, Y = new Map(sold.map(i => [i, {}])), inc = (i, k, v = 1) => { const o = Y.get(i); if (o) o[k] = (o[k] || 0) + v; };
+  const fr = tt => { if (!F || T[0] > tt) return 0; let lo = 0, hi = F - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= tt) lo = m; else hi = m - 1; } return lo; };
+  const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
+  const kind = v => String(v || '').replace(/ \d+$/, '');
+  // duels: from the view test of the kills (as pts' unseen)
+  const VIEW = Math.atan(Math.tan(0.55) * 4 / 3);
+  const sawIn = (a, b, t) => { for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(a, tt), k = at(b, tt); if (!v.alive || !k.alive || v.veh || !Number.isFinite(v.yaw) || !Number.isFinite(k.x) || Math.hypot(k.x - v.x, k.y - v.y) < 0.5) continue; if (angOff(v.yaw, Math.atan2(k.x - v.x, k.y - v.y)) <= VIEW) return true; } return false; };
+  for (const e of kills) {
+    const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || team(ki, e.t) === team(vi, e.t) || !Y.has(ki) || !Y.has(vi)) continue;
+    const kq = at(ki, e.t - 0.05), vq = at(vi, e.t - 0.05); if (kq.veh || vq.veh) continue;
+    const vSaw = sawIn(vi, ki, e.t); if (vSaw) { inc(ki, 'dw'); inc(vi, 'dl'); } else { inc(ki, 'ak'); inc(vi, 'bd'); }
+    for (const a of e.assists || []) { const ai = pidx.get(a); if (ai !== undefined && ai !== ki) inc(ai, 'as'); }
+  }
+  // damage
+  const HP = C.HP, FI = new Map(sold.map(i => [i, (P0[i].fire || []).slice().sort((a, b) => a[0] - b[0])]));
+  const firing = (i, t) => { const L = FI.get(i) || []; let lo = 0, hi = L.length - 1, k = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (L[m][0] <= t) { k = m; lo = m + 1; } else hi = m - 1; } for (let j = k; j >= 0 && t - L[j][0] < 30; j--) if (L[j][1] >= t - 0.25) return true; return false; };
+  const blasts = ev.filter(e => e.type === 'blast' && e.by && e.x != null);
+  const hits = new Map();   // victim -> [[t, attacker, amount]]
+  if (HP) for (const j of sold) {
+    for (let k = 1; k < F; k++) {
+      const e = k * n + j, e0 = e - n; if (!C.L[e] || !C.L[e0]) continue; const h1 = HP[e], h0 = HP[e0]; if (!(h0 - h1 > 0.5)) continue;
+      const t = T[k], tj = team(j, t), x = C.X[e], y = C.Y[e], cand = [];
+      for (const i of sold) {
+        if (i === j || team(i, t) === tj || !C.L[k * n + i]) continue; const q = at(i, t), d = Math.hypot(q.x - x, q.y - y); if (!(d < 400) || !firing(i, t)) continue;
+        if (q.veh) cand.push(i); else if (angOff(q.yaw, Math.atan2(x - q.x, y - q.y)) <= 10 * Math.PI / 180) cand.push(i);
+      }
+      if (!cand.length) for (const b of blasts) { if (Math.abs(b.t - t) > 0.35 || Math.hypot(b.x - x, b.y - y) > (b.r || 8) + 2) continue; const bi = pidx.get(b.by); if (bi !== undefined && bi !== j && team(bi, t) !== tj && !cand.includes(bi)) cand.push(bi); }
+      if (!cand.length) continue;
+      const amt = (h0 - h1) / cand.length; for (const i of cand) { inc(i, 'dm', amt); let L = hits.get(j); if (!L) hits.set(j, L = []); L.push([t, i, amt]); }
+    }
+  }
+  for (const e of kills) {
+    const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || team(ki, e.t) === team(vi, e.t)) continue;
+    const L = (hits.get(vi) || []).filter(h => h[0] >= e.t - 10 && h[0] <= e.t + 0.05); const tot = L.reduce((a, h) => a + h[2], 0); if (tot < 50) continue;
+    const by = new Map(); for (const h of L) by.set(h[1], (by.get(h[1]) || 0) + h[2]);
+    const mine = by.get(ki) || 0; let best = null; for (const [i, a] of by) if (i !== ki && (!best || a > best[1])) best = [i, a];
+    if (mine < 0.3 * tot && best && best[1] >= 0.5 * tot) { inc(ki, 'st'); inc(best[0], 'su'); }
+  }
+  // spawns (each new kit is a spawn), on the squad; near the squad leader; in a flag's zone
+  for (const i of sold) {
+    const p = P0[i], sg = p.sgs || []; let sp = 0, sq = 0;
+    for (const [ts] of p.kits || []) { sp++; let g = null; for (const [t1, v] of sg) { if (t1 > ts + 0.05) break; g = v; } if (g != null && g >= 192) sq++; }
+    if (sp) { inc(i, 'sp', sp); if (sq) inc(i, 'sq', sq); }
+  }
+  const sqAt = (i, t) => { let o = null; for (const q of P0[i].squad || []) { if (q[0] > t + 0.05) break; o = q; } return o ? [o[1], !!o[2]] : [0, false]; };
+  const flags = (tl.flags || []).filter(f => !f.main && Number.isFinite(f.x) && Number.isFinite(f.y));
+  const step = Math.max(1, Math.round(1 / ((T[1] - T[0]) || 0.1)));
+  for (let k = 0; k < F; k += step) {
+    const t = T[k], dt = k + step < F ? T[k + step] - t : 0; if (dt <= 0) continue;
+    const lead = new Map(); for (const i of sold) { if (!C.L[k * n + i]) continue; const [s2, l] = sqAt(i, t); if (s2 > 0 && l) lead.set(team(i, t) + '|' + s2, i); }
+    for (const i of sold) {
+      const e = k * n + i; if (!C.L[e]) continue; const x = C.X[e], y = C.Y[e];
+      const [s2, l] = sqAt(i, t); if (s2 > 0 && !l) { inc(i, 'ss', dt); const li = lead.get(team(i, t) + '|' + s2); if (li !== undefined) { const f = k * n + li; if (Math.hypot(C.X[f] - x, C.Y[f] - y) <= 50) inc(i, 'sl', dt); } }
+      for (const f of flags) if (Math.hypot(f.x - x, f.y - y) <= (f.r || 10) + 2) { inc(i, 'fz', dt); break; }
+      if (C.VT[e]) { const v = kind(C.VTN[C.VT[e]]); if (v) { const o = Y.get(i); const vt = o.vt || (o.vt = {}); (vt[v] || (vt[v] = [0, 0, 0]))[0] += dt; } }
+    }
+  }
+  for (const e of kills) {
+    const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || team(ki, e.t) === team(vi, e.t)) continue;
+    const kv = kind(at(ki, e.t - 0.05).veh), vv = kind(at(vi, e.t - 0.05).veh);
+    if (kv && Y.has(ki)) { const o = Y.get(ki), vt = o.vt || (o.vt = {}); (vt[kv] || (vt[kv] = [0, 0, 0]))[1]++; }
+    if (vv && Y.has(vi)) { const o = Y.get(vi), vt = o.vt || (o.vt = {}); (vt[vv] || (vt[vv] = [0, 0, 0]))[2]++; }
+  }
+  // revives: from the man's fall (his kill) to the revive
+  for (const r of ev) {
+    if (r.type !== 'revive') continue; const mi = pidx.get(r.medic); if (mi === undefined || !Y.has(mi)) continue;
+    const k = kills.filter(e => e.victim === r.player && e.t <= r.t && r.t - e.t < 30).pop(); if (!k) continue;
+    const o = Y.get(mi), rv = o.rv || (o.rv = [0, 0]); rv[0] += r.t - k.t; rv[1]++;
+  }
+  // into the lines (rounded; vehicles 10 s or more)
+  const byName = new Map(P.map(p => [p.name, p]));
+  for (const [i, o] of Y) {
+    const p = byName.get(P0[i].name.trim()); if (!p) continue; const y = {};
+    for (const [k, v] of Object.entries(o)) { if (k === 'vt') { const vt = {}; for (const [kk, a] of Object.entries(v)) if (a[0] >= 10 || a[1] || a[2]) vt[kk] = [Math.round(a[0]), a[1], a[2]]; if (Object.keys(vt).length) y.vt = vt; } else if (k === 'rv') y.rv = [Math.round(v[0] * 10) / 10, v[1]]; else if (v) y[k] = Math.round(v); }
+    if (Object.keys(y).length) p.y = y;
+  }
+  // the flags: who held each how long, and its owner at the end
+  const fl = [];
+  if (C.FO && C.nf) (tl.flags || []).forEach((f, q) => { if (f.main) return; const held = [0, 0]; for (let k = 0; k + 1 < F; k++) { const o = C.FO[k * C.nf + q]; if (o === 0 || o === 1) held[o] += T[k + 1] - T[k]; } const end = C.FO[(F - 1) * C.nf + q]; fl.push([f.name || String(q), Math.round(held[0]), Math.round(held[1]), end === 0 || end === 1 ? end : null]); });
+  return fl;
+}
 // ---------- one demo ----------
 async function decodeFile(dec, file, name = path.basename(file)) {
   const raw = fs.readFileSync(file);
@@ -357,7 +457,7 @@ function readIndex() {
 // table.json and table/<server>.json (everyone, as the Players view lists them), names.json (each nick's latest name).
 // Only what the changed rounds touch is written again; everything when that code changes (or the first time).
 const STATS = path.join(DATA, 'stats'), STATS_STATE = path.join(DATA, '.stats.json');
-const STATS_FORMAT = '2';   // (how this file writes them: a change here writes them all again, as a change of the page's code does)
+const STATS_FORMAT = '4';   // (3, v215: clans, vehicles, servers, the moments search; 4: the player's rating in his file)   // (how this file writes them: a change here writes them all again, as a change of the page's code does)
 let AGG = null;   // { fns, v }: the page's code and its hash
 const aggTouch = { nicks: new Set(), maps: new Set(), any: false, full: false };
 function loadAgg() {
@@ -369,7 +469,7 @@ function loadAgg() {
     // "// @agg-admin-begin" and "// @agg-admin-end" - cut out of the public page by splitpage.mjs)
     let more = ''; try { const A = fs.readFileSync(path.join(HERE, 'admin-round.js'), 'utf8').split('\n'), x = A.indexOf('// @agg-admin-begin'), y = A.indexOf('// @agg-admin-end'); if (x >= 0 && y > x) more = A.slice(x + 1, y).join('\n'); } catch (e) {}
     const code = L.slice(a, b).join('\n') + (more ? '\n' + more : '');
-    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug, aggRecs: typeof aggRecs === "function" ? aggRecs : null, REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null };')();   // (v192: and the records)
+    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug, aggRecs: typeof aggRecs === "function" ? aggRecs : null, REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null, aggClans: typeof aggClans === "function" ? aggClans : null, aggRating: typeof aggRating === "function" ? aggRating : null, aggVehicles: typeof aggVehicles === "function" ? aggVehicles : null, aggServer: typeof aggServer === "function" ? aggServer : null, aggFind: typeof aggFind === "function" ? aggFind : null };')();   // (v192: and the records)
     return { fns, v: crypto.createHash('sha1').update(g).update(code).update(STATS_FORMAT).digest('hex').slice(0, 10) };
   } catch (e) { log('stats: the page\'s code did not load:', e.message); return null; }
 }
@@ -387,6 +487,7 @@ function writeStats(d) {
   const F = AGG.fns, t0 = Date.now();
   const RS = F.aggRounds(d.rounds.map(r => ({ name: r.name, sum: r.sum })));
   const ptsOf = r => HEAT.get(String(r.sum?.map || '').toLowerCase())?.get(r.name) || null;   // (as the page's ptsOf)
+  const RT = F.aggRating ? F.aggRating(RS) : null;   // (v215: each player's rating after his latest round - his page)
   const byNick = F.aggByNick(RS), AD = path.join(DATA, '.admin', 'players'), PD = path.join(STATS, 'players'), MD = path.join(STATS, 'maps'), TD = path.join(STATS, 'table');
   // players
   const nicks = full ? [...byNick.keys()] : [...aggTouch.nicks];
@@ -395,7 +496,8 @@ function writeStats(d) {
     if (!R) { try { fs.unlinkSync(f); } catch (e) {} try { fs.unlinkSync(path.join(AD, F.nickSlug(nick) + '.json')); } catch (e) {} continue; }
     // (v196) what is the admins' (his headshots against what his weapons give) apart: data/.admin/players
     const { hsx, ...agg } = F.aggPlayer(nick, R, ptsOf), af = path.join(AD, F.nickSlug(nick) + '.json');
-    statsWrite(f, { v: AGG.v, nick, rounds: R.map(x => [x.r.name, x.p]), agg });
+    const g = RT?.get(nick);
+    statsWrite(f, { v: AGG.v, nick, rounds: R.map(x => [x.r.name, x.p]), agg, ...(g && g.n ? { rt: [Math.round(g.r), g.n, Math.round(g.hi)] } : {}) });
     if (hsx) statsWrite(af, { v: AGG.v, nick, hsx }); else { try { fs.unlinkSync(af); } catch (e) {} }
   }
   // maps
@@ -410,9 +512,16 @@ function writeStats(d) {
   statsWrite(path.join(STATS, 'table.json'), { v: AGG.v, rows: F.aggTable(RS) });
   const srvs = [...new Set(RS.map(r => r.sum.server).filter(Boolean))];
   for (const sv of srvs) statsWrite(path.join(TD, F.nickSlug(sv) + '.json'), { v: AGG.v, server: sv, rows: F.aggTable(F.aggRounds(RS, sv)) });
+  // (v215) clans, vehicles, each server's page (and all servers'), the moments search (each map's kills)
+  const SV = path.join(STATS, 'server'), FD = path.join(STATS, 'find');
+  if (F.aggClans) statsWrite(path.join(STATS, 'clans.json'), { v: AGG.v, clans: F.aggClans(RS) });
+  if (F.aggVehicles) statsWrite(path.join(STATS, 'vehicles.json'), { v: AGG.v, kinds: F.aggVehicles(RS) });
+  if (F.aggServer) { statsWrite(path.join(SV, '_all.json'), { v: AGG.v, server: null, agg: F.aggServer(RS) }); for (const sv of srvs) statsWrite(path.join(SV, F.nickSlug(sv) + '.json'), { v: AGG.v, server: sv, agg: F.aggServer(F.aggRounds(RS, sv)) }); statsWrite(path.join(STATS, 'servers.json'), { v: AGG.v, servers: srvs.map(sv => [sv, F.nickSlug(sv), RS.filter(r => r.sum.server === sv).length]) }); }
+  if (F.aggFind) for (const m of maps) { const R = RS.filter(r => mapKey(r) === m), f = path.join(FD, F.nickSlug(m || '_') + '.json'); if (!R.length) { try { fs.unlinkSync(f); } catch (e) {} continue; } statsWrite(f, { v: AGG.v, map: m, ...F.aggFind(R, ptsOf) }); }
   if (full) {   // (files of players, maps and servers no longer there)
     const keepP = new Set([...byNick.keys()].map(n => F.nickSlug(n) + '.json')), keepM = new Set([...new Set(RS.map(mapKey))].map(m => F.nickSlug(m || '_') + '.json')), keepT = new Set(srvs.map(sv => F.nickSlug(sv) + '.json'));
-    for (const [dir, keep] of [[PD, keepP], [AD, keepP], [MD, keepM], [TD, keepT]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
+    const keepS = new Set(['_all.json', ...srvs.map(sv => F.nickSlug(sv) + '.json')]);
+    for (const [dir, keep] of [[PD, keepP], [AD, keepP], [MD, keepM], [TD, keepT], [SV, keepS], [FD, keepM]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
   }
   const at = new Date().toISOString(); fs.writeFileSync(STATS_STATE, JSON.stringify({ v: AGG.v, at }));
   d.stats = { v: AGG.v, at };
@@ -458,7 +567,7 @@ function writeIndexLight(d, dec) {
 }
 // (v166) the whole list for this script, the short one for the site: each round without its players' lines (P) and kills
 // (v176: and compact - an array a round, roundsidx.mjs: ~3 times smaller)
-const slimSum = x => { if (!x) return x; const { P, pts, hl, ...rest } = x; return rest; };   // (v187: and the posts' highlights)
+const slimSum = x => { if (!x) return x; const { P, pts, hl, fl, ...rest } = x; return rest; };   // (v187: and the posts' highlights; v215: the flags - the server pages, data/stats)
 // (v202, Sagara: "a Download demo button on each round; with no demo on my server, a link to where it was downloaded
 // from") a round whose demo is gone keeps where it came from: src - the link its page lists now (data/.source-list.json,
 // fetch.mjs; srcOk 1) or the one it was downloaded from (data/.fetched.json: maybe gone there too); a round uploaded by a
