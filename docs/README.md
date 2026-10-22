@@ -6,8 +6,8 @@ tickets, and who could see whom. A small VPS downloads new demos from the game s
 publishes rounds, player pages, maps, records and statistics. It can also post each round to Discord and Telegram, and
 it gives the servers' admins a private set of tools for checking suspicious play.
 
-This folder documents version **v222**. The main [README](../README.md) (in Ukrainian) has the history of every version,
-and [server/INSTALL.md](../server/INSTALL.md) (in Ukrainian) has the detailed notes for each change on the server.
+This folder documents version **v223**. [CHANGELOG.md](../CHANGELOG.md) has what every version changed, and
+[server/INSTALL.md](../server/INSTALL.md) has the detailed notes on each part of the server.
 
 ## Which document to read
 
@@ -81,4 +81,4 @@ Without a server, `site/index.html` is also a plain viewer: open it in a browser
 The decoder's record layouts build on [Kakarotto22/bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer)
 (MIT); the sharp map pictures are scaled down from Deine-Augen's
 [High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap). Details and the licence are in the main
-[README](../README.md#подяки-та-сторонній-код).
+[README](../README.md#credits-and-third-party-code).

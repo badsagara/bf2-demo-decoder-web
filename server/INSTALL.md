@@ -1,46 +1,49 @@
-# Встановлення на VPS (Ubuntu 22.04 / 24.04)
+# Installing on a VPS (Ubuntu 22.04 / 24.04) — detailed notes
 
-Англійською, коротше і за темами — [docs/install.md](../docs/install.md) (а також [docs/admin-guide.md](../docs/admin-guide.md)).
+The short, topic-by-topic guide is [docs/install.md](../docs/install.md) (and [docs/admin-guide.md](../docs/admin-guide.md)
+for the admin page). This file is the detailed reference: every part of the server, with the notes of the version that
+brought it.
 
-Ігровий сервер =FL= тут не потрібен і нічого на ньому не ставиться: VPS сам забирає нові демо з веб-сторінки,
-на якій сервер їх публікує (ту саму, звідки ти качав демо руками).
+Nothing is needed or installed on the game server: the VPS itself downloads new demos from the web page where the server
+publishes them (the same page you would download demos from by hand).
 
-Що з'явиться на VPS:
+What runs on the VPS:
 
-| Що | Як часто | Де дивитися |
+| What | How often | Where to look |
 |---|---|---|
-| сайт через Caddy, HTTPS-сертифікат сам (Let's Encrypt) | постійно | `systemctl status caddy` |
-| `fetch.mjs`: нові демо зі сторінки демо → `upload/incoming` | кожна сторінка — свій час (адмінка; типово 10 хв, `BF2R_FETCH_EVERY`) | `journalctl -u bf2replay-fetch`, `bf2replay-status` |
-| `backup.sh`: копія списку раундів, журналів раундів і налаштувань → `/srv/bf2replay/backup` | щонеділі о 04:40 | `journalctl -u bf2replay-backup` |
-| `analyze.mjs --auto`: Glitch spot і підказки за всі раунди гравця (п. 20) | через 5 хв після кінця попереднього проходу | `journalctl -u bf2replay-hints` |
-| `ingest.mjs`: демо → розібраний раунд, список раундів (раунди без гравців відкидаються) | одразу, як з'явився файл (і кожні 2 хв) | `journalctl -u bf2replay-ingest` |
-| `update.sh`: `git pull` з GitHub, оновлення сайту | щохвилини | `journalctl -u bf2replay-update` |
-| `ingest.mjs --reprocess`: перерозбір раундів після зміни декодера (запускає `update.sh`, окремо від нього) | після оновлення | `journalctl -u bf2replay-reprocess` |
-| SFTP-скринька `bf2upload` (для тих, хто сам відсилає демо) | — | необов'язково, п. 8 |
+| the site through Caddy, its HTTPS certificate by itself (Let's Encrypt) | always | `systemctl status caddy` |
+| `fetch.mjs`: new demos from the demo page → `upload/incoming` | each page at its own interval (admin page; 10 min by default, `BF2R_FETCH_EVERY`) | `journalctl -u bf2replay-fetch`, `bf2replay-status` |
+| `backup.sh`: a copy of the round list, the round logs and the settings → `/srv/bf2replay/backup` | Sundays at 04:40 | `journalctl -u bf2replay-backup` |
+| `analyze.mjs --auto`: Glitch spot and the hints over all of a player's rounds (§20) | 5 min after the previous run ends | `journalctl -u bf2replay-hints` |
+| `ingest.mjs`: demo → decoded round, the round list (rounds without players are dropped) | as soon as a file arrives (and every 2 min) | `journalctl -u bf2replay-ingest` |
+| `update.sh`: `git pull` from GitHub, updates the site | every minute | `journalctl -u bf2replay-update` |
+| `ingest.mjs --reprocess`: decodes the rounds again after the decoder changed (started by `update.sh`, apart from it) | after an update | `journalctl -u bf2replay-reprocess` |
+| the SFTP drop box `bf2upload` (for servers that send their demos themselves) | — | optional, §8 |
 
-Усе живе в `/srv/bf2replay`: `repo/` (копія GitHub), `site/` (те, що бачать люди), `data/` (демо і раунди),
-`upload/incoming/` (вхідні). Налаштування — `/etc/bf2replay.conf`.
+Everything lives in `/srv/bf2replay`: `repo/` (the clone of GitHub), `site/` (what people get), `data/` (demos and
+rounds), `upload/incoming/` (incoming). Settings: `/etc/bf2replay.conf`.
 
-## 0. Що потрібно
+## 0. What you need
 
-- **RAM:** розбір найбільшого демо (45 хв, 64 гравці) бере ~600 MB. Якщо в VPS менше 2 GB — додай swap (п. 3).
-- **Диск:** раунд з гравцями = демо 10–25 MB + розібраний раунд 2–4 MB. Порожні раунди (~400 KB, ніхто не грав)
-  відкидаються. 4 живі раунди на день ≈ 2–3 GB на місяць. Щоб тримати менше — старі демо можна прибирати, а раунди
-  лишаються: адмін-сторінка, «Demos: what to keep» (п. 21).
-  Коли на диску лишається менше 3 GB (`BF2R_MIN_FREE_GB`), `fetch.mjs` зупиняється і пише це в журнал. Щоб до цього не
-  доходило, `ingest.mjs` уже при < 5 GB (`BF2R_MIN_FREE_GB` + 2) видаляє найстаріші демо (розібрані раунди лишаються),
-  поки не стане 5 GB вільно (`BF2R_RAW_AUTOCLEAN=0` — не видаляти).
-- **Node.js 22, Caddy, git, rsync** — `install.sh` поставить сам.
-- **Порти 22, 80, 443** відкриті (і в `ufw`, і у файрволі хостера, якщо він є в панелі).
-- **Домен** для HTTPS. Безкоштовно: https://www.duckdns.org → свій піддомен `щось.duckdns.org` → вписати IP VPS.
-  Без домену теж працює, але тільки `http://IP`.
+- **RAM:** decoding the biggest demo (45 min, 64 players) takes ~600 MB. With less than 2 GB on the VPS, add swap (§3).
+- **Disk:** a round with players = its demo, 10–25 MB, + the decoded round, 2–4 MB. Empty rounds (~400 KB, nobody
+  played) are dropped. 4 live rounds a day ≈ 2–3 GB a month. To keep less, old demos can be removed while their rounds
+  stay: the admin page, "Demos: what to keep" (§21).
+  When less than 3 GB is left on the disk (`BF2R_MIN_FREE_GB`), `fetch.mjs` stops and says so in its log. So that it
+  doesn't come to that, `ingest.mjs` already below 5 GB (`BF2R_MIN_FREE_GB` + 2) removes the oldest demos (the decoded
+  rounds stay) until 5 GB are free (`BF2R_RAW_AUTOCLEAN=0`: don't remove).
+- **Node.js 22, Caddy, git, rsync** — `install.sh` installs them.
+- **Ports 22, 80, 443** open (in `ufw`, and in the hoster's firewall if its panel has one).
+- **A domain** for HTTPS. Free: https://www.duckdns.org → your own `something.duckdns.org` → the VPS's IP.
+  It works without a domain too, but only as `http://IP`.
 
 ## 1. DNS
 
-У DNS домену: запис **A** `replay.твій-домен` → IP VPS (або DuckDNS як вище). Перевірити з Mac:
-`dig +short replay.твій-домен` має показати IP VPS. Робити це **до** `install.sh`, бо Caddy одразу просить сертифікат.
+In the domain's DNS: an **A** record `replay.your-domain` → the VPS's IP (or DuckDNS as above). Check from your
+computer: `dig +short replay.your-domain` must print the VPS's IP. Do this **before** `install.sh`: Caddy asks for the
+certificate at once.
 
-## 2. Файрвол
+## 2. Firewall
 
 ```bash
 sudo ufw allow OpenSSH
@@ -48,976 +51,1013 @@ sudo ufw allow 80,443/tcp
 sudo ufw enable
 ```
 
-## 3. Swap (якщо RAM < 2 GB)
+## 3. Swap (if RAM < 2 GB)
 
 ```bash
 sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 ```
 
-## 4. Запуск install.sh
+## 4. Running install.sh
 
-Спершу репозиторій має бути на GitHub (README.md у корені, «Один раз: створити репозиторій»).
-Скопіюй папку `server` з Mac на VPS і запусти:
+The repository must be on GitHub first (README.md in the root, "Once: make the repository").
+Copy the `server` folder from your computer to the VPS and run it:
 
 ```bash
-# на Mac
-scp -r ~/bf2-round-replay/server ТИ@IP_VPS:/tmp/bf2r-server
+# on your computer, from the folder that holds your clone
+scp -r bf2-round-replay/server YOU@VPS_IP:/tmp/bf2r-server
 
-# на VPS
+# on the VPS
 cd /tmp/bf2r-server
-sudo BF2R_REPO=git@github.com:ТВІЙ_ЛОГІН/bf2-round-replay.git \
-     BF2R_DOMAIN=replay.твій-домен \
+sudo BF2R_REPO=git@github.com:YOUR_LOGIN/bf2-round-replay.git \
+     BF2R_DOMAIN=replay.your-domain \
      BF2R_FETCH_URLS=http://85.17.145.41/karkand/demos/ \
      bash install.sh
 ```
 
-GitHub читається від root з ключем **`/root/.ssh/GitHub_bf2_repo`** (інший шлях — `BF2R_GIT_KEY=…`). Якщо такого файла
-немає, скрипт сам створить ключ, зупиниться на кроці «Repository» і покаже публічну частину
-(`/root/.ssh/GitHub_bf2_repo.pub`, рядок `ssh-ed25519 AAAA… bf2replay@…`). Якщо ключ уже є — візьме його
-(він має бути без пароля; права 600 скрипт поставить сам, а якщо нема `.pub` — зробить його з ключа).
-Свій `/root/.ssh/config` скрипт для GitHub не читає (там можуть бути опції з Mac, як-от `UseKeychain`). Встав публічний ключ у GitHub: репозиторій → Settings → Deploy keys →
-Add deploy key, назва `bf2replay VPS`, «Allow write access» **не** ставити → Add key. Потім Enter у вікні скрипта —
-він продовжить. Перевірити ключ окремо:
+GitHub is read as root with the key **`/root/.ssh/GitHub_bf2_repo`** (another path: `BF2R_GIT_KEY=…`). If that file
+doesn't exist, the script makes the key, stops at the step "Repository" and shows its public half
+(`/root/.ssh/GitHub_bf2_repo.pub`, the line `ssh-ed25519 AAAA… bf2replay@…`). If the key exists, it is used (it must
+have no passphrase; the script sets its permissions to 600 itself, and makes the `.pub` from the key if it is missing).
+The script doesn't read your own `/root/.ssh/config` for GitHub (it may hold options from another machine, such as
+`UseKeychain`). Put the public key into GitHub: the repository → Settings → Deploy keys → Add deploy key, title
+`bf2replay VPS`, **don't** tick "Allow write access" → Add key. Then press Enter in the script's window — it goes on.
+Check the key by itself:
 
 ```bash
-sudo ssh -F /dev/null -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git@github.com   # Hi ЛОГІН/bf2-round-replay! ...
+sudo ssh -F /dev/null -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git@github.com   # Hi LOGIN/bf2-round-replay! ...
 ```
 
-Сам `git pull` (щохвилини) теж іде від root з цим ключем (він записаний у `/srv/bf2replay/repo/.git/config`,
-`core.sshCommand`); розбір демо й завантаження — від користувача `bf2replay`.
+The `git pull` every minute also runs as root with this key (it is written into `/srv/bf2replay/repo/.git/config`,
+`core.sshCommand`); decoding and downloading run as the user `bf2replay`.
 
-Наприкінці він напише адресу сайту. Перше завантаження стартує одразу після встановлення (бере все, що є на
-сторінці, найновіші першими; раунди з'являються на сайті по одному, щойно розібрані), далі — кожні 10 хвилин.
+At the end it prints the site's address. The first download starts right after the installation (it takes everything
+on the page, newest first; rounds appear on the site one by one, as soon as each is decoded), then every 10 minutes.
 
-`install.sh` можна запускати повторно: дані й ключі лишаються. Змінні тоді можна не задавати — вони беруться з
-`/etc/bf2replay.conf`; ті, що задані, замінюють старі (напр. `sudo BF2R_DOMAIN=новий.домен bash install.sh`).
+`install.sh` can be run again: data and keys stay. The variables can then be left out — they are taken from
+`/etc/bf2replay.conf`; those given replace the old ones (e.g. `sudo BF2R_DOMAIN=new.domain bash install.sh`).
 
-## 5. Звідки брати демо (BF2R_FETCH_URLS)
+## 5. Where the demos come from (BF2R_FETCH_URLS)
 
-Сервер =FL= Strike at Karkand викладає демо тут: **http://85.17.145.41/karkand/demos/** (звичайний список файлів).
-Кожні 10 хвилин (`BF2R_FETCH_EVERY`; `0` — раз на день о `BF2R_FETCH_AT`) `fetch.mjs` бере з цієї сторінки всі
-посилання на `*.bf2demo` і качає кожне **один раз** (список скачаного — `data/.fetched.json`), найновіші першими,
-з паузою 1 с між файлами. Файл, який ще пишеться (змінювався < 3 хв тому — раунд іде), бере наступного разу — тож
-раунд з'являється на сайті за кілька хвилин після кінця. Прохід, що нічого нового не знайшов, у журнал не пише
-(коли дивився востаннє — у `bf2replay-status`, рядок «Demo pages»).
+The =FL= Strike at Karkand server publishes its demos here: **http://85.17.145.41/karkand/demos/** (a plain file
+list). Every 10 minutes (`BF2R_FETCH_EVERY`; `0` — once a day at `BF2R_FETCH_AT`) `fetch.mjs` takes every link to
+`*.bf2demo` from that page and downloads each **once** (the list of what was downloaded: `data/.fetched.json`), newest
+first, with a 1 s pause between files. A file still being written (changed < 3 min ago — the round is on) is taken next
+time, so a round shows up on the site a few minutes after it ends. A run that found nothing new writes nothing to the
+log (when it last looked: `bf2replay-status`, the line "Demo pages").
 
-(v210) **Кожна сторінка — свій час.** Адмін-сторінка, картка **Where demos come from**: біля кожної сторінки / сервера
-список **read**: *as all* (`BF2R_FETCH_EVERY`, типово 10 хв), *every minute*, 2, 3, 5, 10, 15, 30 хв, 1, 3, 6, 12 год,
-*once a day* (о `BF2R_FETCH_AT`) або *off* (не читати); поруч — коли читалась востаннє. Таймер `bf2replay-fetch`
-тепер щохвилини, а `fetch.mjs` читає лише сторінки, яким настав час (коли яку читав — `data/.fetch-due.json`); прохід,
-якому нічого не настало, закінчується одразу й нічого не пише. **Fetch now** (картка Services) читає всі, крім *off*.
-Раунд у Discord приходить так: раунд скінчився → демо готове → наступне читання сторінки → завантаження → розбір
-(~15 с) → пост. Демо, після якого на сторінці вже є наступне (сервер почав писати новий раунд), береться через 30 с
-після останньої зміни, а не через 3 хв — тож з *every minute* пост приходить приблизно за 1–3 хв після кінця раунду.
-Останнє демо сторінки (раунд ще йде або сервер порожній) — як і раніше, через 3 хв без змін. «Still being written» про
-те саме демо в журнал пишеться один раз, а не щохвилини. Перевантаження сторінки нема: читається лише список файлів
-(одна невелика сторінка), кожне демо качається один раз.
-`ingest.mjs` розбирає кожне демо: раунд, де грали хоча б двоє (`BF2R_MIN_PLAYERS`), з'являється на сайті; порожній
-(~400 KB, ніхто не заходив або ніхто не з'явився на полі) і раунд з одним гравцем видаляються. Кілька сторінок — через пробіл.
+(v210) **Each page at its own interval.** The admin page, card **Where demos come from**: next to each page / server a
+list **read**: *as all* (`BF2R_FETCH_EVERY`, 10 min by default), *every minute*, 2, 3, 5, 10, 15, 30 min, 1, 3, 6, 12 h,
+*once a day* (at `BF2R_FETCH_AT`) or *off* (not read); next to it, when it was last read. The timer `bf2replay-fetch`
+now runs every minute, and `fetch.mjs` reads only the pages whose time has come (when it read which:
+`data/.fetch-due.json`); a run with nothing due ends at once and writes nothing. **Fetch now** (card Services) reads all
+of them but those *off*. A round reaches Discord like this: the round ends → the demo is ready → the next read of the
+page → download → decoding (~15 s) → the post. A demo after which the page already has the next one (the server started
+writing a new round) is taken 30 s after its last change instead of 3 min — so with *every minute* the post comes about
+1–3 min after the round ends. The page's last demo (the round still on, or the server empty) is taken, as before, after
+3 min without changes. "Still being written" about the same demo goes into the log once, not every minute. The page is
+not overloaded: only the file list is read (one small page), and each demo is downloaded once.
+`ingest.mjs` decodes each demo: a round where at least two played (`BF2R_MIN_PLAYERS`) shows up on the site; an empty one
+(~400 KB, nobody joined or nobody spawned) and a round with one player are deleted. Several pages: separated by spaces.
 
-Подивитися, що він скачав би, нічого не качаючи (скільки файлів і скільки MB, і скільки вільно на диску):
+See what it would download, downloading nothing (how many files, how many MB, and how much is free on the disk):
 
 ```bash
 sudo -u bf2replay node /srv/bf2replay/repo/server/fetch.mjs --list | tail -3
 ```
 
-Ввічливо попередити адмінів =FL=, що сайт бере демо з їхньої сторінки: сам список файлів читається кожні 10 хв
-(одна невелика сторінка), кожне демо качається один раз, 10–25 MB на живий раунд (порожні ~400 KB).
+Be polite and tell the =FL= admins that the site takes demos from their page: the file list is read every 10 minutes
+(one small page), each demo is downloaded once, 10–25 MB a live round (empty ones ~400 KB).
 
-### Кілька серверів
+### Several servers
 
-У `BF2R_FETCH_URLS` через пробіл можна писати і сторінки, і **просто IP ігрових серверів**:
+`BF2R_FETCH_URLS` takes, separated by spaces, both pages and **just the IPs of game servers**:
 
-| Що написати | Що робить `fetch.mjs` |
+| What to write | What `fetch.mjs` does |
 |---|---|
-| `http://1.2.3.4/demos/` | читає цю сторінку (список файлів, HTML чи XML-індекс) |
-| `1.2.3.4` | питає сам ігровий сервер (запит GameSpy, UDP 29900), де його демо: у налаштуваннях BF2 це `sv.demoIndexURL` / `sv.demoDownloadURL`; заодно бере назву сервера. Не відповідає — пробує `http://1.2.3.4/` |
-| `1.2.3.4:16567` | те саме (16567 — ігровий порт, питає на 29900) |
-| `1.2.3.4:29901` | інший порт запитів (кілька серверів на одній машині) |
+| `http://1.2.3.4/demos/` | reads this page (a file list, HTML or an XML index) |
+| `1.2.3.4` | asks the game server itself (a GameSpy query, UDP 29900) where its demos are: in the BF2 settings that is `sv.demoIndexURL` / `sv.demoDownloadURL`; it takes the server's name too. No answer — it tries `http://1.2.3.4/` |
+| `1.2.3.4:16567` | the same (16567 is the game port; the query goes to 29900) |
+| `1.2.3.4:29901` | another query port (several servers on one machine) |
 
-Спершу перевірити, куди веде кожна адреса — нічого не качає і не пише:
+First check where each address leads — this downloads and writes nothing:
 
 ```bash
 sudo -u bf2replay node /srv/bf2replay/repo/server/fetch.mjs --probe 1.2.3.4 5.6.7.8 9.10.11.12:29901
-# 1.2.3.4 (=XX= Назва сервера) -> http://1.2.3.4/demos/ - 120 demos listed (newest: auto_2026_10_15_21_00_00.bf2demo)
+# 1.2.3.4 (=XX= Server name) -> http://1.2.3.4/demos/ - 120 demos listed (newest: auto_2026_10_15_21_00_00.bf2demo)
 ```
 
-Потім дописати їх у `/etc/bf2replay.conf` (одним рядком, у лапках):
+Then add them to `/etc/bf2replay.conf` (one line, in quotes):
 
 ```bash
 BF2R_FETCH_URLS="http://85.17.145.41/karkand/demos/ 1.2.3.4 5.6.7.8 9.10.11.12:29901"
 ```
 
-і забрати одразу, не чекаючи ранку: `sudo systemctl start --no-block bf2replay-fetch`. Нічого перезапускати не
-треба.
+and take them at once, not waiting for the next run: `sudo systemctl start --no-block bf2replay-fetch`. Nothing needs
+restarting.
 
-Сервер, що складає демо по місяцях (`.../archive/s01/2026-10/`): написати місяць як `{YYYY-MM}` —
-`http://137.74.26.182/archive/s01/{YYYY-MM}/` — і `fetch.mjs` читатиме поточний і попередній місяць сам.
+A server that keeps its demos by month (`.../archive/s01/2026-10/`): write the month as `{YYYY-MM}` —
+`http://137.74.26.182/archive/s01/{YYYY-MM}/` — and `fetch.mjs` reads the current and the previous month by itself.
 
-**Обережно з першим запуском.** Великі архіви (lost-soldiers показує по 1000 останніх демо на сервер, до 70 MB
-кожне) з порожнім `BF2R_FETCH_SINCE` — це десятки GB і години розбору. Краще обмежити:
-
-```bash
-BF2R_FETCH_SINCE=2026-10-01     # не брати старіші
-BF2R_FETCH_MAX=50               # не більше 50 за раз (решта — наступного разу)
-```
-
-(Скільки днів тримати самі демо — на адмін-сторінці, п. 21.)
-
-Спершу читаються всі сторінки, потім демо качаються від найновіших — з усіх серверів упереміш, тож свіжі раунди
-кожного сервера з'являються першими. Що відбувається зараз:
+**Careful with the first run.** Big archives (lost-soldiers lists the last 1,000 demos per server, up to 70 MB each)
+with an empty `BF2R_FETCH_SINCE` are tens of GB and hours of decoding. Better limit it:
 
 ```bash
-journalctl -u bf2replay-fetch -u bf2replay-ingest -f     # що качає і що розбирає
-ls /srv/bf2replay/upload/incoming | wc -l                # скільки демо чекають розбору
-df -h /srv/bf2replay                                     # місце на диску
+BF2R_FETCH_SINCE=2026-10-01     # nothing older
+BF2R_FETCH_MAX=50               # at most 50 at a time (the rest next time)
 ```
 
-Якщо в рядку `--probe` написано *its settings name no demo page* — сервер не публікує демо (або
-`does not record demos`: не записує їх); тоді потрібна адреса сторінки від його адмінів. Не відповідає на UDP і нема
-сторінки на `http://IP/` — теж питати адмінів, де лежать демо.
+(How many days to keep the demos themselves: the admin page, §21.)
 
-Звідки раунд — видно з самого демо (назва сервера в ньому), тому окремо нічого позначати не треба. Якщо два сервери
-почали раунд в ту саму секунду (однакова назва файлу), другий зберігається з адресою спереду
-(`1.2.3.4_auto_...bf2demo`). На сайті в списку раундів («▾ all rounds») з'являється вибір **Server** (коли серверів
-більше одного): фільтрує список, а «Players · all rounds» тоді рахує тільки раунди цього сервера; назва сервера — і в
-рядку поточного раунду, і в «Rounds CSV».
+First all pages are read, then the demos are downloaded from the newest — from all servers mixed, so each server's
+fresh rounds come first. What is happening now:
 
-### Те саме демо на двох сторінках (v182)
+```bash
+journalctl -u bf2replay-fetch -u bf2replay-ingest -f     # what it downloads and what it decodes
+ls /srv/bf2replay/upload/incoming | wc -l                # how many demos wait to be decoded
+df -h /srv/bf2replay                                     # disk space
+```
 
-Частина демо лежить одразу на двох сторінках (демо 2F4Y — і на сторінці 137.74.26.182, демо Lost-Soldiers — і на
-demos.lost-soldiers.org). До v182 `fetch.mjs` качав обидва: раунд був на сайті двічі, і його вбивства в статистиці
-гравців — теж (в аналізі, розділ 19, таких 1095 з 2714 раундів). З v182:
+If the `--probe` line says *its settings name no demo page*, the server doesn't publish its demos (or *does not record
+demos*: it doesn't record them); then you need the page's address from its admins. No answer over UDP and no page at
+`http://IP/` — ask the admins too where the demos are.
 
-- `fetch.mjs` не качає демо, якщо демо з тією самою назвою й тим самим розміром уже є з іншої сторінки (або надіслане
-  сервером). У журналі: `the same demo as … already fetched from another page … not downloaded again`.
-- `ingest.mjs` (перший же прохід після оновлення) шукає раунди, що є у списку двічі (той самий сервер, мапа, початок
-  до секунди, тривалість, бійці, вбивства, тікети), лишає один — без адреси в назві — а копію (демо і розібраний раунд)
-  переносить у `data/.copies`; нічого не видаляє. Статистика гравців перераховується сама; старі посилання на копію
-  (`/r/…`, `#round=…`) відкривають той самий раунд. У журналі: `… rounds listed twice … moved to data/.copies`.
+Which server a round is from is in the demo itself (the server's name), so nothing needs labelling. If two servers
+started a round in the same second (the same file name), the second is saved with its address in front
+(`1.2.3.4_auto_...bf2demo`). In the list of rounds ("▾ all rounds") the site shows a **Server** choice (when there is more
+than one server): it filters the list, and "Players · all rounds" then counts only that server's rounds; the server's
+name is also in the current round's line and in "Rounds CSV".
+
+### The same demo on two pages (v182)
+
+Some demos are on two pages at once (2F4Y's demos also on the page of 137.74.26.182, Lost-Soldiers' also on
+demos.lost-soldiers.org). Before v182 `fetch.mjs` downloaded both: the round was on the site twice, and so were its kills
+in the players' numbers (in the analysis, §19, 1,095 such of 2,714 rounds). Since v182:
+
+- `fetch.mjs` doesn't download a demo when one with the same name and the same size is already there from another page
+  (or was sent by a server). In the log: `the same demo as … already fetched from another page … not downloaded again`.
+- `ingest.mjs` (its very first run after the update) looks for rounds listed twice (the same server, map, start to the
+  second, length, soldiers, kills, tickets), keeps one — without an address in its name — and moves the copy (demo and
+  decoded round) into `data/.copies`; it deletes nothing. The players' numbers are worked out again by themselves; old
+  links to the copy (`/r/…`, `#round=…`) open the same round. In the log: `… rounds listed twice … moved to data/.copies`.
 
 ```bash
 journalctl -u bf2replay-ingest --since today | grep -i "listed twice\|same round"
-ls /srv/bf2replay/data/.copies | wc -l          # файлів (демо і .bfr)
-du -sh /srv/bf2replay/data/.copies              # скільки місця займають
+ls /srv/bf2replay/data/.copies | wc -l          # files (demos and .bfr)
+du -sh /srv/bf2replay/data/.copies              # how much room they take
 ```
 
-Звільнити місце (за бажанням; перелік копій лишається в `data/.copies.json`, тож посилання й далі працюють):
-`sudo rm -r /srv/bf2replay/data/.copies` (з v186 — кнопка Remove в адмінці, п. 21). Прибирати одну зі сторінок з `BF2R_FETCH_URLS` не обов'язково — зайвих
-завантажень уже не буде.
+To free the room (if you like; the list of copies stays in `data/.copies.json`, so the links keep working):
+`sudo rm -r /srv/bf2replay/data/.copies` (since v186: the Remove button on the admin page, §21). Removing one of the
+pages from `BF2R_FETCH_URLS` is not needed — there are no more extra downloads.
 
-## 6. Налаштування: /etc/bf2replay.conf
+## 6. Settings: /etc/bf2replay.conf
 
-| Параметр | Що робить | За замовчуванням |
+| Setting | What it does | Default |
 |---|---|---|
-| `BF2R_FETCH_URLS` | звідки брати демо, через пробіл: сторінки або IP ігрових серверів (розділ 5) | порожньо |
-| `BF2R_FETCH_EVERY` | як часто дивитися на сторінки демо, хвилин (`60` — щогодини; `0` — раз на день о `BF2R_FETCH_AT`) — для тих, яким в адмінці не дано свого (v210) | 10 |
-| `BF2R_FETCH_AT` | коли качати при `BF2R_FETCH_EVERY=0`, `ГГ:ХХ` за годинником VPS | 05:30 |
-| `BF2R_FETCH_SINCE` | `РРРР-ММ-ДД`: не брати демо, записані раніше | порожньо = все зі сторінки |
-| `BF2R_FETCH_MAX` | скільки демо за раз (решта — наступного разу) | 0 = без обмеження |
-| `BF2R_FETCH_MIN_BYTES` | не качати менші (порожній раунд ~400 KB; без цього їх відкидає розбір) | 0 |
-| `BF2R_FETCH_PAUSE` | секунд між двома файлами | 1 |
-| `BF2R_MIN_FREE_GB` | не качати, коли на диску менше стількох GB | 3 |
-| `BF2R_MIN_PLAYERS` | раунд, де на полі було менше гравців, не з'являється на сайті (`2`: один гравець на порожньому сервері — ні) | 2 |
-| `BF2R_KEEP_EMPTY` | `1` = зберігати демо порожніх раундів (і раундів з замалою кількістю гравців) у `data/empty` | 0 |
-| `BF2R_RAW_KEEP_DAYS` | через N днів (від того, коли зіграно раунд) видаляти саме демо, розібраний раунд лишається. Краще задавати на адмін-сторінці (п. 21): якщо тут більше 0, воно перемагає її | 0 = як на адмін-сторінці |
-| `BF2R_RAW_AUTOCLEAN` | `1`: коли на диску < `BF2R_MIN_FREE_GB` + 2 GB, видаляти демо, доки не стане стільки вільно — спершу ті, що найменше потрібні (п. 21); раунди лишаються; `0`: ні | 1 |
-| `BF2R_BACKUP_KEEP` | скільки щотижневих копій тримати в `/srv/bf2replay/backup` | 6 |
-| `BF2R_BACKUP_ROUNDS` | `1`: у копію ще й розібрані раунди (`data/rounds`, ~3 MB на раунд; єдина копія раунду, чиє демо вже видалене) | 0 |
-| `BF2R_JOBS` | скільки демо розбирати одночасно — нових і повторно (з v162); кожне бере до ~1.2 GB RAM. Якщо задано тут, адмін-сторінка не може його змінити (див. §16) | 0 = як вибрано на адмін-сторінці, інакше скільки дозволяють ядра CPU і пам'ять, не більше 4 |
-| `BF2R_HINTS` | `0`: вимкнути фоновий аналіз (`bf2replay-hints`: Glitch spot і підказки за всі раунди гравця, §20) | 1 |
+| `BF2R_FETCH_URLS` | where to take demos from, separated by spaces: pages or IPs of game servers (§5) | empty |
+| `BF2R_FETCH_EVERY` | how often to look at the demo pages, in minutes (`60` — hourly; `0` — once a day at `BF2R_FETCH_AT`) — for those that have no interval of their own on the admin page (v210) | 10 |
+| `BF2R_FETCH_AT` | when to download with `BF2R_FETCH_EVERY=0`, `HH:MM` by the VPS's clock | 05:30 |
+| `BF2R_FETCH_SINCE` | `YYYY-MM-DD`: don't take demos recorded earlier | empty = all the page lists |
+| `BF2R_FETCH_MAX` | how many demos at a time (the rest next time) | 0 = no limit |
+| `BF2R_FETCH_MIN_BYTES` | don't download smaller ones (an empty round is ~400 KB; without this, decoding drops them) | 0 |
+| `BF2R_FETCH_PAUSE` | seconds between two files | 1 |
+| `BF2R_MIN_FREE_GB` | don't download when less than this many GB are free on the disk | 3 |
+| `BF2R_MIN_PLAYERS` | a round with fewer players on the field doesn't show up on the site (`2`: one player on an empty server — no) | 2 |
+| `BF2R_KEEP_EMPTY` | `1` = keep the demos of empty rounds (and of rounds with too few players) in `data/empty` | 0 |
+| `BF2R_RAW_KEEP_DAYS` | after N days (from when the round was played) delete the demo itself; the decoded round stays. Better set on the admin page (§21): above 0 here wins over it | 0 = as on the admin page |
+| `BF2R_RAW_AUTOCLEAN` | `1`: with less than `BF2R_MIN_FREE_GB` + 2 GB free, delete demos until that much is free — the least needed first (§21); the rounds stay; `0`: no | 1 |
+| `BF2R_BACKUP_KEEP` | how many weekly copies to keep in `/srv/bf2replay/backup` | 6 |
+| `BF2R_BACKUP_ROUNDS` | `1`: the decoded rounds go into the copy too (`data/rounds`, ~3 MB a round; the only copy of a round whose demo is gone) | 0 |
+| `BF2R_JOBS` | how many demos to decode at once — new ones and again (since v162); each takes up to ~1.2 GB of RAM. Set here, the admin page can't change it (§16) | 0 = as chosen on the admin page, else as many as the CPU cores and memory allow, at most 4 |
+| `BF2R_HINTS` | `0`: turn off the background analysis (`bf2replay-hints`: Glitch spot and the hints over all of a player's rounds, §20) | 1 |
 
-Після зміни нічого перезапускати не треба — наступний прохід візьме нові значення (новий `BF2R_FETCH_EVERY` / `BF2R_FETCH_AT` —
-за ≤ 1 хв, його ставить `update.sh`; перевірити: `systemctl list-timers bf2replay-fetch`).
-Раунд без демо після оновлення розбору лишається таким, як був розібраний, — хіба що його демо ще лежить на сторінці,
-звідки воно прийшло: тоді його скачує знову і перерозбирає (п. 21).
+More settings: posts and summaries (`BF2R_TELEGRAM_TOKEN`, `BF2R_NOTIFY_MIN_PLAYERS`, `BF2R_DIGEST_AT`,
+`BF2R_DIGEST_TZ`) in §15; the full list in [docs/install.md §6](../docs/install.md#6-settings-etcbf2replayconf).
 
-## 7. Корисні команди
+Nothing needs restarting after a change — the next run takes the new values (a new `BF2R_FETCH_EVERY` / `BF2R_FETCH_AT`
+within ≤ 1 min, set by `update.sh`; check: `systemctl list-timers bf2replay-fetch`).
+A round without its demo stays as it was decoded after a decoder update — unless its demo is still on the page it came
+from: then it is downloaded again and decoded again (§21).
+
+## 7. Useful commands
 
 ```bash
-sudo bf2replay-status                                     # версія сайту, скільки раундів уже перерозібрано новим декодером (%), скільки лишилось, служби, останні рядки журналу
-watch -n 10 sudo bf2replay-status                         # те саме, оновлюється кожні 10 с (Ctrl+C - вийти)
-journalctl -u bf2replay-reprocess -f                      # перерозбір наживо: "round … [45/480 9%, ~1 h 10 min left]"
-systemctl list-timers 'bf2replay-*'                       # коли що запускалося і коли наступного разу
-journalctl -u 'bf2replay-*' -f                             # живий журнал усього
-sudo systemctl start --no-block bf2replay-fetch           # забрати нові демо зараз, не чекаючи 10 хв
-sudo systemctl start bf2replay-backup                     # зробити копію зараз (у /srv/bf2replay/backup)
-scp 'root@VPS:/srv/bf2replay/backup/bf2replay-*.tar.gz' ~/Downloads/   # (з Mac) забрати копії з VPS
-journalctl -u bf2replay-fetch -n 30 --no-pager            # що скачав останнього разу (рядок "fetched N demos" в кінці)
-sudo systemctl start bf2replay-update                     # підтягнути GitHub зараз
+sudo bf2replay-status                                     # the site's version, how many rounds were decoded again by the new decoder (%), how many are left, the services, the last log lines
+watch -n 10 sudo bf2replay-status                         # the same, refreshed every 10 s (Ctrl+C - quit)
+journalctl -u bf2replay-reprocess -f                      # decoding again, live: "round … [45/480 9%, ~1 h 10 min left]"
+systemctl list-timers 'bf2replay-*'                       # when each ran and when it runs next
+journalctl -u 'bf2replay-*' -f                             # the live log of everything
+sudo systemctl start --no-block bf2replay-fetch           # take new demos now, not waiting 10 min
+sudo systemctl start bf2replay-backup                     # make a copy now (into /srv/bf2replay/backup)
+scp 'root@VPS:/srv/bf2replay/backup/bf2replay-*.tar.gz' .   # (on your computer) take the copies off the VPS
+journalctl -u bf2replay-fetch -n 30 --no-pager            # what it downloaded last time (the line "fetched N demos" at the end)
+sudo systemctl start bf2replay-update                     # pull GitHub now
 ls -lh /srv/bf2replay/data/rounds /srv/bf2replay/data/demos
 
-# демо, скачане руками (напр. з Mac через scp у /tmp):
+# a demo downloaded by hand (e.g. copied with scp into /tmp):
 sudo install -o bf2replay -g bf2replay -m 644 /tmp/auto_….bf2demo /srv/bf2replay/upload/incoming/
-# (розбирає лише те, що в upload/incoming: демо, покладене просто в data/demos, саме раундом не стане)
+# (only what is in upload/incoming is decoded: a demo put straight into data/demos doesn't become a round by itself)
 
-# демо, що не розібралися ("could not read" у журналі - лежать у data/bad), ще раз після оновлення:
+# demos that didn't decode ("could not read" in the log - they wait in data/bad), again after an update:
 sudo mv -n /srv/bf2replay/data/bad/*.bf2demo* /srv/bf2replay/upload/incoming/
 sudo chown bf2replay:bf2replay /srv/bf2replay/upload/incoming/*.bf2demo*
-journalctl -u bf2replay-ingest -u bf2replay-reprocess -f  # нові демо розбирає і той, і той (по черзі)
+journalctl -u bf2replay-ingest -u bf2replay-reprocess -f  # both decode new demos (in turn)
 
-# перерозібрати все з демо (напр. якщо щось пішло не так):
+# decode everything again from the demos (e.g. if something went wrong):
 sudo -u bf2replay flock /srv/bf2replay/data/.ingest.lock node /srv/bf2replay/repo/server/ingest.mjs --rebuild
 
-# почати наново: перекачати все, що ще є на сторінках демо, і розібрати з нуля (v136)
-sudo bash /srv/bf2replay/repo/server/redownload.sh             # 1. лише подивитись: скільки демо, скільки місця, які раунди пропали б
-sudo bash /srv/bf2replay/repo/server/redownload.sh --go        # 2. відсунути старе в data/old-<дата> і качати й розбирати наново
-sudo bash /srv/bf2replay/repo/server/redownload.sh --drop-old  # 3. коли сайт у порядку: видалити data/old-*
+# start from scratch: download again whatever the demo pages still have and decode it all anew (v136)
+sudo bash /srv/bf2replay/repo/server/redownload.sh             # 1. just look: how many demos, how much room, which rounds would be lost
+sudo bash /srv/bf2replay/repo/server/redownload.sh --go        # 2. move the old data aside into data/old-<date>, download and decode anew
+sudo bash /srv/bf2replay/repo/server/redownload.sh --drop-old  # 3. once the site is fine: delete data/old-*
 ```
 
-Резервна копія: достатньо `/srv/bf2replay/data/demos` (усе інше відновлюється з демо через `--rebuild`)
-і `/etc/bf2replay.conf`.
+Backup: `/srv/bf2replay/data/demos` is enough (everything else comes back from the demos with `--rebuild`), plus
+`/etc/bf2replay.conf`.
 
-`install.sh` довго стоїть на `== Timers` (версії до v80): він чекав, доки розберуться всі демо, що вже лежать у
-черзі (з кількома серверами це години). Нічого не зависло: `Ctrl+C` безпечний — завантаження й розбір працюють
-далі як служби. З v80 `install.sh` запускає їх у фоні й одразу закінчує.
+`install.sh` waits long at `== Timers` (versions before v80): it waited until every demo already in the queue was
+decoded (with several servers, hours). Nothing hung: `Ctrl+C` is safe — downloading and decoding go on as services.
+Since v80 `install.sh` starts them in the background and finishes at once.
 
-## 8. Необов'язково: демо, які відсилають самі
+## 8. Optional: demos the servers send themselves
 
-Якщо колись буде свій ігровий сервер (або адміни =FL= захочуть самі відсилати демо) — на ньому ставиться скрипт з
-папки `gameserver/` (див. її README), а тут додається його публічний ключ, один рядок на сервер:
+If there is ever a game server of your own (or the =FL= admins want to send their demos themselves), the script from the
+`gameserver/` folder goes onto it (see its README), and here you add its public key, one line per server:
 
 ```bash
 echo 'ssh-ed25519 AAAA… bf2-server-1' | sudo tee -a /etc/ssh/bf2replay_keys/bf2upload
 ```
 
-Користувач `bf2upload` може тільки класти файли в `incoming/` по SFTP: без shell, без доступу до решти диска,
-без тунелів.
+The user `bf2upload` can only put files into `incoming/` over SFTP: no shell, no access to the rest of the disk, no
+tunnels.
 
-## 9. apt-get update падає (на VPS уже є чужі джерела пакетів)
+## 9. apt-get update fails (the VPS already has other package sources)
 
-`install.sh` зупиняється, якщо `apt-get update` пише `E: …`. Найчастіше це старе джерело Webmin
-(`download.webmin.com/download/repository sarge`, ключ DSA-1024, який Ubuntu 24.04 більше не приймає):
+`install.sh` stops if `apt-get update` prints `E: …`. Most often it is an old Webmin source
+(`download.webmin.com/download/repository sarge`, with a DSA-1024 key Ubuntu 24.04 no longer accepts):
 
 ```bash
-grep -rn webmin /etc/apt/sources.list /etc/apt/sources.list.d/        # де записане старе джерело
+grep -rn webmin /etc/apt/sources.list /etc/apt/sources.list.d/        # where the old source is
 sudo sed -i 's|^deb .*download.webmin.com/download/repository.*|# &|' /etc/apt/sources.list /etc/apt/sources.list.d/*.list
 curl -o /tmp/webmin-setup-repo.sh https://raw.githubusercontent.com/webmin/webmin/master/webmin-setup-repo.sh
-sudo sh /tmp/webmin-setup-repo.sh                                    # нове джерело Webmin з новим ключем
-sudo apt-get update                                                   # має пройти без E:
+sudo sh /tmp/webmin-setup-repo.sh                                    # Webmin's new source with its new key
+sudo apt-get update                                                   # must pass without E:
 ```
 
-Webmin слухає порт 10000; якщо ним користуєшся, після `ufw enable` відкрий його лише для своєї IP:
-`sudo ufw allow from ТВОЯ_IP to any port 10000 proto tcp`.
+Webmin listens on port 10000; if you use it, after `ufw enable` open it only to your own IP:
+`sudo ufw allow from YOUR_IP to any port 10000 proto tcp`.
 
-## 10. Якщо на VPS уже є nginx (або інший веб-сервер на 80/443)
+## 10. If the VPS already has nginx (or another web server on 80/443)
 
-`install.sh` це помітить і зупиниться. Тоді запусти його з `BF2R_WEB=none` (Caddy не ставиться) і підключи сайт
-до nginx за прикладом `nginx-example.conf` (там же команда для HTTPS через certbot). (v182: у прикладі з'явився рядок
-`charset utf-8;` — якщо nginx налаштовано за старим прикладом, додай його в `server { … }`: без нього браузер може
-прочитати текст сторінки не в тому кодуванні. Caddy ставить це сам.)
+`install.sh` notices it and stops. Then run it with `BF2R_WEB=none` (Caddy is not installed) and connect the site to
+nginx following `nginx-example.conf` (with the command for HTTPS through certbot). (v182: the example got the line
+`charset utf-8;` — if your nginx was set up from the old example, add it inside `server { … }`: without it a browser
+may read the page's text in the wrong encoding. Caddy does this by itself.)
 
-## 11. Посилання з прев'ю (раунд, гравець)
+## 11. Links with previews (round, player)
 
-Кнопка **Copy link** дає посилання виду `https://твій-домен/r/auto_2026_10_11_20_17_46?t=466&p=…` (раунд у потрібну
-мить, за гравцем) і `https://твій-домен/p/puika_mk3` (сторінка гравця за всі раунди). Telegram, Discord, Slack,
-WhatsApp показують під таким посиланням назву мапи й дату, хто виграв і з яким рахунком, скільки гравців і вбивств,
-найкращого гравця (для гравця: його раунди, вбивства й смерті, K/D) і картинку мапи. Відкрите посилання одразу веде на
-сам сайт.
+The **Copy link** button gives a link like `https://your-domain/r/auto_2026_10_11_20_17_46?t=466&p=…` (the round at
+that moment, following that player) and `https://your-domain/p/puika_mk3` (the player's page over all rounds).
+Telegram, Discord, Slack and WhatsApp show under such a link the map and the date, who won and with what score, how many
+players and kills, the best player (for a player: his rounds, kills and deaths, K/D) and the map's picture. The opened
+link leads straight on to the site.
 
-Ці маленькі сторінки пише `ingest.mjs` у `data/share/` (разом із раундами); Caddy віддає їх за `/r/*` і `/p/*`
-(`Caddyfile.in`, свіжа версія стає сама: `units.sh` при кожному `update.sh`). Для картинок і посилань у прев'ю потрібен
-`BF2R_DOMAIN` (без домену прев'ю буде без картинки в частині месенджерів). З nginx — блок `location ~ ^/([rp])/` з
-`nginx-example.conf` треба додати руками.
+These small pages are written by `ingest.mjs` into `data/share/` (together with the rounds); Caddy serves them at `/r/*`
+and `/p/*` (`Caddyfile.in`; its fresh version is put in place by itself: `units.sh` on every `update.sh`). Pictures and
+links in previews need `BF2R_DOMAIN` (without a domain some messengers show the preview without a picture). With nginx,
+the block `location ~ ^/([rp])/` from `nginx-example.conf` has to be added by hand.
 
-(v200) Усі раунди — окрема сторінка сайту `https://твій-домен/#rounds=1` (кнопка **Rounds** угорі, або клік на рядок
-раунду над мапою): сервер, мапа, дні, гравців від, тривалість від, пошук гравця, сортування; фільтри — в самому
-посиланні (`&srv=…&rmap=…&from=2026-10-01&to=…&min=32&len=15&q=…&sort=players&dir=-1`), тож його можна переслати, а
-«Назад» у браузері повертає до списку з тими самими фільтрами. Нічого на сервері для неї не треба (той самий
+(v200) All rounds are a page of their own, `https://your-domain/#rounds=1` (the **Rounds** button at the top, or a click
+on the round's line over the map): server, map, days, players from, length from, find a player, sorting; the filters are
+in the link itself (`&srv=…&rmap=…&from=2026-10-01&to=…&min=32&len=15&q=…&sort=players&dir=-1`), so it can be sent on,
+and the browser's Back returns to the list with the same filters. Nothing is needed on the server for it (the same
 `data/rounds.json`).
 
-Для довгого списку раундів точки вбивств винесено з `data/rounds.json` у `data/heat/<мапа>.json`: список на сайті
-вантажиться в ~8 разів менший, а точки — лише для теплової карти всіх раундів і для сторінок гравців.
+For a long list of rounds the kill points were moved out of `data/rounds.json` into `data/heat/<map>.json`: the list
+the site loads is ~8 times smaller, and the points are loaded only for the heat map of all rounds and for the players'
+pages.
 
-## 12. Уже встановлено раніше: перейти на щоденне завантаження з =FL=
+## 12. Installed earlier: switching to the daily download from =FL=
 
-Таймери тепер оновлюються самі з GitHub (`units.sh`, його кличе `update.sh`), але версія `update.sh`, яка вже
-стоїть, цього ще не вміє — тому один раз руками:
+The timers now update themselves from GitHub (`units.sh`, called by `update.sh`), but the `update.sh` already installed
+on an old VPS can't do that yet — so once, by hand:
 
 ```bash
-# 1. після git push: підтягнути нову версію зараз (а не через ≤ 1 хв) і перевірити
+# 1. after git push: pull the new version now (not within ≤ 1 min) and check
 sudo systemctl start bf2replay-update && journalctl -u bf2replay-update -n 5 --no-pager
 
-# 2. подивитися, що буде скачано: скільки демо, скільки MB, скільки вільно на диску (нічого не качає)
+# 2. see what would be downloaded: how many demos, how many MB, how much is free on the disk (downloads nothing)
 sudo -u bf2replay env BF2R_FETCH_URLS=http://85.17.145.41/karkand/demos/ BF2R_FETCH_SINCE= \
      node /srv/bf2replay/repo/server/fetch.mjs --list | tail -3
 
-# 3. увімкнути: сторінка =FL=, усі демо (без дати), без обмеження за раз; таймер кожні 10 хв; перше завантаження - одразу
+# 3. turn it on: the =FL= page, all demos (no date), no limit per run; the timer every 10 min; the first download at once
 cd /srv/bf2replay/repo/server
 sudo BF2R_FETCH_URLS=http://85.17.145.41/karkand/demos/ BF2R_FETCH_SINCE= BF2R_FETCH_MAX=0 bash install.sh
 
-# 4. дивитися, як качає і розбирає (Ctrl+C - вийти; воно працює далі)
+# 4. watch it download and decode (Ctrl+C - quit; it goes on)
 journalctl -u bf2replay-fetch -u bf2replay-ingest -f
-systemctl list-timers 'bf2replay-*'          # bf2replay-fetch: наступний запуск за ≤ 10 хв
+systemctl list-timers 'bf2replay-*'          # bf2replay-fetch: the next run within ≤ 10 min
 ```
 
-Рідше — `BF2R_FETCH_EVERY=30` (хвилин) або раз на день: `BF2R_FETCH_EVERY=0` і `BF2R_FETCH_AT=ГГ:ХХ` у
-`/etc/bf2replay.conf` (або в команді п. 3).
+Less often: `BF2R_FETCH_EVERY=30` (minutes) or once a day: `BF2R_FETCH_EVERY=0` and `BF2R_FETCH_AT=HH:MM` in
+`/etc/bf2replay.conf` (or in the command of step 3).
 
-## 13. Сторінки для пошуковиків і RSS
+## 13. Pages for search engines, and RSS
 
-Сам сайт показує раунди й гравців скриптом (`#round=…`, `#player=…`), і пошуковики їх не бачать. Тому `ingest.mjs`
-пише ще й звичайні сторінки в `data/www/`, а Caddy віддає їх за адресами:
+The site itself shows rounds and players with a script (`#round=…`, `#player=…`), and search engines don't see them. So
+`ingest.mjs` also writes plain pages into `data/www/`, and Caddy serves them at:
 
-- `/rounds/` — останні 100 раундів і архів за місяцями; `/rounds/<раунд>.html` — раунд: сторони, гравці, очки,
-  вбивства, кнопка «Watch the round on the map»;
-- `/players/` — усі гравці (v193: з пошуком гравця за іменем; `/players/#нік` — одразу з ним); `/players/<нік>.html` — гравець і його раунди;
-- `/maps/` і `/maps/<мапа>.html` — раунди на мапі й хто там убиває найбільше;
-- `/records/` — рекорди (з v120): найкраще за один раунд (вбивства, серія, найдовше вбивство, хедшоти, вбивства з
-  техніки, реанімації, ремонти, очки, K/D) і хто зробив найбільше — за 7 днів, 30 днів і за весь час;
-  (v204) окремо по групах зброї — для кожної найдовше вбивство й найбільше вбивств за раунд: ручна зброя (без снайперок),
-  снайперки (найдовше), ручні протитанкові ракети (SRAW, Eryx, RPG-7), станкові TOW / HJ-8 і танкові гармати (M1A2, T-90,
-  Type 98, Challenger 2, Leopard 2A6) — кожні окремо (v205), техніка (без танкових гармат і ППО), ППО-гармати
-  (Tunguska, Type 95 AA, M6 Linebacker, Phalanx), ППО-ракети з землі (Igla / Stinger, M6 Stinger, SA-19, QW-2, Sea
-  Sparrow), ракети повітря-повітря (Sidewinder, Archer, Eurofighter);
-  (v201) угорі вибір сервера: `/records/` — усі сервери, `/records/<сервер>.html` — лише його раунди (кнопка Records на
-  сайті веде на сторінку сервера, вибраного на сторінці All rounds);
-- `/rss.xml` — 50 найновіших раундів (RSS: у читалці новин чи в Telegram-боті з RSS видно кожен новий раунд);
-- з `BF2R_DOMAIN`: `/sitemap.xml` і `/robots.txt` (у Google Search Console можна додати `https://домен/sitemap.xml`).
+- `/rounds/` — the last 100 rounds and an archive by month; `/rounds/<round>.html` — a round: the sides, players,
+  scores, kills, the button "Watch the round on the map";
+- `/players/` — all players (v193: with a search by name; `/players/#nick` — with him at once); `/players/<nick>.html`
+  — a player and his rounds;
+- `/maps/` and `/maps/<map>.html` — the rounds on a map and who kills most there;
+- `/records/` — records (since v120): the best in one round (kills, streak, longest kill, headshots, kills from
+  vehicles, revives, repairs, score, K/D) and who did most — for 7 days, 30 days and all time;
+  (v204) per weapon group too — for each the longest kill and the most kills in a round: hand-held weapons (no sniper
+  rifles), sniper rifles (longest), hand-held anti-tank rockets (SRAW, Eryx, RPG-7), TOW / HJ-8 on a stand and tank
+  cannons (M1A2, T-90, Type 98, Challenger 2, Leopard 2A6) — each apart (v205), vehicles (without tank cannons and
+  anti-air), anti-air guns (Tunguska, Type 95 AA, M6 Linebacker, Phalanx), anti-air rockets from the ground (Igla /
+  Stinger, M6 Stinger, SA-19, QW-2, Sea Sparrow), air-to-air missiles (Sidewinder, Archer, Eurofighter);
+  (v201) a server choice at the top: `/records/` — all servers, `/records/<server>.html` — only its rounds (the Records
+  button on the site leads to the page of the server picked on the All rounds page);
+- `/rss.xml` — the 50 newest rounds (RSS: in a news reader or a Telegram bot with RSS every new round shows up);
+- with `BF2R_DOMAIN`: `/sitemap.xml` and `/robots.txt` (in Google Search Console you can add `https://domain/sitemap.xml`).
 
-Файли переписуються лише тоді, коли змінилися; сторінки раундів, яких більше немає, видаляються. Нові адреси в
-`Caddyfile.in` стають самі (`units.sh` при кожному `update.sh`); з nginx — блоки `/rounds|players|maps` і
-`rss.xml / sitemap.xml / robots.txt` з `nginx-example.conf` треба додати руками. Уперше сторінки з'являться після
-першого ж запуску `ingest.mjs` (новий раунд або оновлення сайту: `sudo systemctl start bf2replay-update`).
+Files are rewritten only when they changed; pages of rounds no longer there are deleted. The new addresses in
+`Caddyfile.in` are put in place by themselves (`units.sh` on every `update.sh`); with nginx, the blocks
+`/rounds|players|maps` and `rss.xml / sitemap.xml / robots.txt` from `nginx-example.conf` have to be added by hand. The
+pages first appear after the first run of `ingest.mjs` (a new round, or a site update: `sudo systemctl start
+bf2replay-update`).
 
-## 14. Адмін-сторінка: /admin (v150)
+## 14. The admin page: /admin (v150)
 
-`https://домен/admin` — за паролем. Що там є:
+`https://domain/admin` — with a password. What it has:
 
-- скільки раундів на сайті, скільки зроблено старим декодером;
-  (v206) там же кнопка **Recalculate all records**: кожен раунд підсумовується заново з розібраного файлу (без
-  перерозбору, ~0,5 с раунд) — вбивства, їхні відстані, підсумки для постів, рекорди; потім переписуються Records,
-  сторінки гравців і мап, цифри за всі раунди. Робить це `ingest.mjs` при найближчому запуску (кнопка його й запускає;
-  `data/.resum-request.json`); поки йде — «working: N / M rounds», потім «last time … : N rounds in … min». Зупинений
-  посередині (оновлення сайту) — продовжує з рештою наступного разу.
-- скільки демо чекає розбору в `upload/incoming`, як іде перерозбір (скільки зроблено й скільки лишилось), які демо не
-  розібралися (`data/bad`);
-- служби (стан, коли востаннє і коли наступного разу) з кнопками: розібрати нові демо зараз, перерозібрати старі
-  раунди, перерозібрати все, скачати нові демо зараз, оновитися з GitHub, зробити копію; «Try them again» —
-  повернути демо з `data/bad` у чергу;
-- звідки брати демо: список з `BF2R_FETCH_URLS` (його міняють у `/etc/bf2replay.conf`) і додані тут (поле внизу:
-  сторінка або IP ігрового сервера; «Check» — подивитися, куди веде, нічого не качаючи; «Remove» — більше не брати,
-  скачане лишається); «What would be downloaded?» = `fetch.mjs --list`;
-- (v186) Demos: what to keep — скільки місця що займає, які старі демо прибирати (раунди лишаються), п. 21;
-- журнал служб, місце на диску, налаштування;
-- (v162) скільки демо розбирати одночасно і як швидко йшло з кожним числом (§16);
-- (v163) що розбирається зараз і що чекає своєї черги, кнопка **Stop** для розбору (§17).
+- how many rounds are on the site, how many were made by an older decoder;
+  (v206) there also the button **Recalculate all records**: every round is summed up again from its decoded file (no
+  decoding, ~0.5 s a round) — the kills, their distances, the totals for the posts, the records; then Records, the
+  players' and maps' pages and the numbers over all rounds are rewritten. `ingest.mjs` does it at its next run (the
+  button starts it; `data/.resum-request.json`); while it runs — "working: N / M rounds", then "last time … : N rounds in
+  … min". Stopped halfway (a site update), it goes on with the rest next time.
+- how many demos wait to be decoded in `upload/incoming`, how decoding again goes (how many done and how many left),
+  which demos didn't decode (`data/bad`);
+- the services (state, last time and next time) with buttons: decode new demos now, decode old rounds again, decode
+  everything again, download new demos now, update from GitHub, make a copy; "Try them again" — put the demos from
+  `data/bad` back into the queue;
+- where demos come from: the list from `BF2R_FETCH_URLS` (changed in `/etc/bf2replay.conf`) and those added here (the
+  field at the bottom: a page or a game server's IP; "Check" — see where it leads, downloading nothing; "Remove" — take
+  no more from it, what was downloaded stays); "What would be downloaded?" = `fetch.mjs --list`;
+- (v186) Demos: what to keep — how much room each thing takes, which old demos to remove (the rounds stay), §21;
+- the services' log, disk space, settings;
+- (v162) how many demos to decode at once, and how fast it went with each number (§16);
+- (v163) what is being decoded now and what waits its turn, a **Stop** button for decoding (§17).
 
-Нічого з цього не видаляє ні демо, ні раунди.
+None of this deletes demos or rounds.
 
-**Пароль** задається один раз на VPS (двічі спитає, на екрані не видно):
+The **password** is set once on the VPS (it asks twice, nothing shows on screen):
 
 ```bash
 sudo node /srv/bf2replay/repo/server/admin.mjs --set-password
 ```
 
-Зберігається лише його хеш (scrypt) у `/etc/bf2replay-admin.json` (root:bf2replay, 640) — не в репозиторії. Змінити —
-та сама команда, нічого перезапускати не треба. Вхід живе 12 год (2 год без заходу на сторінку); 5 неправильних
-паролів з однієї адреси — 15 хв паузи, 30 за годину від усіх — пауза для всіх.
+Only its hash (scrypt) is kept, in `/etc/bf2replay-admin.json` (root:bf2replay, 640) — not in the repository. To change
+it — the same command, nothing needs restarting. A login lasts 12 h (2 h without visiting the page); 5 wrong passwords
+from one address — a 15 min pause, 30 an hour from everyone — a pause for all.
 
-Решта ставиться сама з оновленням (`units.sh`, за хвилину після `git push`): служба `bf2replay-admin` (Node на
-`127.0.0.1:8781`, як `bf2replay`), `bf2replay-rebuild`, правило `/etc/sudoers.d/bf2replay-admin` (дозволяє сторінці
-лише `systemctl start --no-block` цих шести служб), `/admin` у Caddy. Перевірити:
+The rest is installed by itself with the update (`units.sh`, a minute after `git push`): the service `bf2replay-admin`
+(Node on `127.0.0.1:8781`, as `bf2replay`), `bf2replay-rebuild`, the rule `/etc/sudoers.d/bf2replay-admin` (it lets the
+page only `systemctl start --no-block` the bf2replay services, and stop the decoding ones), `/admin` in Caddy. Check:
 
 ```bash
 systemctl status bf2replay-admin --no-pager     # active (running)
-journalctl -u bf2replay-admin -n 20             # входи, неправильні паролі, що запускали
+journalctl -u bf2replay-admin -n 20             # logins, wrong passwords, what was started
 ```
 
-З nginx — блок `location /admin` з `nginx-example.conf` треба додати руками. Без `sudo` на VPS (`apt install sudo`)
-сторінка все показує, але кнопки служб відповідають «could not start».
+With nginx, the block `location /admin` from `nginx-example.conf` has to be added by hand. Without `sudo` on the VPS
+(`apt install sudo`) the page shows everything, but the services' buttons answer "could not start".
 
-## 15. Пости про нові раунди в Discord / Telegram (v153; v194 — кожен сервер окремо; v207 — табло, нові рекорди; v208 — таблиця; v209 — підсумки)
+## 15. Posts about new rounds in Discord / Telegram (v153; v194 — each server apart; v207 — scoreboard, new records; v208 — the table; v209 — summaries)
 
-Після кожного нового раунду — пост у канал Discord і / або чат Telegram: мапа й час, хто виграв і квитки, скільки
-тривав, гравців і вбивств, троє найкращих за очками, сервер і посилання на раунд (чат сам покаже під ним картинку
-мапи — прев'ю з розділу 11). Налаштовується на адмін-сторінці, картка **Posts about new rounds**.
+After each new round — a post in a Discord channel and / or a Telegram chat: the map and the time, who won and the
+tickets, how long it lasted, players and kills, the best three by score, the server and a link to the round (the chat
+shows the map's picture under it — the preview of §11). Set up on the admin page, card **Posts about new rounds**.
 
-(v194) **Кожен ігровий сервер — свій канал.** Раунд поститься лише туди, куди налаштовано його сервер (назва сервера з
-демо): свій вебхук Discord і / або свій чат Telegram, свої пункти поста. Сервер, якого не налаштовано, не поститься
-зовсім — він просто є в списку (з кількістю раундів за 30 днів), поки його не налаштують. Спільного каналу нема.
+(v194) **Each game server — its own channel.** A round is posted only where its server (the server's name from the
+demo) is set up: its own Discord webhook and / or Telegram chat, its own parts of the post. A server not set up is not
+posted at all — it is just in the list (with its rounds in the last 30 days) until it is set up. There is no common
+channel.
 
-- **Telegram bot** (угорі, один на всі сервери): @BotFather → `/newbot` → токен → **Save the bot**. Бота додати в
-  кожну групу (у канал — адміністратором).
-- **Servers** — блок на кожен сервер (клік по назві розгортає):
-  - **Discord** — галочка «постити» і вебхук: налаштування каналу (шестірня) → Integrations → Webhooks → New Webhook →
-    Copy Webhook URL → вставити, **Save** (галочка вмикається сама); **Remove** — прибрати вебхук;
-  - **Telegram** — галочка і чат: `@назва` для публічного каналу, для групи її id (написати в групу, відкрити
-    `https://api.telegram.org/bot<токен>/getUpdates`, узяти `"chat":{"id":-100…}`) → **Save**;
-  - **Rounds with … players or more** — свій мінімум гравців (порожньо — як для всіх, поле над списком, 6);
-  - які пункти йдуть у Discord і Telegram — галочки в таблиці редактора **The post** (нижче);
-  - **Preview** — пост про найновіший раунд цього сервера з галочками як зараз (нічого не відсилає); **Send a test
-    post** — пробний пост у його канали; **Post its newest round** — його останній раунд ще раз;
-  - **Stop posting this server** — забути його вебхук, чат і пункти (його раунди більше не постяться).
-- (v195) **The post** — редактор поста цього сервера:
-  - **Discord as**: *classic* (як було: пункти групами, діють лише галочки — це стандарт, поки не змінено),
-    *a card with a table* (картка Discord: смужка кольору сторони-переможця або свого, заголовок — посилання на раунд,
-    пункти — поля таблиці, картинка мапи велика внизу або мала праворуч угорі, рядок унизу), (v208) *a card with a
-    table: a row each* (див. нижче) або *text from the table* (звичайне повідомлення: «Назва: значення», до 3 пунктів у
-    рядку);
-  - (v208) **a card with a table: a row each** — один рядок — один тип кілу. (v211) **Numbers**: *bold, a | before
-    them* (типово) — назва й гравець моноширинним, кожне доповнене до найдовшого, після кожного `|`; далі число
-    **жирним** і те, що до нього (зброя, «was», хто кого):
-    `` `On foot        | =SWE= =BRANDONMARTIN= |` **20** `` — тож обидва `|` в усіх рядках на одному місці, а числа
-    починаються з одного рівня. Ширина колонки гравця — за найдовшим ніком, до 26 знаків (нічия довша — «A, B +3»).
-    *exact columns, not bold* — уся таблиця одним моноширинним блоком з `|` між колонками (рівно до знака, але без
-    жирного: у Discord нема жирного в такому блоці, а кольорові ANSI-блоки на телефоні не працюють). У моноширинному варіанті: якщо рядок
-    ширший за картку (~55 знаків), зброя чи друге ім'я переходить на наступний рядок під колонку гравця. Короткі назви рядків — свої (поле назви в таблиці
-    редактора; порожнє — стандартна коротка, видно як підказку; (v213) стандартні короткі — Сагарині: Veh, Hs, AT on inf,
-    GL, Far AT, Far Gun, Far Sniper, Far kill, AT, TOW, Far TOW, Tank, Far Tank, Veh weap, AA gun, Far AA, SAM, Far SAM,
-    Air2Air, Far Air2Air, Inf Spree, Veh Spree; ті самі — у підсумках дня / тижня / місяця). (v213) Картинка мапи в цьому
-    стилі — завжди велика внизу: мала праворуч угорі звужує текст картки, і довгі рядки переносились. **New records** — окрема таблиця (рекорд, тепер,
-    було, гравець; під «All time / Last 30 days / Last 7 days»). Best three і Server — текстом там, де вони в порядку;
-    табло — під текстом, сторона — колонка (Discord ставить поля картки після тексту). Смужка, картинка мапи, Title /
-    Under it / At the bottom — як у картці; «In a row» і «Own row» тут не діють. Telegram — текст, як у картці;
-  - **Title / Under it / At the bottom** — тексти з мітками `{map}` `{when}` `{date}` `{time}` `{result}` `{winner}`
-    `{loser}` `{tickets}` `{length}` `{players}` `{kills}` `{server}` `{link}` і мітка кожного пункту (`{foot}`, `{best}`…);
-  - **таблиця**: ↑ ↓ — порядок, своя назва пункту (порожньо — стандартна), галочки Discord і Telegram, **Own row** —
-    пункт на всю ширину (у картці — окремий рядок, у тексті — окремий рядок); **In a row** — до 3 чи до 2 в ряд;
-  - **Own text instead of the table** — повністю свій текст (Discord як текст і Telegram): мітки клацанням,
-    `**жирний**` `*курсив*` `__підкреслений__` `~~закреслений~~` `` `код` ``; рядок, у якому всі мітки порожні (напр.
-    ножових не було), випадає; посилання саме додається в кінці, якщо `{link}` ніде нема;
-  - Telegram (там нема карток): той самий порядок, назви й тексти; **Save the post**, **Back to classic**;
-  - **Template** — зберегти пост як шаблон (**Save as a template**), узяти шаблон у редактор (**Use it**), прибрати;
-    **or copy from** — узяти пост іншого сервера; **Use on all servers** — цей пост на всі налаштовані сервери (їхні
-    канали лишаються);
-  - **Preview** показує, як буде: картку — як Discord її малює (поля по рядках), Telegram — текстом.
-- Пункти поста: троє найкращих, сервер; найбільше вбивств пішки, з техніки, хедшотів, ножем, клейморами, мінами,
-  ракетницями по піхоті, переїхавши технікою, (v210, замість «Explosives») гранатами, підствольником, C4; найдальше вбивство з ракетниці, ручної зброї (не снайперки),
-  снайперки й будь-чим; найдовша серія пішки й з техніки, найкращий K/D (від 10 вбивств); найбільше реанімацій,
-  лікувань, ремонтів, прапорів; перша кров і хто вбитий останнім (те саме на сайті: Round stats → Highlights). Рівні —
-  до трьох імен. Частина з'являється, лише коли в раунді таке було. Мапа, час, хто виграв, гравці, вбивства й
-  посилання — завжди. Ці цифри рахує `ingest.mjs` разом з підсумком раунду.
-- (v207) **Scoreboard** — табло кінця раунду: кожна сторона (переможець першим) і її п'ятеро найкращих за очками
-  з вбивствами й смертями, `1. нік 64 (18–14)`. У картці — дві колонки, у тексті й Telegram — рядок на гравця.
-  Увімкнено одразу.
-- (v207) **New records** — рекорд сервера, який раунд побив, як на сторінці Records: «Most kills: нік 99 - all-time
-  record (was 49)»; за весь час, за 30 і за 7 днів (з трьох — найбільший), до 6 рядків. Лише коли рекорд побито, і
-  лише коли на цьому сервері раніше було хоча б 20 раундів (за весь час), 10 (за 30 днів), 5 (за 7 днів) — щоб
-  перші раунди нового сервера не «били рекорди» щоразу. Увімкнено одразу.
-- (v207) **Групи зброї**, як у Records: найбільше вбивств і найдовше вбивство — ручна зброя (без снайперок), ручні
-  ПТ (SRAW, Eryx, RPG-7), станкові ПТ (TOW, HJ-8), танкові гармати, інша техніка, ППО-гармати, ППО-ракети з землі,
-  ракети повітря-повітря (14 пунктів). **Вимкнено**, поки не ввімкнеш галочкою в **The post** (щоб пост не став
-  удвічі довшим сам). Новий пункт у збереженому порядку (картка / текст) стає в кінець — ↑ підняти.
+- **Telegram bot** (at the top, one for all servers): @BotFather → `/newbot` → the token → **Save the bot**. Add the bot
+  to each group (to a channel as an administrator).
+- **Servers** — a block for each server (a click on its name opens it):
+  - **Discord** — the tick "post" and the webhook: the channel's settings (gear) → Integrations → Webhooks → New Webhook
+    → Copy Webhook URL → paste it, **Save** (the tick turns on by itself); **Remove** — drop the webhook;
+  - **Telegram** — the tick and the chat: `@name` for a public channel, for a group its id (write in the group, open
+    `https://api.telegram.org/bot<token>/getUpdates`, take `"chat":{"id":-100…}`) → **Save**;
+  - **Rounds with … players or more** — its own minimum of players (empty — as for all, the field above the list, 6);
+  - which parts go to Discord and Telegram — the ticks in the table of the editor **The post** (below);
+  - **Preview** — the post about this server's newest round with the ticks as they are now (sends nothing); **Send a
+    test post** — a trial post into its channels; **Post its newest round** — its last round once more;
+  - **Stop posting this server** — forget its webhook, chat and parts (its rounds are no longer posted).
+- (v195) **The post** — the editor of this server's post:
+  - **Discord as**: *classic* (as it was: the parts in groups, only the ticks count — the default until changed),
+    *a card with a table* (a Discord card: a stripe in the winning side's colour or your own, the title a link to the
+    round, the parts as the fields of a table, the map's picture big at the bottom or small at the top right, a line at
+    the bottom), (v208) *a card with a table: a row each* (see below) or *text from the table* (a plain message: "Name:
+    value", up to 3 parts a line);
+  - (v208) **a card with a table: a row each** — one row — one kind of kill. (v211) **Numbers**: *bold, a | before
+    them* (the default) — the name and the player in monospace, each padded to the longest, a `|` after each; then the
+    number in **bold** and what goes with it (the weapon, "was", who killed whom):
+    `` `On foot        | =SWE= =BRANDONMARTIN= |` **20** `` — so both `|` stand at the same place in every row, and the
+    numbers start at one level. The player column is as wide as the longest nick (v217: plus one space), up to 26
+    characters (a tie: as many nicks as fit, then "+N").
+    *exact columns, not bold* — the whole table in one monospace block with `|` between the columns (exact to the
+    character, but no bold: Discord has no bold in such a block, and coloured ANSI blocks don't work on phones). In the
+    monospace layout, when a row is wider than the card (~55 characters), the weapon or the second name goes onto the
+    next line under the player column. (v218) **First blood** and **Last killed** take two lines: the first — who killed
+    (First blood) or who was killed (Last killed) and the round time; the second, under it — whom he killed / who killed
+    him and with what. Short row names — your own (the name field in the editor's table; empty — the standard short one,
+    shown as a hint); (v213) the standard short ones: Veh, Hs, AT on inf, GL, Far AT, Far Gun, Far Sniper,
+    Far kill, AT, TOW, Far TOW, Tank, Far Tank, Veh weap, AA gun, Far AA, SAM, Far SAM, Air2Air, Far Air2Air, Inf
+    Spree, Veh Spree (v214: Far Veh); the same in the day / week / month summaries. (v213) The map's picture in this
+    style is always big at the bottom: a small one at the top right narrows the card's text, and long rows wrapped.
+    **New records** — a table of its own (record, now, was, player; under "All time / Last 30 days / Last 7 days").
+    Best three and Server — as text where they stand in the order; the scoreboard — under the text, a side a column
+    (Discord puts a card's fields after its text). The stripe, the map picture, Title / Under it / At the bottom — as in
+    the card; "In a row" and "Own row" don't apply here. Telegram — text, as for the card;
+  - **Title / Under it / At the bottom** — texts with the placeholders `{map}` `{when}` `{date}` `{time}` `{result}`
+    `{winner}` `{loser}` `{tickets}` `{length}` `{players}` `{kills}` `{server}` `{link}` and each part's own
+    placeholder (`{foot}`, `{best}`…);
+  - **the table**: ↑ ↓ — the order, the part's own name (empty — the standard one), the ticks Discord and Telegram,
+    **Own row** — the part over the full width (in a card — a row of its own, in text — a line of its own); **In a
+    row** — up to 3 or up to 2 side by side;
+  - **Own text instead of the table** — a text entirely your own (Discord as text, and Telegram): placeholders by a
+    click, `**bold**` `*italic*` `__underlined__` `~~struck through~~` `` `code` ``; a line in which every placeholder
+    is empty (e.g. there were no knife kills) drops out; the link is added at the end by itself if `{link}` is nowhere;
+  - Telegram (it has no cards): the same order, names and texts; **Save the post**, **Back to classic**;
+  - **Template** — save the post as a template (**Save as a template**), take a template into the editor (**Use it**),
+    remove it; **or copy from** — take another server's post; **Use on all servers** — this post on every server set up
+    (their channels stay theirs);
+  - **Preview** shows how it will be: the card as Discord draws it (the fields by rows), Telegram as text.
+- The parts of the post: the best three, the server; most kills on foot, from vehicles, headshots, with the knife,
+  claymores, mines, launchers on infantry, run over by a vehicle, (v210, instead of "Explosives") hand grenades, the
+  grenade launcher, C4; the longest kill with a launcher, a hand-held weapon (not a sniper rifle), a sniper rifle and
+  anything; the longest streak on foot and in vehicles, the best K/D (from 10 kills); most revives, heals, repairs,
+  flags; first blood and who was killed last (the same on the site: Round stats → Highlights). Ties — up to three names.
+  Some show only when the round had such a thing. The map, time, winner, players, kills and the link — always. These
+  numbers are worked out by `ingest.mjs` together with the round's summary.
+- (v207) **Scoreboard** — the end-of-round scoreboard: each side (the winner first) and its best five by score with
+  kills and deaths, `1. nick 64 (18–14)`. In a card — two columns, in text and Telegram — a line per player. On at once.
+- (v207) **New records** — the server's records the round broke, as on the Records page: "Most kills: nick 99 -
+  all-time record (was 49)"; all time, 30 days and 7 days (of the three — the biggest), up to 6 lines. Only when a
+  record was broken, and only when this server already had at least 20 rounds (all time), 10 (30 days), 5 (7 days) — so
+  that a new server's first rounds don't "break records" every time. On at once.
+- (v207) **Weapon groups**, as in Records: most kills and the longest kill — hand-held weapons (no sniper rifles),
+  hand-held AT (SRAW, Eryx, RPG-7), AT on a stand (TOW, HJ-8), tank cannons, other vehicles, AA guns, AA rockets from the
+  ground, air-to-air missiles (14 parts). **Off** until ticked in **The post** (so that the post doesn't double in length
+  by itself). A new part in a saved order (card / text) goes to the end — ↑ to raise it.
 
-### Підсумки за день, тиждень, місяць (v209)
+### Summaries for the day, week, month (v209)
 
-Окремий пост із підсумком сервера — у ті самі канали, що й пости раундів (його Discord / Telegram). Вмикається на
-адмін-сторінці в блоці сервера: **Summaries at 10:00** — галочки **Day**, **Week**, **Month** (усі вимкнені, поки не
-ввімкнеш). Поряд: вибрати підсумок → **Preview the summary** (як буде, нічого не шле) або **Post it now** (останній
-завершений — у канали зараз); нижче — **last summaries**: що й коли пішло.
+A separate post with the server's summary — into the same channels as the round posts (its Discord / Telegram). Turned
+on in the server's block on the admin page: **Summaries at 10:00** — the ticks **Day**, **Week**, **Month** (all off
+until ticked). Next to them: pick a summary → **Preview the summary** (how it will be, sends nothing) or **Post it now**
+(the last finished one — into the channels now); under it — **last summaries**: what went out and when.
 
-- **Day** — за вчора, щодня о 10:00; **Week** — за минулий тиждень (понеділок–неділя), у понеділок о 10:00;
-  **Month** — за минулий місяць, 1-го числа о 10:00. Час — Братислави (`BF2R_DIGEST_AT=10:00`,
-  `BF2R_DIGEST_TZ=Europe/Bratislava` у `/etc/bf2replay.conf`, якщо треба інакше).
-- Раунди періоду — за часом раунду в демо (годинник ігрового сервера), лише з N+ гравцями (мінімум сервера, як для
-  постів раундів). Нема раундів — посту нема.
-- Ввімкнений підсумок починається з наступних 10:00 (не шле одразу той, що вже минув). Не вдалося відіслати — ще раз
-  при наступних перевірках, до 6 разів; канал вимкнено — цей період пропускається.
-- У пості (Discord — картки з таблицями моноширинним, як у v208; Telegram — текстом):
-  - **підсумок сервера**: раундів, різних гравців, вбивств, годин; мапи (скільки раундів на кожній);
-  - **Top 10 by score**: очки, вбивства-смерті, K/D, раундів (гравець — за ніком без клан-тегу, з найновішою назвою);
-  - **Leaders**: сума за період по кожному типу кілів (пішки, техніка, хедшоти, ніж, клеймори, міни, ПТ по піхоті,
-    переїхав, гранати, підствольник, C4, групи зброї), реанімації, лікування, ремонти, прапори; K/D за період — від 20 / 50 / 100
-    вбивств (день / тиждень / місяць); нічия — до трьох імен;
-  - **Best in one round**: найкраще за один раунд періоду — вбивств, очок, серії, K/D (від 10 вбивств), найдовші
-    вбивства по групах зброї (зброя, мапа, якщо їх кілька, і день).
-- Заголовок картки — посилання на сторінку всіх раундів з цим сервером і датами. Перевіряє й шле
-  `bf2replay-digest.timer` (кожні 10 хв; ставить `units.sh` сам після оновлення). З консолі:
+- **Day** — for yesterday, every day at 10:00; **Week** — for last week (Monday–Sunday), on Monday at 10:00; **Month** —
+  for last month, on the 1st at 10:00. Bratislava time (`BF2R_DIGEST_AT=10:00`, `BF2R_DIGEST_TZ=Europe/Bratislava` in
+  `/etc/bf2replay.conf`, if it should be otherwise).
+- The period's rounds — by the round's time in the demo (the game server's clock), only with N+ players (the server's
+  minimum, as for the round posts). No rounds — no post.
+- A newly ticked summary starts with the next 10:00 (it doesn't send at once the one already past). Failed to send — again
+  at the next checks, up to 6 times; a channel turned off — that period is skipped.
+- In the post (Discord — cards with monospace tables, as in v208; Telegram — as text):
+  - **the server's summary**: rounds, different players, kills, hours; maps (how many rounds on each);
+  - **Top 10 by score**: score, kills–deaths, K/D, rounds (a player by his nick without the clan tag, with his newest
+    name);
+  - **Leaders**: the period's total for each kind of kill (on foot, vehicles, headshots, knife, claymores, mines, AT on
+    infantry, run over, grenades, grenade launcher, C4, weapon groups), revives, heals, repairs, flags; the period's K/D —
+    from 20 / 50 / 100 kills (day / week / month); a tie — up to three names;
+  - **Best in one round**: the best of one round in the period — kills, score, streak, K/D (from 10 kills), the longest
+    kills by weapon group (the weapon, the map if there are several, and the day).
+- The card's title is a link to the page of all rounds with this server and these dates. Checked and sent by
+  `bf2replay-digest.timer` (every 10 min; `units.sh` installs it by itself after the update). From the console:
 
 ```bash
-sudo -u bf2replay node /srv/bf2replay/repo/server/digest.mjs --show week '=FL= First-Legion - Strike at Karkand'   # показати, не слати
-sudo -u bf2replay node /srv/bf2replay/repo/server/digest.mjs --post day '=FL= First-Legion - Strike at Karkand'    # послати зараз
-journalctl -u bf2replay-digest | grep summary                                                                       # що пішло
+sudo -u bf2replay node /srv/bf2replay/repo/server/digest.mjs --show week '=FL= First-Legion - Strike at Karkand'   # show, don't send
+sudo -u bf2replay node /srv/bf2replay/repo/server/digest.mjs --post day '=FL= First-Legion - Strike at Karkand'    # send now
+journalctl -u bf2replay-digest | grep summary                                                                       # what went out
 ```
 
-Перехід з v193 (один вебхук, один чат, одні пункти на всіх): при першому запуску v194 ці налаштування один раз
-копіюються в кожен сервер, у якого були раунди за останні 30 днів — тобто туди, куди воно й постило. Нові сервери після
-цього — уже «не постяться», поки не налаштуєш. Сервер упізнається за назвою з демо: якщо адміни його перейменують, нова
-назва з'явиться в списку як новий сервер.
+The move from v193 (one webhook, one chat, one set of parts for all): at the first run of v194 these settings were copied
+once into every server that had rounds in the last 30 days — that is, where it used to post. New servers after that are
+"not posted" until set up. A server is known by its name from the demo: if its admins rename it, the new name shows up
+in the list as a new server.
 
-Постяться лише раунди з 6+ гравцями (або свій мінімум сервера), записані за останні 12 год (не старі демо, скачані
-пачкою), і не кліпи. Посилання — лише з `BF2R_DOMAIN`. Вебхуки й токен лежать тільки на VPS — `data/.notify.json`
-(600, власник bf2replay; веб-сервер файли `data/.*` не віддає), на сторінці видно лише 4 останні символи. У
-`/etc/bf2replay.conf` головні `BF2R_TELEGRAM_TOKEN` і `BF2R_NOTIFY_MIN_PLAYERS`; `BF2R_DISCORD_WEBHOOK` і
-`BF2R_TELEGRAM_CHAT` з v194 беруться лише в ту першу копію (адмінка покаже, що їх можна прибрати). З консолі:
+Only rounds with 6+ players (or the server's own minimum), recorded in the last 12 h (not old demos downloaded in a
+batch), and not clips, are posted. Links — only with `BF2R_DOMAIN`. Webhooks and the token are kept only on the VPS —
+`data/.notify.json` (600, owner bf2replay; the web server doesn't serve the files `data/.*`), the page shows only their
+last 4 characters. In `/etc/bf2replay.conf` the main ones are `BF2R_TELEGRAM_TOKEN` and `BF2R_NOTIFY_MIN_PLAYERS`;
+`BF2R_DISCORD_WEBHOOK` and `BF2R_TELEGRAM_CHAT` are taken since v194 only into that first copy (the admin page shows that
+they can be removed). From the console:
 
 ```bash
-sudo -u bf2replay node /srv/bf2replay/repo/server/notify.mjs --test '=FL= First-Legion - Strike at Karkand'   # пробний пост цього сервера
-sudo -u bf2replay node /srv/bf2replay/repo/server/notify.mjs --test                                           # у канали всіх налаштованих
-journalctl -u bf2replay-ingest | grep 'round post'                                                            # що постилось і що ні
+sudo -u bf2replay node /srv/bf2replay/repo/server/notify.mjs --test '=FL= First-Legion - Strike at Karkand'   # a test post of this server
+sudo -u bf2replay node /srv/bf2replay/repo/server/notify.mjs --test                                           # into the channels of every server set up
+journalctl -u bf2replay-ingest | grep 'round post'                                                            # what was posted and what wasn't
 ```
 
-### Налаштування підсумків для Discord (v220)
+### Discord settings for the summaries (v220)
 
-У блоці сервера, під **Summaries** (галочки Day / Week / Month), у підсумків тепер свої налаштування:
+In the server's block, under **Summaries** (the ticks Day / Week / Month), the summaries now have settings of their own:
 
-- **Discord** — увімк./вимк. і канал: свій вебхук (окремий канал для підсумків) або, без нього, канал постів раундів —
-  навіть якщо самі пости раундів у Discord вимкнені. Вебхук каналу адмінів сюди не приймається (підсумки публічні).
-- **Telegram** — увімк./вимк., у чат постів раундів.
-- **The summary** — заголовок, рядок під ним, **Text above** (повідомлення над картками — лише там згадка справді пінгує:
-  `@here`, `@everyone` або роль `<@&id>`; пости раундів не пінгують нікого), нижній рядок, колір смужки, які частини (цифри,
-  мапи, гравець періоду, топ, лідери, найкраще за раунд, картинка мапи, посилання), скільки в топі (3–20), які рядки лідерів
-  і найкращого, і вигляд цих таблиць: **exact columns** (моноширинна таблиця, як було) або **bold numbers, a | before them**
-  (як таблиця постів раундів — вужча, менше переносів на телефоні). Плейсхолдери `{kind} {period} {server} {rounds} {players}
-  {kills} {hours} {pow} {min} {link}`.
-- **Preview the summary** показує редактор як є (збережено чи ні) і куди піде; **Post it now** — зі збереженими.
-- Поки нічого не збережено — як було до v220: туди ж, куди пости раундів, стандартний вигляд.
+- **Discord** — on / off and the channel: a webhook of its own (a separate channel for summaries) or, without one, the
+  round posts' channel — even when the round posts to Discord are off. The admins' channel webhook is not accepted here
+  (summaries are public).
+- **Telegram** — on / off, into the round posts' chat.
+- **The summary** — the title, the line under it, **Text above** (a message above the cards — only there does a mention
+  really ping: `@here`, `@everyone` or a role `<@&id>`; round posts ping nobody), the bottom line, the stripe's colour,
+  which parts (numbers, maps, player of the period, top, leaders, best in a round, map picture, link), how many in the top
+  (3–20), which rows of leaders and bests, and the look of those tables: **exact columns** (a monospace table, as it was)
+  or **bold numbers, a | before them** (as the round posts' table — narrower, fewer wraps on a phone). Placeholders
+  `{kind} {period} {server} {rounds} {players} {kills} {hours} {pow} {min} {link}`.
+- **Preview the summary** shows the editor as it is (saved or not) and where it would go; **Post it now** — with the
+  saved settings.
+- While nothing is saved — as before v220: where the round posts go, the standard look.
 
-### Рекорди: зброя й відстань, яких не могло бути (v221)
+### Records: weapons and distances that could not have been (v221)
 
-Гра в повідомленні про вбивство часом називає не те, чим убито, а те, що вбивця тримає (17.10 Dragon Valley: міна T2000.BE
-під Type 98, названа «SRAW», поки він летів на F-35B 900 м вгорі — рекорд «907 m SRAW»). Тепер (і на сторінці раунду, і в
-підсумках сервера — одна функція killFix):
+In a kill message the game at times names not what killed, but what the killer holds (17.10 Dragon Valley: T2000.BE's
+mine under a Type 98, named "SRAW", while he flew an F-35B 900 m up — the record "907 m SRAW"). Now (both on the round's
+page and in the server's summaries — one function, killFix):
 
-- вибух його міни / клеймора / C4 біля жертви в ту ж секунду, а названа ручна зброя не могла цього зробити (він у техніці,
-  жертва в техніці або він далі 60 м) — вбивство записується як міна / клеймор / C4, без відстані;
-- ручна зброя, коли вбивця в техніці, або зброя техніки, коли він уже пішки, — без відстані (не постріл звідти);
-- далі, ніж летить куля чи ракета (timeToLive × швидкість з файлів гри: AK-101 500 м, SRAW і Eryx 450, граната 120, ніж
-  10) — без відстані;
-- ракета «повітря–повітря» — від місця, де він її випустив (його натискання перед вбивством, з якого ракета могла
-  долетіти), а не від місця його літака в мить вбивства (так було 2121 м);
-- ручна зброя далі туману мапи — відстань показується, але в рекорди не йде (це підказка Beyond fog для адмінів);
-- **Most repairs** — як рахує гра (її очки «repair»), а не розпізнані ремонти: ті зараховували інженеру поруч техніку,
-  що лагодилась сама (747 за раунд).
+- his mine / claymore / C4 going off by the victim in the same second, while the hand-held weapon named could not have
+  done it (he is in a vehicle, the victim is in a vehicle, or he is farther than 60 m) — the kill is recorded as the mine
+  / claymore / C4, without a distance;
+- a hand-held weapon while the killer is in a vehicle, or a vehicle's weapon when he is already on foot — no distance (not
+  a shot from there);
+- farther than the bullet or rocket flies (timeToLive × speed from the game files: AK-101 500 m, SRAW and Eryx 450, a
+  grenade 120, the knife 10) — no distance;
+- an air-to-air missile — from where he launched it (his press before the kill from which the missile could have
+  arrived), not from where his aircraft was at the moment of the kill (that gave 2121 m);
+- a hand-held weapon beyond the map's fog — the distance is shown, but it doesn't go into the records (it is the Beyond
+  fog hint for admins);
+- **Most repairs** — as the game counts it (its "repair" points), not the repairs the page recognised: those credited an
+  engineer with a nearby vehicle that repaired itself (747 in a round).
 
-Після оновлення робити нічого не треба: підсумки — версія 16 (`ingest` підсумує всі раунди знову, `summing up N rounds
-again (summary version 16 ...)`, сторінка Records і сторінки гравців перепишуться), правила підказок — версія 6 (Beyond fog
-і Long shot не беруть такі вбивства).
+Nothing to do after the update: the summaries are version 16 (`ingest` sums up every round again, `summing up N rounds
+again (summary version 16 ...)`; the Records page and the players' pages are rewritten), the hint rules version 6
+(Beyond fog and Long shot don't take such kills).
 
-### Пояснення в адмінці (v220)
+### Explanations on the admin page (v220)
 
-Під назвою кожної картки — короткий опис, що це і що роблять кнопки; у **Background analysis** і **Servers** — розгортки
-«What the buttons do» / «What each setting of a server does»; унизу — картка **How to use this page** (щодня, новий сервер,
-після оновлення, коли щось не так, безпека).
+Under the title of each card — a short description of what it is and what its buttons do; in **Background analysis** and
+**Servers** — the fold-outs "What the buttons do" / "What each setting of a server does"; at the bottom — the card **How
+to use this page** (every day, a new server, after an update, when something is wrong, safe keeping).
 
-### Віхи й гравець періоду (v215)
+### Milestones and the player of the period (v215)
 
-У пості про раунд новий пункт **Milestones** (типово ввімкнений): гравець, що цим раундом перейшов 1 000 / 2 500 / 5 000 /
-10 000 / 25 000 / 50 000 вбивств або 100 / 250 / 500 / 1 000 / 2 000 раундів на цьому сервері. У підсумках дня, тижня, місяця —
-рядок **Player of the day / week / month**: найбільше очок за раунд серед тих, хто зіграв 2 / 3 / 5 раундів чи більше (з K/D,
-дуелями й шкодою, коли раунди підсумовані v215).
+In the round post a new part, **Milestones** (on by default): a player who with this round passed 1,000 / 2,500 / 5,000 /
+10,000 / 25,000 / 50,000 kills or 100 / 250 / 500 / 1,000 / 2,000 rounds on this server. In the day, week, month
+summaries — the line **Player of the day / week / month**: the most score a round among those who played 2 / 3 / 5 rounds
+or more (with K/D, duels and damage, when the rounds are summed up by v215).
 
-### Канал адмінів (v214)
+### The admins' channel (v214)
 
-У блоці кожного сервера є рядок **Admin channel**: вебхук **приватного** каналу Discord адмінів цього сервера (не той, куди
-йдуть пости про раунди — адмінка такий не прийме). Коли фоновий аналіз (розділ 20) розбере новий раунд цього сервера (зіграний
-за останні 2 дні), туди йде одне повідомлення: підказки For admins цього раунду — гравець, що саме, і посилання на момент.
-Вибір: **strong hints** (лише сильні) або **strong and ordinary** (і звичайні; дрібні — тімкіли, клеймори, правила — ніколи).
-Раунд іде туди один раз (data/.admin/alerts.json); старі раунди, які аналіз переганяє з новими правилами, не надсилаються.
-**Send a test** — пробне повідомлення в канал. Те саме з консолі:
+Each server's block has the line **Admin channel**: the webhook of a **private** Discord channel of this server's admins
+(not the one the round posts go to — the admin page won't accept that). When the background analysis (§20) has gone over
+a new round of this server (played in the last 2 days), one message goes there: the round's hints For admins — the
+player, what exactly, and a link to the moment. The choice: **strong hints** (only the strong ones) or **strong and
+ordinary** (the ordinary ones too; the minor ones — team kills, claymores, rules — never). A round goes there once
+(data/.admin/alerts.json); old rounds the analysis goes over again with new rules are not sent. **Send a test** — a test
+message to the channel. The same from the console:
 
 ```bash
-cd /srv/bf2replay/repo/server && sudo -u bf2replay node alerts.mjs --test "Назва сервера"
+cd /srv/bf2replay/repo/server && sudo -u bf2replay node alerts.mjs --test "Server name"
 ```
 
-Підказки з'являються тут лише тоді, коли сервер їх порахував: увімкнений фоновий аналіз (розділ 20) і встановлений Chromium
-(`sudo bash server/analyze.sh start`).
+Hints show up here only when the server has worked them out: the background analysis is on (§20) and Chromium is
+installed (`sudo bash server/analyze.sh start`).
 
-## 16. Скільки демо розбирати одночасно (v162)
+## 16. How many demos to decode at once (v162)
 
-Сервер розбирає кілька демо одночасно, кожне в окремому потоці: і нові (наприклад, пачку, яку скачав `fetch.mjs`), і
-повторно після оновлення декодера. Скільки саме — вибирається на адмін-сторінці, у картці **Being decoded** → **Demos
-at once**: `automatic` (ядра CPU і пам'ять по ~1.2 GB на демо, не більше 4) або 1–16. Вибір зберігається в
-`data/.ingest.json`, і `ingest.mjs` перечитує його після кожного демо та раз на 5 с. Тобто зміна діє за кілька секунд,
-навіть посеред розбору.
+The server decodes several demos at once, each in a thread of its own: both new ones (for example a batch `fetch.mjs`
+downloaded) and again after a decoder update. How many exactly is chosen on the admin page, card **Being decoded** →
+**Demos at once**: `automatic` (CPU cores and memory at ~1.2 GB per demo, at most 4) or 1–16. The choice is kept in
+`data/.ingest.json`, and `ingest.mjs` reads it again after each demo and every 5 s. So a change takes effect within
+seconds, even in the middle of decoding.
 
-Як підібрати найкраще число для VPS:
+How to find the best number for the VPS:
 
-1. Вибрати число, наприклад 1, і запустити пачку: **Decode old rounds again** (або **Decode every round again**), чи
-   дочекатися, поки скачається багато нових демо.
-2. Подивитися в таблицю під вибором: **MB a min** — скільки мегабайт демо розбирається за хвилину, **Each took** —
-   скільки йшло одне демо. Чим більше MB a min, тим швидше.
-3. Вибрати наступне число і повторити. Найшвидше з виміряних позначене зеленим.
+1. Pick a number, for example 1, and start a batch: **Decode old rounds again** (or **Decode every round again**), or
+   wait until many new demos are downloaded.
+2. Look at the table under the choice: **MB a min** — how many megabytes of demos are decoded a minute, **Each took** —
+   how long one demo took. The higher MB a min, the faster.
+3. Pick the next number and repeat. The fastest measured is green.
 
-Більше, ніж ядер, зазвичай не допомагає: кожне демо тоді йде довше. Якщо число × 1.2 GB більше за вільну пам'ять,
-сторінка попередить: система може зупинити потік розбору, а то й увесь `ingest`. Таке демо не губиться: воно
-лишається в черзі (`upload/incoming`) і розбереться наступного проходу.
+More than the cores usually doesn't help: each demo then takes longer. If the number × 1.2 GB is more than the free
+memory, the page warns you: the system may stop a decoding thread, or even all of `ingest`. Such a demo is not lost: it
+stays in the queue (`upload/incoming`) and is decoded at the next run.
 
-Виміри лежать у `data/.ingest-stats.json`. Рахуються лише ті демо, що весь час розбиралися поруч із вибраною кількістю
-інших. Якщо на VPS зміниться кількість ядер чи пам'яті, виміри почнуться заново; кнопка **Clear** очищає їх вручну.
+The measurements are in `data/.ingest-stats.json`. Only demos decoded all the time next to the chosen number of others
+count. If the VPS's number of cores or memory changes, the measurements start again; the **Clear** button clears them by
+hand.
 
-`BF2R_JOBS` у `/etc/bf2replay.conf` (якщо задано, не 0) має перевагу. Тоді сторінка показує число з позначкою
-`BF2R_JOBS`, а щоб вибирати на сторінці, рядок треба прибрати з конфігу.
+`BF2R_JOBS` in `/etc/bf2replay.conf` (if set, not 0) wins. The page then shows the number tagged `BF2R_JOBS`, and to
+choose on the page the line has to be removed from the config.
 
-## 17. Перерозбір «running», а старих раундів не меншає (v163)
+## 17. Decoding again is "running", but the old rounds don't get fewer (v163)
 
-Розбирати демо може лише одна служба за раз: `bf2replay-ingest` (нові демо), `bf2replay-reprocess` (повторно після
-оновлення) чи `bf2replay-rebuild` (усе заново) — їх тримає один замок (`data/.ingest.lock`). Поки одна працює, інша
-стоїть у стані **running** і чекає замка до 2 год, нічого не роблячи. На адмін-сторінці (картка **Being decoded**)
-видно, що саме працює, з якого часу і хто чекає.
+Only one service at a time can decode demos: `bf2replay-ingest` (new demos), `bf2replay-reprocess` (again after an
+update) or `bf2replay-rebuild` (everything anew) — they share one lock (`data/.ingest.lock`). While one works, another
+stands in the state **running** and waits up to 2 h for the lock, doing nothing. The admin page (card **Being decoded**)
+shows what exactly is working, since when, and who waits.
 
-До v163 був такий випадок. `bf2replay-ingest` почав розбирати велику пачку демо ще старим кодом, і тут прийшло
-оновлення. Він ішов далі зі старим декодером до 2 год, а `bf2replay-reprocess` нового коду весь цей час чекав. На
-сторінці це виглядало так: усі раунди «made by an older decoder», «0 by this one», і нічого не міняється. Перевірити
-можна так:
+Before v163 this happened: `bf2replay-ingest` started decoding a big batch of demos with the old code, and then an update
+came. It went on with the old decoder for up to 2 h, and the new code's `bf2replay-reprocess` waited all that time. On the
+page it looked like this: all rounds "made by an older decoder", "0 by this one", and nothing changes. To check:
 
 ```bash
-ps -eo pid,etime,args | grep -E '[i]ngest\.mjs'     # хто працює (node) і хто чекає (flock без node під ним)
+ps -eo pid,etime,args | grep -E '[i]ngest\.mjs'     # who works (node) and who waits (flock with no node under it)
 journalctl -u bf2replay-ingest -u bf2replay-reprocess -n 30 --no-pager
 ```
 
-Що робити: дочекатися (старий прохід сам закінчиться щонайбільше за 2 год від свого початку) або зупинити його. Для
-цього є кнопка **Stop** в адмінці або команда:
+What to do: wait (the old run ends by itself at most 2 h after it started) or stop it. For that there is the **Stop**
+button on the admin page, or the command:
 
 ```bash
 sudo systemctl stop bf2replay-ingest
 ```
 
-Те, що він не встиг, нікуди не дінеться: демо лишаються в `upload/incoming`, а раунд, який він саме записував, наступний
-прохід знайде в `data/demos` і внесе в список. Тоді замок отримує `bf2replay-reprocess` з новим кодом: раунди, які новий
-декодер розбирає так само, він лише позначає (секунди), решту розбирає заново.
+What it didn't get to is not lost: the demos stay in `upload/incoming`, and the round it was writing at that moment the
+next run finds in `data/demos` and puts into the list. Then `bf2replay-reprocess` with the new code gets the lock: rounds
+the new decoder reads the same it only marks (seconds), the rest it decodes anew.
 
-З v163 таке не повторюється:
+Since v163 this doesn't happen again:
 
-- прохід, що побачив оновлення сайту чи `ingest.mjs`, більше не бере нових демо: дорозбирає ті, що вже почав, і
-  закінчується;
-- на `systemctl stop` (і на ліміт часу служби) він спершу записує список раундів, а тоді виходить;
-- демо в `data/demos` без раунду в списку наступний прохід розбирає знову;
-- з тисячами раундів повний запис списку (теплокарти, прев'ю посилань) займав ~3 с після кожного демо, довше за сам
-  розбір кількох одночасно. Тепер після кожного демо пишеться лише `rounds.json`, а теплокарти й прев'ю — раз на 30 с і
-  в кінці.
+- a run that saw a site or `ingest.mjs` update takes no more new demos: it finishes those it has started and ends;
+- on `systemctl stop` (and on the service's time limit) it first writes the round list, then exits;
+- a demo in `data/demos` without a round in the list is decoded again by the next run;
+- with thousands of rounds the full write of the list (heat maps, link previews) took ~3 s after each demo, longer than
+  decoding several at once. Now after each demo only `rounds.json` is written, and the heat maps and previews every 30 s
+  and at the end.
 
-## 18. Цифри за всі раунди рахує сервер (v165)
+## 18. The numbers over all rounds are worked out by the server (v165)
 
-Сторінки гравця, порівняння двох гравців, мапи і вкладка «Players · all rounds» раніше рахувалися в браузері
-відвідувача. Для цього він вантажив `rounds.json` і списки вбивств усіх раундів (`data/heat`, з тисячами раундів це
-понад 100 МБ). Тепер їх рахує `ingest.mjs` і кладе в `data/stats`:
+The player pages, the comparison of two players, the maps and the tab "Players · all rounds" used to be worked out in
+the visitor's browser. For that it loaded `rounds.json` and the kill lists of all rounds (`data/heat`, with thousands of
+rounds over 100 MB). Now `ingest.mjs` works them out and puts them into `data/stats`:
 
-- `players/<нік>.json` — раунди гравця, з чим і кого він убивав, хто вбивав його, як він гине, з ким і проти кого грав;
-- `maps/<мапа>.json` — хто найбільше вбивав на мапі і чим;
-- `table.json` і `table/<сервер>.json` — таблиця «Players · all rounds» (усі сервери і кожен окремо);
-- `names.json` — останнє ім'я кожного ніку.
+- `players/<nick>.json` — the player's rounds, what he killed with and whom, who killed him, how he dies, with whom and
+  against whom he played;
+- `maps/<map>.json` — who killed most on the map and with what;
+- `table.json` and `table/<server>.json` — the table "Players · all rounds" (all servers and each apart);
+- `names.json` — the latest name of each nick.
 
-Рахує той самий код, що й сторінка: `ingest.mjs` бере його з `site/index.html` (між `// @agg-begin` і `// @agg-end`),
-так само як бере декодер. Тому цифри ті самі. Після кожного нового раунду переписуються лише файли його гравців і
-його мапи (разом з повним записом списку, раз на 30 с і в кінці проходу). Усе пишеться заново, коли змінився цей
-код (це видно в журналі: `stats: … written in N s`). Сторінка вантажить лише потрібний файл, тож сторінка гравця
-відкривається з одного файлу на кілька десятків КБ.
+It is the same code as the page's: `ingest.mjs` takes it from `site/index.html` (between `// @agg-begin` and
+`// @agg-end`), as it takes the decoder. So the numbers are the same. After each new round only the files of its players
+and its map are rewritten (together with the full write of the list, every 30 s and at the end of the run). Everything is
+written anew when this code changed (it shows in the log: `stats: … written in N s`). The page loads only the file it
+needs, so a player's page opens from one file of a few dozen KB.
 
-`Open folder` на своєму комп'ютері рахує, як і раніше, у браузері, тим самим кодом.
+`Open folder` on your own computer works it out, as before, in the browser, with the same code.
 
-**v166: легкий `rounds.json`.** Тепер у ньому лише короткий рядок на кожен раунд (дата, мапа, сервер, тривалість,
-гравці, вбивства, рахунок, хто виграв, найкращий), без складу гравців: ~0,5 КБ на раунд замість ~5. Повний список
-лежить у `data/.rounds-full.json`, а всі вбивства — у `data/.kills/` (до v166 це була публічна `data/heat`, перший
-прохід v166 переносить її сам). Обидва потрібні лише серверу, і веб-сервер їх не віддає. Пошук гравця у списку
-раундів іде по `stats/names.json`: якщо збігів до 5, список раундів фільтрується по їхніх файлах, якщо більше —
-лишається повним, а збіги показуються кнопками, щоб вибрати гравця.
+**v166: a light `rounds.json`.** It now has only a short line per round (date, map, server, length, players, kills, score,
+who won, the best), without the players' list: ~0.5 KB a round instead of ~5. The full list is in
+`data/.rounds-full.json`, and all kills in `data/.kills/` (before v166 this was the public `data/heat`; the first run of
+v166 moved it by itself). Both are needed only by the server, and the web server doesn't serve them. A player search in
+the round list goes through `stats/names.json`: with up to 5 matches the round list is filtered by their files; with
+more it stays whole and the matches show as buttons to pick the player.
 
-**v176: `rounds.json` ще втричі менший.** Раунд — масив замість об'єкта (назви колонок — у самому файлі, `compact`),
-сервер і команди — номерами в спільних списках файлу (`servers`, `teams`), тривалість — цілими секундами. Те, що
-сторінка може вивести сама, не пишеться: де лежить демо (`demos/<назва>`), розібраний раунд
-(`rounds/<назва>.<декодер>.bfr`) і декодер (той, що у файлі). Інше — лише в останньому елементі раунду, коли воно не
-як завжди (демо видалене, раунд ще старим декодером). Розміри файлів і коли раунд прийшов тепер лише в
-`data/.rounds-full.json`. На 6000 раундів виходить ~3,1 МБ → ~0,9 МБ, а передається (zstd / gzip) ~400 → ~160 КБ.
-Формат описано в `server/roundsidx.mjs`. Сторінка читає і старий, і новий формат. `bf2replay-status`, адмін-сторінка,
-`redownload.sh` і `analyze.mjs` беруть повний список (`.rounds-full.json`). Свої скрипти, які читали
-`data/rounds.json`, — теж туди, або розгортати через `expandIndex` з `server/roundsidx.mjs`.
+**v176: `rounds.json` three times smaller again.** A round is an array instead of an object (the column names are in the
+file itself, `compact`), the server and teams are numbers into shared lists of the file (`servers`, `teams`), the length
+whole seconds. What the page can work out itself is not written: where the demo is (`demos/<name>`), the decoded round
+(`rounds/<name>.<decoder>.bfr`) and the decoder (the one in the file). The rest only in the round's last element, when
+it is not as usual (the demo removed, the round still by an old decoder). The file sizes and when the round came are now
+only in `data/.rounds-full.json`. For 6,000 rounds that is ~3.1 MB → ~0.9 MB, and over the network (zstd / gzip) ~400 →
+~160 KB. The format is described in `server/roundsidx.mjs`. The page reads both the old and the new format.
+`bf2replay-status`, the admin page, `redownload.sh` and `analyze.mjs` take the full list (`.rounds-full.json`). Your own
+scripts that read `data/rounds.json` — there too, or expand it with `expandIndex` from `server/roundsidx.mjs`.
 
-Якщо `data/.rounds-full.json` колись загубиться (а `rounds.json` лишиться), складів гравців у списку не буде.
-`ingest.mjs` тоді не перепише `data/stats` порожніми, а напише в журналі, що треба розібрати всі раунди заново:
-`sudo systemctl start bf2replay-rebuild`. Щотижнева копія (`backup.sh`) зберігає обидва файли.
+If `data/.rounds-full.json` is ever lost (and `rounds.json` stays), the round list has no players' lists. `ingest.mjs`
+then won't overwrite `data/stats` with empty ones, but writes in the log that every round must be decoded again:
+`sudo systemctl start bf2replay-rebuild`. The weekly copy (`backup.sh`) keeps both files.
 
-**v183: підсумки раундів ще раз, без перерозбору.** У підсумку кожного вбивства тепер є, куди влучив останній
-постріл (голова / тіло / рука-нога), і зброя там, де гра її не називає (екіпаж, що загинув разом з технікою: SRAW,
-міна, ракета вбивці або його техніка). Перший прохід `ingest.mjs` після оновлення перераховує підсумки всіх раундів з
-уже розібраних файлів `data/rounds/*.bfr` — демо не розбираються знову (~0,2 с на раунд: кілька тисяч раундів — 10-20
-хв), потім один раз уся `data/stats`. У журналі: `summing up … rounds again …`, кожні 250 — скільки лишилось. Зупинений
-(оновлення сайту, `systemctl stop`) — продовжить наступного проходу.
+**v183: the round summaries once more, without decoding again.** Each kill's summary now has where the last shot hit
+(head / body / arm-leg), and a weapon where the game doesn't name one (a crew that died with its vehicle: SRAW, a mine,
+the killer's missile or his vehicle). The first run of `ingest.mjs` after the update works out every round's summary
+again from the decoded files `data/rounds/*.bfr` — the demos are not decoded again (~0.2 s a round: a few thousand
+rounds — 10-20 min), then all of `data/stats` once. In the log: `summing up … rounds again …`, every 250 how many are
+left. Stopped (a site update, `systemctl stop`) — it goes on at the next run.
 
 ```bash
 journalctl -u bf2replay-ingest --since today | grep -i "summ\|stats:"
 ```
 
-### Більше статистики (v215)
+### More statistics (v215)
 
-Після оновлення сервер сам **підсумує всі раунди знову** з розібраних файлів (SUM_V 13, без перерозбору демо — хвилини на сотні
-раундів) і перепише data/stats. Що додалось:
-- **у кожного гравця** (картка на його сторінці й колонки «Duels & teamwork» у таблиці Players): рейтинг (Elo за перемогами
-  сторін, з поправкою на очки за хвилину; старт 1500, «?» — менше 10 раундів), дуелі (вбивства й смерті, коли обидва бачили
-  одне одного — сектор погляду, без стін), засідки, шкода (кожне падіння здоров'я ворога — тим, хто в ту мить стріляв, дивлячись
-  на нього, або чий вибух), асисти, вбивства «вкрадені» й «підготовлені», час біля сквад-лідера, спавни на скваді, час у зонах
-  прапорів, швидкість реанімацій, немезида й улюблена жертва, його техніка (час, вбивства, смерті), **теплова карта** (де вбиває
-  і де гине, на кожній мапі);
-- на сторінці мапи — теплова карта вбивств і смертей усіх;
-- кнопка **Stats** угорі сайту: **Clans** (за тегом перед ніком: гравці, раунди, перемоги, K/D, клан проти клану), **Vehicles**
-  (кожна техніка: час, вбивства, найкращі за вбивствами на годину), сторінка **сервера** (коли грають — година й день тижня,
-  мапи з перемогами сторін, тривалість раундів, прапори, що вирішують раунд), **Search moments** (усі вбивства мапи: хто, чим,
-  на якій відстані, хедшот, з техніки — результат відкриває раунд у ту мить).
-Файли: data/stats/clans.json, vehicles.json, servers.json, server/<сервер>.json (і _all.json), find/<мапа>.json (кілька МБ на
-велику мапу — Caddy віддає стиснено).
+After the update the server itself **sums up every round again** from the decoded files (SUM_V 13, without decoding the
+demos again — minutes for hundreds of rounds) and rewrites data/stats. What was added:
+- **for each player** (the card on his page and the columns "Duels & teamwork" in the Players table): a rating (Elo by
+  the sides' wins, adjusted by the score a minute; start 1500, "?" — fewer than 10 rounds), duels (kills and deaths when
+  both saw each other — the view sector, without walls), ambushes, damage (each drop of an enemy's health — to whoever was
+  firing at that moment looking at him, or whose blast it was), assists, kills "stolen" and "set up", time near the squad
+  leader, spawns on the squad, time in the flags' zones, revive speed, nemesis and favourite victim, his vehicles (time,
+  kills, deaths), a **heat map** (where he kills and where he dies, on each map);
+- on a map's page — a heat map of everyone's kills and deaths;
+- the **Stats** button at the top of the site: **Clans** (by the tag in front of the nick: players, rounds, wins, K/D,
+  clan against clan), **Vehicles** (each vehicle: time, kills, the best by kills an hour), a **server**'s page (when they
+  play — hour and day of the week, maps with the sides' wins, round length, the flags that decide the round), **Search
+  moments** (every kill of a map: who, with what, how far, headshot, from a vehicle — a result opens the round at that
+  moment).
+Files: data/stats/clans.json, vehicles.json, servers.json, server/<server>.json (and _all.json), find/<map>.json (a few
+MB for a big map — Caddy serves it compressed).
 
-## 19. Аналіз багатьох раундів (v175)
+## 19. Analysing many rounds (v175)
 
-Пороги підказок «For admins» зараз підібрані на 9 раундах. Щоб підібрати їх на всіх раундах сервера, `analyze.mjs`
-відкриває кожен розібраний раунд у тій самій сторінці сайту (headless Chromium на VPS, без домену й веб-сервера: файли
-сайту він віддає браузеру сам на 127.0.0.1) і забирає з нього цифри:
+The thresholds of the "For admins" hints were first picked on 9 rounds. To pick them on all of a server's rounds,
+`analyze.mjs` opens each decoded round in the site's own page (headless Chromium on the VPS, with no domain or web
+server: it serves the site's files to the browser itself on 127.0.0.1) and takes the numbers out of it:
 
-- кожне вбивство: куди дивився вбивця за 2 с до нього (на скільки градусів повз жертву, кожні 0,1 с), відстань, чи
-  була лінія видимості й скільки її не було перед вбивством, коли він побачив жертву, коли натиснув вогонь, туман, дим;
-- кожну підказку, як сторінка робить її зараз, з її цифрами;
-- кожен відрізок захоплення прапора, кроки пішки від 4 м за запис, споти, швидкості техніки, підсумки кожного бійця;
-- що декодер не зміг назвати (техніку, зброю), прапори проти розкладки мапи.
+- every kill: where the killer looked in the 2 s before it (how many degrees past the victim, every 0.1 s), the
+  distance, whether there was a line of sight and how long it was missing before the kill, when he saw the victim, when
+  he pressed fire, fog, smoke;
+- every hint, as the page makes it now, with its numbers;
+- every stretch of a flag capture, steps on foot of 4 m+ per record, spots, vehicle speeds, each soldier's totals;
+- what the decoder couldn't name (vehicles, weapons), flags against the map's layout.
 
-Один файл на раунд у `/srv/bf2replay/analysis/rounds` (~10 КБ), наприкінці — архів
-`/srv/bf2replay/analysis/bf2-analysis-<дата>.tar` (~50 МБ на 5000 раундів). Його треба передати Claude: з ним
-пороги підбираються без нового прогону.
+One file per round in `/srv/bf2replay/analysis/rounds` (~10 KB), at the end an archive
+`/srv/bf2replay/analysis/bf2-analysis-<date>.tar` (~50 MB for 5,000 rounds). It goes to Claude: with it the thresholds
+are picked without a new run.
 
-Запуск — одна команда (першого разу вона ставить Playwright і Chromium у `/srv/bf2replay/analyze`, кілька хвилин,
-~400 МБ):
+Starting it is one command (the first time it installs Playwright and Chromium into `/srv/bf2replay/analyze`, a few
+minutes, ~400 MB):
 
 ```bash
 sudo bash /srv/bf2replay/repo/server/analyze.sh start
 ```
 
-Аналіз іде у фоні (служба `bf2replay-analyze`, низький пріоритет процесора й диска: сайт і розбір нових демо йдуть
-першими) і не зупиняється, коли виходиш із SSH. Раунди з 6+ бійцями, найновіші першими, 1-3 одночасно (за ядрами й
-пам'яттю: ~1,5 ГБ на кожен). На раунд — 5-30 с, тож на 5000 раундів кілька годин. Найкраще запускати, коли
-перерозбір після оновлення закінчився (`sudo bf2replay-status`): інакше раунди, які саме перерозбираються, потраплять у
-`failed.json` і підуть у наступний запуск.
+The analysis runs in the background (the service `bf2replay-analyze`, at low CPU and disk priority: the site and the
+decoding of new demos come first) and doesn't stop when you leave SSH. Rounds with 6+ soldiers, newest first, 1-3 at once
+(by cores and memory: ~1.5 GB each). 5-30 s a round, so 5,000 rounds take a few hours. Best started when decoding again
+after an update is done (`sudo bf2replay-status`): otherwise rounds being decoded again end up in `failed.json` and go
+into the next run.
 
 ```bash
-sudo bash /srv/bf2replay/repo/server/analyze.sh status   # скільки зроблено, останні рядки; наприкінці — архів і як його скопіювати
-sudo bash /srv/bf2replay/repo/server/analyze.sh stop     # зупинити (раунди, що йдуть, доробляються)
-sudo bash /srv/bf2replay/repo/server/analyze.sh start    # далі з того місця
-sudo bash /srv/bf2replay/repo/server/analyze.sh pack     # архів того, що вже є
+sudo bash /srv/bf2replay/repo/server/analyze.sh status   # how many done, the last lines; at the end - the archive and how to copy it
+sudo bash /srv/bf2replay/repo/server/analyze.sh stop     # stop (rounds in progress are finished)
+sudo bash /srv/bf2replay/repo/server/analyze.sh start    # go on from where it was
+sudo bash /srv/bf2replay/repo/server/analyze.sh pack     # an archive of what is already there
 ```
 
-Після `start` можна додати параметри `analyze.mjs`: `--jobs 2`, `--limit 500`, `--maps strike_at_karkand`,
-`--min-players 6`, `--since 2026-10-01`, `--fresh` (зробити знову вже зроблені раунди, напр. після нової версії сторінки).
+After `start` you can add `analyze.mjs`'s options: `--jobs 2`, `--limit 500`, `--maps strike_at_karkand`,
+`--min-players 6`, `--since 2026-10-01`, `--fresh` (do again rounds already done, e.g. after a new version of the page).
 
-v178 інакше рахує, хто кого бачить (висота очей як у грі, ще 3 точки тіла) і має нові стіни на Operation Road Rage і
-Midnight Sun. Це міняє в аналізі колонки видимості вбивств (`react`, `eng`, `losK`, `losX`, `pitchErr`) і підказки, що
-на ній стоять; приціл (`err`), прапори, споти, швидкості й решта — ті самі. Якщо сайт оновився, поки аналіз іде,
-раунди після оновлення вже з v178 (скільки яких — `pages` у `summary.json`). Щоб видимість була вся з v178: коли
-перший прогін закінчиться і архів буде забрано, ще раз на частині раундів, напр. найновіших 600:
-`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --limit 600`, і окремо ці дві мапи:
-`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --maps operationroadrage,midnight_sun`.
+v178 works out differently who sees whom (the eyes' height as in the game, 3 more body points) and has new walls on
+Operation Road Rage and Midnight Sun. In the analysis this changes the kills' visibility columns (`react`, `eng`, `losK`,
+`losX`, `pitchErr`) and the hints that rest on them; the aim (`err`), flags, spots, speeds and the rest are the same. If
+the site updated while the analysis ran, the rounds after the update are already by v178 (how many of which: `pages` in
+`summary.json`). To have all visibility by v178: when the first run is done and the archive taken, once more on part of
+the rounds, e.g. the newest 600: `sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --limit 600`, and these
+two maps apart: `sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --maps operationroadrage,midnight_sun`.
 
-v182: після кінця прогону процес більше не чекає ще до 15 хв (через це `stop` закінчувався `State 'stop-sigterm'
-timed out. Killing`), а після `stop` сам робить архів зробленого. Копії раундів (розділ 5) в архів не йдуть. На першому
-архіві (1619 різних раундів) підібрано пороги п'яти підказок (README, v182). Підказки видимості (No line of sight,
-Fired at a wall, Wall tracking, Floating) у ньому ще з v175–v177 — для них новий прогін з v182:
-`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --limit 800` (~2 год), потім `pack`.
+v182: after the end of a run the process no longer waits up to 15 min more (because of that `stop` ended with `State
+'stop-sigterm' timed out. Killing`), and after `stop` it makes an archive of what is done by itself. Copies of rounds
+(§5) don't go into the archive. On the first archive (1,619 different rounds) the thresholds of five hints were picked
+(CHANGELOG, v182). The visibility hints (No line of sight, Fired at a wall, Wall tracking, Floating) in it are still from
+v175–v177 — for them a new run with v182:
+`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh --limit 800` (~2 h), then `pack`.
 
-Архів на Mac — з v193 простіше з адмінки: картка Background analysis → Make the archive, потім Download (див. §20).
-Або в Terminal на Mac (адресу VPS показує `status`):
+The archive to your computer — since v193 easier from the admin page: card Background analysis → Make the archive, then
+Download (see §20). Or in a terminal on your computer (`status` shows the VPS's address):
 
 ```bash
-scp 'root@VPS:/srv/bf2replay/analysis/bf2-analysis-*.tar' ~/Downloads/
+scp 'root@VPS:/srv/bf2replay/analysis/bf2-analysis-*.tar' .     # on your computer
 ```
 
-## 20. Підказки за всі раунди гравця і «Glitch spot» — у фоні (v185)
+## 20. The hints over all of a player's rounds and "Glitch spot" — in the background (v185)
 
-Нова служба `bf2replay-hints.timer` (ставиться й вмикається сама з оновленням, `units.sh`). Через 5 хв після кінця
-кожного свого проходу вона запускає `analyze.mjs --auto` з низьким пріоритетом, один раунд за раз:
+A new service, `bf2replay-hints.timer` (installed and turned on by itself with the update, `units.sh`). 5 min after the
+end of each of its runs it starts `analyze.mjs --auto` at low priority, one round at a time:
 
-1. **Glitch spot** (`server/glitch.mjs`, браузер не потрібен). 150 нових розібраних раундів (`data/rounds/*.bfr`,
-   ~0,5 с на раунд) лягають у сітку кожної мапи: де стояли живі бійці пішки, клітинки 2 × 2 м і 2,5 м заввишки, і хто
-   саме. Підказка — коли боєць 20 с і довше стоїть там, де за всі раунди мапи не стояв ніхто, крім нього, а просто над
-   ним чи під ним (5-40 м) стояли 3+ інших гравців: під підлогою, у скелі чи стіні, на даху, куди ніхто не залазить.
-   Пагорб, куди просто ніхто не ходить, — не підказка (над і під ним теж нікого). Лише для мап, де в сітці вже 30+
-   раундів. Сторінка бере готовий список з `data/.admin/glitch/<мапа>.json` (з v196 — лише для адмінів); де для мапи є форми (як для No line of
-   sight), підказка ще каже, де він був: груди в об'єкті, під землею, у повітрі — чи на даху / виступі, куди ніхто не
-   заліз (тоді, якщо всі інші лише під ним, — окремим списком, як інформація). Перший раз усі раунди одразу (кілька
-   тисяч — ~40 хв, сайт працює далі):
+1. **Glitch spot** (`server/glitch.mjs`, no browser needed). 150 newly decoded rounds (`data/rounds/*.bfr`, ~0.5 s a
+   round) go into each map's grid: where living soldiers stood on foot, cells 2 × 2 m and 2.5 m high, and who exactly.
+   The hint — when a soldier stands 20 s or more where, in all of the map's rounds, nobody but him has stood, while right
+   above or under him (5-40 m) 3+ other players stood: under a floor, in a rock or a wall, on a roof nobody climbs onto.
+   A hill nobody happens to go to is not a hint (nobody above or under it either). Only for maps whose grid already has
+   30+ rounds. The page takes the ready list from `data/.admin/glitch/<map>.json` (since v196 — for admins only); where
+   the map has shapes (as for No line of sight), the hint also says where he was: chest inside an object, under the
+   ground, in the air — or on a roof / ledge nobody else got onto (then, if all the others are only under him — as a list
+   of its own, for information). The first time all rounds at once (a few thousand — ~40 min, the site keeps working):
    ```bash
    sudo bash /srv/bf2replay/repo/server/analyze.sh glitch
    ```
-2. **40 раундів у сторінці** (як `analyze.sh start`, тому потрібен Playwright: якщо `start` жодного разу не
-   запускався, цей крок пропускається з рядком у журналі). Спершу ті, яких ще нема в `analysis/rounds`, потім зроблені
-   старішими правилами підказок (`HINTS_V` у сторінці), найновіші першими. Раунд, що впав з цією версією сторінки,
-   більше не пробується до наступного оновлення сайту.
-3. **Картка «Hints over his rounds»** на сторінці гравця: кожна підказка, у скількох його раундах вона була, проти
-   частки всіх бійців-раундів, і шанс випадково (червоним — найменш імовірні), з посиланнями на раунди. Файли
-   `data/.admin/hints.json` і `data/.admin/hints/<нік>.json` (з v196 — лише для адмінів). Рахуються лише раунди, зроблені поточними правилами.
+2. **40 rounds in the page** (as `analyze.sh start`, so Playwright is needed: if `start` has never run, this step is
+   skipped with a line in the log). First those not yet in `analysis/rounds`, then those done by older hint rules
+   (`HINTS_V` in the page), newest first. A round that failed with this version of the page is not tried again until the
+   next site update.
+3. **The card "Hints over his rounds"** on the player's page: each hint, in how many of his rounds it was, against the
+   share of all soldier-rounds, and the chance of it by luck (the least likely in red), with links to the rounds. The
+   files `data/.admin/hints.json` and `data/.admin/hints/<nick>.json` (since v196 — for admins only). Only rounds done by
+   the current rules count.
 
-На раунд у сторінці — 10-30 с, тож 40 раундів — 10-20 хв, а всі кілька тисяч — 1-2 доби фону. Швидше — один раз
-`sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh` (1-3 одночасно; фонова служба чекає, поки він іде).
+In the page 10-30 s a round, so 40 rounds take 10-20 min, and all of a few thousand — 1-2 days in the background. Faster —
+once `sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh` (1-3 at once; the background service waits while it
+runs).
 
 ```bash
-journalctl -u bf2replay-hints -n 20 --no-pager           # що зробив останній прохід
-systemctl list-timers bf2replay-hints.timer              # коли наступний
-sudo bash /srv/bf2replay/repo/server/analyze.sh hints    # картки гравців заново зараз
+journalctl -u bf2replay-hints -n 20 --no-pager           # what the last run did
+systemctl list-timers bf2replay-hints.timer              # when the next one is
+sudo bash /srv/bf2replay/repo/server/analyze.sh hints    # the players' cards anew, now
 ```
 
-(v192) Як далеко він — в адмінці, картка **Background analysis**: скільки раундів пройдено поточними правилами (і
-скільки старішими / ще ні), останній прохід, коли все закінчиться, скільки мап уже мають 30+ раундів у сітці Glitch spot.
+(v192) How far it is — on the admin page, card **Background analysis**: how many rounds are done by the current rules
+(and how many by older ones / not yet), the last run, when it will all be done, how many maps already have 30+ rounds in
+the Glitch spot grid.
 
-(v193) Там же ним керувати (налаштування — `analysis/.auto-set.json`, `analyze.mjs --auto` читає його перед кожним
-раундом):
+(v193) Control it there too (the settings — `analysis/.auto-set.json`, `analyze.mjs --auto` reads it before each round):
 
-- **Run now** — прохід зараз, не чекаючи таймера (якщо стоїть пауза — знімає її).
-- **All rounds now** — без обмеження 40 раундів, кілька одночасно (як `analyze.sh start`: за ядрами й пам'яттю, до 3),
-  з тим самим низьким пріоритетом. Прохід бере нові раунди до 95 хв (служба має межу 2 год), наступний — через 5 хв, і
-  так поки не пройде все; тоді назад до 40 за прохід. **Back to 40 a run** — повернути одразу.
-- **Pause** / **Go on** — раунди, що йдуть, доробляються, далі нічого до Go on (таймер запускає прохід, а той одразу
-  виходить).
-- Рядок «running now: 12 of 40 rounds», і що зробив останній прохід (`analysis/auto-note.json`): скільки раундів, скільки
-  лишилось, чи чекав на `analyze.sh start`, чи нема Playwright, чи все вже пройдено. **Its log** — журнал служби нижче.
+- **Run now** — a run now, not waiting for the timer (if paused — lifts the pause).
+- **All rounds now** — without the 40-round limit, several at once (as `analyze.sh start`: by cores and memory, up to 3),
+  at the same low priority. A run takes new rounds for up to 95 min (the service has a 2 h limit), the next one 5 min
+  later, and so on until everything is done; then back to 40 a run. **Back to 40 a run** — go back at once.
+- **Pause** / **Go on** — the rounds in progress are finished, then nothing until Go on (the timer starts a run, and it
+  exits at once).
+- The line "running now: 12 of 40 rounds", and what the last run did (`analysis/auto-note.json`): how many rounds, how
+  many left, whether it waited for `analyze.sh start`, whether Playwright is missing, whether everything is done. **Its
+  log** — the service's log below.
 
-**Archive for Claude**: Make the archive робить архів у фоні (`analyze.mjs --pack`, кілька хвилин — читає кожен файл
-раунду). Назва — з версією сайту, якою його зроблено: `bf2-analysis-<дата>-<версія>.tar`; поруч `….tar.json` — що в
-ньому. У таблиці: розмір, раундів, якими версіями сторінки пройдені раунди (`pages`) і якими правилами підказок
-(`hv`), кнопки **Download** (браузер качає як звичайний файл, обірване завантаження докачується) і **Remove**. Архів
-займає стільки ж, скільки `analysis/rounds`: якщо вільного місця менше (+1 ГБ запасу), адмінка скаже і не почне. В
-архіві тепер ще й Glitch spot: `glitch/stays.json`, `glitch/summary.json`, сітки мап (якщо разом до 300 МБ),
-`.admin/glitch/`, `.admin/hints.json`. Коли смуга близько 100% — архів і Claude (todo 227).
+**Archive for Claude**: Make the archive builds an archive in the background (`analyze.mjs --pack`, a few minutes — it
+reads every round's file). Its name has the version of the site that made it: `bf2-analysis-<date>-<version>.tar`; next
+to it `….tar.json` — what is in it. In the table: size, rounds, which page versions went over the rounds (`pages`) and
+which hint rules (`hv`), the buttons **Download** (the browser downloads it as a normal file; a broken download resumes)
+and **Remove**. The archive takes as much room as `analysis/rounds`: with less free room (+1 GB to spare) the admin
+page says so and doesn't start. The archive now has Glitch spot too: `glitch/stays.json`, `glitch/summary.json`, the
+maps' grids (if together up to 300 MB), `.admin/glitch/`, `.admin/hints.json`. When the bar is near 100% — the archive,
+and Claude (todo 227).
 
-`analyze.sh status` тепер показує власні рядки фонової служби (не лише «Deactivated successfully»), що зробив останній
-прохід і чи стоїть пауза. Ручний `analyze.sh start` («Not running» у `status`) і фонова служба — різні речі: «Not
-running» стосується лише ручного прогону.
+`analyze.sh status` now shows the background service's own lines (not only "Deactivated successfully"), what the last run
+did and whether it is paused. A manual `analyze.sh start` ("Not running" in `status`) and the background service are
+different things: "Not running" is only about the manual run.
 
-Вимкнути фон зовсім — `BF2R_HINTS=0` у `/etc/bf2replay.conf` (картки й Glitch spot лишаються такими, як були); на час —
-Pause в адмінці.
+To turn the background off completely — `BF2R_HINTS=0` in `/etc/bf2replay.conf` (the cards and Glitch spot stay as they
+were); for a while — Pause on the admin page.
 
-### Бал підозри (v214)
+### The suspicion score (v214)
 
-Картка **Hints over his rounds** на сторінці гравця (для адмінів) тепер починається з **Suspicion score**: для кожного виду
-підказок, які в нього були, — наскільки неймовірна його частка раундів з нею проти всіх гравців (log10 шансу, як у рядках картки,
-не більше 10 на вид; види з шансом гірше 1 на 10 і підказки правил не рахуються), складено разом. Поруч — вище за скільки
-відсотків гравців із 10+ розібраними раундами він стоїть, з чого найбільше, і по місяцях: скільки його раундів мали підказку.
-Список найвищих балів — в адмінці, картка **Background analysis** («Highest suspicion scores»). Бал — для черги перегляду, не
-вирок: рахується лише за раундами, розібраними з поточними правилами підказок.
+The card **Hints over his rounds** on the player's page (for admins) now starts with the **Suspicion score**: for each kind
+of hint he had — how improbable his share of rounds with it is against all players (log10 of the chance, as in the card's
+rows, at most 10 per kind; kinds with a chance worse than 1 in 10 and rule hints don't count), added up. Next to it — above
+how many percent of the players with 10+ analysed rounds he stands, which kinds give the most, and by month: how many of
+his rounds had a hint. The list of the highest scores — on the admin page, card **Background analysis** ("Highest
+suspicion scores"). The score is for the review queue, not a verdict: it counts only rounds analysed with the current
+hint rules.
 
-### Поле зору 90° (v216)
+### Field of view 90° (v216)
 
-Боєць тепер бачить **90°** вшир (45° у кожен бік; вгору-вниз, як і було, 63°), а не 79° (екран 4:3). Після оновлення нічого
-робити не треба: правила підказок мають версію 4 — фоновий аналіз сам перегляне всі раунди (поки він іде, картки «Hints over
-his rounds» і бал підозри рахуються лише з уже переглянутих, тож спершу їх менше); підсумки раундів мають версію 14 — `ingest`
-підсумує всі раунди знову з розібраних (`summing up N rounds again (summary version 14 ...)` у журналі, без перерозбору демо;
-на 25 раундах — 13 с). Змінюються: сектор погляду на мапі, «In view» / «Seen by», хто кого побачив першим, «Didn't see his
-killer», Wide view (смуга 47,5–67,5°), Reaction, Pre-aim.
+A soldier now sees **90°** across (45° to each side; up and down, as before, 63°) instead of 79° (a 4:3 screen). Nothing
+to do after the update: the hint rules are version 4 — the background analysis goes over every round again by itself
+(while it runs, the cards "Hints over his rounds" and the suspicion score count only rounds already gone over, so there
+are fewer at first); the round summaries are version 14 — `ingest` sums up every round again from the decoded ones
+(`summing up N rounds again (summary version 14 ...)` in the log, without decoding the demos again; 13 s for 25 rounds).
+What changes: the view sector on the map, "In view" / "Seen by", who saw whom first, "Didn't see his killer", Wide view
+(the band 47.5–67.5°), Reaction, Pre-aim.
 
-### Поле зору 16:9, точна рамка, приціл (v219)
+### Field of view 16:9, the exact frame, the sights (v219)
 
-Боєць бачить, як на екрані **16:9** (з патча 1.5 гра розширює кадр по ширині екрана): **95°** вшир, 63° вгору-вниз. Огляд —
-точна рамка екрана (на краю кадру видно менше вгору й вниз; коли дивиться вниз — ширше біля себе). **У приціл — вужче**, за
-зброєю з файлів гри (пістолети 80°, гвинтівки 63–72°, L85A1 43°, SVD / QBU-88 33°, M24 / L96A1 / M95 22°, оптика кругла) і
-по 10° запасу з кожного боку; не для того, у кого він сам стріляє. Wide view — смуга 50–70°; гравець з монітором 21:9 (111°)
-чи 32:9 отримує її чесно, це написано в підказці. Після оновлення нічого робити не треба: правила підказок — версія 5
-(фоновий аналіз перегляне всі раунди сам), підсумки раундів — версія 15 (`ingest` підсумує всі раунди знову з розібраних,
-`summing up N rounds again (summary version 15 ...)`; на 25 раундах — 39 с). У підсумках сервера приціл — за набором і
-слотом (снайпер з гвинтівкою — оптика, пістолет — 0,8, решта — 0,65), бо зброю в руках знає лише сторінка.
+A soldier sees what a **16:9** screen shows (since the 1.5 patch the game widens the picture with the screen's width):
+**95°** across, 63° up and down. The view is the screen's exact frame (less is seen up and down at the edge of the
+picture; looking down — wider near him). **Through the sights — narrower**, by weapon from the game files (pistols 80°,
+rifles 63–72°, L85A1 43°, SVD / QBU-88 33°, M24 / L96A1 / M95 22°, a scope is round) plus 10° to spare on each side; not
+for the one he is shooting at himself. Wide view — the band 50–70°; a player with a 21:9 (111°) or 32:9 monitor gets it
+honestly, and the hint says so. Nothing to do after the update: the hint rules are version 5 (the background analysis
+goes over every round by itself), the round summaries version 15 (`ingest` sums up every round again from the decoded
+ones, `summing up N rounds again (summary version 15 ...)`; 39 s for 25 rounds). In the server's summaries the sights are
+taken by kit and slot (a sniper with his rifle — the scope, a pistol — 0.8, the rest — 0.65), because only the page knows
+the weapon in his hands.
 
-## 21. Старі демо: що тримати, щоб вистачало місця (v186)
+## 21. Old demos: what to keep so that there is room (v186)
 
-Раунд на сайті живе в розібраному файлі (`data/rounds/*.bfr`, 5-7 MB): мапа, статистика, підказки, сторінки гравців.
-Демо (`data/demos`, 20-35 MB — ~80% місця раунду) потрібне лише для двох речей: перерозібрати раунд, коли змінився
-декодер (як раунди SF у v185), і зробити кліп для гри. Тож старі демо можна прибирати — раунди лишаються й відкриваються
-як раніше (кліп для гри сторінка тоді пропонує зробити зі свого демо). Стиснути самі демо сильніше не вийде: xz дає
-−15-19%, zstd −10-12%.
+A round on the site lives in its decoded file (`data/rounds/*.bfr`, 5-7 MB): the map, the statistics, the hints, the
+players' pages. The demo (`data/demos`, 20-35 MB — ~80% of a round's room) is needed for only two things: to decode the
+round again when the decoder changed (as the SF rounds in v185), and to cut a clip for the game. So old demos can be
+removed — the rounds stay and open as before (the page then offers to cut a game clip from the visitor's own demo).
+Compressing the demos themselves harder doesn't work: xz gives −15-19%, zstd −10-12%.
 
-(v202) У кожного раунду на сайті є кнопка **⬇ Demo** (у рядку раунду над мапою) і посилання **Download the demo** на
-його сторінці `/rounds/<раунд>.html`: демо з `data/demos/`. Якщо демо вже прибране — **Demo at its source ↗**: посилання
-туди, звідки його скачано (`ingest.mjs` бере його з `data/.source-list.json` — сторінка джерела ще його має, — або з
-`data/.fetched.json` — звідки скачано, там його вже може не бути). Демо, яке надіслав сам ігровий сервер (п. 8), а потім
-прибране, — кнопка «Demo removed».
+(v202) Every round on the site has the button **⬇ Demo** (in the round's line over the map) and the link **Download the
+demo** on its page `/rounds/<round>.html`: the demo from `data/demos/`. If the demo has already been removed — **Demo at
+its source ↗**: a link to where it was downloaded from (`ingest.mjs` takes it from `data/.source-list.json` — the source
+page still has it — or from `data/.fetched.json` — where it was downloaded from; it may no longer be there). A demo the
+game server sent itself (§8) and that was then removed — the button "Demo removed".
 
-Усе — на адмін-сторінці, картка **Demos: what to keep**:
+Everything is on the admin page, card **Demos: what to keep**:
 
-- скільки місця що займає: демо, розібрані раунди, копії раундів (`data/.copies`, кнопка **Remove** — це ті самі демо,
-  що вже є на сайті, з другої сторінки, п. 5), аналіз, браузер аналізу, бекапи;
-- **Keep the demos of the last N days** — демо раундів, зіграних за останні N днів, лишаються; старші йдуть (0 — жодне не
-  йде за віком);
-- **Demos may take at most N GB** — понад це йдуть найменш потрібні: спершу ті, які сторінка-джерело ще роздає (вони
-  можуть повернутися), потім найстаріші (0 — без межі);
-- **Keep the demos of rounds with hints for admins** — демо раундів з «підозрілими» підказками не йдуть (за фоновим
-  аналізом, п. 20; поки він працює, раунд, якого він ще не бачив, чекає на нього);
-- **When the decoder changes, download a removed demo again…** — після оновлення декодера раунди без демо, які
-  сторінка-джерело ще має, `fetch.mjs` скачує знову (стільки за раз, скільки вказано), `ingest.mjs` перерозбирає, і демо
-  знову йде;
-- **What would go?** — що піде з цими налаштуваннями, ще до збереження (скільки, скільки GB, які саме); **Save**;
-  **Remove now** — застосувати зараз (інакше — за ≤ 2 хв, з наступним проходом `ingest.mjs`);
-- **Keep these demos** — раунди, чиє демо лишається за будь-яких налаштувань (назва, посилання `…/r/<раунд>` чи id).
+- how much room each thing takes: demos, decoded rounds, copies of rounds (`data/.copies`, the **Remove** button — these
+  are the same demos already on the site, from a second page, §5), the analysis, the analysis browser, backups;
+- **Keep the demos of the last N days** — the demos of rounds played in the last N days stay; older ones go (0 — none
+  goes by age);
+- **Demos may take at most N GB** — above that the least needed go: first those the source page still offers (they can
+  come back), then the oldest (0 — no limit);
+- **Keep the demos of rounds with hints for admins** — the demos of rounds with "suspicious" hints don't go (by the
+  background analysis, §20; while it runs, a round it hasn't seen yet waits for it);
+- **When the decoder changes, download a removed demo again…** — after a decoder update, `fetch.mjs` downloads again the
+  rounds without a demo that the source page still has (so many at a time), `ingest.mjs` decodes them again, and the demo
+  goes again;
+- **What would go?** — what would go with these settings, before saving (how many, how many GB, which exactly); **Save**;
+  **Remove now** — apply it now (otherwise within ≤ 2 min, with the next run of `ingest.mjs`);
+- **Keep these demos** — rounds whose demo stays whatever the settings (a name, a link `…/r/<round>` or an id).
 
-Ніколи не йде демо зі списку Keep і демо раунду, який ще треба перерозібрати. Коли диск майже повний (`BF2R_MIN_FREE_GB`
-+ 2 GB, `BF2R_RAW_AUTOCLEAN`), йдуть і свіжі та з підказками — у тому самому порядку, доки не стане вільно.
+Never removed: a demo on the Keep list and the demo of a round still to be decoded again. When the disk is nearly full
+(`BF2R_MIN_FREE_GB` + 2 GB, `BF2R_RAW_AUTOCLEAN`), fresh ones and those with hints go too — in the same order, until there
+is room.
 
-Нові службові файли в `data/`: `.demos.json` (налаштування), `.demos-last.json` (що пішло востаннє і всього),
-`.source-list.json` (які демо кожна сторінка роздає зараз), `.refetch.json` / `.refetch-done.json` (що скачати знову),
-`.hint-rounds.json` (раунди з підказками з аналізу). Веб-сервер `data/.*` не віддає.
+New service files in `data/`: `.demos.json` (the settings), `.demos-last.json` (what went last time and in all),
+`.source-list.json` (which demos each page offers now), `.refetch.json` / `.refetch-done.json` (what to download again),
+`.hint-rounds.json` (rounds with hints from the analysis). The web server doesn't serve `data/.*`.
 
 ```bash
 journalctl -u bf2replay-ingest --since today | grep -i "demos removed\|decode again"
 journalctl -u bf2replay-fetch --since today | grep -i "again"
 ```
 
+## 22. The Admin tab of a round, and the servers' admins (v196; v197 — the parts; v198 — review)
 
-## 22. Вкладка Admin у раунді й адміни серверів (v196; v197 — частини; v198 — розгляд)
+Nothing for admins is visible to players any more: the tab **For admins**, the card **Hints over his rounds** and the
+headshot chances on the player's page were taken off the public page — and **the code itself** of the hints (the rules and
+thresholds of looking for cheats). It is now a separate file, `server/admin-round.js`, which `admin.mjs` hands out only
+after logging in; the page runs it inside itself. The analysis data for admins — `data/.admin/` (the players' hint cards,
+Glitch spot, headshot chances); the web server doesn't serve `data/.*`, the files go through `admin.mjs` after logging in.
+The old public `data/stats/hints*` and `data/stats/glitch` were moved there by `ingest.mjs` itself at the first run of v196
+(deleting nothing).
 
-Усе для адмінів більше не видно гравцям: з публічної сторінки прибрано вкладку **For admins**, картку **Hints over his
-rounds** і шанси хедшотів на сторінці гравця — і **сам код** підказок (правила й пороги пошуку чітів). Він тепер окремим
-файлом `server/admin-round.js`, який `admin.mjs` віддає лише після входу; сторінка запускає його в себе. Дані аналізу
-для адмінів — `data/.admin/` (картки підказок гравців, Glitch spot, шанси хедшотів); веб-сервер `data/.*` не віддає,
-файли йдуть через `admin.mjs` після входу. Старі публічні `data/stats/hints*` і `data/stats/glitch` `ingest.mjs` сам
-переносить туди при першому запуску v196 (нічого не видаляючи).
+**Logging in.** Every round has the tab **Admin** (under the map, next to Round stats): a name and a password.
+(v199) You can also log in from the main page: the **Admin** button at the top right (next to Tools) opens a login window;
+it is on every page of the site when `admin.mjs` answers. After logging in the button says **Admin ✓**, and the window shows
+who you are, **This round's Admin tab**, for you also the **Admin page** (`/admin`, the same login) and **Log out**. The
+password: a field with dots; it is sent only by a POST request to `/admin/api/login` (even without a script — never in an
+address), the field is cleared right after sending and when the window closes; it is not in the address, in localStorage
+or in the page; the login cookie is HttpOnly (the page's scripts don't see it), SameSite=Strict, over https — Secure. If
+the site is not opened over https, the window warns that the password would cross the network unencrypted.
+- You (the site's owner): the name empty, the password — the admin page's one (`admin.mjs --set-password`). You see all
+  servers. If you are already logged into the admin page, the tab opens at once.
+- The servers' admins: on the admin page, the card **Servers' admins** — a name, a password (8+ characters) and ticks for
+  the servers whose rounds he sees. There too — change the servers, a new password (it logs him out), **Remove**. The
+  accounts — `data/.admin-users.json` (600, scrypt hashes only). The admin page (`/admin`) shows such accounts nothing.
+- A login lasts 12 h (2 h without any activity); after an update of `admin.mjs` (a restart) — log in again.
 
-**Вхід.** У кожному раунді є вкладка **Admin** (під мапою, поруч із Round stats): ім'я й пароль.
-(v199) Увійти можна й з головної сторінки: кнопка **Admin** угорі праворуч (поруч із Tools) відкриває вікно входу; вона
-є на будь-якій сторінці сайту, коли `admin.mjs` відповідає. Після входу на кнопці **Admin ✓**, а у вікні — хто ти,
-**This round's Admin tab**, для тебе ще **Admin page** (`/admin`, той самий вхід) і **Log out**. Пароль: поле з
-крапками; надсилається лише POST-запитом на `/admin/api/login` (навіть без скрипта — ніколи в адресі), поле
-очищується одразу після надсилання й при закритті вікна; ні в адресі, ні в localStorage, ні в сторінці його нема;
-cookie входу HttpOnly (скрипти сторінки її не бачать), SameSite=Strict, через https — Secure. Якщо сайт відкрито не
-через https, вікно попереджає, що пароль піде мережею незашифрованим.
-- Ти (власник сайту): ім'я порожнє, пароль — той, що від адмінки (`admin.mjs --set-password`). Бачиш усі сервери.
-  Якщо вже увійшов в адмінку, вкладка відкрита одразу.
-- Адміни серверів: на адмін-сторінці картка **Servers' admins** — ім'я, пароль (8+ символів) і галочки серверів, раунди
-  яких він бачить. Там же змінити сервери, новий пароль (його виходить із системи), **Remove**. Акаунти —
-  `data/.admin-users.json` (600, лише хеш scrypt). Адмінка (`/admin`) таким акаунтам нічого не показує.
-- Вхід живе 12 год (2 год без жодного руху); після оновлення `admin.mjs` (перезапуск) — увійти ще раз.
+**The Admin tab:** the round's hints (as For admins, the same list) with filters:
+- **Player** (with his number of hints), **Side** (the team of the one the hint is about, at that moment);
+- **Strength**: *all*; *without the minor ones* (the default: no team kills, claymores, AFK, spot spam, leaving the map);
+  *strong only* — what normal play can't give (a teleport, speed, through a wall, beyond reach, a rate of fire or of flag
+  capture, a guided missile, Glitch spot; No line of sight with the exact shapes and hidden 1 s+), or a share
+  (headshots, reaction, triggerbot, pre-aim, wide view) that chance gives less often than once in 10,000;
+- **Weapon**: small arms, sniper rifles, launchers, grenades and explosives, vehicles, emplacements, not a kill;
+- **From / to** (mm:ss), **Players with N+ hints**; chips of the kinds with their counts.
+A click — the moment on the map (Battle), ⟂ — the side view. A server's admin sees only the rounds of his servers (on
+others — a note). Next to the map the tab **For admins** — also for admins only.
 
-**Вкладка Admin:** підказки раунду (як For admins, той самий список) з фільтрами:
-- **Player** (з кількістю його підказок), **Side** (команда того, про кого підказка, у ту мить);
-- **Strength**: *all*; *without the minor ones* (стандарт: без тімкілів, клейморів, AFK, спам-спотів, виходу за мапу);
-  *strong only* — те, чого нормальна гра не дає (стрибок, швидкість, крізь стіну, за межею досяжності, темп стрільби чи
-  прапора, керована ракета, Glitch spot; No line of sight з точними формами і схований 1 с+), або частка (хедшоти,
-  реакція, тригербот, преейм, широкий огляд), яку випадковість дає рідше ніж раз на 10 000;
-- **Weapon**: стрілецька, снайперки, ракетниці, гранати й вибухівка, техніка, станкові, не вбивство;
-- **From / to** (хв:с), **Players with N+ hints**; плашки видів з кількістю.
-Клік — момент на мапі (Battle), ⟂ — вигляд збоку. Адмін сервера бачить лише раунди своїх серверів (на чужих — напис).
-Збоку від мапи вкладка **For admins** — теж лише для адмінів.
+(v197) The Admin tab has four parts: **Hints** (above), **Players**, **Kills**, **The round**.
+- **Players** — each soldier of the round: K, D, team kills; the hints about him (without the minor ones), of them the
+  strong ones, of which kinds; **headshots** — his heads / small-arms kills with a known hit, his share, and what the same
+  weapons would give anyone (red — by chance rarer than once in a million); **reaction** — the average from the first
+  look at the victim to the kill (and how many faster than 0.25 s); **aim** — how far past the victim he looked at the
+  moment of the kill; **without line of sight** — kills with no clear line at that moment; distance (average and
+  longest), ping. Sorting by each column. **History** — his rounds on the site (when, on which servers), other names (clan
+  tags), the hint card over all his rounds; the name — his page.
+- **Kills** — every kill with the analysis numbers (the same as in the archive for Claude): time, killer and victim (with
+  vehicles), weapon, distance and height difference, where it hit, line of sight (clear / how long it was missing), who
+  saw whom first, reaction, aim, from the press to the kill, distance against the fog, smoke, ping, this kill's hints.
+  Filters: player (killer / victim / either), weapon, distance from–to, time, team kills (with / without / only), only
+  small arms on foot, only with hints. Sorting, **CSV** (every column), a click on the time — the kill on the map, ⟂ — the
+  side view.
+- **The round** — from the demo: server, map, time, length, soldiers and vehicles, records per second, **gaps in the
+  recording**, what the decoder didn't recognise, who **joined later** (first spawn after 2:00), who **was gone before the
+  end**, who **changed sides**; the **server's settings** from the demo (TK punishment, autobalance, spawn time and so on).
+  From the server: when the round came onto the site, the demo (there / removed / goes at the next cleaning / on the
+  "keep" list), when and from where it was downloaded, whether the page still lists it, copies, which decoder made it,
+  the analysis (when, by which rules, whether it failed).
+  (`admin.mjs`: `GET /admin/api/round?name=…`; a server's admin — only his servers.)
 
-(v197) У вкладці Admin чотири частини: **Hints** (вище), **Players**, **Kills**, **The round**.
-- **Players** — кожен боєць раунду: K, D, тімкіли; підказки про нього (без дрібних), з них сильні, яких видів;
-  **хедшоти** — його голови / вбивства зі стрілецької з відомим місцем влучання, його частка і скільки дала б та сама
-  зброя будь-кому (червоним — випадково рідше ніж раз на мільйон); **реакція** — середнє від першого погляду на жертву
-  до вбивства (і скільки швидше 0,25 с); **приціл** — наскільки повз жертву він дивився в мить вбивства; **без лінії
-  зору** — вбивства, коли в ту мить чистої лінії не було; відстань (середня й найдальша), пінг. Сортування за кожною
-  колонкою. **History** — його раунди на сайті (коли, на яких серверах), інші імена (клан-теги), картка підказок за
-  всі його раунди; ім'я — його сторінка.
-- **Kills** — кожне вбивство з цифрами аналізу (ті самі, що в архіві для Claude): час, вбивця й жертва (з технікою),
-  зброя, відстань і різниця висот, куди влучив, лінія зору (чиста / скільки її не було), хто кого побачив першим,
-  реакція, приціл, від натискання до вбивства, відстань проти туману, дим, пінг, підказки цього вбивства. Фільтри:
-  гравець (вбивця / жертва / будь-хто), зброя, відстань від–до, час, тімкіли (з / без / лише), лише стрілецька пішки,
-  лише з підказками. Сортування, **CSV** (усі колонки), клік на час — вбивство на мапі, ⟂ — вигляд збоку.
-- **The round** — з демо: сервер, мапа, час, тривалість, бійці й техніка, записи за секунду, **діри в записі**, що
-  декодер не розпізнав, хто **зайшов пізніше** (перший спавн після 2:00), хто **зник до кінця**, хто **міняв
-  сторону**; **налаштування сервера** з демо (покарання за TK, autobalance, час спавну тощо). З сервера: коли раунд
-  з'явився на сайті, демо (є / видалене / піде при наступному чищенні / у списку «тримати»), коли й звідки скачане,
-  чи сторінка ще його показує, копії, яким декодером розібраний, аналіз (коли, якими правилами, чи впав).
-  (`admin.mjs`: `GET /admin/api/round?name=…`; адмін сервера — лише свої сервери.)
-
-(v198) П'ята частина — **Review** (розгляд). Поруч із кожною підказкою в **Hints** три кнопки: **✓** перевірено,
-нічого нема; **✗** хибна тривога; **⚑** підозріло (питає, що ти побачив — це йде у звіт). Повторний клік на ту саму
-кнопку знімає позначку. Фільтр **Review**: усі / *not reviewed, not trusted* (без розглянутих і без довірених) / без
-довірених / лише підозрілі / розглянуті. Позначка тримається за видом підказки, гравцем, секундою й жертвою — тож
-лишається, коли раунд перераховують новими правилами (якщо підказки вже нема — у Review вона з поміткою «not a hint
-now» і тим, що казала).
-- **Players**: **★** біля імені — довірений гравець (питає чому). Його підказки лишаються, але не підсвічені, а фільтр
-  «not reviewed, not trusted» їх ховає. Твій ★ — на всіх серверах; ★ адміна сервера — лише на його серверах. Зняти може
-  той, хто поставив, або ти. **✎N** — нотатки про гравця; у **History** — список і поле для нової (нотатки про гравця
-  — за всі його раунди, їх бачать усі адміни сайту).
-- **Review**: позначені підказки (спершу підозрілі; ▶ — момент, кліп, × — зняти), скільки сильних ще ніхто не
-  позначив (кнопка — показати їх), нотатки до раунду (бачать адміни цього раунду; видалити — автор або ти), довірені
-  гравці цього раунду. **Звіт для адмінів сервера**: галочки (підозрілі, хибні, перевірені, сильні непозначені,
-  нотатки до раунду й гравців, посилання на моменти) — текст для Discord (**Copy**) або сторінка **Download .html**.
-- Зберігається на сервері в `data/.admin/review/` (`rounds/<раунд>.json`, `players/<нік>.json`, `trusted.json`);
-  веб-сервер його не віддає. API `admin.mjs` (POST, будь-який адмін, лише раунди своїх серверів): `review-get`,
+(v198) The fifth part — **Review**. Next to each hint in **Hints** three buttons: **✓** checked, nothing there; **✗** a
+false alarm; **⚑** suspicious (it asks what you saw — that goes into the report). Clicking the same button again clears
+the mark. The filter **Review**: all / *not reviewed, not trusted* (without the reviewed and without the trusted) / without
+the trusted / only suspicious / reviewed. A mark is kept by the kind of hint, the player, the second and the victim — so it
+stays when the round is worked out anew by new rules (if the hint is no longer there — it is in Review marked "not a hint
+now", with what it said).
+- **Players**: **★** by the name — a trusted player (it asks why). His hints stay, but not highlighted, and the filter
+  "not reviewed, not trusted" hides them. Your ★ — on all servers; a server admin's ★ — only on his servers. It can be
+  removed by the one who set it, or by you. **✎N** — notes about the player; in **History** — the list and a field for a new
+  one (notes about a player are over all his rounds; every admin of the site sees them).
+- **Review**: the marked hints (suspicious first; ▶ — the moment, a clip, × — clear), how many strong ones nobody has
+  marked yet (a button — show them), notes on the round (seen by this round's admins; deleted by the author or by you), the
+  trusted players of this round. **A report for the servers' admins**: ticks (suspicious, false, checked, strong unmarked,
+  notes on the round and the players, links to the moments) — a text for Discord (**Copy**) or a page **Download .html**.
+- Kept on the server in `data/.admin/review/` (`rounds/<round>.json`, `players/<nick>.json`, `trusted.json`); the web
+  server doesn't serve it. The API of `admin.mjs` (POST, any admin, only his servers' rounds): `review-get`,
   `review-mark`, `review-note`, `trusted`.
 
-Для розробки: сторінка збирається з `src/index.html` командою `node server/splitpage.mjs` (частини між
-`// @admin-begin` і `// @admin-end` ідуть в `server/admin-round.js`), Claude робить це перед кожним випуском;
-`analyze.mjs` дає адмінську частину своєму браузеру сам.
+For development: the page is built from `src/index.html` with `node server/splitpage.mjs` (the parts between
+`// @admin-begin` and `// @admin-end` go into `server/admin-round.js`); Claude does it before each release; `analyze.mjs`
+gives the admins' part to its browser itself.

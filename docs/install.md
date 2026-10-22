@@ -31,10 +31,9 @@ Contents: [1 What you need](#1-what-you-need) · [2 The GitHub repository](#2-th
 Once, on your computer:
 
 1. On github.com: **New repository** → name `bf2-round-replay` → **Private** → no README → **Create**.
-2. In a terminal, in the unpacked folder:
+2. In a terminal, in the folder with the repository's files:
 
    ```bash
-   cd ~/bf2-round-replay
    git init -b main
    git add .
    git commit -m "BF2 Round Replay"
@@ -71,8 +70,8 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 Copy the `server` folder to the VPS and run the script as root:
 
 ```bash
-# on your computer
-scp -r ~/bf2-round-replay/server YOU@VPS_IP:/tmp/bf2r-server
+# on your computer, from the folder that holds your clone
+scp -r bf2-round-replay/server YOU@VPS_IP:/tmp/bf2r-server
 
 # on the VPS
 cd /tmp/bf2r-server
@@ -290,13 +289,13 @@ The web server never serves `data/.*`, `data/logs`, `data/empty` or `data/bad`; 
 The VPS looks at GitHub every minute, so **publishing a new version = `git push`**. Within a minute `update.sh` pulls
 it, publishes `site/` and updates the services. Don't want to wait: `sudo systemctl start --no-block bf2replay-update`.
 
-A new version arrives from Claude as one archive `bf2-round-replay-vNN.zip` (the whole repository). On your computer:
+A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v222   # the version in the archive's name
-cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
-rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
-cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
+V=v223   # the version in the archive's name
+rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
+rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
+cd path/to/your/clone && git add -A && git commit -m "$V" && git push
 ```
 
 What happens after an update, by itself:
@@ -363,7 +362,7 @@ versions have to be added by hand.
 
 Not needed when a server publishes its demos on a web page. For a server you control, `gameserver/` has a script
 (Linux cron or a Windows scheduled task) that every 2 minutes sends new `.bf2demo` files over SFTP to one or more sites,
-each file once, under a temporary `.part` name first. See [gameserver/README.md](../gameserver/README.md) (Ukrainian).
+each file once, under a temporary `.part` name first. See [gameserver/README.md](../gameserver/README.md).
 On the VPS, add the server's public key, one line per server:
 
 ```bash
@@ -398,7 +397,7 @@ still needs decoding again, never goes.
 whose demo is gone). The last `BF2R_BACKUP_KEEP` copies are kept; a copy that wouldn't leave `BF2R_MIN_FREE_GB` free is
 skipped.
 
-The copy is on the same disk — keep one elsewhere: `scp 'root@VPS:/srv/bf2replay/backup/bf2replay-*.tar.gz' ~/Downloads/`.
+The copy is on the same disk — keep one elsewhere: `scp 'root@VPS:/srv/bf2replay/backup/bf2replay-*.tar.gz' .` (on your computer).
 Not in the weekly copy: the admins' review marks and notes (`data/.admin/review/`), the server admins' accounts
 (`data/.admin-users.json`) and the admin password (`/etc/bf2replay-admin.json`) — copy them yourself if you want them
 kept. Everything else (statistics, pages, previews) is rebuilt from the demos and rounds (`ingest.mjs --rebuild`).
@@ -478,7 +477,7 @@ for rounds with enough players, played in the last 12 h, and never for clips.
 ## 19. Trying the site locally
 
 ```bash
-cd ~/bf2-round-replay/site && python3 -m http.server 8000
+cd site && python3 -m http.server 8000      # in your clone
 ```
 
 Open http://localhost:8000 — without `data/` the site is a plain viewer (**Tools ▾ → Open .bf2demo**).

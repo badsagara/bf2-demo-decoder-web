@@ -1,314 +1,195 @@
-# BF2 Round Replay — сайт
+# BF2 Round Replay
 
-Перегляд раундів Battlefield 2 з файлів `.bf2demo` на карті: хто де бігав, хто кого вбив, прапори, техніка, квитки.
-Цей репозиторій — це весь сайт разом зі скриптами для сервера:
+A web site that replays Battlefield 2 rounds from their `.bf2demo` files on the map: who ran where, who killed whom,
+flags, vehicles, tickets, and who could see whom. A small VPS downloads new demos from the game servers' demo pages,
+decodes them and publishes rounds, player pages, maps, records and statistics; it can post each round to Discord and
+Telegram and gives the servers' admins private tools for checking suspicious play.
 
-```
-site/         сам сайт: index.html + assets/ (мапи, іконки, дані про стіни й рельєф для «хто кого бачив»,
-              картинки для прев'ю посилань: assets/og)
-server/       для VPS: install.sh (ставить усе одним запуском), fetch.mjs (забирає демо з сторінки сервера),
-              ingest.mjs (розбирає демо), update.sh (оновлення з GitHub), units.sh (таймери systemd і Caddy),
-              analyze.sh / analyze.mjs (аналіз багатьох раундів для порогів підказок, v175; у фоні — підказки за всі
-              раунди гравця, v185), glitch.mjs (сітка місць, де стояли бійці, для Glitch spot, v185),
-              demos.mjs (які старі демо прибирати, v186),
-              roundsidx.mjs (формат rounds.json, v176),
-              systemd/, Caddyfile.in, INSTALL.md
-gameserver/   необов'язково: скрипт для ігрового сервера, який сам відсилає демо (якщо є доступ до сервера)
-docs/         документація англійською: встановлення, адмінка, для гравців, особливості функцій
-```
-
-Як усе працює:
+This repository is the whole site together with the scripts for the server:
 
 ```
-сторінка демо сервера =FL=  ──(кожні 10 хв, fetch.mjs)──►  VPS: upload/incoming
-(85.17.145.41/karkand/demos)                                 │ ingest.mjs: демо → розібраний раунд (.bfr, у ~6 разів менший);
-                                                             │ раунди без гравців і з одним гравцем відкидаються
-                                                             ▼
-                                data/rounds.json (список, легкий) + data/rounds/*.bfr (раунди)
-                                + data/heat/<мапа>.json (точки вбивств: теплова карта всіх раундів, сторінки гравців)
-                                + data/share/r|p/*.html (прев'ю посилань /r/<раунд>, /p/<гравець>)
-                                                             │ Caddy (HTTPS)
-                                                             ▼
-                                         браузер: список раундів, раунд відкривається за 1–3 с
-GitHub (цей репозиторій)  ──(щохвилини, update.sh: git pull)──►  site/ на VPS
+site/         the site itself: index.html + assets/ (maps, icons, wall and terrain data for "who could see whom",
+              vehicle models, pictures for link previews: assets/og)
+server/       for the VPS: install.sh (installs everything in one run), fetch.mjs (takes demos from the servers' pages),
+              ingest.mjs (decodes demos), update.sh (updates from GitHub), units.sh (systemd timers and Caddy),
+              notify.mjs / digest.mjs / alerts.mjs (posts, summaries, admin alerts), admin.mjs + admin.html (the admin
+              page), analyze.sh / analyze.mjs (analysis of many rounds; in the background — the hints over all of a
+              player's rounds), glitch.mjs (the grid of where soldiers stood, for Glitch spot), demos.mjs (which old demos
+              to remove), roundsidx.mjs (the format of rounds.json), systemd/, Caddyfile.in, INSTALL.md
+src/          the page's source: `node server/splitpage.mjs` builds site/index.html and server/admin-round.js
+gameserver/   optional: a script for a game server that sends its demos itself (if you have access to the server)
+docs/         documentation: installing, the admin page, for players, the particulars of each feature
 ```
 
-Встановлення на VPS — [server/INSTALL.md](server/INSTALL.md).
+How it all works:
 
-**Документація англійською** — [docs/](docs/README.md): встановлення й налаштування VPS ([install.md](docs/install.md)),
-адмінка й інструменти адмінів ([admin-guide.md](docs/admin-guide.md), [admin-hints.md](docs/admin-hints.md) — лише для адмінів),
-для гравців і відвідувачів ([user-guide.md](docs/user-guide.md)), як працює кожна функція і її межі ([features.md](docs/features.md)).
+```
+the game server's demo page  ──(fetch.mjs, each page at its own interval)──►  VPS: upload/incoming
+(e.g. 85.17.145.41/karkand/demos)                                              │ ingest.mjs: demo → decoded round (.bfr, ~6× smaller);
+                                                                               │ rounds without players, or with one, are dropped
+                                                                               ▼
+                         data/rounds.json (the list, light) + data/rounds/*.bfr (the rounds)
+                         + data/stats/ (numbers over all rounds) + data/www/ (plain pages, RSS)
+                         + data/share/r|p/*.html (link previews /r/<round>, /p/<player>)
+                                                                               │ Caddy (HTTPS)
+                                                                               ▼
+                                              the browser: the round list; a round opens in 1–3 s
+GitHub (this repository)  ──(every minute, update.sh: git pull)──►  site/ on the VPS
+```
 
-## Оновлення сайту через GitHub
+## Documentation
 
-VPS сам щохвилини дивиться в GitHub. Коли там з'являється новий коміт, він оновлює `site/` і, якщо змінився
-розбір демо, перерозбирає всі раунди з їхніх демо (5–15 с на раунд, кілька одночасно — скільки дозволяють ядра й пам'ять, — окремою
-службою `bf2replay-reprocess` у фоні; скільки вже зроблено і скільки лишилось — `sudo bf2replay-status` на VPS і
-позначка «Updating rounds 25% · ~40 min» у шапці сайту на кожній сторінці (оновлюється кожні 30 с);
-сайт працює далі, і наступна версія з GitHub підтягується теж, не чекаючи кінця перерозбору).
-Тобто «викласти нову версію» = зробити `git push`.
+| | |
+|---|---|
+| [docs/install.md](docs/install.md) | installing and configuring the VPS, updating, backups, troubleshooting |
+| [docs/admin-guide.md](docs/admin-guide.md) | the admin page `/admin`, posts and summaries, the Admin tab of a round, review |
+| [docs/admin-hints.md](docs/admin-hints.md) | what each hint for admins means (**for admins only**) |
+| [docs/user-guide.md](docs/user-guide.md) | for players and visitors: watching rounds, players, records, statistics, clips |
+| [docs/features.md](docs/features.md) | how each feature works and where its limits are |
+| [server/INSTALL.md](server/INSTALL.md) | the detailed server notes, section by section, with the version that brought each part |
+| [gameserver/README.md](gameserver/README.md) | a game server that uploads its demos itself |
+| [CHANGELOG.md](CHANGELOG.md) | what each version changed |
 
-### Один раз: створити репозиторій
+## Installing
 
-1. На github.com: **New repository** → назва `bf2-round-replay` → **Private** → без README → **Create**.
-2. На Mac, у Terminal (архів від Claude розпакований у `~/bf2-round-replay`):
+The full guide is [docs/install.md](docs/install.md). In short:
+
+1. **What you need**: an Ubuntu 22.04 / 24.04 VPS (2 GB of RAM or swap; a few GB of disk a month), ports 22, 80, 443
+   open, a domain for HTTPS (free: [duckdns.org](https://www.duckdns.org)), and this repository on GitHub
+   ([below](#once-make-the-repository)).
+2. **DNS and firewall**: an **A** record `replay.your-domain` → the VPS's IP (before installing: Caddy asks for the
+   certificate at once); then on the VPS:
 
    ```bash
-   cd ~/bf2-round-replay
+   sudo ufw allow OpenSSH && sudo ufw allow 80,443/tcp && sudo ufw enable
+   ```
+
+3. **Install**: copy the `server` folder to the VPS and run `install.sh` as root:
+
+   ```bash
+   scp -r bf2-round-replay/server YOU@VPS_IP:/tmp/bf2r-server        # from the folder that holds your clone
+   ssh YOU@VPS_IP
+   cd /tmp/bf2r-server
+   sudo BF2R_REPO=git@github.com:YOUR_LOGIN/bf2-round-replay.git \
+        BF2R_DOMAIN=replay.your-domain \
+        BF2R_FETCH_URLS=http://85.17.145.41/karkand/demos/ \
+        bash install.sh
+   ```
+
+   The script installs Node.js 22, Caddy, git and rsync, makes the users `bf2replay` and `bf2upload`, clones the
+   repository into `/srv/bf2replay/repo`, writes `/etc/bf2replay.conf` and sets up the services and timers. For a private
+   repository it makes a read-only deploy key and stops to show it: paste it into the repository on GitHub → Settings →
+   Deploy keys → Add deploy key (don't allow write access), then press Enter. The first download starts at once.
+4. **The admin password** (asked twice, not shown):
+
+   ```bash
+   sudo node /srv/bf2replay/repo/server/admin.mjs --set-password
+   ```
+
+   Then open `https://replay.your-domain/admin`: add more demo pages or game servers (*Where demos come from*), set up
+   posts to Discord / Telegram (*Posts about new rounds*), and accounts for the servers' admins (*Servers' admins*).
+5. **Background analysis** (the hints for admins) — install its browser once:
+   `sudo bash /srv/bf2replay/repo/server/analyze.sh start`.
+
+Every setting is in `/etc/bf2replay.conf` ([docs/install.md §6](docs/install.md#6-settings-etcbf2replayconf)); the
+admin page holds the rest. Another web server on 80/443: `BF2R_WEB=none` and `server/nginx-example.conf`
+([§13](docs/install.md#13-another-web-server-nginx)).
+
+## Once: make the repository
+
+1. On github.com: **New repository** → name `bf2-round-replay` → **Private** → no README → **Create**.
+2. In a terminal, in the folder with the files of this repository:
+
+   ```bash
    git init -b main
    git add .
-   git commit -m "BF2 Round Replay v57"
-   git remote add origin git@github.com:ТВІЙ_ЛОГІН/bf2-round-replay.git
+   git commit -m "BF2 Round Replay"
+   git remote add origin git@github.com:YOUR_LOGIN/bf2-round-replay.git
    git push -u origin main
    ```
 
-   (Якщо `git push` просить пароль або пише «Permission denied (publickey)» — додай свій SSH-ключ у GitHub:
-   Settings → SSH and GPG keys, або використай GitHub Desktop: File → Add local repository → Publish.)
-3. VPS читає репозиторій через **deploy key** лише на читання (`/root/.ssh/GitHub_bf2_repo` на VPS) — `install.sh`
-   сам його створить (або візьме вже наявний) і покаже, що вставити в репозиторії: Settings → Deploy keys →
-   Add deploy key (галочку «Allow write access» не ставити).
+   (If `git push` asks for a password or says "Permission denied (publickey)", add your SSH key to GitHub: Settings →
+   SSH and GPG keys; or use GitHub Desktop: File → Add local repository → Publish.)
+3. The VPS reads the repository with a read-only **deploy key** (`/root/.ssh/GitHub_bf2_repo` on the VPS) — `install.sh`
+   makes it (or takes the one already there) and shows what to paste into the repository: Settings → Deploy keys → Add
+   deploy key (leave "Allow write access" off).
 
-### Кожна нова версія
+## Updating the site
 
-Від Claude в Downloads приходить один архів `bf2-round-replay-vNN.zip` — увесь репозиторій, разом з точними формами
-колізій мап (`site/assets/geo`), деревами мап (`site/assets/los/*.veg.js`) і чіткими мінімапами (`site/assets/maps_hd`).
-Поруч лежать `bf2-round-replay-vNN-part1.zip` і `-part2.zip` — з них Claude його зібрав (на Mac за раз передається не
-більше 30 МБ); вони вже не потрібні, їх можна видалити. (До v191 приходили два архіви, `vNN.zip` і `vNN-geo.zip`, і
-розпаковувались обидва в ту саму папку.) З v196 файли лежать в архіві одразу, без папки `bf2-round-replay-vNN` навколо
-(`site/`, `server/`, `README.md`…). На Mac:
+The VPS looks at GitHub every minute. When a new commit is there, it updates `site/` and the server scripts, and if the
+decoding of demos changed, decodes every round again from its demo (5–15 s a round, several at once — as many as the
+cores and memory allow — in the background service `bf2replay-reprocess`; how far it is: `sudo bf2replay-status` on the
+VPS and "Updating rounds 25% · ~40 min" in the site's header on every page, refreshed every 30 s). The site keeps
+working meanwhile, and the next version from GitHub is pulled too, without waiting for the end. So **publishing a new
+version = `git push`**.
 
-```bash
-V=v222   # номер версії з назви архіву
-cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
-rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
-cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
-```
-
-За ≤ 1 хвилину нова версія на сайті. Не чекати й хвилини: `sudo systemctl start --no-block bf2replay-update` на VPS
-(після `git push`). Перевірити: `journalctl -u bf2replay-update -n 20`.
-
-У браузері: сторінка, її файли (`assets/`) і `version.json` ніколи не беруться з кешу без перевірки, тож звичайне
-оновлення сторінки (F5) показує нову версію. Уже відкрита вкладка раз на 2 хвилини (і щоразу, як на неї
-повертаються) дивиться у `version.json` і, якщо там новіша версія, показує вгорі плашку **A new version is out: vNN ·
-Reload** — Reload відкриває ту саму мить раунду з тим самим бійцем, уже в новій версії.
-
-**Відкат**, якщо нова версія щось зламала: `git revert HEAD && git push` — за хвилину повернеться попередня.
-
-**Простіше:** якщо підключити цей репозиторій до Claude (GitHub-інтеграція), Claude зможе сам робити `git push`
-нових версій — тоді не треба ні zip, ні команд.
-
-### Адмін-сторінка (з v150)
-
-`https://домен/admin`, за паролем: стан сервера (раунди, черга демо, перерозбір, служби, диск, журнал), кнопки
-«розібрати зараз / перерозібрати / скачати зараз / оновити / копія», список серверів, з яких брати демо (додати,
-перевірити, прибрати). Пароль задається один раз на VPS — `sudo node /srv/bf2replay/repo/server/admin.mjs
---set-password`; у репозиторії його немає. Решта ставиться сама з оновленням. Докладно — `server/INSTALL.md`, розділ 14.
-З v153 там же — пости про нові раунди в Discord / Telegram (вебхук або бот; розділ 15).
-З v162 — скільки демо сервер розбирає одночасно (нові й повторно) і як швидко йшло з кожним числом, щоб підібрати
-найкраще для VPS (розділ 16).
-З v163 — що розбирається зараз і що чекає черги, кнопка Stop; прохід, що застав оновлення, закінчується сам (розділ 17).
-З v165 цифри за всі раунди (сторінки гравця, порівняння, мапи, таблиця гравців) рахує сервер у `data/stats`, а сайт
-вантажить лише потрібний файл (розділ 18).
-З v166 `rounds.json` — короткий рядок на раунд (~0,5 КБ замість ~5), повні дані лише на сервері (розділ 18).
-З v175 — аналіз усіх раундів сервера для порогів підказок: `sudo bash /srv/bf2replay/repo/server/analyze.sh start`,
-у фоні кілька годин, потім архів для Claude (розділ 19).
-З v176 `rounds.json` ще втричі менший: раунд масивом, сервер і команди номерами (6000 раундів: 3,1 → 0,9 МБ; розділ 18).
-З v178 точніше, хто кого бачить: висота очей як камера в грі, ще 3 точки тіла (плечі й стегна), приціл зупиняється на
-точних формах стін; на Operation Road Rage і Midnight Sun з'явились стіни торгових рядів (склопластик рахувався як скло).
-Перерозбору немає (декодер той самий); аналіз (розділ 19) — див. там про v178.
-З v179 — «Crew's view» для техніки (те, що бачив її екіпаж), бійці на даху / поверсі / палубі підняті над своєю тінню
-(Filters ▾ Heights), використана аптечка зникає з мапи, коли її підняли. Перерозбору немає.
-З v180 — таблиця матеріалів гри (Common_server.zip): кулі проходять крізь дошки, тонкий метал, пластик, тканину; вбивство
-лише крізь таке — не «No line of sight», а «Through thin walls»; Fired at a wall і Wall tracking перевіряються точними
-формами. Файли assets/geo оновлено (усі 22 мапи). Перерозбору немає.
-З v181 — у «His view» звуки пострілів і вибухів (кільця, поза екраном стрілки на краю мапи; дальність з файлів звуків
-гри), кнопка-динамік у тезі над мапою і Filters ▾ Sounds. Кроків поки немає.
-З v182 — те саме демо з двох сторінок (сторінка клану і сторінка самого ігрового сервера) більше не стає двома
-раундами: `fetch.mjs` не качає його вдруге, а копії, що вже є, `ingest.mjs` знімає зі списку й статистики в
-`data/.copies` (посилання на них відкривають той самий раунд; розділ 5). Пороги підказок «For admins» підібрані на
-1619 раундах аналізу (розділ 19): Vehicle speed (човни), Stamina, Aim snaps, Headshots, Fast flag. Аналіз після `stop`
-закінчується сам і робить архів. Перерозбору немає.
-З v183 — на сторінці гравця хедшоти порівняно з тим, що дає його зброя всім (за всі його раунди; червоним, коли так
-часто випадково не буває); вбивства, для яких гра не називає зброю (екіпаж, що загинув з технікою, — 8% усіх), названо
-зброєю, що її знищила (SRAW, міна, ракета) або технікою вбивці; Damage не спрацьовує на відкритого кулеметника танка й
-зенітки; Spawn — на перших спавнах раунду. Після оновлення `ingest.mjs` один раз перераховує підсумки всіх раундів з
-розібраних файлів, без перерозбору демо (розділ 18).
-З v184 — пороги ще п'яти підказок за другим архівом аналізу (675 раундів з видимістю v182 / v183): No line of sight і
-Through smoke — лише в того, в кого таких вбивств 2+ за раунд; Fired at a wall — лише 4+ черги по захованому ворогу (не
-одна довга); Guided missiles — проти частки влучань усіх TV-стрільців (38%), а не кількох у раунді; Speed — не в перші
-10 с раунду. «Підозрілих» підказок ~0,9 на раунд (було 2,1; до v182 — 4,6). Перерозбору немає.
-З v185 — на сторінці гравця картка «Hints over his rounds»: кожна підказка «For admins» за всі його раунди проти частки
-всіх, з шансом випадково і посиланнями на раунди; нова підказка Glitch spot — 20+ с там, де за всі раунди мапи не стояв
-ніхто, крім нього, а просто над чи під ним стояли інші (під підлогою, у скелі чи стіні, на даху). Обидва рахує нова
-фонова служба `bf2replay-hints` (розділ 20 INSTALL; перший раз швидше: `analyze.sh glitch`). Раунди Special Forces
-(Mass Destruction, Surge) більше не ставлять усіх в одну команду (кожне вбивство не «тімкіл»). Floating — від 8 с, Fast
-flag на Kubra Dam — Bridge Base рахує тих, хто під мостом, Speed — не для двох, яких щось везе разом, Beyond fog — лише
-2+ за раунд. У картці вибраного бійця — кнопка Aim line (клавіша X): лінія від нього до того, куди дивиться приціл.
-Перерозбір лише раундів на мапах Euro Force і Special Forces.
-З v186 — на адмін-сторінці картка «Demos: what to keep»: скільки місця що займає і які старі демо прибирати (раунди
-лишаються й відкриваються як раніше): старші за N днів, понад N GB, крім раундів з підказками для адмінів і списку Keep;
-спершу ті, що сторінка-джерело ще роздає. Коли змінюється декодер, прибране демо, яке сторінка ще має, скачується знову,
-перерозбирається і знову йде. Копії раундів (`data/.copies`) — кнопкою. Перерозбору немає (розділ 21 INSTALL).
-З v187 — у пості про новий раунд (Discord / Telegram) можна вибрати на адмін-сторінці, окремо для кожного, що в ньому
-буде: найбільше вбивств пішки, з техніки, хедшотів, ножем, клейморами, ракетницями по піхоті, переїхавши; найдальші
-вбивства (ракетниця, ручна зброя, снайперка, будь-чим); серія, K/D, реанімації, лікування, ремонти, прапори; перша кров і
-хто вбитий останнім; з попереднім переглядом. Після оновлення підсумки раундів один раз перераховуються з `.bfr`, без
-перерозбору демо (розділ 15 INSTALL).
-З v188 — у Round stats кожного раунду блок Highlights: те саме, що в пості (найбільше вбивств пішки, з техніки, хедшотів,
-ножем, клейморами, мінами, ракетницями по піхоті, переїхавши, вибухівкою; найдальші вбивства; серія, K/D, реанімації,
-лікування, ремонти, прапори; перша кров і хто вбитий останнім) - клік веде до гравця або до вбивства. Kill feed над
-мапою згортається кнопкою на ньому (або J). Мін у пості теж додано; підсумки раундів ще раз перераховуються з `.bfr`.
-З v189 — кнопка Hide помітніша (на стрічці над мапою, угорі праворуч), і панель Kill feed / Highlights / For admins
-(ліворуч від мапи або під нею) теж згортається своєю кнопкою Hide до самих вкладок.
-З v190 — серії вбивств окремо: пішки і з техніки (вбивство іншого роду серію не рве, смерть рве) — у Highlights на
-сайті і в пості (дві галочки в адмінці замість однієї). Підсумки раундів ще раз перераховуються з `.bfr`.
-З v191 — панель Kill feed ліворуч від мапи (не в повноекранному режимі) згортається у вузьку вертикальну смужку на всю
-висоту мапи, мапа присувається до неї; клік по смужці розгортає. Під мапою (вузьке вікно, телефон) — як і раніше, до вкладок.
-З v192 — рекорди за багатьма раундами з тими самими категоріями, що в Highlights (серії пішки й з техніки, найдальші
-вбивства з ракетниці / ручної / снайперки, ніж, клеймори, міни, переїхав, вибухівка, прапори…): сторінка Records (/records/,
-7 днів / 30 днів / усі), на сторінці гравця — «His best in one round», на сторінці мапи — «Records on this map». В адмінці —
-картка Background analysis: скільки раундів фоновий аналіз уже пройшов, коли закінчить, як ідуть сітки Glitch spot.
-Підсумки раундів ще раз перераховуються з `.bfr`, статистика пишеться заново.
-З v193 — пошук гравця (Find a player) у вкладці Players · all rounds і на сторінці /players/: рядки, де в імені (чи
-нікові) є набране; Enter при одному збігу відкриває його сторінку. В адмінці, картка Background analysis: кнопки Run now,
-All rounds now (без обмеження 40 раундів, кілька одночасно, прохід за проходом, поки все не пройде), Pause / Go on;
-видно, що робить прохід зараз і що зробив останній. Там же — архів для Claude: Make the archive і Download, назва з
-версією сайту (`bf2-analysis-<дата>-v193.tar`), у таблиці — якими версіями сторінки й правилами підказок пройдені раунди.
-З v194 — пости в Discord / Telegram окремо для кожного ігрового сервера: свій вебхук і / або свій чат (бот Telegram
-один), свої пункти поста, за бажанням свій мінімум гравців; раунди сервера, якого не налаштовано, не постяться. Старі
-спільні налаштування один раз скопійовано в сервери з раундами за останні 30 днів (INSTALL, розділ 15).
-З v195 — редактор поста для кожного сервера (адмінка, The post): класичний пост, картка Discord з таблицею (поля по 1-3
-в ряд, колір, картинка мапи, рядок унизу) або текст; порядок пунктів, свої назви, свої заголовок і рядки з мітками
-({map}, {foot}…), повністю свій текст; Telegram — з тими самими порядком і назвами; шаблони на всі сервери.
-З v196 — адмінське прибрано з публічної сторінки (вкладка For admins, картка підказок гравця, шанси хедшотів — і сам
-код підказок): у кожному раунді вкладка **Admin**, вхід за паролем. Ти — з порожнім іменем і паролем адмінки; адміни
-серверів — своїми акаунтами (адмінка → Servers' admins), бачать лише раунди своїх серверів. Фільтри підказок: гравець,
-сторона, сила, зброя, час, гравці з N+ підказками (INSTALL, розділ 22). Сторінка тепер збирається з `src/index.html`
-(`node server/splitpage.mjs`: публічна `site/index.html` і адмінська частина `server/admin-round.js`).
-З v197 — у вкладці Admin ще **Players** (кожен боєць: підказки, хедшоти проти очікуваних із шансом, реакція, приціл,
-вбивства без лінії зору, відстань, пінг; History — його раунди, сервери, інші імена, картка підказок), **Kills** (усі
-вбивства з цифрами аналізу, фільтри, сортування, CSV) і **The round** (діри в записі, хто зайшов / зник / міняв сторону,
-налаштування сервера; звідки й коли демо, копії, декодер, аналіз).
-З v198 — **Review** у вкладці Admin: позначки підказок (✓ перевірено, ✗ хибна, ⚑ підозріла), фільтр «без розглянутих і
-довірених», довірені гравці (★, не підсвічуються), нотатки до раунду й до гравця, звіт для адмінів сервера (текст для
-Discord або .html з посиланнями на моменти). Зберігається в `data/.admin/review/` (INSTALL, розділ 22).
-З v199 — вхід для адмінів і з головної сторінки: кнопка **Admin** угорі (вікно з іменем і паролем; після входу —
-Admin ✓, перехід у вкладку Admin раунду, адмінка, вихід). Пароль не показується й не потрапляє в адресу чи сховище
-браузера (INSTALL, розділ 22).
-З v200 — **усі раунди на окремій сторінці** (кнопка Rounds угорі або клік на рядок раунду; замість списку, що
-випадав): сервер (кнопки з кількістю), мапа, дні від–до, гравців від, тривалість від, пошук гравця (і його сторінка),
-сортування за колонками, по 200 рядків (Show 200 more / Show all), CSV відібраних; кожен раунд — посилання (можна в
-новій вкладці), фільтри в адресі (INSTALL, розділ 11).
-З v201 — **відстані вбивств виправлено**: вбивство зі стрілецької зброї більше не рахується від чужого кидка чи снаряда
-(було: DAO-12 впритул — 502 м, L96A1 зі 148 м — 910 м); раунди підсумовуються заново (SUM_V 7) без перерозбору, рекорди
-й пости — з правильними відстанями. **Records з вибором сервера** (`/records/<сервер>.html`). Сайт на телефоні —
-мобільна верстка (`<meta name="viewport">`). Перемикач **Aim line** є ще й у Filters ▾.
-З v202 — кнопка **⬇ Demo** у кожного раунду (і на його сторінці `/rounds/…`): демо з сервера, а якщо його прибрано —
-посилання туди, звідки воно скачане (INSTALL, розділ 21).
-З v203 — «Longest kill» гравця (таблиця Players · all rounds, картка, Round stats, CSV) без артилерії командира (снаряд
-летить від гармати: на Wake 18 Oct 18:52 — 1353 м і 1038 м), як і в Records; SUM_V 8 — підсумки раундів ще раз.
-З v204 — **рекорди по групах зброї** (найдовше вбивство й найбільше вбивств): ручна зброя без снайперок, снайперки,
-протитанкові ракети (ручні й станкові), техніка, ППО-гармати, ППО-ракети з землі, ракети повітря-повітря. І головне:
-відстані вбивств тепер рахуються заново й для **старих** раундів — розібраний файл раунду (.bfr) мав відстані з коду,
-яким його розібрали, і v201-v203 їх не міняли (тому на сайті лишалось 910 м); SUM_V 9.
-З v205 — протитанкові окремо: ручні (SRAW, Eryx, RPG-7), станкові (TOW, HJ-8) і танкові гармати (окремо від техніки);
-SUM_V 10.
-З v206 — на адмін-сторінці (картка Rounds) кнопка **Recalculate all records**: усі раунди підсумовуються заново з
-розібраних файлів, рекорди й сторінки пишуться наново (INSTALL, розділ 14).
-З v207 — пост у Discord / Telegram наприкінці раунду: **табло** (п'ятеро найкращих кожної сторони), **нові рекорди**
-сервера, які раунд побив (за весь час / 30 / 7 днів), і пункти груп зброї, як у Records (вимкнені, поки не ввімкнеш);
-SUM_V 11 (INSTALL, розділ 15).
-З v208 — пост у Discord **таблицею**: «Discord as» → *a card with a table: a row each* — моноширинна таблиця, один
-рядок — один тип кілу (назва, результат, гравець), нові рекорди — окремою таблицею (INSTALL, розділ 15).
-З v209 — **підсумки сервера за день, тиждень і місяць** окремим постом о 10:00 (Братислава): підсумок сервера, топ-10 за
-очками, лідери за типами кілів за період, найкраще за один раунд; вмикаються галочками на сервер (INSTALL, розділ 15).
-Новий таймер `bf2replay-digest.timer` ставиться сам.
-З v210 — **кожна сторінка демо — свій час** (адмінка, Where demos come from: від щохвилини до раз на день або вимкнено;
-таймер щохвилини) і демо, після якого вже є наступне, береться через 30 с, а не 3 хв: пост у Discord за 1–3 хв після
-раунду (INSTALL, розділ 5). У пості-таблиці числа **жирні**, з `|` (або, як було, рівні моноширинні стовпці). Вибухівка
-розділена: **гранати**, **підствольник**, **C4** окремо (міни й клеймори — як були), «Explosives» прибрано — у постах,
-Highlights, Records і підсумках; SUM_V 12.
-З v211 — у пості-таблиці назва й гравець моноширинним, кожне до найдовшого, з `|` після кожного: розділювачі в усіх
-рядках на одному місці, жирні числа — з одного рівня (INSTALL, розділ 15).
-З v212 — виправлено **Make an archive** в адмінці («Cannot access 'pageHv' before initialization»: архів аналізу не
-робився з v193) і створення папок Glitch spot на новому встановленні.
-З v213 — підказки за архівом 2779 раундів: місця мап, де гра сама «телепортує» чи розганяє (Dragon Valley, Gulf of
-Oman, Kubra Dam), точки спавну, яких бракує в розкладках (Mashtuur City та ін.), ракета БТР 4 с, Fired at a wall від 6
-черг, Fast flag на +2 солдати; Beyond fog — для всієї зброї, крім мін, клейморів, C4, артилерії, ракет ППО і керованих
-ракет; фільтр «з якої зброї» в Kill feed / Highlights / For admins; короткі назви рядків поста-таблиці; подяка
-High Definition Minimap (знизу сторінки). HINTS_V 2 — фоновий аналіз переганяє раунди.
-З v214 — декодер бере з демо ще й скільки набоїв у магазині при кожному натисканні курка і натискання, коротші за такт гри
-(лічильник натискань): **хеш декодера змінився — сервер сам перерозбере всі раунди** (як після кожної зміни декодера).
-Нові підказки For admins: Clicker, Bullet rate, Spot rhythm, Anti-AFK script, Prone spam, Bunny hop, Lag switch, One-hit kills,
-Silent aim, Aim lock, Spin, Side switch, TK + revive, Sniper headshots; Pre-aim снайперів — проти снайперів; Through walls — не на
-авіаносці, Kill farming — не з авіації. Бал підозри на картці гравця і список найвищих в адмінці; канал адмінів у Discord
-(alerts.mjs) — підказки кожного нового раунду після фонового аналізу. В архіві аналізу — усі натискання (Q, U) і здоров'я жертви
-перед вбивством. HINTS_V 3, ANALYZE_V 2. Short name «Far Veh».
-З v215 — більше статистики: підсумок раунду має дуелі, шкоду, асисти, сквад, прапори, реанімації й техніку кожного гравця,
-час і техніку кожного вбивства та прапори раунду (SUM_V 13 — сервер підсумує всі раунди знову сам, без перерозбору демо).
-Рейтинг (Elo) і колонки «Duels & teamwork» у таблиці Players; на сторінці гравця — рейтинг, дуелі, шкода, немезида, техніка й
-теплова карта; на сторінці мапи — теплова карта; кнопка Stats: клани, техніка, сторінки серверів (коли грають, мапи, прапори, що
-вирішують раунд) і пошук моментів. У пості про раунд — Milestones; у підсумках — гравець дня / тижня / місяця.
-З v216 — поле зору бійця 90° (45° у кожен бік; було 79°, екран 4:3): сектор погляду на мапі, «бачить / бачив першим», «Не бачив
-свого вбивцю», Wide view (смуга 47,5–67,5°), Reaction, Pre-aim. HINTS_V 4 — фоновий аналіз переганяє підказки всіх раундів;
-SUM_V 14 — сервер підсумує всі раунди знову сам (без перерозбору демо).
-З v217 — пост «a card with a table: a row each»: колонка гравців завширшки з найдовший нік (після нього — один пробіл); нічия —
-скільки ніків влазить, решта «+N».
-З v218 — у тому ж пості First blood і Last killed у два рядки: перший — хто вбив (First blood) або кого вбили (Last killed) і
-час раунду; другий, під ним, — кого він вбив / хто його вбив і з чого.
-З v219 — поле зору як на екрані 16:9 (95°; з патча 1.5 гра розширює кадр по ширині екрана), точна рамка огляду, у приціл
-вужче за зброєю (оптика — кругле поле), Wide view 50–70° з приміткою про монітори 21:9. HINTS_V 5, SUM_V 15 — сервер сам
-перегляне підказки й підсумки всіх раундів.
-З v220 — в адмінці пояснення під кожною карткою й інструкція внизу (How to use this page); у підсумків (Summaries) свої
-налаштування Discord: окремий канал або канал постів раундів, Telegram, заголовок і тексти, згадка над картками (@here, роль),
-частини, довжина топу, рядки лідерів і найкращого, таблиці «exact columns» або «bold numbers».
-З v221 — рекорди без неможливих відстаней і зброї: вбивство міною, яке гра назвала «SRAW», — міна; ручна зброя з літака,
-зброя техніки пішки, далі за дальність кулі — без відстані; ракета «повітря–повітря» — від місця пуску; ручна зброя за туманом —
-не рекорд; ремонти — як рахує гра. SUM_V 16, HINTS_V 6 — сервер усе перерахує сам.
-З v222 — документація англійською в `docs/`: встановлення й налаштування (install.md), адмінка, пости, вкладка Admin і розгляд
-(admin-guide.md), підказки для адмінів (admin-hints.md — не для гравців), для гравців (user-guide.md) і особливості кожної
-функції (features.md). Код сайту не змінився: ні перерозбору, ні перерахунку.
-
-### Перевірити локально перед push
+A release can come as one archive of the whole repository, `bf2-round-replay-vNN.zip` (the files at its top level, with
+the exact collision shapes of the maps `site/assets/geo`, the maps' trees `site/assets/los/*.veg.js` and the sharp
+minimaps `site/assets/maps_hd`). Unpack it over your clone and push:
 
 ```bash
-cd ~/bf2-round-replay/site && python3 -m http.server 8000
+V=v223                                   # the version in the archive's name
+rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
+rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
+cd path/to/your/clone && git add -A && git commit -m "$V" && git push
 ```
 
-і відкрити http://localhost:8000 — без `data/` сайт працює як звичайний переглядач (кнопка «Open .bf2demo»).
+Within ≤ 1 minute the new version is on the site. Not to wait even a minute: `sudo systemctl start --no-block
+bf2replay-update` on the VPS (after `git push`). Check: `journalctl -u bf2replay-update -n 20`.
 
-## Подяки та сторонній код
+In the browser: the page, its files (`assets/`) and `version.json` are never taken from the cache without checking, so a
+plain reload (F5) shows the new version. A tab already open looks at `version.json` every 2 minutes (and each time you
+come back to it) and, if a newer version is there, shows the bar **A new version is out: vNN · Reload** — Reload opens the
+same moment of the round with the same soldier, in the new version.
 
-Дякуємо:
-- **Kakarotto22** — за [bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer) (MIT): розкладки записів
-  демо, на яких стоїть декодер (подробиці нижче);
-- **Deine-Augen** — за [High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) (ModDB):
-  мінімапи Battlefield 2 у 8192 px, з яких зроблено чіткі картинки мап на сайті (подробиці в кінці розділу).
+**Rolling back**, if a new version broke something: `git revert HEAD && git push` — within a minute the previous one is
+back.
 
-Починаючи з v132 частина декодера (табло гравця з його Player ghost, спотер у повідомленні UnitSpotted, розкладка
-KilledBy, id шаблонів решти авіації: Mi-28, Su-30MKK, MiG-29, Su-34, Mi-17, F-15E) перенесена з
-[Kakarotto22/bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer) — розкладки полів, які автор
-вивчив із бінарників гри. Перевірено на 9 раундах: табло 176 з 176 гравців, kill feed 2319 з 2319, спотери 843 з 843.
-З v133 — розкладки всіх 63 подій гри (кожен пакет читається до кінця: 43154 з 43154), 16-бітні id об'єктів і записів,
-посадка в техніку / на парашут, хто випустив кожен снаряд (MissileInit), реанімації за прапорцем «man down», асисти
-(316 з 316), підібрані кіти, кіки, командири, медалі, назви сквадів.
-З v135 — блок налаштувань сервера (ServerInfo / MapInfo), записи прапорів і груп спавну (ControlPoint, SpawnGroup:
-зміни власника прапорів 845 з 845) і решта полів Player ghost (кнопки вогню, час поза зоною бою, час, коли можна
-відродитись, обрана точка спавну).
-З v136 — нумерація шаблонів на мапах Armored Fury (booster_global), події StickyProjectile, IssueSquadOrder і прапорець
-втрати квитків у ScoreManager.
-З v140 — повний запис бійця (SoldierNetworkable: вільне падіння, плавання, драбина; 100 % записів 4 раундів).
-З v142 — розкладка ігрового HUD (табло Tab і верхня смуга часу й квитків за HudElementsScoreboard.con /
-HudElementsMap.con) і виміряні кольори шрифтів; самі текстури й бітмап-шрифти взято з файлів гри (Menu_client.zip,
-Fonts_client.zip).
-З v156 — нумерація шаблонів Euro Force (техніка рівнів) і Special Forces (xpack) з тієї ж таблиці шаблонів.
-З v170 — власні записи об'єктів (SimpleObject: техніка — місце, поворот, очки міцності з шириною поля й wreck за
-шаблоном; ящики командира; GenericProjectile — куди дивиться ніс ракети; OverheadCamera — камера командира), поля
-здоров'я (8 біт) і запасу спринту в записі бійця, таблиця шаблонів техніки (maxHitPoints / wreckHitPoints).
-З v174 — мапи Special Forces: розмір мапи (`assets/world_sizes.json`), назви мап (HUD_LEVELNAME), назви прапорів із
-шаблонів ControlPoint кожного режиму й розміру (таблиця шаблонів xpack; прапори демо зіставляються з блоком цих
-шаблонів, як у їхньому `TemplateDB.align_level`) і блок даних ротації, надісланий під час раунду.
-Їхня ліцензія:
+### Trying it locally before a push
+
+```bash
+cd site && python3 -m http.server 8000
+```
+
+and open http://localhost:8000 — without `data/` the site works as a plain viewer (Tools ▾ → "Open .bf2demo").
+
+## Credits and third-party code
+
+Thanks to:
+- **Kakarotto22** — for [bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer) (MIT): the layouts of the
+  demo's records the decoder is built on (details below);
+- **Deine-Augen** — for [High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) (ModDB): the
+  Battlefield 2 minimaps at 8192 px from which the site's sharp map pictures are made (details at the end of this
+  section).
+
+Since v132 part of the decoder (the player's scoreboard from his Player ghost, the spotter in the UnitSpotted message, the
+KilledBy layout, the template ids of the rest of the aircraft: Mi-28, Su-30MKK, MiG-29, Su-34, Mi-17, F-15E) has been
+taken from [Kakarotto22/bf2-replay-viewer](https://github.com/Kakarotto22/bf2-replay-viewer) — field layouts its author
+worked out from the game's binaries. Checked on 9 rounds: the scoreboard 176 of 176 players, the kill feed 2319 of 2319,
+spotters 843 of 843.
+Since v133 — the layouts of all 63 game events (each packet read to its end: 43154 of 43154), 16-bit ids of objects and
+records, getting into vehicles / onto a parachute, who fired each projectile (MissileInit), revives by the "man down"
+flag, assists (316 of 316), picked-up kits, kicks, commanders, medals, squad names.
+Since v135 — the server's settings block (ServerInfo / MapInfo), the records of flags and spawn groups (ControlPoint,
+SpawnGroup: changes of flag owners 845 of 845) and the rest of the Player ghost fields (fire buttons, time outside the
+combat area, the time when he may respawn, the chosen spawn point).
+Since v136 — the template numbering on the Armored Fury maps (booster_global), the events StickyProjectile,
+IssueSquadOrder and the ticket-loss flag in ScoreManager.
+Since v140 — the soldier's full record (SoldierNetworkable: free fall, swimming, ladder; 100 % of the records of 4
+rounds).
+Since v142 — the layout of the game's HUD (the Tab scoreboard and the top bar of time and tickets from
+HudElementsScoreboard.con / HudElementsMap.con) and the measured font colours; the textures and bitmap fonts themselves
+are taken from the game's files (Menu_client.zip, Fonts_client.zip).
+Since v156 — the template numbering of Euro Force (the level vehicles) and Special Forces (xpack) from the same template
+table.
+Since v170 — the objects' own records (SimpleObject: a vehicle's place, turn, hit points with the field's width and the
+wreck by template; the commander's crates; GenericProjectile — where a missile's nose points; OverheadCamera — the
+commander's camera), the health (8 bits) and sprint stamina fields in the soldier's record, the vehicle template table
+(maxHitPoints / wreckHitPoints).
+Since v174 — the Special Forces maps: the map's size (`assets/world_sizes.json`), the maps' names (HUD_LEVELNAME), the
+flags' names from the ControlPoint templates of each mode and size (the xpack template table; the demo's flags are matched
+to the block of these templates, as in their `TemplateDB.align_level`) and the rotation data block sent during the round.
+Their licence:
 
 ```
 MIT License
@@ -334,8 +215,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-Чіткі мінімапи (з v144, `site/assets/maps_hd/*.webp`, 2048 px) зменшено з паку
-[High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) від Deine-Augen (ModDB, 2023:
-мінімапи Battlefield 2 у 8192 px). Звичайні мінімапи 512 px (`site/assets/maps`) — з файлів самої гри; для 8 мап
-Special Forces (з v174) і вони зменшені з того ж паку (файлів рівнів SF тут немає, тож на цих мапах немає стін,
-рельєфу й ліній видимості).
+The sharp minimaps (since v144, `site/assets/maps_hd/*.webp`, 2048 px) are scaled down from the pack
+[High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) by Deine-Augen (ModDB, 2023: Battlefield 2
+minimaps at 8192 px). The plain 512 px minimaps (`site/assets/maps`) are from the game's own files; for the 8 Special
+Forces maps (since v174) they too are scaled down from that pack (the SF level files are not here, so those maps have no
+walls, relief or lines of sight).
