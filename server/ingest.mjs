@@ -149,8 +149,21 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-const SUM_V = 14;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels)
+const SUM_V = 15;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom)
 const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
+// (v219) the page's field of view (VIEW_HALF, viewZoom) for the summaries: 95° across (a 16:9 screen: Hor+ since the 1.5
+// patch, the camera 1.1 rad high); through the sights or a scope (the Player ghost's move code 16) narrower - here without
+// the weapon itself (the page knows it): the sniper kit's rifle (slot 3) 0.25 of the height and round, a pistol (slot 2)
+// 0.8, else 0.65 (the page's ZOOM_F: scopes 0.2-0.4, rifles 0.6-0.7, pistols, shotguns, SMGs 0.8)
+const VIEW_ASPECT = 16 / 9, VIEW_H = Math.atan(Math.tan(0.55) * VIEW_ASPECT);
+const lastAt = (L, tt) => { let v = null; for (const e of L || []) { if (e[0] > tt + 1e-6) break; v = e[1]; } return v; };
+function viewHalfOf(p, tt) {
+  if (!p || !((lastAt(p.mv, tt) || 0) & 16)) return VIEW_H;
+  const slot = lastAt(p.items, tt); let kit = null, kt = -Infinity;
+  for (const L of [p.kits, p.pk]) for (const [ts, k] of L || []) { if (ts > tt + 0.05) break; if (ts >= kt) { kit = k; kt = ts; } }
+  const z = slot === 3 && kit === 'Sniper' ? 0.25 : slot === 2 ? 0.8 : 0.65, hv = 0.55 * z;
+  return Math.min(1.55, (z <= 0.4 ? hv : Math.atan(Math.tan(hv) * VIEW_ASPECT)) + 10 * Math.PI / 180);   // (+ the page's ZOOM_SLACK, 10°)
+}
 function summarize(tl, hdr, dec) {
   const killCause = dec.killCause, guess = dec.killWeaponGuess;
   const C = tl.cols, n = C.n, T = C.times, F = T.length, dur = tl.meta.duration;
@@ -170,7 +183,7 @@ function summarize(tl, hdr, dec) {
     const bear = (v, k) => Math.atan2(k.x - v.x, k.y - v.y), ok = (v, k) => v.alive && k.alive && !v.veh && Number.isFinite(v.yaw) && Number.isFinite(k.x) && Math.hypot(k.x - v.x, k.y - v.y) > 0.5;
     const v0 = at(vi, t - 0.1), k0 = at(ki, t - 0.1); let face = null, seen = null;
     if (ok(v0, k0)) { const d = angOff(v0.yaw, bear(v0, k0)); face = d < Math.PI / 3 ? 0 : d > Math.PI * 2 / 3 ? 2 : 1; }
-    for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(vi, tt), k = at(ki, tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= Math.PI / 4) { seen = 1; break; } }   // (the page's VIEW_HALF: 90° across, v216 - SUM_V 14)
+    for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(vi, tt), k = at(ki, tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= viewHalfOf(P0[vi], tt)) { seen = 1; break; } }   // (the page's VIEW_HALF and the sights' zoom: v219 - SUM_V 15)
     return [face, seen === null ? null : seen ? 0 : 1];
   };
   const ev = tl.events.slice().sort((a, b) => a.t - b.t), kills = ev.filter(e => e.type === 'kill');
@@ -338,8 +351,7 @@ function extraStats(tl, C, P0, pidx, team, at, ev, kills, sold, P, dur) {
   const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
   const kind = v => String(v || '').replace(/ \d+$/, '');
   // duels: from the view test of the kills (as pts' unseen)
-  const VIEW = Math.PI / 4;   // (the page's VIEW_HALF: 90° across, v216)
-  const sawIn = (a, b, t) => { for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(a, tt), k = at(b, tt); if (!v.alive || !k.alive || v.veh || !Number.isFinite(v.yaw) || !Number.isFinite(k.x) || Math.hypot(k.x - v.x, k.y - v.y) < 0.5) continue; if (angOff(v.yaw, Math.atan2(k.x - v.x, k.y - v.y)) <= VIEW) return true; } return false; };
+  const sawIn = (a, b, t) => { for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = at(a, tt), k = at(b, tt); if (!v.alive || !k.alive || v.veh || !Number.isFinite(v.yaw) || !Number.isFinite(k.x) || Math.hypot(k.x - v.x, k.y - v.y) < 0.5) continue; if (angOff(v.yaw, Math.atan2(k.x - v.x, k.y - v.y)) <= viewHalfOf(P0[a], tt)) return true; } return false; };   // (v219: viewHalfOf)
   for (const e of kills) {
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi || team(ki, e.t) === team(vi, e.t) || !Y.has(ki) || !Y.has(vi)) continue;
     const kq = at(ki, e.t - 0.05), vq = at(vi, e.t - 0.05); if (kq.veh || vq.veh) continue;

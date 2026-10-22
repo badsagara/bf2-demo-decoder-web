@@ -981,7 +981,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn on" id="tOrders" title="Each squad's current order (attack, defend, move) where its leader put it, with the game's icon and the squad's name; an order shows for 3 minutes or until the next one">Squad orders</button>
       <button class="btn" id="tSpawnG" title="Where each flag's soldiers spawn (the middle of its spawn points, as the demo has it), in the colour of the side that can spawn there - a dashed ring round a dot; grey while nobody can">Spawn points</button>
       <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
-      <button class="btn on" id="tView" title="What the soldier you follow sees (90° across, out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
+      <button class="btn on" id="tView" title="What the soldier you follow sees (95° across - a 16:9 screen, narrower through his sights or scope - out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
       <button class="btn" id="tAimLn" aria-pressed="false" title="The soldier you follow: a line from him (or his vehicle's guns) to where his crosshair meets something - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit. Also in his card (Aim line) and the X key">Aim line</button>
       <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
       <button class="btn on" id="tLift" title="Soldiers up on a roof, an upper floor, a tower, a bridge or a ship's deck - 2 m or more over the ground or the sea under them: lifted over a shadow where they are, with a thin line down to it (the higher, the longer); 12 m or more up, the height by the shadow">Heights</button>
@@ -1070,7 +1070,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v217';
+const APP_VERSION = 'v219';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1923,20 +1923,81 @@ function inHands(i, tt) {
 const teamColor = tm => tm===0 ? css('--team0') : tm===1 ? css('--team1') : css('--neutral');
 const rgbaOf = (col, a) => { const h = String(col).trim().replace('#', ''); if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(h)) return null; const v = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`; };
 // ---------- field of view ----------
-// (v216, Sagara: "a player's field of view of 90°") A soldier sees 90° across: 45° each side of where he looks. The game's
-// soldier camera (Objects/Soldiers/Common/SoldierCamera.tweak: worldFOV 1.1 rad, vertical) is as wide as his screen makes
-// it - ~79 deg on a 4:3 screen, the width v47-v215 took (VIEW_HALF 39.4 deg); the demo holds nothing of his screen, and
-// less when aiming down the sights, which it doesn't show either. Nobody sees past the map's fog limit
-// (Init.con GameLogic.MaximumLevelViewDistance: Karkand 140 m, Mashtuur 200 m, open maps 400-600 m). Walls and hills are
-// not in the demo, so "in view" means inside that sector, not necessarily in sight (canSee / viewShed: the game's files).
-// The view drawn and "In view" / "Seen by" reach the fog limit (v47-v93: 50 m).
-const VIEW_HALF = Math.PI / 4;
-// up and down: the same camera is 1.1 rad (63 deg) high (kept in v216), so a soldier sees 31.5 deg above and below where he looks (view
+// (v219, Sagara: "the 1.5 patch gave native widescreen, nearly everyone plays 16:9") The game's soldier camera
+// (Objects/Soldiers/Common/SoldierCamera.tweak: worldFOV 1.1 rad) is 1.1 rad high, and since the 1.5 patch as wide as the
+// screen (Hor+: "Widescreen FoV on widescreen resolutions"): ~79 deg on 4:3 (v47-v215), 89 on 16:10, 95 on 16:9 (taken
+// here: VIEW_HALF 47.5 deg each side; v216-v218 90), 111 on 21:9, 131 on 32:9. The demo holds nothing of his screen.
+// Nobody sees past the map's fog limit (Init.con GameLogic.MaximumLevelViewDistance: Karkand 140 m, Mashtuur 200 m, open
+// maps 400-600 m). Walls and hills are not in the demo, so "in view" means inside that frame, not necessarily in sight
+// (canSee / viewShed: the game's files). The view drawn and "In view" / "Seen by" reach the fog limit (v47-v93: 50 m).
+const VIEW_ASPECT = 16 / 9;
+const VIEW_HALF = Math.atan(Math.tan(0.55) * VIEW_ASPECT);
+// up and down: the same camera is 1.1 rad (63 deg) high, so a soldier sees 31.5 deg above and below where he looks (view
 // pitch from the demo, test-checked on kills: median 2 deg off the line from the killer's eye to the victim)
 const VIEW_VHALF = 0.55;
 // is any of a column from height zlo to zhi, d m away (horizontally), within the vertical view of an eye at height eye
-// looking at pitch pt? (pt null: not known, counts as yes)
+// looking at pitch pt? (pt null: not known, counts as yes) - (v219: the side view's wedge; the rest goes by viewCam)
 const inVBand = (pt, eye, d, zlo, zhi) => pt == null || (Math.atan2(zhi - eye, d) >= pt - VIEW_VHALF && Math.atan2(zlo - eye, d) <= pt + VIEW_VHALF);
+// (v219) through the sights or a scope (zoomNow: the demo has it since v146) the view closes to the weapon's
+// ObjectTemplate.zoom.addZoomFactor (Objects/Weapons/Handheld/*/*.tweak) times its height - read so: the L96A1's 0.2 makes
+// 12.6 deg, the M4's 0.7 iron sights 44 deg high and 72 across. 0.4 and under (M24, L96A1, M95 0.2; SVD, QBU-88 0.3;
+// L85A1's SUSAT 0.4): a scope - the round sight the game draws, as high as the screen, black round it. By template
+// (55 hand-held weapons); one not known (an unlock not yet seen to kill in this life): 0.7, a pistol 0.8
+const ZOOM_F = {"5369":0.85,"5370":0.6,"5372":0.8,"5374":0.8,"5376":0.8,"5378":0.6,"5380":0.8,"5382":0.8,"5384":0.3,"5388":0.7,"5390":0.7,"5392":0.6,"5394":0.8,"5396":0.7,"5398":0.8,"5400":0.2,"5402":0.6,"5413":0.6,"5415":0.6,"5417":0.8,"5419":0.8,"5421":0.7,"5423":0.7,"5425":0.6,"5427":0.6,"5429":0.8,"5431":0.3,"5433":0.6,"5435":0.6,"5437":0.6,"5439":0.8,"5441":0.7,"5444":0.7,"5446":0.7,"5448":0.7,"5450":0.7,"5453":0.8,"5455":0.85,"5458":0.6,"5462":0.8,"5464":0.8,"5466":0.7,"5468":0.7,"5470":0.7,"5472":0.6,"5474":0.6,"5476":0.6,"5478":0.2,"5480":0.7,"5482":0.8,"5483":0.8,"5485":0.4,"5487":0.8,"5489":0.8,"5491":0.2};
+const ZOOM_SCOPE = 0.4;
+// how far soldier i's view is closed at tt: 1 not aiming (or in a vehicle), else his weapon's factor (kept per 0.1 s)
+function viewZoom(i, tt) {
+  const p = round.players[i]; if (!p || p.vehicle || !zoomNow(p, tt)) return 1;
+  const C = round._vz || (round._vz = new Map()), key = i * 1e6 + Math.round(tt * 10); let z = C.get(key);
+  if (z === undefined) { const h = inHands(i, tt); z = (h && ZOOM_F[h.wid]) || (h && h.slot === 2 ? 0.8 : 0.7); if (C.size > 50000) C.clear(); C.set(key, z); }
+  return z;
+}
+// (v219, Sagara: "the exact frame") the view as the game draws it: a frame on the screen - VIEW_VHALF over and under,
+// VIEW_ASPECT as wide (a scope: round) - turned to his yaw and pitch. Up to v218 the width and the height were taken
+// apart (a sector, and a band of heights); a frame is narrower at its sides (at the edge of 16:9 22.5 deg up and down, not
+// 31.5) and, looking 30 deg up or down, 87 deg across at the horizon, wider at its far corners (to 63 deg each side at the
+// ground near him). cam: { yaw, c, s (the pitch's cos and sin; null: not known), tv, tw (tan of the half height and
+// width), round }
+// Through the sights the frame is ZOOM_SLACK wider each way than the game's: the demo's view is that far off the man he
+// shoots at times (21.10 21:03: of 103 kills through the sights, 14 with the victim 6-20° off where he looked - the scope
+// shows 6.3° each side - most of them in the 0.1 s of the shot; the rest 0-5°), and the sights' frame is for the others
+// round him (a man coming from the side), not for the one in it
+const ZOOM_SLACK = 10 * Math.PI / 180;
+function viewCam(yaw, pitch, z = 1) {
+  const sc = z <= ZOOM_SCOPE, hv = VIEW_VHALF * z, hw = sc ? hv : Math.atan(Math.tan(hv) * VIEW_ASPECT), sl = z < 1 ? ZOOM_SLACK : 0;
+  return { yaw, c: pitch == null ? null : Math.cos(pitch), s: pitch == null ? null : Math.sin(pitch), tv: Math.tan(Math.min(1.55, hv + sl)), tw: Math.tan(Math.min(1.55, hw + sl)), round: sc };
+}
+// the cam of a view (looking / viewOf's fields) of soldier who: through his sights on foot
+const camOf = (q, who, tt) => viewCam(q.yaw, q.pitch, who != null && !q.veh ? viewZoom(who, tt) : 1);
+// how far to each side it reaches, at any height (rad): its corners (level: the horizontal half width)
+const camSpan = C => C.c == null || Math.abs(C.s) < 1e-9 ? Math.atan(C.tw) : C.c - C.tv * Math.abs(C.s) <= 1e-9 ? Math.PI : Math.atan2(C.tw, C.c - C.tv * Math.abs(C.s));   // (straight up or down in view: all round)
+const viewHalfAt = z => Math.atan(viewCam(0, null, z).tw);   // (across at his eye's height, looking level)
+// the slopes (height over horizontal distance, from his eye) in view phi rad to the side of his yaw: [lo, hi], or null
+// (none: out to the side). Pitch not known: every slope there, as up to v218
+function camBand(C, phi) {
+  const cf = Math.cos(phi), sf = Math.abs(Math.sin(phi));
+  if (C.c == null) return cf > 0 && sf <= C.tw * cf ? [-Infinity, Infinity] : null;
+  const { c, s, tv, tw } = C;
+  // the point (forward cf, to the side sf, up v) in the camera: x = sf, y = v c - cf s, z = cf c + v s (z ahead)
+  if (C.round) {   // x² + y² <= tv² z² with z > 0: a v² + b v + k <= 0
+    const a = c * c - tv * tv * s * s, b = -2 * cf * s * c * (1 + tv * tv), k = sf * sf + cf * cf * s * s - tv * tv * cf * cf * c * c;
+    if (a > 1e-9) { const D = b * b - 4 * a * k; if (D < 0) return null; const r = Math.sqrt(D), lo = (-b - r) / (2 * a), hi = (-b + r) / (2 * a); return cf * c + (lo + hi) / 2 * s > 0 ? [lo, hi] : null; }
+    // (a scope near straight up or down: as a square)
+  }
+  let lo = -Infinity, hi = Infinity;
+  const lin = (a0, b) => { if (Math.abs(b) < 1e-12) { if (a0 > 0) lo = Infinity; return; } const u = -a0 / b; if (b > 0) { if (u < hi) hi = u; } else if (u > lo) lo = u; };   // (a0 + b v <= 0)
+  lin(sf + 1e-9 - tw * cf * c, -tw * s);    // |x| <= tw z (and so z > 0)
+  lin(-cf * s - tv * cf * c, c - tv * s);    // y <= tv z
+  lin(cf * s - tv * cf * c, -c - tv * s);    // -y <= tv z
+  return lo <= hi ? [lo, hi] : null;
+}
+// is any of a column from zlo to zhi (m, against his eye; zlo null: the heights not known - only to the side) dx, dy m
+// away within cam C? (wide: m to either side it reaches - a vehicle's width)
+function inCam(C, dx, dy, zlo, zhi, wide = 0) {
+  const d = Math.hypot(dx, dy); if (d < 1e-6) return true;
+  const B = camBand(C, Math.max(0, angOff(Math.atan2(dx, dy), C.yaw) - (wide ? Math.atan2(wide, d) : 0))); if (!B) return false;
+  return zlo == null || (zhi / d >= B[0] && zlo / d <= B[1]);
+}
 // a soldier's body as such a column: from his feet (1.0 m under his position) to the top of his head
 const bodyCol = (j, o, tt) => [o.h - 1.0, o.h + (o.veh ? 1.0 : AIM_H[stanceNow(round.players[j], tt) ?? 0][0] + 0.2)];
 const pitchText = pt => { const g = Math.round(pt * 180 / Math.PI); return Math.abs(g) < 3 ? 'level' : Math.abs(g) + '° ' + (g > 0 ? 'up' : 'down'); };
@@ -1951,11 +2012,13 @@ const looking = (i, tt) => { const q = playerAt(i, tt); if (!q.alive || round.pl
 // walls and hills are known, else null); null when his view is not known
 function inViewOf(i, tt) {
   const q = viewOf(i, tt); if (!q) return null;
-  const R = viewRange(), out = [], who = q.who ?? i, eye = q.eye ?? (q.h != null ? eyeOf(who, q, tt) : null);
+  const R = viewRange(), out = [], who = q.who ?? i, eye = q.eye ?? (q.h != null ? eyeOf(who, q, tt) : null), C = camOf(q, who, tt);
   round.players.forEach((p, j) => {
     if (j === i || j === who || p.vehicle) return; const o = playerAt(j, tt); if (!o.alive || (o.veh && o.veh === q.veh)) return;
     const dx = o.x - q.x, dy = o.y - q.y, d = Math.hypot(dx, dy, (o.h || 0) - (q.h || 0));
-    if (d <= R && d > 0.3 && angOff(Math.atan2(dx, dy), q.yaw) <= VIEW_HALF && (eye == null || o.h == null || inVBand(q.pitch, eye, Math.hypot(dx, dy), ...bodyCol(j, o, tt)))) out.push({ i: j, d, seen: canSee(who, j, tt, q) });
+    if (d > R || d <= 0.3) return;
+    const col = eye == null || o.h == null ? null : bodyCol(j, o, tt);
+    if (inCam(C, dx, dy, col && col[0] - eye, col && col[1] - eye)) out.push({ i: j, d, seen: canSee(who, j, tt, q) });
   });
   return out.sort((a, b) => a.d - b.d);
 }
@@ -1965,8 +2028,9 @@ function seenBy(i, tt) {
   const R = viewRange(), tm = teamOf(i, tt), out = [];
   round.players.forEach((p, j) => {
     if (j === i || p.vehicle || teamOf(j, tt) === tm) return; const o = looking(j, tt); if (!o) return;
-    const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy, (q.h || 0) - (o.h || 0));
-    if (d <= R && angOff(Math.atan2(dx, dy), o.yaw) <= VIEW_HALF && (q.h == null || o.h == null || inVBand(o.pitch, eyeOf(j, o, tt), Math.hypot(dx, dy), ...bodyCol(i, q, tt)))) out.push({ i: j, d, seen: canSee(j, i, tt) });
+    const dx = q.x - o.x, dy = q.y - o.y, d = Math.hypot(dx, dy, (q.h || 0) - (o.h || 0)); if (d > R) return;
+    const eye = q.h == null || o.h == null ? null : eyeOf(j, o, tt), col = eye == null ? null : bodyCol(i, q, tt);
+    if (inCam(camOf(o, j, tt), dx, dy, col && col[0] - eye, col && col[1] - eye)) out.push({ i: j, d, seen: canSee(j, i, tt) });
   });
   return out.sort((a, b) => a.d - b.d);
 }
@@ -2965,7 +3029,7 @@ function vegPaths() {
 // position. d: the driver / pilot (seat 0; on a tank, APC or AA vehicle that is the gunner's sight on the turret, which
 // turns about t with the main gun), g: a roof or door gunner (turns with his gun about u), p: firing ports (r: the way
 // the port faces at rest, deg clockwise from the nose; the passenger's camera turns ±30-35° there). k: the seat's
-// third-person (chase) camera: [distance back, target up, target ahead (m), angle up (rad)]. All are taken as 90° across (1.1 rad
+// third-person (chase) camera: [distance back, target up, target ahead (m), angle up (rad)]. All are taken as 95° across (1.1 rad
 // high), as on foot. The demo holds nothing of the player's own screen: whether he played in first or third person (the
 // game's C key, where the server allows it) is not in it, nor where a jeep's driver or a pilot turns his head (they can,
 // 80-140° each way): with no gun to go by, his view is drawn straight ahead.
@@ -3145,7 +3209,7 @@ function crewViews(vi, tt) {
   const guns = L.filter(V => !V.ahead); return guns.length ? guns : L.slice(0, 1);
 }
 // What soldier i sees of the ground in his field of view (the view drawn on the map): rays every few pixels across his
-// 90°, each walked out to the fog limit (or the edge of the screen) through every 25 cm cell of the object grid - so a
+// view (v219: the frame, viewCam - wider at the ground near him when he looks down), each walked out to the fog limit (or the edge of the screen) through every 25 cm cell of the object grid - so a
 // thin wall far off is never stepped over - and the terrain. A point is seen when the line from his eye to it passes
 // over the hills and through none of the houses, walls, rocks, vehicles (boxes) or smoke nearer to him, and lies within
 // his view's height (31.5° over and under where he looks): a "horizon" of what blocks each angle up or down is kept
@@ -3153,7 +3217,7 @@ function crewViews(vi, tt) {
 // Two levels: 2 the ground itself (a soldier lying there would be seen), 1 only a standing soldier (from the chest up:
 // behind a low wall, a hump or a car). Where he can stand: the ground, and on top of houses and walls (roofs, upper
 // floors) - the best of them. Every stretch along a ray, not only the first: across a street, over a wall, the far hill.
-// Not known to the demo: trees and bushes, aiming through a scope (narrower), a vehicle's crew looking around.
+// (v219) Through his sights or a scope narrower (viewZoom). Not known to the demo: a vehicle's crew looking around.
 // -> { R (m), n rays, da (rad between them), a0 (the first ray's angle), runs: per ray [s0, s1, level, ...] } or null
 // the sea's level on each map (Levels/<map>/server/Heightdata.con heightmapcluster.setSeaWaterLevel, m): its surface is
 // what one sees there, not the sea bed
@@ -3164,16 +3228,17 @@ const SPAWN_PTS = {"dalian_plant":[-123,-250,-53,-258,-93,-290,-147,-263,-52,-27
 function viewShed(i, q, tt, Rmax, n, minStep) {
   const D = losData(); if (!D || q.h == null) return null;
   const wl = WATER[mapKey()] ?? -1e9;
-  const eh = eyeOf(i, q, tt), pt = q.pitch, R = Math.min(fogRange(), Rmax), da = 2 * VIEW_HALF / n, a0 = q.yaw - VIEW_HALF + da / 2;
-  const lo = pt == null ? -9 : pt - VIEW_VHALF, hi = pt == null ? 9 : pt + VIEW_VHALF;
-  const vLo = lo <= -1.5707 ? -Infinity : Math.tan(lo), vHi = hi >= 1.5707 ? Infinity : Math.tan(hi);
+  // (v219) the frame: rays across all it reaches (camSpan: wider at the ground near him when he looks down), each with
+  // the slopes in view in its direction (camBand); through his sights or a scope narrower
+  const Cm = camOf(q, i, tt), span = camSpan(Cm); n = Math.min(360, Math.max(16, Math.round(n * span / VIEW_HALF)));
+  const eh = eyeOf(i, q, tt), R = Math.min(fogRange(), Rmax), da = 2 * span / n, a0 = q.yaw - span + da / 2;
   const boxes = vehBoxes(tt).filter(b => b.name !== q.veh && Math.hypot(b.x - q.x, b.y - q.y) < R + 8);
   // trees and bushes in his field of view: [x, y, r, bottom, top, how far into it it hides (0 a trunk)]
   const VG = vegData(), vegs = [];
   if (VG) { const P = VG.P;
     for (let k = 0; k < VG.n; k++) {
       const o = k * 8, rm = VG.R[k], dx = P[o] - q.x, dy = P[o + 1] - q.y, d = Math.hypot(dx, dy);
-      if (d - rm > R || (d > rm && angOff(Math.atan2(dx, dy), q.yaw) > VIEW_HALF + Math.asin(Math.min(1, rm / d)) + 0.02)) continue;
+      if (d - rm > R || (d > rm && angOff(Math.atan2(dx, dy), q.yaw) > span + Math.asin(Math.min(1, rm / d)) + 0.02)) continue;
       for (const [r, z0, z1] of vegParts(P, o)) vegs.push([P[o], P[o + 1], r, z0, z1, P[o + 2] ? Math.min(VEG_THICK, rm) : 0]);
     } }
   const S = D.gStep, T = D.T, tW = D.tW, W = D.gW, Hh = D.gH, tile = D.tile, cs = D.cs, sp = D.sp, TT = T * T, OFF = brkOff(D, tt);
@@ -3192,7 +3257,9 @@ function viewShed(i, q, tt, Rmax, n, minStep) {
   };
   const seen = v => { if (v <= H) return false; for (let k = 0; k < nI; k++) { if (v < IV[2 * k]) return true; if (v <= IV[2 * k + 1]) return false; } return true; };
   for (let k = 0; k < n; k++) {
-    const a = a0 + da * k, ux = Math.sin(a), uy = Math.cos(a);
+    const a = a0 + da * k, ux = Math.sin(a), uy = Math.cos(a), Bk = camBand(Cm, angOff(a, q.yaw));
+    if (!Bk) { out.push([]); continue; }
+    const vLo = Bk[0], vHi = Bk[1];
     const Rk = Math.min(R, Math.max(SMOKE_NEAR, smokeRay(q.x, q.y, ux, uy, tt)));
     const vb = [];
     for (const b of boxes) { const r = boxCross(b, q.x, q.y, ux, uy); if (r && r[1] > LOS_END && r[0] < Rk) vb.push([Math.max(r[0], LOS_END), r[1], b.h0, b.h1]); }
@@ -3350,16 +3417,17 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
   return { x: q.x + ux * l, y: q.y + uy * l, h: e0 + uh * l, l, d: l * cp, kind: best.kind, j: best.j, off: 0, from: q };
 }
 // ---------- who saw whom first ----------
-// i sees j at tt: j (alive) inside i's view (90° across, 63° high where his pitch is known, out to the map's fog limit)
+// i sees j at tt: j (alive) inside i's view (the frame: 95° across, 63° high where his pitch is known - camOf, narrower through his sights - out to the map's fog limit)
 // with a clear sight line where the map's walls and hills are known. null when i is dead or rides without a gun (where he
-// looks is not in the demo)
-function sees(i, j, tt) {
+// looks is not in the demo). zoom false: the frame without his sights' zoom (v219: the man he shoots at)
+function sees(i, j, tt, zoom = true) {
   const q = looking(i, tt); if (!q) return null;
   const o = playerAt(j, tt); if (!o.alive) return false;
   const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy);
   if (hd < 0.3) return true;
-  if (hd > fogRange() || angOff(Math.atan2(dx, dy), q.yaw) > VIEW_HALF) return false;
-  if (q.h != null && o.h != null && !inVBand(q.pitch, eyeOf(i, q, tt), hd, ...bodyCol(j, o, tt))) return false;
+  if (hd > fogRange()) return false;
+  const eye = q.h != null && o.h != null ? eyeOf(i, q, tt) : null, col = eye == null ? null : bodyCol(j, o, tt);
+  if (!inCam(zoom ? camOf(q, i, tt) : viewCam(q.yaw, q.pitch), dx, dy, col && col[0] - eye, col && col[1] - eye)) return false;
   return canSee(i, j, tt) !== false;
 }
 // A kill on foot looked at from both sides over the 6 s before it, every 0.2 s: since when the killer had the victim in
@@ -3377,15 +3445,17 @@ function engagement(e) {
   if (ki !== undefined && vi !== undefined && e.killer !== e.victim && !e.kv && (cause === 'small' || cause === 'at') && !round.players[ki].vehicle && teamOf(ki, e.t) !== teamOf(vi, e.t) && looking(ki, e.t - 0.05)) {
     const t1 = e.t - 0.05;
     // start of the latest stretch in which a sees b, looking back no further than `back` s for its end
-    const since = (a, b, back) => {
+    // (v219) the killer's sight of his victim without his sights' zoom (he aims at him: the demo's view is off a scoped
+    // shot's victim by up to ~20° at times - 'no clear sight' for nothing); the victim's of the killer with it
+    const since = (a, b, back, zm) => {
       let end = null;
-      for (let tt = t1; tt >= t1 - back - 1e-6; tt -= ENG_STEP) if (sees(a, b, tt)) { end = tt; break; }
+      for (let tt = t1; tt >= t1 - back - 1e-6; tt -= ENG_STEP) if (sees(a, b, tt, zm)) { end = tt; break; }
       if (end === null) return null;
       let first = end, miss = 0;
-      for (let tt = end - ENG_STEP; tt >= t1 - ENG_WIN - 1e-6; tt -= ENG_STEP) { if (sees(a, b, tt)) { first = tt; miss = 0; } else if ((miss += ENG_STEP) > 0.45) break; }
+      for (let tt = end - ENG_STEP; tt >= t1 - ENG_WIN - 1e-6; tt -= ENG_STEP) { if (sees(a, b, tt, zm)) { first = tt; miss = 0; } else if ((miss += ENG_STEP) > 0.45) break; }
       return first;
     };
-    const k = since(ki, vi, 0.8), v = looking(vi, t1) ? since(vi, ki, ENG_WIN) : undefined;
+    const k = since(ki, vi, 0.8, false), v = looking(vi, t1) ? since(vi, ki, ENG_WIN, true) : undefined;
     {
       const kind = k === null ? 'blind' : v === undefined ? null : v === null ? 'ambush' : v < k - 0.3 ? 'second' : k < v - 0.3 ? 'first' : 'even';
       r = { k, v: v === undefined ? undefined : v, kind, react: k === null ? null : e.t - k, walls: !!losData() };
@@ -3531,14 +3601,14 @@ function vehAttacks() {
   return (R._va = out);
 }
 // i sees vehicle j at tt (as sees() for a soldier; the vehicle a block from 1 m under its position to 1.5 m over it)
-function seesVeh(i, j, tt) {
+function seesVeh(i, j, tt, zoom = true) {
   const q = looking(i, tt); if (!q) return null;
   const o = playerAt(j, tt); if (!o.alive) return false;
   const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy);
   if (hd < 1) return true;
-  if (hd > fogRange() || angOff(Math.atan2(dx, dy), q.yaw) > VIEW_HALF + Math.atan2(2.5, hd)) return false;
-  const eye = eyeOf(i, q, tt);
-  if (q.h != null && o.h != null && !inVBand(q.pitch, eye, hd, o.h - 1.0, o.h + 1.5)) return false;
+  if (hd > fogRange()) return false;
+  const eye = eyeOf(i, q, tt), hk = q.h != null && o.h != null && eye != null;
+  if (!inCam(zoom ? camOf(q, i, tt) : viewCam(q.yaw, q.pitch), dx, dy, hk ? o.h - 1.0 - eye : null, hk ? o.h + 1.5 - eye : null, 2.5)) return false;
   const D = losData(); if (!D || q.h == null || o.h == null) return true;
   for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
   return false;
@@ -3560,7 +3630,7 @@ function vehEngagement(a) {
     for (let tt = end - ENG_STEP; tt >= t1 - VENG_WIN - 1e-6; tt -= ENG_STEP) { if (ok(tt)) { first = tt; miss = 0; } else if ((miss += ENG_STEP) > 0.45) break; }
     return first;
   };
-  const k = looking(ki, t1) ? span(tt => seesVeh(ki, vj, tt), 1.0) : undefined;
+  const k = looking(ki, t1) ? span(tt => seesVeh(ki, vj, tt, false), 1.0) : undefined;
   const crew = crewOf(vj, t1).filter(c => looking(c, t1));
   let v; if (crew.length) { v = null; for (const c of crew) { const s = span(tt => sees(c, ki, tt), VENG_WIN); if (s !== null && (v === null || s < v)) v = s; } }
   const kind = k === undefined ? null : k === null ? 'blind' : v === undefined ? null : v === null ? 'ambush' : v < k - 0.3 ? 'second' : k < v - 0.3 ? 'first' : 'even';
@@ -4130,7 +4200,9 @@ function povSeen(s, tt) {
   round.players.forEach((p, j) => {
     if (!p.vehicle || p.name === V.veh) return; const o = playerAt(j, tt); if (!o.alive || !Number.isFinite(o.x)) return;
     if ((rid.get(p.name) || []).some(i => out.has(i))) { out.add(j); return; }
-    const dx = o.x - V.x, dy = o.y - V.y; if (Math.hypot(dx, dy) > R || angOff(Math.atan2(dx, dy), V.yaw) > VIEW_HALF) return;
+    const dx = o.x - V.x, dy = o.y - V.y; if (Math.hypot(dx, dy) > R) return;
+    const ve = V.eye ?? (V.h != null ? eyeOf(who, V, tt) : null), hk = ve != null && o.h != null;
+    if (!inCam(camOf(V, who, tt), dx, dy, hk ? o.h - 1.0 - ve : null, hk ? o.h + 1.5 - ve : null, 2.5)) return;
     if (canSee(who, j, tt, V) !== false) out.add(j);
   });
   return out;
@@ -4184,10 +4256,11 @@ function povSeesPoint(x, y, h, tt, near = 0) {
 function seesPointFrom(s, x, y, h, tt, near) {
   const V = viewOf(s, tt); if (!V || !Number.isFinite(x)) return false;
   const dx = x - V.x, dy = y - V.y, d = Math.hypot(dx, dy); if (d <= near) return true;
-  if (d > viewRange() || angOff(Math.atan2(dx, dy), V.yaw) > VIEW_HALF) return false;
+  if (d > viewRange()) return false;
+  const D = losData(), eye = V.h == null ? null : V.eye ?? eyeOf(V.who ?? s, V, tt), z = eye == null ? null : h ?? (D ? groundAt(D, x, y) + 0.3 : null);
+  if (!inCam(camOf(V, V.who ?? s, tt), dx, dy, z == null ? null : z - eye, z == null ? null : z - eye)) return false;
   if (smokeBlocks(V.x, V.y, x, y, tt)) return false;
-  const D = losData(); if (!D || V.h == null) return true;
-  const eye = V.eye ?? eyeOf(V.who ?? s, V, tt), z = h ?? groundAt(D, x, y) + 0.3;
+  if (!D || V.h == null) return true;
   return eye == null || !losBlocked(D, V.x, V.y, eye, x, y, z, tt);
 }
 // a C4 / claymore / mine: his side's, or where he could see it (on a vehicle: the vehicle known to him)
@@ -4572,7 +4645,8 @@ function draw() {
         cx.globalAlpha = (plain ? 0.12 : 1) * dim; cx.fillStyle = grad(0.2, 0.05); cx.fill(P[1]);
         cx.globalAlpha = (plain ? 0.3 : 1) * dim; cx.fillStyle = grad(0.5, 0.12); cx.fill(P[2]); cx.globalAlpha = 1;
       }
-      cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - VIEW_HALF, a0 + VIEW_HALF); cx.closePath();
+      const hw = Math.atan(camOf(q, who, t).tw);   // (no walls: the frame's width at his eye's height; through his sights narrower)
+      cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - hw, a0 + hw); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
       // (no edges: the shading alone - v147 for a soldier, v150 for a vehicle seat too; Sagara: "прибрати пунктирні лінії
       // при кути зору піхотинця", "Прибрати штрихові лінії по боках поля зору техніки")
@@ -6628,20 +6702,21 @@ function loadHeat(maps) {
 // kind of weapon, weapon, killer, victim]
 // (v136) how a kill came at the victim, for his player page ("how he gets killed"): [10] 0 from in front (within 60° of
 // where he looked), 1 from the side, 2 from behind (over 120°); [11] 1 when the killer was never in his field of view
-// (VIEW_HALF: 45° each side) in the 3 s before (he didn't see him coming; walls are not counted), 0 when he was; null: not known (in a
-// vehicle, no view). The server's summary (ingest.mjs) works them out the same way
-function killFacing(vat, kat, t) {
+// (VIEW_HALF: 47.5° each side - v219, 16:9; through his sights or scope narrower: zf, tt -> viewZoom) in the 3 s before (he
+// didn't see him coming; walls are not counted), 0 when he was; null: not known (in a vehicle, no view). The server's
+// summary (ingest.mjs) works them out the same way, the sights' zoom there without the weapon itself (by his kit)
+function killFacing(vat, kat, t, zf) {
   const bear = (v, k) => Math.atan2(k.x - v.x, k.y - v.y), ok = (v, k) => v && k && v.alive && k.alive && !v.veh && Number.isFinite(v.yaw) && Number.isFinite(k.x) && Math.hypot(k.x - v.x, k.y - v.y) > 0.5;
   const v0 = vat(t - 0.1), k0 = kat(t - 0.1); let face = null, seen = null;
   if (ok(v0, k0)) { const d = angOff(v0.yaw, bear(v0, k0)); face = d < Math.PI / 3 ? 0 : d > Math.PI * 2 / 3 ? 2 : 1; }
-  for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = vat(tt), k = kat(tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= VIEW_HALF) { seen = 1; break; } }
+  for (let tt = t - 3; tt <= t - 0.1 + 1e-6; tt += 0.2) { const v = vat(tt), k = kat(tt); if (!ok(v, k)) continue; if (seen === null) seen = 0; if (angOff(v.yaw, bear(v, k)) <= (zf ? viewHalfAt(zf(tt)) : VIEW_HALF)) { seen = 1; break; } }
   return [face, seen === null ? null : seen ? 0 : 1];
 }
 function heatKill(e) {
   const R = round, ki = R.pidx.get(e.killer), vi = R.pidx.get(e.victim); if (vi === undefined || e.killer === e.victim) return null;
   const kq = ki !== undefined ? playerAt(ki, e.t - 0.05) : null, vq = playerAt(vi, e.t);
   const w = e.weapon || killGuess(e);
-  const r1 = v => Math.round(v * 10) / 10, fc = ki !== undefined ? killFacing(tt => playerAt(vi, tt), tt => playerAt(ki, tt), e.t) : [null, null];
+  const r1 = v => Math.round(v * 10) / 10, fc = ki !== undefined ? killFacing(tt => playerAt(vi, tt), tt => playerAt(ki, tt), e.t, tt => viewZoom(vi, tt)) : [null, null];
   return [r1(e.x ?? vq.x), r1(e.y ?? vq.y), kq && kq.alive ? r1(kq.x) : null, kq && kq.alive ? r1(kq.y) : null, R.teams[teamOf(vi, e.t)]?.name || '', ki !== undefined ? R.teams[teamOf(ki, e.t)]?.name || '' : '',
     killCause(e, !!(kq && kq.veh)), w, ki !== undefined ? R.players[ki].name.trim() : '', R.players[vi].name.trim(), fc[0], fc[1], HIT_CODE[e.hit] || null];
 }
@@ -7126,7 +7201,7 @@ function sightRows(p) {
   const part = (c, L) => L.filter(([k]) => c[k]).map(([k, txt]) => `${c[k]} ${txt}`).join(' · ') || '—';
   const kl = part(kc, [['first', 'he saw first'], ['even', 'at once'], ['second', 'seen first'], ['ambush', 'unseen'], ['blind', 'no clear sight']]);
   const dl = part(dc, [['ambush', 'never saw the killer'], ['second', 'saw him first'], ['even', 'at once'], ['first', 'seen first'], ['blind', 'no clear sight for the killer']]);
-  return `<dt title="Kills and deaths on foot over the 6 s before them: who had whom in view first (90° across, 63° high, with nothing in between where the walls are known). Unseen: the victim never had the killer in view. Side view of a kill: the button next to it in the kill feed">First sight</dt><dd>${nk ? `kills: ${kl}${react.length ? ` <span class="w">· ${react[react.length >> 1].toFixed(1)} s from first sight to kill (median)</span>` : ''}` : ''}${nk && nd ? '<br>' : ''}${nd ? `deaths: ${dl}` : ''}</dd>`;
+  return `<dt title="Kills and deaths on foot over the 6 s before them: who had whom in view first (95° across, 63° high, narrower through the sights, with nothing in between where the walls are known). Unseen: the victim never had the killer in view. Side view of a kill: the button next to it in the kill feed">First sight</dt><dd>${nk ? `kills: ${kl}${react.length ? ` <span class="w">· ${react[react.length >> 1].toFixed(1)} s from first sight to kill (median)</span>` : ''}` : ''}${nk && nd ? '<br>' : ''}${nd ? `deaths: ${dl}` : ''}</dd>`;
 }
 // ---------- side view of a kill ----------
 // The ground and the walls along the line from the killer to the victim at the moment of the kill, to scale (as many
@@ -7313,7 +7388,7 @@ function viewRows(i, p) {
     h += `<dt title="Another gun aboard: its field of view and where its crosshair is are drawn on the map too">${W.role === 'port' ? 'Firing port' : 'Gunner'}</dt><dd><span class="t${teamOf(j, t)}">${esc(round.players[j].name)}</span> <span class="w">${W.pitch != null ? pitchText(W.pitch) : ''}${at ? ' · ' + at : ''}</span></dd>`;
   }
   const atGun = !!lk?.gun;
-  h += `<dt title="${atGun ? 'Inside the field of view along his gun (where it points is in the demo): about 90° across' : 'Inside his field of view: about 90° across and 63° high (where he looks up or down is in the demo)'}, out to ${viewRange()} m, ${how}">In view</dt><dd>`;
+  h += `<dt title="${atGun ? 'Inside the field of view along his gun (where it points is in the demo): about 95° across' : 'Inside his field of view: about 95° across (a 16:9 screen; narrower through his sights or scope) and 63° high (where he looks up or down is in the demo)'}, out to ${viewRange()} m, ${how}">In view</dt><dd>`;
   if (!iv) h += alive ? '<span class="w">riding without a gun: where he looks is not in the demo</span>' : '—';
   else {
     const vis = iv.filter(o => o.seen !== false), en = vis.filter(o => teamOf(o.i, t) !== tm), fr = vis.length - en.length, hid = iv.filter(o => o.seen === false && teamOf(o.i, t) !== tm);
@@ -12152,7 +12227,7 @@ function howDied(H, list, share) {   // (v165: H from aggDied)
   const B = ['up to 15 m', '15-50 m', '50-150 m', 'over 150 m'].map((l, k) => [l, H.dB[k]]);   // (DIST_B)
   const row = (l, v, all) => `<li><span class="nmc">${l}${share(v, all)}</span><span class="n">${pc(v, all)}</span></li>`;
   return `<section class="card"><h2>How he gets killed <span class="w">${onMe.length} deaths by enemies</span></h2><div class="pcols">
-    <div><h3 title="The killer never in his field of view (45° each side of where he looked) in the 3 s before - walls not counted; known for ${uk} of ${onMe.length}">Didn't see his killer</h3><p class="kvbig">${pc(un, uk)}</p>
+    <div><h3 title="The killer never in his field of view (47.5° each side of where he looked - a 16:9 screen; narrower through his sights) in the 3 s before - walls not counted; known for ${uk} of ${onMe.length}">Didn't see his killer</h3><p class="kvbig">${pc(un, uk)}</p>
       <h3>Came from</h3><ul class="plist">${row('in front', fN[0], fk)}${row('the side', fN[1], fk)}${row('behind', fN[2], fk)}</ul></div>
     <div><h3>How far <span class="w">${H.dn ? 'middle ' + Math.round(H.dmid) + ' m' : ''}</span></h3><ul class="plist">${B.map(([l, v]) => row(l, v, D.length)).join('')}</ul></div>
     <div><h3>What with</h3>${list(wL, ([w, c]) => `<li><span class="wi">${weaponIcon(widOf(w), w) || ''}</span><span class="nmc">${esc(w)}${share(c, onMe.length)}</span><span class="n">${c}</span></li>`, 6)}</div>

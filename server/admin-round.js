@@ -1,7 +1,7 @@
-// BF2 Round Replay v217 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v219 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v217';
-// ---- part 1 (page line 6388) ----
+const ADM_V = 'v219';
+// ---- part 1 (page line 6462) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
 // Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
@@ -81,7 +81,7 @@ function kitSpots(R) {
 // most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
 // ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
 // (v170: the commander's supply crates are counted too - crateVisits)
-// ---- part 2 (page line 6470) ----
+// ---- part 2 (page line 6544) ----
 function ammoBags(R, i, t0, t1) {
   let n = 0;
   for (const b of R.events) {
@@ -91,7 +91,7 @@ function ammoBags(R, i, t0, t1) {
   }
   return n;
 }
-// ---- part 3 (page line 6517) ----
+// ---- part 3 (page line 6591) ----
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
 // i spent within CRATE_R of one (the crate's radius 5 m, Weapons/Handheld/supply_crate: it refills ammo and heals,
@@ -366,14 +366,16 @@ function macroHints(R) {
 // (v153, Sagara's todo 159: "стріляв у стіну") Fired at a wall: in the same pass, his trigger held (the first fire button)
 // with his view on the same hidden enemy (as above: within TRACK_DEG / TRACK_VDEG, 8-150 m, behind walls or hills), no
 // enemy or vehicle he can see within WF_NEAR of his crosshair, a gun in his hands, and that enemy not seen by him (in his
-// 90° and in the open) in the WF_PRE s before: shooting at somebody behind a wall he hadn't seen go there. A hint for
+// view, VIEW_HALF each side, and in the open) in the WF_PRE s before: shooting at somebody behind a wall he hadn't seen go there. A hint for
 // one such burst of WF_T s or more, or for WF_N of WF_T0 s or more in a round (then one, with the longest). The 9 rounds
 // (59 bursts of 0.4 s or more at a hidden enemy, sampled every 0.2 s): the longest 1.0 s (3), at most 2 of 0.6 s+ by one
 // soldier - no hint.
 const WF_T = 1.4, WF_T0 = 0.6, WF_N = 6,   // (v213: 4 -> 6 - SiC's infantry-only Karkand had 1.2 a round, every busy firefight; with 6 the two who stood out stay, 6 of their rounds each)
       WF_PRE = 3, WF_NEAR = 8, WF_GUN = w => !!w && killCause({ weapon: w.name }, false) === 'small' && !/knife|defib|shock|paddle|wrench|repair|bag|binocular|designat|zipline|grappl|tear ?gas|flash|smoke|mine|C4|claymore|^tool$/i.test(w.name || '');
-// (v157, Sagara's todo 140 n: "ULTRAWIDE FOV") Wide view - a weak sign: a soldier sees 90° across (FOV_HALF each side,
-// VIEW_HALF; v157-v215: 79°, a 4:3 screen, with the band 42-62°). Each time an enemy he can see in the open comes into the band just outside that (FOV_IN-FOV_OUT° off where
+// (v157, Sagara's todo 140 n: "ULTRAWIDE FOV") Wide view - a weak sign: a soldier sees 95° across on a 16:9 screen
+// (FOV_HALF each side, VIEW_HALF; v157-v215: 79°, a 4:3 screen, with the band 42-62°; v216-v218: 90°, 47.5-67.5°). A
+// 21:9 screen honestly shows 111° (55.5° each side, into the band), 32:9 131°: such a player gets this hint without a hack
+// - it says so (v219). Each time an enemy he can see in the open comes into the band just outside that (FOV_IN-FOV_OUT° off where
 // he looks), 8-FOV_FAR m away, and he had not had him within his view for FOV_FRESH s, has no other cue for him (the enemy
 // fired in the 1.5 s before, his side spotted him in the 6 s before, or he himself was hit in the 2 s before: none) -
 // a chance; he takes it if he turns to put him within FOV_HIT° of his aim inside FOV_REACT s. A hint when he took
@@ -382,7 +384,9 @@ const WF_T = 1.4, WF_T0 = 0.6, WF_N = 6,   // (v213: 4 -> 6 - SiC's infantry-onl
 // round's others 22-42%); the lowest odds 0.019 (7 of 10), no hint - one would take ~7 of 7 or 9 of 11 such turns.
 // (v216, 90° and the band 47.5-67.5°) the 26 rounds: 839 chances, 36% taken (with 79°: 888, 39%); the lowest odds of a
 // real round's soldier 0.03-0.05 (4 of 5, 3 of 4, 7 of 11), no hint - with 79° none either.
-const FOV_HALF = 45, FOV_IN = 47.5, FOV_OUT = 67.5, FOV_FRESH = 1.5, FOV_HIT = 15, FOV_REACT = 1.2, FOV_FAR = 150, FOV_N = 5, FOV_P = 0.001;
+// (v219, 95°, the band 50-70°) the 26 rounds: 805 chances, 34% taken; the lowest odds of a real round's soldier
+// 0.026-0.06 (6 of 9, 3 of 3, 3 of 5), no hint.
+const FOV_HALF = 47.5, FOV_IN = 50, FOV_OUT = 70, FOV_FRESH = 1.5, FOV_HIT = 15, FOV_REACT = 1.2, FOV_FAR = 150, FOV_N = 5, FOV_P = 0.001;
 // (the upper tail of a binomial, in logs: n can run to hundreds here)
 const binTailLog = (k, n, p) => { if (k <= 0) return 1; if (p <= 0) return 0; if (p >= 1) return 1; let lc = 0, s = 0; const lp = Math.log(p), lq = Math.log(1 - p); for (let j = 1; j <= n; j++) { lc += Math.log((n - j + 1) / j); if (j >= k) s += Math.exp(lc + j * lp + (n - j) * lq); } return Math.min(1, s); };
 const TRACK_STEP = 0.2, TRACK_DEG = 3, TRACK_VDEG = 6, TRACK_T = 2, TRACK_TURN = 10;
@@ -447,7 +451,7 @@ function wallTracks(R, done) {
   const closeF = i => { const r = fires.get(i); if (!r) return; fires.delete(i);
     const dur = Math.round((r.t1 - r.t0 + TRACK_STEP) * 10) / 10; if (dur < 0.4) return;
     const w = inHands(i, (r.t0 + r.t1) / 2); if (!WF_GUN(w)) return;
-    let last = null; for (let tt = r.t0 - TRACK_STEP; tt >= r.t0 - 6; tt -= TRACK_STEP) if (seesAt(i, r.j, tt, 45)) { last = r.t0 - tt; break; }
+    let last = null; for (let tt = r.t0 - TRACK_STEP; tt >= r.t0 - 6; tt -= TRACK_STEP) if (seesAt(i, r.j, tt, VIEW_HALF * 180 / Math.PI)) { last = r.t0 - tt; break; }
     wfAll.push({ i, j: r.j, t: r.t0, dur, d: r.d, w: w.name, last });
     // (v180) the exact shapes: a bullet's line to him clear - past a wall's end the grid closed, or only through what
     // bullets go through (a board fence, thin metal): firing through cover at a man there, not at a wall
@@ -804,7 +808,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 const CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 7235) ----
+// ---- part 4 (page line 7313) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -901,7 +905,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 const SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 7447) ----
+// ---- part 5 (page line 7525) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1127,7 +1131,7 @@ function aimHints(R) {
     // pre-aim: on him the moment he came into sight after 1 s or more hidden
     const g = engagement(e);
     if (g && g.k != null && g.react != null && g.react <= 1.5 && dist >= 8) {
-      let hidden = true; for (let m = 1; m <= 5 && hidden; m++) if (sees(ki, vi, g.k - m * 0.2) !== false) hidden = false;
+      let hidden = true; for (let m = 1; m <= 5 && hidden; m++) if (sees(ki, vi, g.k - m * 0.2, false) !== false) hidden = false;
       // (v214) a sniper rifle's kills against the snipers' own (they hold an angle: 20-22% "already on him" at a sight of
       // him - todo 258, the round of 21.10 21:03 - against 7-8% of the rest), the rest against the rest
       if (hidden) { const q = looking(ki, g.k), o = playerAt(vi, g.k); if (q && o.alive) { const on = Math.abs(sgn(Math.atan2(o.x - q.x, o.y - q.y), q.yaw)) / DEG <= tol(Math.hypot(o.x - q.x, o.y - q.y)), sn = SNIPER_W.test(e.weapon || ''); if (sn) { PNs++; if (on) PQs++; } else { PN++; if (on) PQ++; } bump(sn ? preS : pre, ki, o2 => { o2.n++; if (on) { o2.q++; if (!o2.first) o2.first = e; } }); } }
@@ -1184,7 +1188,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 7732) ----
+// ---- part 6 (page line 7810) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1351,7 +1355,7 @@ const ANALYZE_V = 2;   // (v214: Q, U - the fire presses; K's hp)
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 4;   // (v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom)
+const HINTS_V = 5;   // (v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°)
 const ANALYZE_COLS = {
   K: ['t', 'killer', 'victim', 'wid', 'weapon', 'cause', 'hit', 'tk', 'kveh', 'vveh', 'd', 'dz', 'cls', 'kst', 'vst', 'kv', 'vv', 'ping',
     'err', 'brgRate', 'react', 'eng', 'losK', 'losX', 'press', 'fog', 'smoke', 'pitchErr', 'hp'],
@@ -1544,7 +1548,7 @@ function admDescribe0(h) {
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
   if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.crates ? `; at a supply crate ${h.crates} time${h.crates > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag, support or supply crate near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
-  if (h.kind === 'fov') return [h.q + '/' + h.n, `<b>Wide view</b> ${pn(h.actor)} <span class="w">a weak sign: ${h.q} of ${h.n} times an enemy he could see came ${FOV_IN}-${FOV_OUT}° to the side of where he looked - just outside the ${Math.round(FOV_HALF * 2)}° view taken here - with no shot, spot or hit to give him away, he turned to him within ${FOV_REACT} s (the round's others ${Math.round(h.others * 100)}%). A wider view than the game's (an ultrawide FOV hack) would do that; so can sound, the minimap or a team mate's call</span>`, `Wide view: ${pt(h.actor)}, ${h.q} of ${h.n}`];
+  if (h.kind === 'fov') return [h.q + '/' + h.n, `<b>Wide view</b> ${pn(h.actor)} <span class="w">a weak sign: ${h.q} of ${h.n} times an enemy he could see came ${FOV_IN}-${FOV_OUT}° to the side of where he looked - just outside the ${Math.round(FOV_HALF * 2)}° view taken here - with no shot, spot or hit to give him away, he turned to him within ${FOV_REACT} s (the round's others ${Math.round(h.others * 100)}%). A wider view than a 16:9 screen's would do that - an ultrawide FOV hack, or honestly a 21:9 monitor (111°, to 55° each side) or 32:9; so can sound, the minimap or a team mate's call</span>`, `Wide view: ${pt(h.actor)}, ${h.q} of ${h.n}`];
   if (h.kind === 'wallfire') return [h.n > 1 ? h.n + '×' : h.dur.toFixed(1) + ' s', `<b>Fired at a wall</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">${h.n > 1 ? `${h.n} times this round he held the trigger (${WF_T0} s or more, ${h.total.toFixed(1)} s in all) on an enemy behind walls or a hill he hadn't seen in the ${WF_PRE} s before; the longest ` : 'held the trigger '}${h.dur.toFixed(1)} s on end with his crosshair on him behind cover, ${Math.round(h.d)} m away · ${esc(h.w)} · ${h.last === null ? 'not seen in the 6 s before' : `last seen ${h.last.toFixed(1)} s before`} · nobody in sight near his crosshair</span>`, `Fired at a wall: ${pt(h.actor)} → ${pt(h.vs)}, ${h.n > 1 ? h.n + ' times' : h.dur.toFixed(1) + ' s'}`];
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
   if (h.kind === 'speed') return [h.v.toFixed(0) + ' m/s', `<b>Speed</b> ${pn(h.actor)} <span class="w">on foot at up to ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s${h.n > 1 ? ' in ' + h.n + ' stretches over ' + Math.round(h.span) + ' s' : ''} (${Math.round(h.dist)} m, ${h.vavg.toFixed(1)} m/s on average) · the game's sprint is ${SPEED_RUN} m/s</span>`, `Speed: ${pt(h.actor)} ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s`];
@@ -1625,7 +1629,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlclip:not(.hlside)').forEach(b => b.onclick = () => clipAround(A[+b.dataset.i]));
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
 }
-// ---- part 7 (page line 10296) ----
+// ---- part 7 (page line 10375) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -2161,7 +2165,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 14264) ----
+// ---- part 8 (page line 14343) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2178,7 +2182,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HINTS_V ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 14299) ----
+// ---- part 9 (page line 14378) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

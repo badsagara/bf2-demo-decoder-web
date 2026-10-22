@@ -435,8 +435,10 @@ function rowOf(k, H, on) {   // (v211) { v: the number, who: { L: names, more },
   if (k === 'longest' || LONG_KEYS.includes(k)) return { v: `${o.d} m`, who: W(o), ex: wp(o.w) };
   if (k === 'kd') return { v: String(o.r), who: W(o), ex: `(${o.k}/${o.d})` };
   if (k === 'flags') return { v: String(o.n), who: W(o), ex: `(${o.cap} cap, ${o.neu} neut)` };
-  if (k === 'first') return { v: mmss(o.t), who: W(o), ex: `→ ${o.vic}${o.w ? ` (${o.w})` : ''}` };   // (the killer in the column, his victim after)
-  if (k === 'last') return { v: mmss(o.t), who: one(String(o.vic ?? '')), ex: `by ${who(o)}${o.tk ? ` (team kill${o.w ? ', ' + o.w : ''})` : o.w ? ` (${o.w})` : ''}` };   // (the one killed in the column)
+  // (v218, Sagara) sub: a second line under it in the table post - first blood: the killer, then the one he killed and
+  // with what; last killed: the one killed, then who killed him and with what (ex: the same in one line, for F.mono)
+  if (k === 'first') return { v: mmss(o.t), who: W(o), ex: `→ ${o.vic}${o.w ? ` (${o.w})` : ''}`, sub: { who: one(String(o.vic ?? '')), w: o.w || '' } };   // (the killer in the column, his victim after)
+  if (k === 'last') return { v: mmss(o.t), who: one(String(o.vic ?? '')), ex: `by ${who(o)}${o.tk ? ` (team kill${o.w ? ', ' + o.w : ''})` : o.w ? ` (${o.w})` : ''}`, sub: { who: W(o), w: (o.w || '') + (o.tk ? `${o.w ? ' ' : ''}(team kill)` : '') } };   // (the one killed in the column)
   return o.n === undefined ? null : { v: String(o.n), who: W(o), ex: '' };
 }
 // the names of a row, in at most max letters: a tie shortened to its first names and "+N" (A, B +3)
@@ -489,11 +491,19 @@ function whoFit(W, w) {
   const m = / \+\d+$/.exec(t); if (!m || w <= m[0].length + 1) return t.slice(0, w - 1) + '.';
   return t.slice(0, w - m[0].length - 1) + '.' + m[0];
 }
+// (v218) a row with sub (first blood, last killed): the number on its line, nothing after it; under it, with the label's
+// column empty, sub's player in the players' column and after its | with what (not bold) - `            | B     |` AK-101
+const subOk = r => r.sub && (whoShort(r.sub.who) || r.sub.w);
 export function alignedRows(rows) {
   const R = rows.filter(r => r && typeof r === 'object');
-  const lw = Math.min(LBL_MAX, Math.max(1, ...R.map(r => codeText(r.label).length))), ww = Math.min(WHO_MAX, Math.max(1, ...R.map(r => codeText(whoShort(r.who)).length)));
+  const lw = Math.min(LBL_MAX, Math.max(1, ...R.map(r => codeText(r.label).length))), ww = Math.min(WHO_MAX, Math.max(1, ...R.map(r => codeText(whoShort(r.who)).length), ...R.filter(subOk).map(r => codeText(whoShort(r.sub.who)).length)));
   const cell = (t, w) => { t = codeText(t); if (t.length > w) t = t.slice(0, w - 1) + '.'; return t + NBSP.repeat(w - t.length); };
-  return rows.map(r => !r || typeof r !== 'object' ? `*${escDc(r)}*` : '`' + cell(r.label, lw) + ' | ' + cell(whoFit(r.who, ww), ww) + ' |` **' + escDc(r.v) + '**' + (r.ex ? ' ' + escDc(r.ex) : '')).join('\n');
+  const row = r => {
+    const head = '`' + cell(r.label, lw) + ' | ' + cell(whoFit(r.who, ww), ww) + ' |` **' + escDc(r.v) + '**';
+    if (!subOk(r)) return head + (r.ex && !r.sub ? ' ' + escDc(r.ex) : '');   // (a last killed with no killer and no weapon: the time alone)
+    return head + '\n`' + cell('', lw) + ' | ' + cell(whoFit(r.sub.who, ww) || '—', ww) + ' |`' + (r.sub.w ? ' ' + escDc(r.sub.w) : '');
+  };
+  return rows.map(r => !r || typeof r !== 'object' ? `*${escDc(r)}*` : row(r)).join('\n');
 }
 const monoRows = rows => rows.map(r => !r || typeof r !== 'object' ? r : [r.label, r.v, whoText(r.who, Infinity) + (r.ex ? ' ' + r.ex : '')]);   // (first blood: "A → B (gun)", last killed: "B by A (gun)")
 const PER_HEAD = { ever: 'All time', month: 'Last 30 days', week: 'Last 7 days' };

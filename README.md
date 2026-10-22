@@ -73,7 +73,7 @@ VPS сам щохвилини дивиться в GitHub. Коли там з'я�
 (`site/`, `server/`, `README.md`…). На Mac:
 
 ```bash
-V=v217   # номер версії з назви архіву
+V=v219   # номер версії з назви архіву
 cd ~/Downloads && rm -rf bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d bf2-round-replay-$V
 rsync -a --delete --exclude .git bf2-round-replay-$V/ ~/bf2-round-replay/
 cd ~/bf2-round-replay && git add -A && git commit -m "$V" && git push
@@ -249,6 +249,11 @@ Silent aim, Aim lock, Spin, Side switch, TK + revive, Sniper headshots; Pre-aim 
 SUM_V 14 — сервер підсумує всі раунди знову сам (без перерозбору демо).
 З v217 — пост «a card with a table: a row each»: колонка гравців завширшки з найдовший нік (після нього — один пробіл); нічия —
 скільки ніків влазить, решта «+N».
+З v218 — у тому ж пості First blood і Last killed у два рядки: перший — хто вбив (First blood) або кого вбили (Last killed) і
+час раунду; другий, під ним, — кого він вбив / хто його вбив і з чого.
+З v219 — поле зору як на екрані 16:9 (95°; з патча 1.5 гра розширює кадр по ширині екрана), точна рамка огляду, у приціл
+вужче за зброєю (оптика — кругле поле), Wide view 50–70° з приміткою про монітори 21:9. HINTS_V 5, SUM_V 15 — сервер сам
+перегляне підказки й підсумки всіх раундів.
 
 ### Перевірити локально перед push
 
