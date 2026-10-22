@@ -86,6 +86,12 @@ a.btn { display: inline-block; text-decoration: none; } a.btn.primary { backgrou
   .pedt label { grid-template-columns: 1fr; } .ptab td:last-child, .ptab th:last-child { width: 3em; } .dcard .dcrow { grid-template-columns: 1fr !important; } }
 .nsrv .nparts { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); } .nsrv .nparts > summary { color: var(--fg); }
 .nsrv .nrow label.ck { display: flex; gap: 6px; align-items: center; min-width: 7.5em; font-weight: 600; } .nsrv .nrow input[type=number] { width: 4.5em; }
+/* (v220) the explanations: under each card's title, and how to use the page at the bottom */
+.help { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.5; } .help b { color: var(--fg); font-weight: 600; }
+details.hlp { margin: 0 0 10px; } details.hlp > summary { font-size: 12.5px; } details.hlp ul, .howto ul { margin: 6px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; line-height: 1.5; } details.hlp li, .howto li { margin: 3px 0; } details.hlp li b, .howto li b { color: var(--fg); font-weight: 600; }
+.howto h3 { margin: 14px 0 2px; font-size: 13.5px; color: var(--fg); } .howto h3:first-of-type { margin-top: 4px; } .howto p { margin: 4px 0; color: var(--muted); font-size: 13px; }
+/* (v220) the summaries' settings */
+.dgh { margin: 12px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; } .dgh .w { font-weight: 400; } .dged .pit td.c { width: 3em; }
 /* (v196) the servers' admins */
 .urow { border-top: 1px solid var(--line); padding: 8px 0; } .urow:first-child { border-top: 0; } .usrv { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; } .usrv label.ck { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
 .ufrm { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); } .ufrm .usrv { flex: 1 1 100%; } .tag.ok { color: var(--ok); border-color: var(--ok); }
@@ -130,6 +136,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 <main>
   <section class="card" aria-labelledby="hR">
     <h2 id="hR">Rounds</h2>
+    <p class="help">How many rounds the site has and which decoder made them - one an older decoder made is decoded again by itself after an update. Under it: the rounds of each game server, and the newest. <b>Recalculate all records</b> sums every round up again from its decoded file (no decoding, about 0.5 s a round, the site stays up): for when the Records page or the players' numbers look wrong.</p>
     <div class="big" id="rTotal">–</div>
     <div class="row" id="rDec"></div>
     <div id="rServers" class="mono muted"></div>
@@ -139,6 +146,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 
   <section class="card" aria-labelledby="hQ">
     <h2 id="hQ">Being decoded</h2>
+    <p class="help">Demos waiting to be decoded (from the demo pages below, or uploaded by hand) and, after an update, the old rounds being decoded again. <b>Failed demos</b>: those the decoder could not read - "Try them again" after an update. <b>Demos at once</b>: how many are decoded side by side; more is faster until the memory runs out - the table shows what was measured on this VPS.</p>
     <div class="row"><span class="big" id="qN">–</span><span class="muted" id="qInfo"></span></div>
     <div id="rp"></div>
     <div class="row" id="badRow"></div>
@@ -147,6 +155,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 
   <section class="card" aria-labelledby="hD">
     <h2 id="hD">Disk, last download</h2>
+    <p class="help">Free room on the VPS and when the demo pages were last read. When the disk is nearly full, the oldest demos go first (see "Demos: what to keep") - the rounds stay on the site.</p>
     <div class="row"><span class="big" id="dFree">–</span><span class="muted" id="dTot"></span></div>
     <div class="bar" id="dBar"><i></i></div>
     <div class="row muted" id="fLast"></div>
@@ -175,18 +184,21 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 
   <section class="card wide" aria-labelledby="hS">
     <h2 id="hS">Services</h2>
+    <p class="help">The VPS's jobs. Each runs by itself at its own time; its button starts it now. <b>State</b>: running, idle (waiting for its next time) or failed - then look at its lines in the Log below. <b>Last run</b> / <b>Next</b>: when it ran and when it runs again. A decoding run can be stopped: what it has not done waits for the next run, nothing is lost.</p>
     <table id="unitsT"><thead><tr><th>Service</th><th>State</th><th>Last run</th><th>Next</th><th></th></tr></thead><tbody id="units"></tbody></table>
     <div class="muted" id="sysNote" hidden></div>
   </section>
 
   <section class="card wide" aria-labelledby="hAn">
     <h2 id="hAn">Background analysis</h2>
+    <details class="hlp"><summary>What the buttons do</summary><ul><li><b>Run now</b>: a run at once, instead of waiting 5 minutes.</li><li><b>All rounds now</b>: no 40-round limit, several rounds at a time, run after run until all are done - after an update that changes the hint rules. <b>Back to 40 a run</b> ends it.</li><li><b>Pause</b>: the rounds it is on are finished, then nothing until <b>Go on</b> (e.g. while the VPS is busy decoding).</li><li><b>Its log</b>: its lines in the Log below.</li><li><b>Glitch spot</b>: the maps' grids of where soldiers stood (a map needs enough rounds before it gives hints).</li><li><b>Highest suspicion scores</b>: the players to look at first (their pages on the site, the Admin tab of their rounds).</li><li><b>Archive for Claude</b>: every round's numbers in one file - make it, download it, send it to Claude to set the hints' thresholds, then remove it here.</li></ul></details>
     <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, a few at a time, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. 40 rounds a run, one at a time, 5 minutes after the last run (or all of them at once: "All rounds now"). When it is near 100%, the archive below is what Claude needs to set the thresholds.</p>
     <div id="anBox"></div>
   </section>
 
   <section class="card wide" aria-labelledby="hF">
     <h2 id="hF">Where demos come from</h2>
+    <p class="help">The demo pages (a web folder listing .bf2demo files) and game servers (their address: the demo page they announce is found by itself) new demos are downloaded from. <b>read</b>: how often each is looked at. <b>Check</b>: reads it now and says what is there - downloads nothing. <b>Remove</b>: no more downloads from it (its rounds stay). <b>What would be downloaded?</b> lists the new demos on every page.</p>
     <div id="srcList"></div>
     <form class="addsrc" id="srcForm">
       <input id="srcIn" placeholder="http://1.2.3.4/demos/  or a game server: 1.2.3.4  or 1.2.3.4:29901" aria-label="Demo page or game server" autocomplete="off" spellcheck="false">
@@ -209,6 +221,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
       <label class="muted">Rounds with <input id="nMin" type="number" min="1" max="64" style="width:4.5em" aria-label="Fewest players"> players or more</label><button type="button" id="nMinSave">Save</button><span class="muted">(where a server says nothing else)</span>
     </div>
     <h3 class="anh">Servers</h3>
+    <details class="hlp"><summary>What each setting of a server does</summary><ul><li><b>Discord</b> / <b>Telegram</b>: on or off, and where its round posts go - a channel's webhook, a chat. A server with neither is not posted.</li><li><b>Rounds with … players or more</b>: smaller rounds are not posted and not counted in its summaries (empty: as for all, above).</li><li><b>Summaries</b>: a post with the server's day, week or month - tick each to have it. Their own <b>Discord</b> channel (a webhook of their own; without one the round posts' channel - whether the round posts go there or not) and <b>Telegram</b> (the round posts' chat), each on or off. <b>The summary</b>: its title, a line under it, a text above the cards (where a mention pings: @here, a role), the bottom line, the stripe's colour, which parts, how many in the top, which leaders and bests, and their layout - exact columns, or bold numbers with a | before them (narrower on phones). <b>Preview the summary</b> shows the last period with the editor as it is now; <b>Post it now</b> sends it with the saved settings.</li><li><b>Admin channel</b>: a private channel of the server's admins - after the background analysis of each new round, its hints for admins with the players' names; strong ones only, or strong and ordinary. Never the public channel.</li><li><b>The post</b>: how a round post looks - classic, a card, a card with a table (a row each kind of kill) or text; which parts go to Discord and to Telegram, their names and order, an own text with {…}; templates to use on other servers, or <b>Use on all servers</b>.</li><li><b>Preview</b> (its newest round, nothing sent), <b>Send a test post</b>, <b>Post its newest round</b> (for real).</li><li><b>Stop posting this server</b>: its channels, post and summaries are forgotten; its rounds stay on the site.</li></ul></details>
     <div id="nServers"></div>
     <details style="margin-top:8px"><summary>Where to get these</summary><p class="muted">Discord: the channel's settings (the gear) → Integrations → Webhooks → New Webhook → Copy Webhook URL. A channel a server: a webhook each.<br>Telegram: write to @BotFather, /newbot, copy the token it gives (one bot is enough for every server); add the bot to each group (or as an admin of each channel). The chat: @channelname for a public channel; for a group, its id - send a message in it, open https://api.telegram.org/bot&lt;token&gt;/getUpdates and take "chat":{"id": -100…}.<br>A server is known by the name in its demos: if its admins rename it, the new name shows here as a new server, not posted until set up.<br>Kept on the VPS only (data/.notify.json, which the web server never serves); here only the last 4 characters of the secrets show. In /etc/bf2replay.conf BF2R_TELEGRAM_TOKEN and BF2R_NOTIFY_MIN_PLAYERS win over these.</p></details>
   </section>
@@ -216,6 +229,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
   <section class="card wide" aria-labelledby="hU">
     <h2 id="hU">Servers' admins</h2>
     <p class="muted" style="margin:0 0 8px">Accounts for the admins of the game servers: each logs in on a round's <b>Admin</b> tab on the site (his name and password) and sees the hints of his servers' rounds there - nothing of this page. You log in there with an empty name and this page's password, and see every server's.</p>
+    <p class="help"><b>Set</b>: his new password. <b>Save his servers</b>: the servers whose rounds' hints he sees (none: he sees nothing). <b>Remove</b>: the account goes and he is logged out. Give each admin his own account - one can be removed without touching the others.</p>
     <div id="uList"></div>
     <form class="ufrm" id="uForm" autocomplete="off">
       <input id="uName" placeholder="name (letters, digits, . _ -)" aria-label="Account name" spellcheck="false" autocomplete="off">
@@ -227,6 +241,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 
   <section class="card wide" aria-labelledby="hL">
     <h2 id="hL">Log</h2>
+    <p class="help">What the services wrote (the VPS's system journal), the newest at the bottom. Pick a service and how many lines; "every 10 s" keeps it fresh. The first place to look when a service failed, a demo did not decode or a post did not arrive.</p>
     <div class="row">
       <select id="logUnit" aria-label="Which service">
         <option value="all">all services</option><option value="ingest">ingest (new demos)</option><option value="reprocess">reprocess (old rounds again)</option><option value="rebuild">rebuild (all again)</option><option value="fetch">fetch (downloads)</option><option value="update">update (GitHub)</option><option value="backup">backup</option><option value="hints">hints (background analysis)</option><option value="digest">digest (summaries)</option><option value="admin">admin page</option>
@@ -239,7 +254,16 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
   </section>
 
   <section class="card wide" aria-labelledby="hC">
-    <details><summary id="hC">Settings (/etc/bf2replay.conf, read only)</summary><table><tbody id="settings"></tbody></table></details>
+    <details><summary id="hC">Settings (/etc/bf2replay.conf, read only)</summary><p class="help" style="margin-top:8px">What /etc/bf2replay.conf on the VPS sets: the domain, the demo pages given there, the timers' times and the like. Edited there (then the services restarted), not here; a value set there wins over this page's choices (they show its name as a tag).</p><table><tbody id="settings"></tbody></table></details>
+  </section>
+
+  <section class="card wide howto" aria-labelledby="hH">
+    <h2 id="hH">How to use this page</h2>
+    <h3>Every day</h3><p>Nothing needs doing: demos are downloaded, decoded, posted and analysed by themselves. A glance is enough - <b>Rounds</b> grows, <b>Being decoded</b> empties, <b>Disk</b> has room, <b>Services</b> shows no "failed".</p>
+    <h3>A new game server</h3><ul><li><b>Where demos come from</b>: its demo page or its address → Check → Add. Its rounds show up under Rounds within minutes.</li><li><b>Posts about new rounds</b> → open the server → its Discord webhook and / or Telegram chat → <b>The post</b> → Preview → Send a test post.</li><li>The <b>Summaries</b> under it: tick Day, Week or Month, choose their channel and look at <b>The summary</b> → Preview the summary.</li><li>Its admins: an <b>Admin channel</b> for the hints of each round, and accounts under <b>Servers' admins</b> for the Admin tab of the rounds on the site.</li></ul>
+    <h3>After an update</h3><p>"Update from GitHub" looks for a new version every minute. When the decoder or the hint rules change, the old rounds are decoded and analysed again by themselves - watch <b>Being decoded</b> and <b>Background analysis</b> (the site works all the while).</p>
+    <h3>When something is wrong</h3><ul><li>A service <b>failed</b>: the Log, that service - then its button to run it again.</li><li><b>Failed demos</b> under Being decoded: "Try them again" (after an update most decode).</li><li>The disk nearly full: <b>Demos: what to keep</b> - fewer days or a GB limit; "What would go?" before Save.</li><li>A post or summary did not arrive: the server's "last post" / "last summaries" lines say why; then Send a test post.</li><li>A page of the site looks wrong after a change to the records: <b>Recalculate all records</b>.</li></ul>
+    <h3>Safe keeping</h3><p>Webhooks, the bot's token and the passwords stay on the VPS (here only their last 4 characters show). Log out on a shared computer. This page's password is set on the VPS: <span class="mono">sudo node /srv/bf2replay/repo/server/admin.mjs --set-password</span>.</p>
   </section>
 </main>
 </div>
@@ -559,15 +583,42 @@ function editorHtml(v, F, lines, N) {
     + `${others ? `<label class="muted">or copy from <select data-f="copy"><option value="">a server…</option>${others}</select></label>` : ''}<span style="flex:1"></span><button type="button" data-a="applyAll" title="This post (saved or not) on every server set up; their channels stay">Use on all servers</button></div>`;
 }
 // (v209) the summaries of a server's rounds (digest.mjs): a day, a week, a month - on or off; a preview and a post now of
-// the last one over; the last of each sent
+// the last one over; the last of each sent. (v220, Sagara: "Discord settings for the digests too") their own channels -
+// Discord: an own webhook or the round posts' one, on or off; Telegram: the round posts' chat, on or off - and "The
+// summary": its title and texts, the parts, the top's length, the leaders' and bests' rows and how they are laid out
 const DG_KINDS = ['day', 'week', 'month'], DG_T = { day: 'Day', week: 'Week', month: 'Month' };
+function dgEditorHtml(v, F, N) {
+  const pt = (N.digestParts || []).map(([k, name, what]) => `<tr><td class="c"><input type="checkbox" data-dgp="${esc(k)}"${F.parts?.[k] !== false ? ' checked' : ''} aria-label="${esc(name)}"></td><td><b>${esc(name)}</b> <span class="muted w">${esc(what)}</span></td></tr>`).join('');
+  const sel = (L, attr, off) => (L || []).map(([k, name]) => `<label class="ck dgck"><input type="checkbox" ${attr}="${esc(k)}"${off?.[k] === false ? '' : ' checked'}> ${esc(name)}</label>`).join('');
+  const chips = (N.digestVars || []).map(([k, w]) => `<button type="button" class="ph" data-dgph="${esc(k)}" title="${esc(w)}">{${esc(k)}}</button>`).join('');
+  const D = N.digestFmtDefault || {};
+  return `<div class="pedt"><label title="The card's title (Discord) / the first line in bold (Telegram)">Title <input data-f="dgTitle" value="${esc(F.title)}" placeholder="${esc(D.title || '')}"></label>`
+    + `<label title="A line of your own after the numbers (e.g. the server's rules or its Discord): **bold**, *italic*, {…}">Under it <textarea data-f="dgIntro" rows="2" placeholder="e.g. Thanks for playing on {server}!">${esc(F.intro)}</textarea></label>`
+    + `<label title="Discord only: a message above the cards - the one place where a mention pings: @here, @everyone or a role (<@&its id>: in Discord, Server Settings → Roles → … → Copy Role ID)">Text above <input data-f="dgContent" value="${esc(F.content)}" placeholder="Discord: e.g. @here or <@&123456789012345678> - empty: none"></label>`
+    + `<label title="The card's bottom line (Discord) / the last line in italics (Telegram)">At the bottom <input data-f="dgFooter" value="${esc(F.footer)}" placeholder="${esc(D.footer || '')}"></label></div>`
+    + `<div class="muted w" style="margin:2px 0 6px">Click to add where the cursor is: <span class="phs">${chips}</span> · a line whose {…} are all empty is left out</div>`
+    + `<div class="nrow"><label class="muted" title="The stripe on the left of the cards (Discord)">Stripe <select data-f="dgColorMode"><option value="default"${F.color === 'default' ? ' selected' : ''}>standard</option><option value="own"${F.color !== 'default' ? ' selected' : ''}>own</option></select></label><input type="color" data-f="dgColor" value="${F.color !== 'default' ? esc(F.color) : '#e2b547'}"${F.color === 'default' ? ' hidden' : ''} aria-label="Stripe colour">`
+    + `<label class="muted" title="How many of the best by score are listed">Top <select data-f="dgTop">${(N.digestTopN || [10]).map(n => `<option value="${n}"${F.topN === n ? ' selected' : ''}>${n}</option>`).join('')}</select> by score</label>`
+    + `<label class="muted" title="Exact columns: the whole table in monospace - in line, nothing bold. Bold numbers: the name and the player in monospace up to a |, the number bold after it (as the round posts' table) - narrower, wraps less on phones">Leaders and bests <select data-f="dgRows"><option value="mono"${F.rows !== 'rows' ? ' selected' : ''}>exact columns</option><option value="rows"${F.rows === 'rows' ? ' selected' : ''}>bold numbers, a | before them</option></select></label></div>`
+    + `<table class="pit"><thead><tr><th class="c">On</th><th>Part · what it is</th></tr></thead><tbody>${pt}</tbody></table>`
+    + `<details style="margin-top:6px"><summary>Which leaders <span class="muted">(added up over the period)</span></summary><div class="usrv">${sel(N.digestLeaders, 'data-dgl', F.leaders)}</div></details>`
+    + `<details><summary>Which bests <span class="muted">(the most in one round)</span></summary><div class="usrv">${sel(N.digestBests, 'data-dgb', F.bests)}</div></details>`
+    + `<div class="row" style="margin-top:8px"><button type="button" class="primary" data-a="dgSave">Save the summary</button><button type="button" data-a="dgStd" title="The standard summary in the editor (not saved until Save)">Standard</button><span class="muted">"Preview the summary" shows the editor as it is now, saved or not</span></div>`;
+}
 function digestRow(v, N, any) {
-  const P = N.digestPeriods || {}, L = v.digestLog || {}, T = v.digestTry || {};
+  const P = N.digestPeriods || {}, L = v.digestLog || {}, T = v.digestTry || {}, F = v.digestFmt || {}, to = v.digestTo || [];
   const boxes = DG_KINDS.map(k => `<label class="ck dgck"><input type="checkbox" data-dg="${k}"${v.digest?.[k] ? ' checked' : ''}> ${DG_T[k]}</label>`).join('');
   const last = DG_KINDS.filter(k => L[k]).map(k => `${esc(L[k].what)} ${ago(L[k].at)} · <span class="${L[k].ok ? 'ok' : 'bad'}">${esc(L[k].msg)}</span>${T[k] && !L[k].ok ? ` <span class="muted">(tried ${T[k].n} of 6)</span>` : ''}`).join('<br>');
-  return `<div class="nrow"><span class="muted" title="Posted to the channels above: the day before, the week before (Monday to Sunday, on Monday), the month before (on the 1st). A period's rounds by the time in the demo, with the fewest players above.">Summaries at ${esc(N.digestAt || '10:00')} <span class="w">(${esc(N.digestTz || '')})</span></span>${boxes}</div>`
-    + `<div class="nrow"><select data-f="dgKind" aria-label="Which summary of ${esc(v.name)}">${DG_KINDS.map(k => `<option value="${k}">${DG_T[k]}: ${esc(P[k]?.label || '')}</option>`).join('')}</select><button type="button" data-a="dgPrev">Preview the summary</button><button type="button" data-a="dgPost"${any ? '' : ' disabled'}>Post it now</button></div>`
-    + (last ? `<div class="row muted" style="font-size:12.5px;overflow-wrap:anywhere">last summaries:<br>${last}</div>` : '');
+  const hook = F.dcWebhook ? `own channel <span class="mono">${esc(F.dcWebhook)}</span>` : v.discord?.webhook ? `the round posts' channel <span class="mono">${esc(v.discord.webhook)}</span>` : '<span class="warn">no webhook: add one here or above</span>';
+  const nOn = (N.digestParts || []).filter(([k]) => F.parts?.[k] !== false).length;
+  return `<h4 class="dgh">Summaries <span class="muted w">a day, a week, a month of this server's rounds</span></h4>`
+    + `<div class="nrow"><span class="muted" title="Posted at ${esc(N.digestAt || '10:00')} (${esc(N.digestTz || '')}): the day before; the week before (Monday to Sunday, on Monday); the month before (on the 1st). A period's rounds by the time in the demo, with the fewest players above. One turned on starts with the next one due.">Post at ${esc(N.digestAt || '10:00')} <span class="w">(${esc(N.digestTz || '')})</span></span>${boxes}</div>`
+    + `<div class="nrow"><label class="ck" title="The summaries on Discord - to their own channel (a webhook below) or, without one, to the round posts' channel above; whether the round posts go to Discord or not"><input type="checkbox" data-f="dgDcOn"${F.dcOn ? ' checked' : ''}> Discord</label><span class="muted">${hook}</span>`
+    + `<input type="password" data-f="dgHook" autocomplete="new-password" spellcheck="false" placeholder="${F.dcWebhook ? 'a new webhook…' : 'own channel: its webhook (empty: the round posts\' one)'}" aria-label="Summaries' Discord webhook for ${esc(v.name)}"><button type="button" data-a="dgHookSave">Save</button>${F.dcWebhook ? `<button type="button" data-a="dgHookRm" title="The summaries go to the round posts' channel again">Round posts' channel</button>` : ''}</div>`
+    + `<div class="nrow"><label class="ck" title="The summaries on Telegram, to the round posts' chat above (the bot's token needed)"><input type="checkbox" data-f="dgTgOn"${F.tgOn ? ' checked' : ''}> Telegram</label><span class="muted">${v.telegram?.chat ? `the round posts' chat <span class="mono">${esc(v.telegram.chat)}</span>` : 'no chat (set it above)'}</span></div>`
+    + `<details class="nparts dgparts"${nsOpen.has(v.name + '\n#dg') ? ' open' : ''}><summary><b>The summary</b> <span class="muted">${F.set ? 'own' : 'standard'} · ${nOn} of ${(N.digestParts || []).length} parts · top ${F.topN || 10} · ${F.rows === 'rows' ? 'bold numbers' : 'exact columns'}${F.content ? ' · text above' : ''}</span></summary><div class="dged">${dgEditorHtml(v, F, N)}</div></details>`
+    + `<div class="nrow"><select data-f="dgKind" aria-label="Which summary of ${esc(v.name)}">${DG_KINDS.map(k => `<option value="${k}">${DG_T[k]}: ${esc(P[k]?.label || '')}</option>`).join('')}</select><button type="button" data-a="dgPrev" title="The last period's summary as it would go, with the editor as it is now - nothing sent">Preview the summary</button><button type="button" data-a="dgPost"${to.length ? '' : ' disabled'} title="The last period's summary to its channels now (the saved settings)">Post it now</button>${to.length ? `<span class="muted">to ${to.map(x => x === 'discord-own' ? 'Discord (own channel)' : x === 'discord' ? 'Discord' : 'Telegram').join(' and ')}</span>` : '<span class="warn">goes nowhere: Discord and Telegram off, or no webhook / chat</span>'}</div>`
+    + (last ? `<div class="muted" style="font-size:12.5px;margin:4px 0;overflow-wrap:anywhere">last summaries:<br>${last}</div>` : '');
 }
 // (v214, todo 265) the admins' private channel: a round's hints for admins once the server has analysed it (alerts.mjs)
 function alertRow(v) {
@@ -586,7 +637,7 @@ function renderServers(N) {
   box.innerHTML = nsList.map((v, i) => {
     const d = v.discord, t = v.telegram, any = (d && d.on && d.webhook) || (t && t.on && t.chat && N.tgToken);
     return `<details class="nsrv" data-i="${i}"${nsOpen.has(v.name) ? ' open' : ''}><summary><b>${esc(v.name)}</b><span class="muted">${v.rounds30} round${v.rounds30 === 1 ? '' : 's'} in 30 days${v.newest ? ` · newest ${esc(v.newest.slice(0, 16))}` : ''}</span>`
-      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') + (v.digest && DG_KINDS.some(k => v.digest[k]) ? `<span class="chip on">summaries: ${DG_KINDS.filter(k => v.digest[k]).join(', ')}</span>` : '') + (v.alert?.on && v.alert.webhook ? '<span class="chip on">admin channel ✓</span>' : '') : '<span class="chip no">not posted: not set up</span>')
+      + (v.set ? chip(d.on && d.webhook, true, 'd', 'Discord') + chip(t.on && t.chat, true, 't', 'Telegram') + (any ? '' : '<span class="chip no">not posted</span>') + (v.digest && DG_KINDS.some(k => v.digest[k]) ? `<span class="chip ${v.digestTo && v.digestTo.length ? 'on' : 'no'}" title="${v.digestTo && v.digestTo.length ? 'to ' + v.digestTo.map(x => x === 'discord-own' ? 'Discord (own channel)' : x === 'discord' ? 'Discord' : 'Telegram').join(' and ') : 'on, but they go nowhere: Discord and Telegram off for them, or no webhook / chat'}">summaries: ${DG_KINDS.filter(k => v.digest[k]).join(', ')}${v.digestTo && v.digestTo.includes('discord-own') ? ' · own channel' : ''}</span>` : '') + (v.alert?.on && v.alert.webhook ? '<span class="chip on">admin channel ✓</span>' : '') : '<span class="chip no">not posted: not set up</span>')
       + `</summary><div class="nbody">`
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="dcOn"${d && d.on ? ' checked' : ''}> Discord</label><span class="muted mono">${d && d.webhook ? esc(d.webhook) : 'no webhook'}</span><input type="password" data-f="dcHook" autocomplete="new-password" spellcheck="false" placeholder="${d && d.webhook ? 'a new webhook' : 'webhook: https://discord.com/api/webhooks/…'}" aria-label="Discord webhook for ${esc(v.name)}"><button type="button" data-a="dcSave">Save</button>${d && d.webhook ? '<button type="button" class="danger" data-a="dcRm">Remove</button>' : ''}</div>`
       + `<div class="nrow"><label class="ck"><input type="checkbox" data-f="tgOn"${t && t.on ? ' checked' : ''}> Telegram</label><input class="chat" data-f="tgChat" autocomplete="off" spellcheck="false" placeholder="chat: -100… or @channel" value="${esc(t?.chat || '')}" aria-label="Telegram chat for ${esc(v.name)}"><button type="button" data-a="tgSave">Save</button>${N.tgToken ? '' : '<span class="warn">the bot\'s token is needed (above)</span>'}</div>`
@@ -598,7 +649,7 @@ function renderServers(N) {
       + `<div class="ped">${editorHtml(v, v.format, { discord: v.discord?.lines, telegram: v.telegram?.lines }, N)}</div></details>`
       + `<div class="row" style="margin-top:8px"><button type="button" data-a="prev">Preview</button><button type="button" data-a="test"${any ? '' : ' disabled'}>Send a test post</button><button type="button" data-a="last"${any ? '' : ' disabled'}>Post its newest round</button></div>`
       + `<div class="pvw" data-f="prev" hidden><div class="muted" data-f="prevWhat"></div><div class="pvc"><div><b>Discord</b><div class="pvt" data-f="prevDc"></div></div><div><b>Telegram</b><div class="pvt" data-f="prevTg"></div></div></div></div>`
-      + (v.set ? `<div class="row" style="margin-top:10px"><button type="button" class="danger" data-a="forget">Stop posting this server</button><span class="muted">its channels and post are forgotten</span></div>` : '')
+      + (v.set ? `<div class="row" style="margin-top:10px"><button type="button" class="danger" data-a="forget">Stop posting this server</button><span class="muted">its channels, post and summaries are forgotten; its rounds stay on the site</span></div>` : '')
       + `</div></details>`;
   }).join('');
 }
@@ -612,17 +663,29 @@ function fmtOf(d) {
   return { style, title: q('title').value, intro: q('intro').value, footer: q('footer').value, color: q('colorMode').value === 'own' ? q('color').value : 'winner', image: q('image').value,
     cols: +(style === 'text' ? q('colsT').value : q('cols').value), order: [...d.querySelectorAll('.ped tr[data-k]')].map(tr => tr.dataset.k), labels, wide, text: q('text').value, mono: q('mono') ? q('mono').value === '1' : false };
 }
+// (v220) the summary's editor as it is now (saved or not)
+const dgField = new WeakMap();
+function dgFmtOf(d) {
+  const q = f => d.querySelector(`.dged [data-f=${f}]`), parts = {}, leaders = {}, bests = {};
+  for (const x of d.querySelectorAll('.dged input[data-dgp]')) parts[x.dataset.dgp] = x.checked;
+  for (const x of d.querySelectorAll('.dged input[data-dgl]')) leaders[x.dataset.dgl] = x.checked;
+  for (const x of d.querySelectorAll('.dged input[data-dgb]')) bests[x.dataset.dgb] = x.checked;
+  return { title: q('dgTitle').value, intro: q('dgIntro').value, content: q('dgContent').value, footer: q('dgFooter').value, color: q('dgColorMode').value === 'own' ? q('dgColor').value : 'default', topN: +q('dgTop').value, rows: q('dgRows').value, parts, leaders, bests };
+}
 const fillEditor = (o, F, lines) => { o.d.querySelector('.ped').innerHTML = editorHtml(o.v, F, lines, nsN); nsDirty.add(o.v.name); };
 const nsAct = (body, btn, keep) => act('notify-set', body, btn).then(j => { if (j && j.ok) { if (!keep) nsDirty.delete(body.server); nsSig = ''; } return j; });
 $('#nServers').addEventListener('toggle', e => {
   const d = e.target; if (!d.matches || !d.matches('details.nsrv, details.nparts')) return;
-  const o = nsOf(d); if (!o) return; const key = o.v.name + (d.matches('details.nparts') ? '\n#parts' : '');
+  const o = nsOf(d); if (!o) return; const key = o.v.name + (d.matches('details.dgparts') ? '\n#dg' : d.matches('details.nparts') ? '\n#parts' : '');
   if (d.open) nsOpen.add(key); else nsOpen.delete(key);
 }, true);
-$('#nServers').addEventListener('focusin', e => { if (e.target.matches('.ped [data-f=title], .ped [data-f=intro], .ped [data-f=footer], .ped [data-f=text]')) { const o = nsOf(e.target); if (o) nsField.set(o.d, e.target); } });
-$('#nServers').addEventListener('input', e => { if (e.target.closest('.ped')) { const o = nsOf(e.target); if (o) nsDirty.add(o.v.name); } });
+$('#nServers').addEventListener('focusin', e => { if (e.target.matches('.ped [data-f=title], .ped [data-f=intro], .ped [data-f=footer], .ped [data-f=text]')) { const o = nsOf(e.target); if (o) nsField.set(o.d, e.target); }
+  if (e.target.matches('.dged [data-f=dgTitle], .dged [data-f=dgIntro], .dged [data-f=dgContent], .dged [data-f=dgFooter]')) { const o = nsOf(e.target); if (o) dgField.set(o.d, e.target); } });   // (v220: the summary's)
+$('#nServers').addEventListener('input', e => { if (e.target.closest('.ped, .dged')) { const o = nsOf(e.target); if (o) nsDirty.add(o.v.name); } });
 $('#nServers').addEventListener('change', e => {
   const o = nsOf(e.target); if (!o) return; const f = e.target.dataset.f, name = o.v.name;
+  if (e.target.closest('.dged')) { nsDirty.add(name); if (f === 'dgColorMode') o.d.querySelector('.dged [data-f=dgColor]').hidden = e.target.value !== 'own'; return; }   // (v220: the summary's editor - saved with its button)
+  if (f === 'dgDcOn' || f === 'dgTgOn') { if (f === 'dgDcOn' && e.target.checked && !o.v.digestFmt?.dcWebhook && !o.v.discord?.webhook) toast('add a webhook for the summaries (or the round posts\' one) too'); nsAct({ server: name, digestFmt: { [f === 'dgDcOn' ? 'dcOn' : 'tgOn']: e.target.checked } }, null, true); return; }
   if (e.target.closest('.ped')) {
     nsDirty.add(name);
     if (f === 'style') fillEditor(o, { ...fmtOf(o.d) }, linesVals(o.d));
@@ -637,6 +700,9 @@ $('#nServers').addEventListener('change', e => {
   if (f === 'alMin') nsAct({ server: name, alert: { min: e.target.value } }, null, true);
 });
 $('#nServers').addEventListener('click', async e => {
+  const dph = e.target.closest('button.ph[data-dgph]');   // (v220: the summary's placeholders)
+  if (dph) { const o = nsOf(dph); if (!o) return; const t = dgField.get(o.d) || o.d.querySelector('.dged [data-f=dgIntro]'), x = `{${dph.dataset.dgph}}`, a0 = t.selectionStart ?? t.value.length, a1 = t.selectionEnd ?? a0;
+    t.value = t.value.slice(0, a0) + x + t.value.slice(a1); t.focus(); t.setSelectionRange(a0 + x.length, a0 + x.length); nsDirty.add(o.v.name); return; }
   const ph = e.target.closest('button.ph');
   if (ph) { const o = nsOf(ph); if (!o) return; const t = nsField.get(o.d) || o.d.querySelector('.ped [data-f=text]'), x = `{${ph.dataset.ph}}`, a0 = t.selectionStart ?? t.value.length, a1 = t.selectionEnd ?? a0;
     t.value = t.value.slice(0, a0) + x + t.value.slice(a1); t.focus(); t.setSelectionRange(a0 + x.length, a0 + x.length); nsDirty.add(o.v.name); return; }
@@ -660,16 +726,20 @@ $('#nServers').addEventListener('click', async e => {
   if (a === 'alRm') { if (confirm(`Remove the admin channel of ${name}?`)) nsAct({ server: name, alert: { webhook: '' } }, b, true); }
   if (a === 'alTest') act('alert-test', { server: name }, b);
   if (a === 'last') act('notify-last', { server: name }, b);
+  if (a === 'dgHookSave') { const v = q('dgHook').value.trim(); if (!v) { q('dgHook').focus(); return; } nsAct({ server: name, digestFmt: { dcWebhook: v } }, b, true).then(j => { if (j && j.ok) q('dgHook').value = ''; }); }   // (v220)
+  if (a === 'dgHookRm') { if (confirm(`The summaries of ${name} to the round posts' Discord channel again (their own webhook is forgotten)?`)) nsAct({ server: name, digestFmt: { dcWebhook: '' } }, b, true); }
+  if (a === 'dgSave') nsAct({ server: name, digestFmt: dgFmtOf(o.d) }, b);
+  if (a === 'dgStd') { const F = { ...(o.v.digestFmt || {}), ...nsN.digestFmtDefault, intro: '', content: '', parts: {}, leaders: {}, bests: {} }; o.d.querySelector('.dged').innerHTML = dgEditorHtml(o.v, F, nsN); nsDirty.add(name); toast('the standard summary: "Save the summary" to keep it'); }
   if (a === 'dgPost') { const k = q('dgKind').value; if (confirm(`Post the summary "${q('dgKind').selectedOptions[0].textContent}" of ${name} to its channels now?`)) act('digest-post', { server: name, kind: k }, b); }
   if (a === 'dgPrev') {   // (v209: the summary as it would go, nothing sent)
     b.disabled = true;
     try {
-      const j = await api('digest-preview', { server: name, kind: q('dgKind').value });
+      const j = await api('digest-preview', { server: name, kind: q('dgKind').value, format: dgFmtOf(o.d) });
       if (!j.ok) { toast(j.msg || j.error || 'no', false); return; }
-      q('prev').hidden = false; q('prevWhat').textContent = `${DG_T[j.kind]} summary: ${j.period.label} (${j.period.from}${j.period.to !== j.period.from ? ' to ' + j.period.to : ''}) · ${j.rounds} round${j.rounds === 1 ? '' : 's'} with ${j.minPlayers}+ players · nothing sent`;
+      q('prev').hidden = false; q('prevWhat').textContent = `${DG_T[j.kind]} summary: ${j.period.label} (${j.period.from}${j.period.to !== j.period.from ? ' to ' + j.period.to : ''}) · ${j.rounds} round${j.rounds === 1 ? '' : 's'} with ${j.minPlayers}+ players · the editor as it is now · it would go to ${j.to && j.to.length ? j.to.join(' and ') : 'nowhere (Discord and Telegram off, or no webhook / chat)'} · nothing sent`;
       const dc = q('prevDc'); dc.textContent = '';
       if (!j.rounds) { dc.className = 'pvt'; dc.textContent = 'No rounds in this period: nothing would be posted.'; q('prevTg').className = 'pvt'; q('prevTg').textContent = '—'; return; }
-      dc.className = 'pvcards'; for (const E of j.discord) drawCard(dc.appendChild(document.createElement('div')), E);
+      dc.className = 'pvcards'; if (j.content) { const c = dc.appendChild(document.createElement('div')); c.className = 'pvt'; c.title = 'The text above the cards'; mdInto(c, j.content, 'discord'); } for (const E of j.discord) drawCard(dc.appendChild(document.createElement('div')), E);
       drawPost(q('prevTg'), j.telegram.join('\n\n— the next message —\n\n'), 'telegram');
     } catch (err) { toast(err.message, false); } finally { b.disabled = false; }
   }

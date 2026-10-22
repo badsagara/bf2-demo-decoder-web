@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // BF2 Round Replay (v209, Sagara: "a wider summary - a post once a day, a week and a month with the server's players over
-// that time") - a summary of a game server's rounds, posted to the channels of its round posts (notify.mjs; the admin
-// page turns each of the three on for each server, all off until then): the day before, the week before (Monday to
+// that time") - a summary of a game server's rounds, posted to its Discord channel and / or Telegram chat (v220: their
+// own settings, normDigestFmt - an own Discord channel or the round posts', what is in them; until then the round posts'
+// channels; the admin page turns each of the three on for each server, all off until then): the day before, the week before (Monday to
 // Sunday, posted on Monday), the month before (posted on the 1st) - at BF2R_DIGEST_AT (10:00) in BF2R_DIGEST_TZ
 // (Europe/Bratislava). A period's rounds by their own time (the date in the demo: the game server's clock), with the
 // server's fewest players (as its round posts). In it: the server's numbers (rounds, players, kills, hours, maps), the
@@ -16,7 +17,7 @@
 // A period is done once posted (data/.notify.json: servers[name].digestLast); a period with no rounds is done without
 // a post; a post that failed is tried again at the next runs, 6 times at most. Turned on, the first one comes at the
 // next 10:00 (not at once for the period that is already over).
-import { opt, DOMAIN, SITE, log, notifySettings, saveNotify, targetsOf, serverOf, mapName, aggFns, allRounds, escTg, escDc, DRAW_RGB, cut, monoTable, send } from './notify.mjs';
+import { opt, DOMAIN, SITE, log, notifySettings, saveNotify, serverOf, mapName, aggFns, allRounds, escTg, escDc, DRAW_RGB, cut, monoTable, send, alignedRows, tpl, DISCORD_RE } from './notify.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -93,10 +94,10 @@ export function digestOf(server, kind, now = Date.now()) {
   out.leaders = [];
   for (const [k, label] of SUM_KEYS) {
     let best = 0, who = []; for (const a of all) { const v = a.sums[k] || 0; if (v > best) { best = v; who = [a.name]; } else if (v === best && v > 0) who.push(a.name); }
-    if (best > 0) out.leaders.push({ k, label, v: String(best), who: whoOf(who) });
+    if (best > 0) out.leaders.push({ k, label, v: String(best), who: whoOf(who), whoL: who });
   }
-  { const min = KD_MIN[kind]; let best = 0, who = []; for (const a of all) { if (a.k < min) continue; const v = Math.round(a.k / Math.max(1, a.d) * 100) / 100; if (v > best) { best = v; who = [`${a.name} (${a.k}/${a.d})`]; } else if (v === best) who.push(`${a.name} (${a.k}/${a.d})`); }
-    if (best > 0) out.leaders.push({ k: 'kd', label: `K/D (${min}+ kills)`, v: best.toFixed(2), who: whoOf(who) }); }
+  { const min = KD_MIN[kind]; let best = 0, who = [], wl = []; for (const a of all) { if (a.k < min) continue; const v = Math.round(a.k / Math.max(1, a.d) * 100) / 100; if (v > best) { best = v; who = [`${a.name} (${a.k}/${a.d})`]; wl = [a]; } else if (v === best) { who.push(`${a.name} (${a.k}/${a.d})`); wl.push(a); } }
+    if (best > 0) out.leaders.push({ k: 'kd', label: `K/D (${min}+ kills)`, v: best.toFixed(2), who: whoOf(who), whoL: wl.map(a => a.name), ex: wl.length === 1 ? `(${wl[0].k}/${wl[0].d})` : '' }); }
   // the best in one round (a tie: the earlier round)
   out.bests = [];
   for (const [k, label] of BEST_KEYS) {
@@ -113,52 +114,118 @@ const linkOf = D => DOMAIN ? `https://${DOMAIN}/#rounds=1&srv=${encodeURICompone
 const titleOf = D => `${KIND_T[D.kind]} summary: ${D.period.label} · ${D.server}`;
 const mapsLine = (N, n = 5) => N.maps.slice(0, n).map(([m, c]) => `${m} ${c}`).join(' · ') + (N.maps.length > n ? ` · +${N.maps.length - n} more` : '');
 
+// (v220, Sagara: "Discord settings not only for the round posts but for the digests too") each server's summaries their
+// own settings (data/.notify.json servers[name].digestFmt; the admin page: "The summary"): where they go - Discord to
+// their own channel (a webhook of their own) or to the round posts' one, whether the round posts go there or not;
+// Telegram to the round posts' chat - what is in them (DG_PARTS; the top's length; which leaders and bests), the title,
+// a line under it, a text above the cards (a mention: @here, <@&role>), the bottom line, the stripe's colour, and the
+// leaders' and bests' tables: exact columns (monospace, as up to v219) or bold numbers with a | before them (as the
+// round posts' table)
+export const DG_PARTS = [['numbers', 'Numbers', 'rounds, players, kills and hours of the period'], ['maps', 'Maps', 'the maps played, the most first'],
+  ['pow', 'Player of the period', 'the most score a round (with 2 / 3 / 5 rounds or more)'], ['top', 'Top by score', 'score, kills-deaths, K/D and rounds of the best'],
+  ['leaders', 'Leaders', 'the most of each kind of kill over the period, added up'], ['bests', 'Best in one round', 'the most in one round of the period, the longest kills'],
+  ['thumb', 'Map picture', 'the map played most, top right (Discord)'], ['link', 'Link', "to the period's rounds on the site"]];
+export const DG_VARS = [['kind', 'Day / Week / Month'], ['period', 'the period (Mon 19 Oct, 12–18 Oct, October 2026)'], ['from', 'its first day'], ['to', 'its last day'], ['server', "the server's name"],
+  ['rounds', 'rounds'], ['players', 'players'], ['kills', 'kills'], ['hours', 'hours played'], ['pow', 'the player of the period'], ['min', 'fewest players a round counted has'], ['link', 'the link to the rounds']];
+export const DG_LEADERS = SUM_KEYS.concat([['kd', 'K/D']]), DG_BESTS = BEST_KEYS;
+export const DG_FMT_DEFAULT = { title: '{kind} summary: {period} · {server}', intro: '', content: '', footer: 'BF2 Round Replay · rounds with {min}+ players, by the time in the demo', color: 'default', topN: 10, rows: 'mono' };
+export const DG_TOP_N = [3, 5, 10, 15, 20];
+// the saved settings filled in (f: as saved, or the editor's; c: the server's - before any is saved, Discord and Telegram
+// as its round posts are)
+export function normDigestFmt(f, c) {
+  f = f && typeof f === 'object' ? f : {}; const str = (v, d, n) => typeof v === 'string' ? v.slice(0, n) : d;
+  const parts = {}; for (const [k] of DG_PARTS) parts[k] = f.parts && typeof f.parts === 'object' && k in f.parts ? !!f.parts[k] : true;
+  const off = (o, keys) => { const r = {}; if (o && typeof o === 'object') for (const [k] of keys) if (k in o && !o[k]) r[k] = false; return r; };   // (only those turned off)
+  return { set: !!Object.keys(f).length, dcOn: typeof f.dcOn === 'boolean' ? f.dcOn : !!c?.discord?.on, dcWebhook: typeof f.dcWebhook === 'string' && DISCORD_RE.test(f.dcWebhook) ? f.dcWebhook : '',
+    tgOn: typeof f.tgOn === 'boolean' ? f.tgOn : !!c?.telegram?.on,
+    title: str(f.title, DG_FMT_DEFAULT.title, 256), intro: str(f.intro, '', 600), content: str(f.content, '', 300), footer: str(f.footer, DG_FMT_DEFAULT.footer, 300),
+    color: typeof f.color === 'string' && /^#[0-9a-f]{6}$/i.test(f.color) ? f.color.toLowerCase() : 'default',
+    topN: DG_TOP_N.includes(+f.topN) ? +f.topN : DG_FMT_DEFAULT.topN, rows: f.rows === 'rows' ? 'rows' : 'mono', parts, leaders: off(f.leaders, DG_LEADERS), bests: off(f.bests, DG_BESTS) };
+}
+// where a server's summaries go: [{ app, url | chat, own }]
+export function digestTargets(S, server, F) {
+  const c = S.servers[server], out = []; if (!c) return out; F = F || normDigestFmt(c.digestFmt, c);
+  const url = F.dcWebhook || c.discord.webhook; if (F.dcOn && url) out.push({ app: 'discord', url, own: !!F.dcWebhook });
+  if (F.tgOn && c.telegram.chat && S.tgToken) out.push({ app: 'telegram', chat: c.telegram.chat });
+  return out;
+}
+const varsOf = D => { const N = D.numbers || {}; return { kind: KIND_T[D.kind], period: D.period.label, from: D.period.from, to: D.period.to, server: D.server, rounds: N.rounds != null ? num(N.rounds) : '0',
+  players: N.players != null ? num(N.players) : '', kills: N.kills != null ? num(N.kills) : '', hours: N.hours != null ? String(N.hours) : '', pow: D.pow?.name || '', min: String(D.minPlayers), link: linkOf(D) }; };
+// (a text above the cards that mentions @here / @everyone or a role: let it ping them - the round posts never do)
+const mentionsOf = t => { const roles = [...String(t).matchAll(/<@&(\d{5,25})>/g)].map(m => m[1]), all = /@(everyone|here)\b/.test(t); return all || roles.length ? { parse: all ? ['everyone'] : [], ...(roles.length ? { roles: [...new Set(roles)].slice(0, 100) } : {}) } : { parse: [] }; };
+
 // Discord: cards (a message holds 10 and 6000 letters: more messages when it is more) - the numbers and the best ten;
 // the leaders; the best in one round
 const POW_OF = { day: 'of the day', week: 'of the week', month: 'of the month' };
 const powLine = a => `${num(a.spr)} score a round over ${a.rounds} rounds · ${a.k}-${a.d} (K/D ${a.kd.toFixed(2)})${a.duel != null ? ` · duels won ${a.duel}%` : ''}${a.dmr != null ? ` · damage ${a.dmr} a round` : ''}`;
-export function discordOf(D) {
-  const N = D.numbers, E = [];
-  const fitRows = (head, rows, build) => { let d = build(rows); while (d.length > 4090 && rows.length > 1) { rows = rows.slice(0, -1); d = build(rows); } return d; };
-  const first = { title: cut(titleOf(D), 256), color: DRAW_RGB };
-  const link = linkOf(D); if (link) first.url = link;
-  const head = `**${num(N.rounds)} round${N.rounds === 1 ? '' : 's'}** · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h\n${escDc('Maps: ' + mapsLine(N))}` + (D.pow ? `\n**Player ${POW_OF[D.kind] || ''}: ${escDc(D.pow.name)}** · ${escDc(powLine(D.pow))}` : '');
-  const top = D.top.map((a, i) => [String(i + 1), num(a.score), `${a.k}-${a.d}`, a.kd.toFixed(2), String(a.rounds), a.name]);
-  first.description = fitRows(['#'], top, rows => `${head}\n**Top ${rows.length} by score**\n${monoTable(['#', 'Score', 'K-D', 'K/D', 'Rnd', 'Player'], rows)}`);
-  if (DOMAIN) { const m = N.maps[0]?.[2] || ''; first.thumbnail = { url: `https://${DOMAIN}/assets/og/${m && fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg` }; }   // (the map played most)
+const leadersOf = (D, F) => F.parts.leaders ? D.leaders.filter(x => F.leaders[x.k] !== false) : [];
+const bestsOf = (D, F) => F.parts.bests ? D.bests.filter(x => F.bests[x.k] !== false) : [];
+export function discordOf(D, F) {
+  F = F || normDigestFmt(null, null);
+  const N = D.numbers, E = [], V = varsOf(D), P = F.parts, color = F.color === 'default' ? DRAW_RGB : parseInt(F.color.slice(1), 16);
+  const fitRows = (rows, build) => { let d = build(rows); while (d.length > 4090 && rows.length > 1) { rows = rows.slice(0, -1); d = build(rows); } return d; };
+  const first = { color }, title = tpl(F.title, V, 'plain');
+  if (title) first.title = cut(title, 256);
+  const link = linkOf(D); if (link && P.link) first.url = link;
+  const head = [];
+  if (P.numbers) head.push(`**${num(N.rounds)} round${N.rounds === 1 ? '' : 's'}** · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h`);
+  if (P.maps) head.push(escDc('Maps: ' + mapsLine(N)));
+  const intro = tpl(F.intro, V, 'discord'); if (intro) head.push(intro);
+  if (P.pow && D.pow) head.push(`**Player ${POW_OF[D.kind] || ''}: ${escDc(D.pow.name)}** · ${escDc(powLine(D.pow))}`);
+  const top = P.top ? D.top.slice(0, F.topN).map((a, i) => [String(i + 1), num(a.score), `${a.k}-${a.d}`, a.kd.toFixed(2), String(a.rounds), a.name]) : [];
+  const desc = top.length ? fitRows(top, rows => `${head.join('\n')}${head.length ? '\n' : ''}**Top ${rows.length} by score**\n${monoTable(['#', 'Score', 'K-D', 'K/D', 'Rnd', 'Player'], rows)}`) : head.join('\n');
+  if (desc) first.description = desc;
+  if (!first.title && !first.description) first.description = escDc(titleOf(D));
+  if (DOMAIN && P.thumb) { const m = N.maps[0]?.[2] || ''; first.thumbnail = { url: `https://${DOMAIN}/assets/og/${m && fs.existsSync(path.join(SITE, 'assets', 'og', m + '.jpg')) ? m : 'site'}.jpg` }; }   // (the map played most)
   E.push(first);
-  if (D.leaders.length) E.push({ color: DRAW_RGB, description: fitRows([], D.leaders.map(x => [x.label, x.v, x.who]), rows => `**Leaders ${KIND_OF[D.kind]}** · added up\n${monoTable(['Most', 'Total', 'Player'], rows)}`) });
-  if (D.bests.length) E.push({ color: DRAW_RGB, description: fitRows([], D.bests.map(x => [x.label, x.v, x.who + (x.where ? ` (${x.where})` : '')]), rows => `**Best in one round ${KIND_OF[D.kind]}**\n${monoTable(['Record', 'Best', 'Player'], rows)}`) });
-  E[E.length - 1].footer = { text: `BF2 Round Replay · rounds with ${D.minPlayers}+ players, by the time in the demo` };
+  // the leaders and the bests: exact columns, or bold numbers with a | before them (F.rows)
+  const L = leadersOf(D, F), B = bestsOf(D, F);
+  if (L.length) E.push({ color, description: fitRows(L, rows => `**Leaders ${KIND_OF[D.kind]}** · added up\n` + (F.rows === 'rows'
+    ? alignedRows(rows.map(x => ({ label: x.label, who: { L: x.whoL || [x.who], more: 0 }, v: x.v, ex: x.ex || '' })))
+    : monoTable(['Most', 'Total', 'Player'], rows.map(x => [x.label, x.v, x.who])))) });
+  if (B.length) E.push({ color, description: fitRows(B, rows => `**Best in one round ${KIND_OF[D.kind]}**\n` + (F.rows === 'rows'
+    ? alignedRows(rows.map(x => ({ label: x.label, who: { L: [x.who], more: 0 }, v: x.v, ex: x.where ? `(${x.where})` : '' })))
+    : monoTable(['Record', 'Best', 'Player'], rows.map(x => [x.label, x.v, x.who + (x.where ? ` (${x.where})` : '')])))) });
+  const ft = tpl(F.footer, V, 'plain'); if (ft) E[E.length - 1].footer = { text: cut(ft, 2048) };
   // into messages
   const size = e => (e.title || '').length + (e.description || '').length + (e.footer?.text || '').length;
   const msgs = []; let cur = [], n = 0;
   for (const e of E) { if (cur.length && (n + size(e) > 5900 || cur.length >= 10)) { msgs.push({ embeds: cur }); cur = []; n = 0; } cur.push(e); n += size(e); }
   if (cur.length) msgs.push({ embeds: cur });
+  const content = tpl(F.content, V, 'discord'); if (content) { msgs[0].content = cut(content, 2000); msgs[0].allowed_mentions = mentionsOf(F.content); }
   return msgs;
 }
-// Telegram: text (HTML), as many messages as it takes (4096 letters each; whole lines)
-export function telegramOf(D) {
-  const N = D.numbers, b = t => `<b>${escTg(t)}</b>`, L = [b(titleOf(D)), escTg(`${num(N.rounds)} round${N.rounds === 1 ? '' : 's'} · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h`), escTg('Maps: ' + mapsLine(N))];
-  if (D.pow) L.push('', `${b(`Player ${POW_OF[D.kind] || ''}:`)} ${escTg(D.pow.name)} · ${escTg(powLine(D.pow))}`);   // (v215)
-  L.push('', b(`Top ${D.top.length} by score`)); D.top.forEach((a, i) => L.push(escTg(`${i + 1}. ${a.name} ${num(a.score)} (${a.k}–${a.d}, K/D ${a.kd.toFixed(2)}, ${a.rounds} round${a.rounds === 1 ? '' : 's'})`)));
-  if (D.leaders.length) { L.push('', b(`Leaders ${KIND_OF[D.kind]} (added up)`)); for (const x of D.leaders) L.push(`${b(x.label + ':')} ${escTg(`${x.who} ${x.v}`)}`); }
-  if (D.bests.length) { L.push('', b(`Best in one round ${KIND_OF[D.kind]}`)); for (const x of D.bests) L.push(`${b(x.label + ':')} ${escTg(`${x.who} ${x.v}${x.where ? ` (${x.where})` : ''}`)}`); }
-  const link = linkOf(D); if (link) L.push('', escTg(link));
+// Telegram: text (HTML), as many messages as it takes (4096 letters each; whole lines) - the same parts and order
+export function telegramOf(D, F) {
+  F = F || normDigestFmt(null, null);
+  const N = D.numbers, P = F.parts, V = varsOf(D), b = t => `<b>${escTg(t)}</b>`, L = [];
+  const title = tpl(F.title, V, 'plain'); L.push(b(title || titleOf(D)));
+  if (P.numbers) L.push(escTg(`${num(N.rounds)} round${N.rounds === 1 ? '' : 's'} · ${num(N.players)} players · ${num(N.kills)} kills · ${N.hours} h`));
+  if (P.maps) L.push(escTg('Maps: ' + mapsLine(N)));
+  const intro = tpl(F.intro, V, 'telegram'); if (intro) L.push(intro);
+  if (P.pow && D.pow) L.push('', `${b(`Player ${POW_OF[D.kind] || ''}:`)} ${escTg(D.pow.name)} · ${escTg(powLine(D.pow))}`);   // (v215)
+  if (P.top && D.top.length) { const T = D.top.slice(0, F.topN); L.push('', b(`Top ${T.length} by score`)); T.forEach((a, i) => L.push(escTg(`${i + 1}. ${a.name} ${num(a.score)} (${a.k}–${a.d}, K/D ${a.kd.toFixed(2)}, ${a.rounds} round${a.rounds === 1 ? '' : 's'})`))); }
+  const LD = leadersOf(D, F), BS = bestsOf(D, F);
+  if (LD.length) { L.push('', b(`Leaders ${KIND_OF[D.kind]} (added up)`)); for (const x of LD) L.push(`${b(x.label + ':')} ${escTg(`${x.who} ${x.v}`)}`); }
+  if (BS.length) { L.push('', b(`Best in one round ${KIND_OF[D.kind]}`)); for (const x of BS) L.push(`${b(x.label + ':')} ${escTg(`${x.who} ${x.v}${x.where ? ` (${x.where})` : ''}`)}`); }
+  const ft = tpl(F.footer, V, 'telegram'); if (ft) L.push('', `<i>${ft}</i>`);
+  const link = linkOf(D); if (link && P.link) L.push('', escTg(link));
   const msgs = []; let cur = '';
   for (const l of L) { if (cur && cur.length + l.length + 1 > 3900) { msgs.push(cur.replace(/\n+$/, '')); cur = ''; } cur += (cur ? '\n' : '') + l; }
   if (cur.trim()) msgs.push(cur.replace(/\n+$/, ''));
   return msgs;
 }
-// the admin page's preview
-export function digestTexts(server, kind, now = Date.now()) {
-  const D = digestOf(server, kind, now), base = { ok: true, server, kind, period: D.period, rounds: D.rounds, minPlayers: D.minPlayers };
-  if (!D.rounds) return { ...base, discord: [], telegram: [] };
-  return { ...base, discord: discordOf(D).flatMap(m => m.embeds), telegram: telegramOf(D) };
+// the admin page's preview (fmt: the editor's settings, saved or not; none: the saved ones)
+export function digestTexts(server, kind, now = Date.now(), fmt) {
+  const S = notifySettings(), c = S.servers[server], F = normDigestFmt(fmt !== undefined ? fmt : c?.digestFmt, c);
+  const D = digestOf(server, kind, now), T = digestTargets(S, server, F), base = { ok: true, server, kind, period: D.period, rounds: D.rounds, minPlayers: D.minPlayers, to: T.map(t => t.app === 'discord' ? (t.own ? 'Discord (its own channel)' : "Discord (the round posts' channel)") : 'Telegram') };
+  if (!D.rounds) return { ...base, discord: [], telegram: [], content: '' };
+  const M = discordOf(D, F);
+  return { ...base, discord: M.flatMap(m => m.embeds), content: M[0]?.content || '', telegram: telegramOf(D, F) };
 }
 // to a server's channels (the round posts'): each message in turn; [[app, { ok, msg }]]
-async function deliver(D, T, S) {
-  const out = [], dc = discordOf(D), tg = telegramOf(D);
+async function deliver(D, T, S, F) {
+  const out = [], dc = discordOf(D, F), tg = telegramOf(D, F);
   for (const t of T) {
     const parts = t.app === 'discord' ? dc : tg; let res = { ok: true };
     for (const m of parts) { const R = await send(t.app === 'discord' ? { discord: m } : { telegram: m }, [t], S); res = R[0][1]; if (!res.ok) break; }
@@ -175,11 +242,11 @@ export async function runDue(now = Date.now()) {
     if (!c.digest[kind]) continue;
     const P = periodOf(kind, now); if (c.digestLast[kind] === P.key) continue;
     const tr = c.digestTry[kind]; if (tr && tr.key === P.key && tr.n >= TRIES) continue;
-    const what = `${kind} ${P.label}`, T = targetsOf(S, server);
-    if (!T.length) { saveSrv(server, x => ({ digestLast: { ...x.digestLast, [kind]: P.key }, digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what, ok: false, msg: 'no Discord or Telegram on: not posted' } } })); log(`summary (${server}) ${what}: no Discord webhook or Telegram chat on - not posted`); continue; }   // (done: not posted late when one is turned on)
+    const what = `${kind} ${P.label}`, F = normDigestFmt(c.digestFmt, c), T = digestTargets(S, server, F);
+    if (!T.length) { saveSrv(server, x => ({ digestLast: { ...x.digestLast, [kind]: P.key }, digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what, ok: false, msg: 'Discord and Telegram off for the summaries (or no webhook / chat): not posted' } } })); log(`summary (${server}) ${what}: Discord and Telegram off for the summaries, or no webhook or chat - not posted`); continue; }   // (done: not posted late when one is turned on)
     let D; try { D = digestOf(server, kind, now); } catch (e) { log(`summary (${server}) ${what}: ${e.message}`); continue; }
     if (!D.rounds) { saveSrv(server, x => ({ digestLast: { ...x.digestLast, [kind]: P.key }, digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what, ok: true, msg: 'no rounds: nothing posted' } } })); log(`summary (${server}) ${what}: no rounds with ${D.minPlayers}+ players - nothing posted`); continue; }
-    const R = await deliver(D, T, S), ok = R.every(([, r]) => r.ok), m = told(R); n++;
+    const R = await deliver(D, T, S, F), ok = R.every(([, r]) => r.ok), m = told(R); n++;
     log(`summary (${server}) ${what}: ${D.rounds} rounds - ${m}`);
     saveSrv(server, x => { const t2 = { ...x.digestTry }; if (ok) delete t2[kind]; else t2[kind] = { key: P.key, n: (x.digestTry[kind]?.key === P.key ? x.digestTry[kind].n : 0) + 1 };
       return { ...(ok ? { digestLast: { ...x.digestLast, [kind]: P.key } } : {}), digestTry: t2, digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what, ok, msg: m } } }; });
@@ -194,10 +261,10 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const S = notifySettings();
   if (!S.servers[server] && a[0] === '--post') { console.log(`"${server}" is not set up for posts (admin page: Posts about new rounds).`); process.exit(1); }
   let D; try { D = digestOf(server, kind); } catch (e) { console.log(e.message); process.exit(1); }
-  if (a[0] === '--show') { if (!D.rounds) { console.log(`no rounds with ${D.minPlayers}+ players: ${kind} ${D.period.label}`); process.exit(0); } console.log(JSON.stringify(discordOf(D), null, 1)); console.log(telegramOf(D).join('\n----\n')); process.exit(0); }
+  if (a[0] === '--show') { if (!D.rounds) { console.log(`no rounds with ${D.minPlayers}+ players: ${kind} ${D.period.label}`); process.exit(0); } const F = normDigestFmt(S.servers[server]?.digestFmt, S.servers[server]); console.log(JSON.stringify(discordOf(D, F), null, 1)); console.log(telegramOf(D, F).join('\n----\n')); process.exit(0); }
   if (!D.rounds) { console.log(`${KIND_T[kind]} ${D.period.label}: no rounds with ${D.minPlayers}+ players - nothing to post`); process.exit(1); }
-  const T = targetsOf(S, server); if (!T.length) { console.log(`Nothing to post to for "${server}": no Discord webhook or Telegram chat on.`); process.exit(1); }
-  const R = await deliver(D, T, S), ok = R.every(([, r]) => r.ok), m = told(R);
+  const F = normDigestFmt(S.servers[server].digestFmt, S.servers[server]), T = digestTargets(S, server, F); if (!T.length) { console.log(`Nothing to post the summaries of "${server}" to: Discord and Telegram off for them, or no webhook or chat.`); process.exit(1); }
+  const R = await deliver(D, T, S, F), ok = R.every(([, r]) => r.ok), m = told(R);
   saveSrv(server, x => ({ digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what: `${kind} ${D.period.label} (by hand)`, ok, msg: m } } }));
   console.log(m); process.exit(ok ? 0 : 1);
 }

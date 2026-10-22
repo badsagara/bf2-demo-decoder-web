@@ -112,7 +112,10 @@ const srvCfg = c => ({
   digestTry: c?.digestTry && typeof c.digestTry === 'object' ? { ...c.digestTry } : {}, digestLog: c?.digestLog && typeof c.digestLog === 'object' && !c.digestLog.at ? { ...c.digestLog } : {},
   // (v214, todo 265) the admins' private channel: a round's hints for admins once the background analysis has done it
   // (alerts.mjs) - strong ones only, or strong and ordinary ones
-  alert: { on: !!c?.alert?.on, webhook: typeof c?.alert?.webhook === 'string' ? c.alert.webhook : '', min: c?.alert?.min === 'hint' ? 'hint' : 'strong', log: c?.alert?.log || null }
+  alert: { on: !!c?.alert?.on, webhook: typeof c?.alert?.webhook === 'string' ? c.alert.webhook : '', min: c?.alert?.min === 'hint' ? 'hint' : 'strong', log: c?.alert?.log || null },
+  // (v220, Sagara: "Discord settings for the digests too") the summaries' own settings as saved (digest.mjs normDigestFmt
+  // fills them in): their Discord channel (own webhook, or the round posts'), Telegram, what is in them and how
+  digestFmt: c?.digestFmt && typeof c.digestFmt === 'object' ? { ...c.digestFmt } : null
 });
 // the settings: /etc/bf2replay.conf first (the bot's token, the fewest players), then the admin page's file
 export function notifySettings() {
@@ -134,7 +137,7 @@ export function saveNotify(change, server, srv) {
     else {
       const o = j.servers[server] || {};
       for (const app of ['discord', 'telegram']) if (srv[app]) { const a = { ...(o[app] || {}), ...srv[app] }; if (srv[app].lines) a.lines = { ...(o[app]?.lines || {}), ...srv[app].lines }; o[app] = a; }
-      for (const k of ['minPlayers', 'last', 'format', 'digest', 'digestLast', 'digestTry', 'digestLog']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
+      for (const k of ['minPlayers', 'last', 'format', 'digest', 'digestLast', 'digestTry', 'digestLog', 'digestFmt']) if (srv[k] !== undefined) { if (srv[k] === null) delete o[k]; else o[k] = srv[k]; }
       if (srv.alert !== undefined) o.alert = { ...(o.alert || {}), ...srv.alert };   // (v214)
       for (const app of ['discord', 'telegram']) if (srv[app]?.linesAll) { o[app].lines = srv[app].linesAll; delete o[app].linesAll; }   // (v195: a template's lines, whole)
       j.servers[server] = o;
@@ -355,7 +358,7 @@ function tplLine(line, vars, app) {
   }
   return out + open.slice().reverse().map(t => `</${t}>`).join('');
 }
-const tpl = (text, vars, app) => String(text || '').split('\n').map(l => tplLine(l, vars, app)).filter(l => l !== null).join('\n').trim();
+export const tpl = (text, vars, app) => String(text || '').split('\n').map(l => tplLine(l, vars, app)).filter(l => l !== null).join('\n').trim();
 const hasLink = F => [F.title, F.intro, F.footer, F.style === 'text' || F.text ? F.text : ''].some(t => /\{link\}/.test(t || ''));
 // the post as text for an app: the title (bold), the line under it, the table (a part a line, or up to F.cols in a
 // row: "Name: value · Name: value"), the bottom line, the link; or the own text (F.text) instead of all that
@@ -568,7 +571,7 @@ export function postTexts(entry, c) { const P = renderPost(entry, c); return { d
 export async function send(P, T, S) {
   const out = [];
   for (const t of T) {
-    if (t.app === 'discord') out.push(['Discord', await post(t.url, { ...P.discord, username: 'BF2 Round Replay', allowed_mentions: { parse: [] } })]);
+    if (t.app === 'discord') out.push(['Discord', await post(t.url, { username: 'BF2 Round Replay', allowed_mentions: { parse: [] }, ...P.discord })]);   // (v220: a summary's own mentions - its text above)
     else out.push(['Telegram', await post(`https://api.telegram.org/bot${S.tgToken}/sendMessage`, { chat_id: t.chat, text: P.telegram, parse_mode: 'HTML' })]);
   }
   return out;

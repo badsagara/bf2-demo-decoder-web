@@ -31,7 +31,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf, TLABEL } from './notify.mjs';
-import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ } from './digest.mjs';   // (v209: the summaries)
+import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
 import { expandIndex } from './roundsidx.mjs';
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 
@@ -393,11 +393,13 @@ function notifyState() {
     return { name, set: !!c, rounds30: o.n30, rounds: o.total, newest: o.newest || null, minPlayers: c?.minPlayers ?? null, last: c?.last || null, format: c ? c.format : normFormat(null), formatSet: !!c?.formatSet,
       discord: c ? { on: c.discord.on, webhook: tail(c.discord.webhook), lines: c.discord.lines } : null, telegram: c ? { on: c.telegram.on, chat: c.telegram.chat, lines: c.telegram.lines } : null,
       digest: c ? { ...c.digest } : null, digestLog: c ? c.digestLog : null, digestTry: c ? c.digestTry : null,   // (v209)
+      digestFmt: c ? (F => ({ ...F, dcWebhook: tail(F.dcWebhook) }))(normDigestFmt(c.digestFmt, c)) : null, digestTo: c ? digestTargets(N, name).map(t => t.app === 'discord' ? (t.own ? 'discord-own' : 'discord') : t.app) : [],   // (v220)
       alert: c ? { on: c.alert.on, webhook: tail(c.alert.webhook), min: c.alert.min, log: c.alert.log } : null };   // (v214)
   }).sort((a, b) => (b.set - a.set) || String(b.newest || '').localeCompare(String(a.newest || '')) || a.name.localeCompare(b.name));
   return { tgToken: tail(N.tgToken), tgTokenConf: N.tgTokenConf, minPlayers: N.minPlayers, minPlayersConf: N.minPlayersConf, last: N.last, domain: !!opt('BF2R_DOMAIN', '').trim(),
     items: POST_ITEMS.map(([k, name, what]) => ({ k, name, what, on: linesOf({})[k], ...(TLABEL[k] ? { short: TLABEL[k] } : {}) })), servers, migrated: N.migrated, ignoredConf: N.ignoredConf,
     digestAt: DIGEST_AT, digestTz: DIGEST_TZ, digestPeriods: Object.fromEntries(DIGEST_KINDS.map(k => [k, periodOf(k)])),
+    digestParts: DG_PARTS, digestVars: DG_VARS, digestLeaders: DG_LEADERS, digestBests: DG_BESTS, digestTopN: DG_TOP_N, digestFmtDefault: DG_FMT_DEFAULT,   // (v220)
     vars: POST_VARS, formatDefault: FORMAT_DEFAULT, templates: Object.entries(N.templates).map(([name, t]) => ({ name, ...t })).sort((a, b) => a.name.localeCompare(b.name)) };   // (v195: the post editor)
 }
 const cleanLines = o => { const keys = new Set(POST_ITEMS.map(([k]) => k)), L = {}; for (const [k, v] of Object.entries(o || {})) if (keys.has(k)) L[k] = !!v; return L; };
@@ -435,6 +437,20 @@ function notifySet(b) {
       for (const k of DIGEST_KINDS) { d[k] = b.digest[k] !== undefined ? !!b.digest[k] : !!was[k]; if (d[k] && !was[k]) last[k] = periodOf(k).key; }
       srv.digest = d; srv.digestLast = last;
       const on = DIGEST_KINDS.filter(k => d[k]); said.push(on.length ? `summaries: ${on.join(', ')} (at ${DIGEST_AT})` : 'no summaries');
+    }
+    if (b.digestFmt !== undefined) {   // (v220) the summaries' own settings: where they go, what is in them
+      const f = b.digestFmt && typeof b.digestFmt === 'object' ? b.digestFmt : {}, was = cur?.digestFmt || {}, o = { ...was };
+      if (f.dcWebhook !== undefined) {
+        const v = String(f.dcWebhook || '').trim(); if (v && !DISCORD_RE.test(v)) return { ok: false, msg: 'not a Discord webhook address (https://discord.com/api/webhooks/<number>/<token>)' };
+        if (v && v === cur?.alert?.webhook) return { ok: false, msg: "that is the admin channel's webhook: the summaries are public" };
+        o.dcWebhook = v; if (v) o.dcOn = true; said.push(v ? 'summaries: their own Discord channel (on)' : "summaries: to the round posts' Discord channel");
+      }
+      for (const [k, w] of [['dcOn', 'Discord'], ['tgOn', 'Telegram']]) if (f[k] !== undefined) { o[k] = !!f[k]; said.push(`summaries on ${w}: ${o[k] ? 'on' : 'off'}`); }
+      const CONTENT = ['title', 'intro', 'content', 'footer', 'color', 'topN', 'rows', 'parts', 'leaders', 'bests'];
+      if (CONTENT.some(k => f[k] !== undefined)) { const n = normDigestFmt({ ...o, ...f, dcWebhook: o.dcWebhook }, cur); for (const k of CONTENT) o[k] = n[k]; said.push('the summary saved'); }
+      if (f.reset) { for (const k of CONTENT) delete o[k]; said.push('the summary: back to the standard one'); }
+      const n = normDigestFmt(o, cur); o.dcOn = n.dcOn; o.tgOn = n.tgOn;   // (from now on its own, not the round posts')
+      srv.digestFmt = o;
     }
     if (b.alert !== undefined) {   // (v214) the admins' private channel
       const a = {};
@@ -806,7 +822,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'sent' : 'failed') });
     }
     if (what === 'notify-preview') return send(res, 200, notifyPreview(b));
-    if (what === 'digest-preview') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); try { return send(res, 200, digestTexts(n, k)); } catch (e) { return send(res, 200, { ok: false, msg: e.message }); } }
+    if (what === 'digest-preview') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); try { const c = notifySettings().servers[n]; return send(res, 200, digestTexts(n, k, Date.now(), b.format && typeof b.format === 'object' ? { ...(c?.digestFmt || {}), ...b.format } : undefined)); } catch (e) { return send(res, 200, { ok: false, msg: e.message }); } }   // (v220: the editor's, saved or not)
     if (what === 'digest-post') { const k = String(b.kind || ''), n = String(b.server || ''); if (!DIGEST_KINDS.includes(k) || !knownServer(n)) return send(res, 200, { ok: false, msg: 'which server and summary?' }); const r = await run(NODE, [path.join(HERE, 'digest.mjs'), '--post', k, n], { timeout: 120e3 }); const out = (r.out + (r.err ? '\n' + r.err : '')).trim(); return send(res, 200, { ok: r.code === 0, msg: out.split('\n').pop() || (r.code === 0 ? 'posted' : 'failed') }); }
     if (what === 'notify-last') return send(res, 200, b.server && !knownServer(String(b.server)) ? { ok: false, msg: 'no such server' } : await notifyRun('--last', b.server));
     return send(res, 404, { error: 'not found' });
