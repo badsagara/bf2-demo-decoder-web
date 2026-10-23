@@ -311,6 +311,12 @@ input[type=file] { display: none; }
 .mapctl .vpov[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
 .mapctl .vpov.wait { background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--accent); border-style: dashed; }   /* (on, but nobody followed) */
 .mapctl .vside { gap: 6px; }
+.mapctl .vaim { gap: 6px; }   /* (v230) the aim line on the map, next to His view: yellow while on, as the line */
+.mapctl .vaim svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
+.mapctl .vaim[aria-pressed="true"] { border-color: var(--aim); color: var(--aim); }
+.mapctl .vaim[aria-pressed="true"] svg .ln { stroke-width: 2.4; }
+:root[data-theme="light"] .mapctl .vaim[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }   /* (the light theme's yellow is too pale for text) */
+.mapctl .vaim[aria-disabled="true"] { opacity: .5; cursor: default; border-color: var(--line); }   /* (nobody followed) */
 /* Controls left: the buttons, speed and zoom in a column down the map's left side; play and the round time stay at the
    bottom in one row - the bottom of the map stays free (not on a phone: there the bar is under the map anyway) */
 .mapside { display: none; }
@@ -482,8 +488,10 @@ input[type=number] { width: 84px; font: 500 13px var(--font-data); background: v
 .svb { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 3px; color: var(--muted); cursor: pointer; align-self: start; vertical-align: middle; }
 .svb svg { width: 14px; height: 14px; }
 .svb:hover { color: var(--accent); background: var(--panel-2); }
+.gvb { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 3px; color: var(--muted); cursor: pointer; align-self: start; vertical-align: middle; } .gvb svg, .hlgv svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.3; } .gvb:hover { color: var(--accent); background: var(--panel-2); }   /* (v229) game video */
 .svb:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cliprow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.gviews { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; } .gviews label { white-space: nowrap; }   /* (v229) the game video's views */
 .cliprow label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .cliprow .btn { padding: 7px 10px; }
 .cliprow .spacer { flex: 1; }
@@ -892,7 +900,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><button class="btn vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><button class="btn vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
     </div>
     <div class="sideview svbox" id="sideView" aria-label="Side view of a kill" hidden>
@@ -988,7 +996,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
       <button class="btn on" id="tBodies" title="The bodies of those who died, as the game's ragdoll had them: how each fell, and where it lies, head this way - until the game uses his soldier again for a spawn (often minutes later) or a medic revives him">Bodies</button>
       <button class="btn on" id="tView" title="What the soldier you follow sees (95° across - a 16:9 screen, narrower through his sights or scope - out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
-      <button class="btn" id="tAimLn" aria-pressed="false" title="The soldier you follow: a line from him (or his vehicle's guns) to where his crosshair meets something - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit. Also in his card (Aim line) and the X key">Aim line</button>
+      <button class="btn" id="tAimLn" aria-pressed="false" title="The soldier you follow: a line from him (or his vehicle's guns) to where his crosshair meets something - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit. Also on the map (by His view), in his card (Aim line) and the X key">Aim line</button>
       <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
       <button class="btn on" id="tLift" title="Soldiers up on a roof, an upper floor, a tower, a bridge or a ship's deck - 2 m or more over the ground or the sea under them: lifted over a shadow where they are, with a thin line down to it (the higher, the longer); 12 m or more up, the height by the shadow">Heights</button>
       <button class="btn on" id="tSound" aria-pressed="true" title="His view (a soldier's or a crew's): the shots and explosions he could hear - rings where they are, an arrow at the map's edge for those off it; how far each carries from the game's sound files. Also the speaker in the tag over the map">Sounds</button>
@@ -1011,7 +1019,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -1023,8 +1031,9 @@ body.mbar-on { padding-bottom: 72px; }
           <label>Size <select id="cSize"></select></label>
           <label>Speed <select id="cSpeed"></select></label>
           <label id="cSndL" title="Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)"><input type="checkbox" id="cSnd" checked> Sound</label>
-          <label title="A GIF plays everywhere, also in chats that don't play videos, but is smaller (600 px), 10 frames a second and at most 20 s. A BF2 demo is a Battle Recorder file to watch the clip in the game itself">File <select id="cFmt"><option value="video">Video (MP4)</option><option value="gif">GIF</option><option value="demo">BF2 demo (for the game)</option></select></label>
+          <label title="A GIF plays everywhere, also in chats that don't play videos, but is smaller (600 px), 10 frames a second and at most 20 s. A game video: a kit for Battlefield 2 on your PC to film the clip itself, from his eyes or behind him (v229)">File <select id="cFmt"><option value="video">Video (MP4)</option><option value="gif">GIF</option><option value="demo">Game video (BF2 renders it)</option></select></label>
           <label id="cFFl" title="The game plays a demo only from its start: how fast the round before the clip goes by (the last 3 s before the clip and the clip itself at the real pace). An experiment: if the game stops or crashes, try a lower one" hidden>Before the clip <select id="cFF"></select></label>
+          <span class="gviews" id="cViews" hidden role="group" aria-label="Views of the game video"></span>
           <label>Camera <select id="cCam"><option value="follow">Follow</option><option value="fixed">As on screen</option></select></label>
           <span class="cliplen" id="cLen"></span>
           <button class="btn" id="cOwn" type="button" hidden title="The server has no copy of this round's demo: use the .bf2demo file you have (from the game's demos folder or your download) - it is checked to be this round's">Open my copy…</button><input type="file" id="cOwnF" accept=".bf2demo,.gz" hidden>
@@ -1076,7 +1085,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v228';
+const APP_VERSION = 'v230';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -4278,7 +4287,7 @@ function spreadOut() {
 // over to him; none followed: the whole map again. (v179) A vehicle followed: "Crew's view" - all its riders saw, each
 // from his seat's camera (as they change: who rides it at the moment); empty, only the vehicle itself. Not known here:
 // what the UAV shows his side (its range is not in the game files we have), what he heard.
-let pov = false, POV = null, povKey = '';   // (povKey: the map's button as last drawn - povSync)
+let pov = false, POV = null, povKey = '', aimKey = '';   // (povKey / aimKey: the map's buttons as last drawn - povSync, aimSync)
 const POV_MEMORY = 3, POV_STEP = 0.2, POV_HEAR = 40;
 const povOn = () => !!(pov && round && sel !== null && round.players[sel]);
 // (v179, Sagara: "додай можливість his view для техніки") whose eyes count: a soldier's own; a vehicle's - the soldiers
@@ -4439,6 +4448,7 @@ function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmi
 function aimLnSet(on) {
   opts.aimLn = !!on; try { localStorage.setItem('bf2rr.aimln', opts.aimLn ? '1' : '0'); } catch (e) {}
   const tb = $('#tAimLn'); if (tb) { tb.classList.toggle('on', opts.aimLn); tb.setAttribute('aria-pressed', String(opts.aimLn)); }   // (v201: in Filters ▾ too)
+  aimSync();   // (v230: and on the map)
   toast(opts.aimLn ? (sel !== null ? 'Aim line on (X)' : 'Aim line on (X): it shows for the soldier you follow - click one') : 'Aim line off (X)'); refresh(true);
 }
 function sndSet(on) { opts.sound = !!on; try { localStorage.setItem('bf2rr.sound', opts.sound ? '1' : '0'); } catch (e) {} const tb = $('#tSound'); if (tb) { tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); } refresh(true); }
@@ -4575,7 +4585,7 @@ function drawLift(px, py, up, hg, col) {
 }
 function draw() {
   if (!round) return;
-  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) { povTag(); povSync(); }   // (v177: his view only; v228: the map's button)
+  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) { povTag(); povSync(); aimSync(); }   // (v177: his view only; v228: the map's button)
   if (cx === cvCtx) { lockView(); syncZoom(); }
   cx.setTransform(dpr,0,0,dpr,0,0);
   cx.clearRect(0,0,size,sizeH);
@@ -5075,8 +5085,8 @@ function draw() {
         const stop = hitP ? (al.kind === 'vehicle' ? Math.max(15, (vehRad.get(round.players[al.j].name) || 12) * 0.95) : 15) : far ? 0 : Math.max(7, Math.min(10, size / view.span * 1.5)) * 0.62;
         if (L0 > stop + 4) {
           const ex = fx + dxl * (L0 - stop) / L0, ey = fy + dyl * (L0 - stop) / L0;
-          cx.beginPath(); cx.moveTo(fx, fy); cx.lineTo(ex, ey); cx.lineCap = 'round'; if (far) cx.setLineDash([7, 6]);
-          cx.strokeStyle = ink; cx.lineWidth = 4.2; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 1.8; cx.globalAlpha = far ? 0.75 : 1; cx.stroke();
+          cx.beginPath(); cx.moveTo(fx, fy); cx.lineTo(ex, ey); cx.lineCap = 'round'; if (far) cx.setLineDash([9, 8]);
+          cx.strokeStyle = ink; cx.lineWidth = 6; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 3; cx.globalAlpha = far ? 0.85 : 1; cx.stroke();   // (v230: 3 px of yellow, was 1.8)
           cx.globalAlpha = 1; cx.setLineDash([]); cx.lineCap = 'butt';
         }
       }
@@ -5564,7 +5574,7 @@ function panels(force) {
     ei++;
     if (e.t > t) { if (!ffOn()) break; if (nPast < 0) { nPast = feed.length; kept = [K, Dd, RV, HL, RP, HS]; K = new Map(); Dd = new Map(); RV = new Map(); HL = new Map(); RP = new Map(); HS = new Map(); } }
     evT = e.t;
-    if (e.type==='kill') { const rv = e.revived && e.revived <= t, hs = e.hit === 'head'; K.set(e.killer,(K.get(e.killer)||0)+1); if (hs) HS.set(e.killer,(HS.get(e.killer)||0)+1); if (!rv) Dd.set(e.victim,(Dd.get(e.victim)||0)+1); const kn = killName(e), kd = e.kv ? killWpn(e) : ''; feed.push(`<li${e.killer !== e.victim ? ' class="kl"' : ''}><span class="ts">${fmt(e.t)}</span><span>${pn(e.killer)} ${kn ? `<span class="kmw"${e.weapon && e.weapon !== kn ? ` title="${esc(e.weapon)}"` : ''}>[${esc(kn)}]</span>` : '→'}${hs ? HS_SVG : ''} ${pn(e.victim)} <span class="w">${esc(kd)}${e.dist !== undefined ? `${kd ? ' · ' : ''}${e.dist} m` : ''}${hs ? ' · headshot' : ''}${rv ? ' · revived' : ''}${e.wnamed ? ` · the demo says ${esc(e.wnamed)}` : ''}${e.assists ? ` · assist: ${e.assists.map(a => esc(round.players[round.pidx.get(a)]?.name || '')).join(', ')}` : ''}</span></span>${e.killer !== e.victim ? `<button class="svb" data-k="${ei}" title="Side view: the ground, walls and line of sight between them, and who saw whom first">${SIDE_SVG}</button>` : ''}</li>`); }
+    if (e.type==='kill') { const rv = e.revived && e.revived <= t, hs = e.hit === 'head'; K.set(e.killer,(K.get(e.killer)||0)+1); if (hs) HS.set(e.killer,(HS.get(e.killer)||0)+1); if (!rv) Dd.set(e.victim,(Dd.get(e.victim)||0)+1); const kn = killName(e), kd = e.kv ? killWpn(e) : ''; feed.push(`<li${e.killer !== e.victim ? ' class="kl"' : ''}><span class="ts">${fmt(e.t)}</span><span>${pn(e.killer)} ${kn ? `<span class="kmw"${e.weapon && e.weapon !== kn ? ` title="${esc(e.weapon)}"` : ''}>[${esc(kn)}]</span>` : '→'}${hs ? HS_SVG : ''} ${pn(e.victim)} <span class="w">${esc(kd)}${e.dist !== undefined ? `${kd ? ' · ' : ''}${e.dist} m` : ''}${hs ? ' · headshot' : ''}${rv ? ' · revived' : ''}${e.wnamed ? ` · the demo says ${esc(e.wnamed)}` : ''}${e.assists ? ` · assist: ${e.assists.map(a => esc(round.players[round.pidx.get(a)]?.name || '')).join(', ')}` : ''}</span></span>${e.killer !== e.victim ? `<button class="svb" data-k="${ei}" title="Side view: the ground, walls and line of sight between them, and who saw whom first">${SIDE_SVG}</button>` : ''}${e.killer !== e.victim && gvOk() ? `<button class="gvb" data-g="${ei}" title="${GV_TIP}">${GV_SVG}</button>` : ''}</li>`); }
     else if (e.type==='revive') { RV.set(e.medic,(RV.get(e.medic)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.medic==null ? pn(e.player) + ' <span class="w">was revived</span>' : pn(e.medic) + ' <span class="w">revived</span> ' + pn(e.player)}</span></li>`); }
     else if (e.type==='repair') { RP.set(e.by,(RP.get(e.by)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.by==null ? pn(e.vehicle) + ' <span class="w">was repaired' : pn(e.by) + (e.from ? ' <span class="w">in</span> ' + pn(e.from) : '') + ' <span class="w">repaired</span> ' + pn(e.vehicle) + ' <span class="w">'}${e.gain ? ' +' + e.gain + '%' : ''}</span></span></li>`); }
     else if (e.type==='heal') { HL.set(e.medic,(HL.get(e.medic)||0)+1); feed.push(`<li><span class="ts">${fmt(e.t)}</span><span>${e.medic==null || e.medic===e.player ? pn(e.player) + ' <span class="w">healed' : pn(e.medic) + ' <span class="w">healed</span> ' + pn(e.player) + ' <span class="w">'}${e.gain ? ' +' + e.gain : ''}</span></span></li>`); }
@@ -5650,6 +5660,7 @@ ${hitRows(p)}${sightRows(p)}${vehSightRows(p)}${spotRows(p)}
 }
 $('#lb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i]'); if (!tr) return; sel = +tr.dataset.i; refresh(true); });
 [$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.svb'); if (b && round) openSide(round.events[+b.dataset.k]); }));
+[$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.gvb'); if (!b || !round) return; const e = round.events[+b.dataset.g]; if (e) gameVideoFor(e.killer, e.t, e); }));   // (v229)
 // first or third person for the view from a vehicle seat: the card's View row, the 1st / 3rd switch on the map (shown
 // while the view of a seat with a third-person camera is drawn), the C key (the game's own camera key)
 function setCam3(v) { opts.cam3 = !!v; try { localStorage.setItem('bf2rr.vcam', opts.cam3 ? '3' : '1'); } catch (e) {} refresh(true); }
@@ -5783,6 +5794,19 @@ function povSync() {
 }
 for (const b of document.querySelectorAll('.vpov')) b.onclick = () => povSet(!pov);
 povSync();
+// (v230, Sagara: "Зроби на 2д мапі лінію прицілювання видимою жовтою лінією, кнопка якої буде доступна при виборі солдата і
+// знаходитися біля his view") the aim line's button on the map, next to His view: on / off as the card's Aim line, X and
+// Filters ▾ (one setting, remembered); usable while a soldier or a vehicle is followed - without, a click says so
+function aimSync() {
+  const veh = !!(sel !== null && round && round.players[sel]?.vehicle), k = opts.aimLn + '|' + (sel !== null) + '|' + veh; if (k === aimKey) return; aimKey = k;
+  for (const b of document.querySelectorAll('.vaim')) {
+    b.setAttribute('aria-pressed', String(!!opts.aimLn)); b.setAttribute('aria-disabled', String(sel === null));
+    b.title = sel === null ? 'Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)'
+      : `Aim line${opts.aimLn ? ' on' : ''}: a yellow line from ${veh ? 'its guns' : 'him'} to where ${veh ? 'they point' : 'his crosshair meets something'} - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit (X)`;
+  }
+}
+for (const b of document.querySelectorAll('.vaim')) b.onclick = () => { if (sel === null) { toast('Aim line: follow a soldier first - click one on the map'); return; } aimLnSet(!opts.aimLn); };
+aimSync();
 // Controls left (v108): the map's buttons, the speed and the zoom moved into a column on the left of the map (and back);
 // remembered in this browser. Not on a phone (the bar sits under the map there).
 const PHONE = window.matchMedia('(max-width: 640px)');
@@ -6581,12 +6605,13 @@ function renderHighlights() {
   $('#fTab1').innerHTML = `Highlights <span class="w">${H.length}</span>`;
   const L = H.map((h, i) => [h, i]).filter(([h]) => ffOk(h) && (hlFilter === 'all' || h.kind === hlFilter));
   box.innerHTML = `<div class="hlchips">${[['all', 'All', HF.length], ...HL_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${hlFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
-    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = hlDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${HL_KILL.has(h.kind) ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffOn() ? 'No highlights for this filter.' : 'No highlights in this round.'}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = hlDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${HL_KILL.has(h.kind) ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffOn() ? 'No highlights for this filter.' : 'No highlights in this round.'}</li>`}</ul>
     <p class="stnote">Click to jump there. N / P: next / previous moment of the soldier you follow, or the next highlight.</p>`;
   box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { hlFilter = b.dataset.f; renderHighlights(); });
   box.querySelectorAll('.hli').forEach(b => b.onclick = () => jumpTo(H[+b.dataset.i]));
-  box.querySelectorAll('.hlclip:not(.hlside)').forEach(b => b.onclick = () => clipAround(H[+b.dataset.i]));
+  box.querySelectorAll('.hlclip:not(.hlside):not(.hlgv)').forEach(b => b.onclick = () => clipAround(H[+b.dataset.i]));
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(H[+b.dataset.i].kill));
+  box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = H[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
   hlShown = -2; markHighlights();
 }
 // the latest highlight up to now is marked in the list
@@ -7632,8 +7657,16 @@ const CLIP_SPEEDS = [0.5, 1, 2, 4, 8, 16];
 const DEMO_FFS = [1, 10, 30, 100, 0], DEMO_LEAD = 90;
 const ffLabel = f => f === 1 ? 'Real pace' : f ? '×' + f : 'Fastest';
 const CLIP_HINT = 'Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills, with sound made from the demo (shots, rockets, explosions; at up to 2×).';
-const DEMO_HINT = "A Battle Recorder file to watch the clip in BF2 itself (an experiment): put it in the game's demos folder with your other demos (restart the game if it is running). The game can't jump in a demo, so the file holds the round from its start: the part before the clip goes by fast, the last 3 s before it and the clip at the real pace, and then it ends. If the game stops or crashes, try a lower speed (×10, or Real pace).";
+const DEMO_HINT = "A kit for Battlefield 2 on your PC (Windows, the game installed): a .zip to unpack into the game's folder, with the round's demo from this moment on and a camera for each view ticked. Its make-videos.bat has the game film each view (1280x720, ~2-4 min each) and, with ffmpeg, makes them MP4. Follow a soldier for the views. No HUD or crosshair: the game shows none in a demo.";
 const CLIP_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg>';
+// (v229) the game video kit's views (makeDemoClip below), ticked in the clip bar, remembered
+const GV_VIEWS = [['eyes', 'His eyes', 'What he saw: the camera at his eyes (in a vehicle, his seat\'s view). No crosshair or HUD - the game shows none in a demo'],
+  ['behind', 'Behind him', "The game's own camera 7 m behind him and above: he and what he aims at"],
+  ['side', 'From the side', "The game's own camera 5 m to his side"],
+  ['still', 'Still', 'A camera that stays put over the moment, behind him and above']];
+clip.views = { eyes: true, behind: true, side: false, still: false };
+try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of GV_VIEWS) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
+const gvSave = () => { try { localStorage.setItem('bf2rr.gviews', JSON.stringify(clip.views)); } catch (e) {} };
 const clipForceRec = /[?&]cliprec\b/.test(location.search);   // (testing: film in real time even with WebCodecs)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.clip') || '{}'); if (CLIP_SIZES[o.size]) clip.size = o.size; if (CLIP_SPEEDS.includes(o.speed)) clip.speed = o.speed; if (o.fmt === 'gif' || o.fmt === 'demo') clip.fmt = o.fmt; if (DEMO_FFS.includes(o.ff)) clip.ff = o.ff; } catch (e) {}
 const clipPrefs = () => { try { localStorage.setItem('bf2rr.clip', JSON.stringify({ size: clip.size, speed: clip.speed, fmt: clip.fmt, ff: clip.ff, sound: clip.sound })); } catch (e) {} };
@@ -7664,9 +7697,22 @@ function clipMark(end) {
   if (end === 'a') setClip(t, clip.b >= t + 1 ? clip.b : t + 15); else setClip(clip.a <= t - 1 ? clip.a : t - 15, t);
   renderClipBar(); drawTimeline(); toast((end === 'a' ? 'Clip starts at ' : 'Clip ends at ') + fmt(end === 'a' ? clip.a : clip.b));
 }
+// (v229) a kill's game video: the clip bar set to 8 s before it and 3 s after, following the killer, File: Game video
+const GV_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="3.5" width="13" height="9" rx="1.2"/><path d="M6.6 6.1v3.8l3.2-1.9z" fill="currentColor" stroke="none"/><path d="M1.5 5.6h1.6M1.5 10.4h1.6M12.9 5.6h1.6M12.9 10.4h1.6"/></svg>';
+const GV_TIP = 'Game video of this kill: a kit for Battlefield 2 on your PC to film it itself - from his eyes, behind him... (8 s before, 3 s after)';
+const gvOk = () => typeof can === 'function' && can('demos') && can('clips') && demoOk();
+function gameVideoFor(killerId, tt, kill) {
+  if (!round || clip.job) return;
+  if (!gvOk()) { toast("This round's demo isn't here: a game video can't be made"); return; }
+  const i = round.pidx.get(killerId); if (i === undefined) return;
+  sel = i; clip.fmt = 'demo'; clip.kill = kill || null; clipPrefs(); t = Math.max(0, tt - 8);
+  openClip(tt - 8, tt + 3); refresh(true);
+  $('#clipBar').scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+}
 // a highlight as a clip: from 4 s before it to 3 s after its last kill, following the soldier who made it
 function clipAround(h) {
   if (clip.job) return;
+  clip.kill = h.kill || null;
   jumpTo(h);
   const end = h.kind === 'multi' ? h.kills[h.kills.length - 1].t : h.t;
   clip.cam = h.actor != null && sel !== null ? 'follow' : 'fixed';
@@ -7703,10 +7749,13 @@ function renderClipBar() {
     $('#cOwn').hidden = !(dem && !dOk && demoMissing()); $('#cOwn').disabled = busy;
     const len = $('#cLen'); len.classList.toggle('bad', no);
     len.textContent = dem ? demoPlan(dOk) : long ? `${fmtDur(secs)} of ${what}, longer than ${mx >= 60 ? mx / 60 + ' min' : mx + ' s'}: a higher speed or a shorter stretch` : (clip.speed === 1 ? `${fmtDur(secs)} of ${what}` : `${fmtDur(clip.b - clip.a)} of the round → ${fmtDur(secs)} of ${what}`) + (gif ? ` · ${gifSize(CLIP_SIZES[clip.size][1], CLIP_SIZES[clip.size][2]).join('×')}` : '');
-    $('#cGo').textContent = dem ? 'Make demo' : gif ? 'Make GIF' : 'Make video'; $('#cFmt').value = clip.fmt;
+    $('#cGo').textContent = dem ? 'Make the kit' : gif ? 'Make GIF' : 'Make video'; $('#cFmt').value = clip.fmt;
     for (const id of ['cSize', 'cSpeed', 'cCam']) $('#' + id).parentElement.hidden = dem;
     { const sl = $('#cSndL'), fast = clip.speed > SND_MAX_SPEED; sl.hidden = dem || gif; $('#cSnd').checked = clip.sound && !fast; $('#cSnd').disabled = fast; sl.classList.toggle('off', fast); sl.title = fast ? `No sound faster than ${SND_MAX_SPEED}× (it would be a din)` : 'Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)'; }
-    $('#cFFl').hidden = !dem; $('#cFF').value = String(clip.ff); $('#cHint').textContent = dem ? DEMO_HINT : CLIP_HINT;
+    $('#cFFl').hidden = true; $('#cHint').textContent = dem ? DEMO_HINT : CLIP_HINT;
+    { const gv = $('#cViews'); gv.hidden = !dem;
+      if (!gv.childElementCount) { gv.innerHTML = GV_VIEWS.map(([k, n, tip]) => `<label title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
+      gv.querySelectorAll('[data-gv]').forEach(c => { c.checked = !!clip.views[c.dataset.gv]; }); }
     // camera: follow the soldier you follow (if you follow one), else the map as it is on screen
     const p = sel !== null ? round.players[sel] : null, fo = $('#cCam').options[0];
     fo.textContent = p ? 'Follow ' + p.name : 'Follow (click a soldier)'; fo.disabled = !p; clip.sel = sel;
@@ -7718,15 +7767,15 @@ function renderClipBar() {
   $('#cOut').hidden = !o || busy;
   if (o && !busy) {
     const v = $('#cVid'), im = $('#cImg');
-    if (o.ext === 'bf2demo') { v.hidden = true; im.hidden = true; }
+    if (o.ext === 'bf2demo' || o.ext === 'zip') { v.hidden = true; im.hidden = true; }
     else if (o.ext === 'gif') { v.hidden = true; if (im.dataset.url !== o.url) { im.dataset.url = o.url; im.src = o.url; } im.hidden = false; }
     else if (v.dataset.url !== o.url) {
       im.hidden = true; v.hidden = false; v.dataset.url = o.url;
       v.onerror = () => { if (v.dataset.url === o.url) { v.hidden = true; clipMsg("The video can't be shown here; save it to watch it."); } };
       v.src = o.url;
     }
-    $('#cName').textContent = o.name; $('#cSave').textContent = o.ext === 'gif' ? 'Save GIF' : o.ext === 'bf2demo' ? 'Save demo' : 'Save video';
-    $('#cInfo').textContent = o.ext === 'bf2demo' ? ['BF2 demo', kbOf(o.blob.size), o.plan].join(' · ') : [o.ext.toUpperCase(), o.codec, o.w + '×' + o.h, fmtDur(o.secs), kbOf(o.blob.size), o.realtime ? 'filmed in real time' : ''].filter(Boolean).join(' · ');
+    $('#cName').textContent = o.name; $('#cSave').textContent = o.ext === 'gif' ? 'Save GIF' : o.ext === 'bf2demo' ? 'Save demo' : o.ext === 'zip' ? 'Save the kit' : 'Save video';
+    $('#cInfo').textContent = o.ext === 'zip' ? ['Game video kit', kbOf(o.blob.size), o.plan, 'unpack it into the Battlefield 2 folder and run make-videos.bat'].join(' · ') : o.ext === 'bf2demo' ? ['BF2 demo', kbOf(o.blob.size), o.plan].join(' · ') : [o.ext.toUpperCase(), o.codec, o.w + '×' + o.h, fmtDur(o.secs), kbOf(o.blob.size), o.realtime ? 'filmed in real time' : ''].filter(Boolean).join(' · ');
     $('#cShare').hidden = !o.share;
   }
 }
@@ -8342,9 +8391,8 @@ const demoOk = () => !!(round && round.meta.source === 'demo' && demoSrc && (dem
 const demoMissing = () => !!(round && round.meta.source === 'demo' && demoSrc && !demoSrc.file && (!demoSrc.url || demoSrc.gone) && demoSrc.name === $('#srcLabel').textContent);
 function demoPlan(ok) {
   if (!ok) return round && round.meta.source === 'demo' ? (demoMissing() ? "the server has no copy of this round's demo: open yours" : "this round's demo file isn't here") : "this round isn't from a demo file";
-  const lead = Math.min(DEMO_LEAD / 30, clip.a), pre = clip.a - lead, f = clip.ff, rest = fmtDur(clip.b - clip.a + lead) + ' at the real pace';
-  if (pre < 1) return 'the round from its start, ' + rest;
-  return (f === 1 ? `${fmtDur(pre)} of the round before the clip at its pace` : f ? `${fmtDur(pre)} of the round before the clip in ~${fmtDur(pre / f)}` : `${fmtDur(pre)} of the round before the clip as fast as the game can`) + ', then ' + rest;
+  const who = sel != null && round.players[sel] && !round.players[sel].vehicle ? round.players[sel] : null, v = GV_VIEWS.filter(([k]) => clip.views[k]).map(([, n]) => n);
+  return `${fmtDur(clip.b - clip.a)} of the game · ` + (!who ? 'follow a soldier for the views (now: the demo to watch only)' : v.length ? `${v.join(', ')} · ${who.name}` : 'no view ticked: the demo to watch only');
 }
 // the records of an unpacked demo: where each starts, its tick and its length
 function demoIndex(u8) {
@@ -8419,30 +8467,173 @@ async function demoRaw(src, onP) {
   return u8;
 }
 const mmss = s => { const r = Math.max(0, Math.round(s)); return String(Math.floor(r / 60)).padStart(2, '0') + String(r % 60).padStart(2, '0'); };
+// ---------- (v229) the game video kit: Clip -> File "Game video (BF2 renders it)" ----------
+// One .zip to unpack into the Battlefield 2 folder: the round packed from the clip's moment on (packDemo, in the decoder's
+// worker), a camera track (.bf2cam) and a con file for each view chosen, make-videos.bat (BF2 renders each view to an
+// AVI at 1280x720, then ffmpeg - from PATH or put next to it - makes an MP4 of the clip alone and the AVI goes) and
+// watch-in-game.bat (the demo in the game, the camera yours). What the tests in the game (2026-10-23/24) settled:
+// - the render copies the window as it is: 1280x720 window, 1280x720 render; renderFieldOfView is across (95 = a
+//   soldier's own on a 16:9 screen); one frame a demo record, from the demo's start (tick TS + 3) on;
+// - his eyes: a free camera (mode 0: quaternion and position) at his eye, 0.45 m in front standing, 0.5 crouching,
+//   0.8 lying (so his own model's head and shoulders stay out of the picture), the height and that distance moving
+//   to a new stance's over ~0.8 s (the model takes that long to lie down); in a vehicle, his seat's camera;
+// - behind him / from the side: the game's own camera on a player (mode 1: his slot - the server's player id, not our
+//   number -, yaw and pitch round him in degrees, distance, height over the point it looks at; OpenBF2 PR #62); yaw =
+//   atan2(-cos h, -sin h) is at his side, + 90 behind him (h: where he looks, or his vehicle's heading, smoothed);
+//   behind: 7 m, 20 deg from above; side: 5 m, 10 deg;
+// - still: a free camera over the moment, behind the one it is about and above.
+// No HUD or crosshair in any view: the game turns the HUD off when it plays a demo.
+const GV_EYE_FWD = [0.45, 0.5, 0.8], GV_RAMP = 0.8, GV_EYE_H = [0.47, -0.05, -0.63];
+// the camera file's records (zlib-packed by the caller): mode 0 a free camera, mode 1 the game's camera on a player
+function camRecs(R) {
+  const out = new Uint8Array(R.reduce((x, r) => x + (r.slot != null ? 28 : 36), 0)), v = new DataView(out.buffer); let o = 0;
+  for (const r of R) {
+    v.setUint32(o, r.tick, true);
+    if (r.slot != null) { v.setUint32(o + 4, 1, true); v.setUint32(o + 8, r.slot, true); [r.yaw, r.pitch, r.dist, r.height].forEach((x, k) => v.setFloat32(o + 12 + 4 * k, x, true)); o += 28; }
+    else {   // (the view = +Z turned by the quaternion's conjugate: heading 0 north, clockwise; pitch up positive)
+      const cy = Math.cos(r.yaw / 2), sy = Math.sin(r.yaw / 2), cp = Math.cos(-r.pitch / 2), sp = Math.sin(-r.pitch / 2);
+      v.setUint32(o + 4, 0, true); [-cy * sp, -sy * cp, sy * sp, cy * cp, r.x, r.h, r.y].forEach((x, k) => v.setFloat32(o + 8 + 4 * k, x, true)); o += 36;
+    }
+  }
+  return out;
+}
+// his eyes, tick by tick (TA..TB of the round, written at the packed demo's ticks)
+function camEyes(i, P) {
+  const R = [], keep = opts.cam3; opts.cam3 = false;
+  try {
+    let ch = null, cf = null, last = null;
+    for (let k = P.TA; k <= P.TB; k++) {
+      const tt = (k - P.T0) / 30, V = viewOf(i, tt);
+      if (V && V.eye != null && Number.isFinite(V.x)) {
+        const foot = V.role === 'foot', st = foot ? (stanceNow(round.players[i], tt) ?? 0) : 0, base = foot ? V.eye - GV_EYE_H[st] : V.eye;
+        const th = foot ? GV_EYE_H[st] : 0, tf = foot ? GV_EYE_FWD[st] : 0, u = 1 / (GV_RAMP * 30);
+        if (ch === null) { ch = th; cf = tf; }
+        ch += Math.max(-1.1 * u, Math.min(1.1 * u, th - ch)); cf += Math.max(-1.2 * u, Math.min(1.2 * u, tf - cf));
+        last = { x: V.x + cf * Math.sin(V.yaw), y: V.y + cf * Math.cos(V.yaw), h: base + ch, yaw: V.yaw, pitch: V.pitch || 0 };
+      }
+      if (last) R.push({ tick: k + P.shift, ...last });
+    }
+  } finally { opts.cam3 = keep; }
+  return R;
+}
+// the player's slot (the server's player id) at tt: the demo's own list of who held which slot when
+const gvSlot = (P, name, tt) => { for (const [idx, L] of P.slots) { let nm = null; for (const [ts, n] of L) if (ts <= tt) nm = n; if (nm === name) return idx; } return null; };
+// behind him (behind true) or at his side: the game's camera on his slot, turned with him
+function camFollow(i, P, behind) {
+  const R = [], p = round.players[i]; let hs = null, prev = null;
+  for (let k = P.TA; k <= P.TB; k++) {
+    const tt = (k - P.T0) / 30, q = playerAt(i, tt), slot = gvSlot(P, p.name, tt); if (slot === null || !q.alive) continue;   // (dead: the camera keeps its last place)
+    let h = null, veh = false;
+    if (q.alive && q.veh) { const vi = round.players.findIndex(o => o.vehicle && o.name === q.veh); if (vi >= 0) { h = playerAt(vi, tt).yaw; veh = true; } }
+    else if (q.alive) { const lk = looking(i, tt); h = lk ? lk.yaw : q.yaw; }
+    if (h == null || !Number.isFinite(h)) h = hs ?? 0;
+    if (hs === null) hs = h; else { const d = (h - hs + Math.PI * 3) % (2 * Math.PI) - Math.PI; hs += d * (1 - Math.exp(-1 / 30 / 0.4)); }
+    let a = Math.atan2(-Math.cos(hs), -Math.sin(hs)) * 180 / Math.PI + (behind ? 90 : 0);
+    if (prev !== null) a = prev + ((a - prev + 540) % 360 - 180); prev = a;
+    R.push({ tick: k + P.shift, slot, yaw: a, pitch: behind ? 20 : 10, dist: (behind ? 7 : 5) * (veh ? 2 : 1), height: behind ? 1 : 0.6 });
+  }
+  return R;
+}
+// a still camera over the moment: behind the one it is about (from the kill's victim, else where he looks) and above
+function camStill(i, P, kill) {
+  const tm = kill ? kill.t : (P.TA + P.TB) / 2 / 30 - P.T0 / 30, q = playerAt(i, tm); if (!Number.isFinite(q.x) || q.h == null) return [];
+  let cx = q.x, cy = q.y, h = q.yaw || 0;
+  if (kill) { const vi = round.pidx.get(kill.victim), v = vi != null ? playerAt(vi, kill.t - 0.05) : null; if (v && Number.isFinite(v.x)) { cx = (q.x + v.x) / 2; cy = (q.y + v.y) / 2; h = Math.atan2(v.x - q.x, v.y - q.y); } }
+  const d = 30, x = cx - d * Math.sin(h) + 8 * Math.cos(h), y = cy - d * Math.cos(h) - 8 * Math.sin(h), hh = q.h + 20;
+  const yaw = Math.atan2(cx - x, cy - y), pitch = Math.atan2(q.h - hh, Math.hypot(cx - x, cy - y));
+  const R = []; for (let k = P.TA; k <= P.TB; k++) R.push({ tick: k + P.shift, x, y, h: hh, yaw, pitch });
+  return R;
+}
+// a zip of the files as they are (stored: the demo and the tracks are packed already)
+function zipStore(files) {
+  const T = zipStore.T || (zipStore.T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })());
+  const crc = d => { let c = 0xffffffff; for (let k = 0; k < d.length; k++) c = T[(c ^ d[k]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  const dt = new Date(), dosT = (dt.getHours() << 11) | (dt.getMinutes() << 5) | (dt.getSeconds() >> 1), dosD = ((dt.getFullYear() - 1980) << 9) | ((dt.getMonth() + 1) << 5) | dt.getDate();
+  for (const f of files) {
+    const nm = enc.encode(f.name), d = f.data, c = crc(d), h = new Uint8Array(30 + nm.length), v = new DataView(h.buffer);
+    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x800, true); v.setUint16(10, dosT, true); v.setUint16(12, dosD, true);
+    v.setUint32(14, c, true); v.setUint32(18, d.length, true); v.setUint32(22, d.length, true); v.setUint16(26, nm.length, true); h.set(nm, 30);
+    const e = new Uint8Array(46 + nm.length), w = new DataView(e.buffer);
+    w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint16(8, 0x800, true); w.setUint16(12, dosT, true); w.setUint16(14, dosD, true);
+    w.setUint32(16, c, true); w.setUint32(20, d.length, true); w.setUint32(24, d.length, true); w.setUint16(28, nm.length, true); w.setUint32(42, off, true); e.set(nm, 46);
+    parts.push(h, d); cen.push(e); off += h.length + d.length;
+  }
+  const cs = cen.reduce((x, e) => x + e.length, 0), end = new Uint8Array(22), v = new DataView(end.buffer);
+  v.setUint32(0, 0x06054b50, true); v.setUint16(8, files.length, true); v.setUint16(10, files.length, true); v.setUint32(12, cs, true); v.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, end], { type: 'application/zip' });
+}
+const deflateBytes = async u8 => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
+const crlf = s => new TextEncoder().encode(s.replace(/\r?\n/g, '\r\n'));
+// the packing, in the decoder's worker (or here when no worker can be started)
+async function packInWorker(raw, a, b, job, onP) {
+  try { return await decodeInWorker(raw.slice(), false, job, onP, { op: 'pack', a, b }); }
+  catch (err) { if (job.cancelled || err.message !== 'no-worker') throw err; return packDemo(raw, a, b, onP); }
+}
 async function makeDemoClip() {
   if (clip.job || !demoOk()) return;
   if (typeof CompressionStream !== 'function') { clipMsg("This browser can't pack files (no CompressionStream): try a current Chrome, Edge, Firefox or Safari."); return; }
+  const i = clip.sel ?? sel, who = i != null && round.players[i] && !round.players[i].vehicle ? i : null, views = GV_VIEWS.map(([k]) => k).filter(k => clip.views[k] && (who !== null || false));
   setPlaying(false); clipMsg('');
-  const job = clip.job = { cancelled: false, why: '' }, src = demoSrc, a = clip.a, b = clip.b, F = clip.ff, t1 = performance.now();
+  const job = clip.job = { cancelled: false, why: '' }, src = demoSrc, a = clip.a, b = clip.b, kill = clip.kill && clip.kill.t >= a && clip.kill.t <= b ? clip.kill : null, t1 = performance.now();
   const step = (f, w) => clipProgress(f, w + ' · ' + Math.round((performance.now() - t1) / 1000) + ' s');
   renderClipBar(); step(0, src.file ? 'Reading the demo' : 'Downloading the demo');
   try {
-    const raw = await demoRaw(src, f => { if (!job.cancelled) step(f * 0.6, 'Downloading the demo'); });
+    const raw = await demoRaw(src, f => { if (!job.cancelled) step(f * 0.3, 'Downloading the demo'); });
     if (job.cancelled) { clipMsg(job.why + '.'); return; }
-    step(0.65, 'Cutting'); await yieldToPage();
-    const c = cutDemo(raw, a, b, F);
+    const P = await packInWorker(raw, a, b, job, (f, stage) => step(0.3 + f * 0.55, stage === 'pack' ? 'Packing the round before the clip' : 'Reading the demo'));
     if (job.cancelled) { clipMsg(job.why + '.'); return; }
-    step(0.75, 'Packing');
-    const blob = await new Response(new Blob([c.data]).stream().pipeThrough(new CompressionStream('deflate'))).blob();
+    step(0.87, 'Cameras');
+    const m = /(\d{4})_(\d\d)_(\d\d)_(\d\d)_(\d\d)/.exec(src.name || ''), map = (mapKey() || 'round').replace(/[^a-z0-9]+/g, '').slice(0, 16) || 'round';
+    const KIT = `bf2r_${map}_${m ? `${m[1]}${m[2]}${m[3]}_${m[4]}${m[5]}` : 'round'}_${mmss(a)}`, demoName = KIT + '.bf2demo';
+    const files = [{ name: `${KIT}/${demoName}`, data: await deflateBytes(P.data) }];
+    const first = P.TS + 3, trim = Math.max(0, (P.TA + P.shift - first) / 30), dur = (P.TB - P.TA) / 30;
+    const made = [];
+    for (const v of views) {
+      let R = v === 'eyes' ? camEyes(who, P) : v === 'behind' ? camFollow(who, P, true) : v === 'side' ? camFollow(who, P, false) : camStill(who, P, kill);
+      if (!R.length) continue;
+      // before the clip: a free camera holding his first pose (eyes / still) or where his eyes are (behind / side)
+      const lead = R[0].slot != null ? camEyes(who, P)[0] : R[0];
+      if (lead) { const H = []; for (let k = P.TS + 1; k < R[0].tick; k++) H.push({ tick: k, x: lead.x, y: lead.y, h: lead.h, yaw: lead.yaw, pitch: lead.pitch }); R = H.concat(R); }
+      files.push({ name: `${KIT}/${v}.bf2cam`, data: await deflateBytes(camRecs(R)) });
+      files.push({ name: `${KIT}/${v}.con`, data: crlf(`rem BF2 Round Replay - game video kit, view "${v}"\nrem made on the site; run make-videos.bat, not this\ndemo.demoMode render\ndemo.cameraMode playback\ndemo.demoFile ${KIT}\\${demoName}\ndemo.cameraFile ${KIT}\\${v}.bf2cam\ndemo.renderFile mods\\bf2\\Demos\\${KIT}_${v}.avi\ndemo.renderCompressed 1\ndemo.renderPanorama 0\ndemo.numPanoramaSlices 0\ndemo.renderWidth 1280\ndemo.renderHeight 720\ndemo.renderFps 30\ndemo.renderFieldOfView 95\ndemo.syncCameraAndDemo 1\n`) });
+      made.push(v);
+    }
+    const name = who !== null ? round.players[who].name : '', lbl = `${$('#srcLabel').textContent} ${fmt(a)}-${fmt(b)}${name ? ', ' + name : ''}`.replace(/[%^&|<>"]/g, '');
+    files.push({ name: `${KIT}/watch-in-game.con`, data: crlf(`rem BF2 Round Replay - the clip in the game, the camera yours (the first ${fmtDur(P.leadIn + 3)} are the round before it, packed)\ndemo.demoMode playback\ndemo.cameraMode user\ndemo.demoFile ${KIT}\\${demoName}\ndemo.syncCameraAndDemo 1\ndemo.timeDemo 0\n`) });
+    const head = `@echo off\nsetlocal\nrem BF2 Round Replay - ${lbl}\nrem This folder (${KIT}) goes into the Battlefield 2 folder, next to BF2.exe.\nrem (no ( ) blocks: a path with brackets, like Program Files (x86), would break them)\ncd /d "%~dp0.."\nif not exist BF2.exe goto nobf2\nset "KIT=${KIT}"\n`;
+    const nobf2 = `\n:nobf2\necho BF2.exe is not in this folder:\necho %CD%\necho Put the folder ${KIT} into the Battlefield 2 folder, next to BF2.exe.\npause\nexit /b 1\n`;
+    files.push({ name: `${KIT}/watch-in-game.bat`, data: crlf(head + `start "" /wait BF2.exe +fullscreen 0 +szx 1280 +szy 720 +demo %KIT%\\watch-in-game.con\nexit /b 0\n` + nobf2) });
+    if (made.length) files.push({ name: `${KIT}/make-videos.bat`, data: crlf(head + `set "VS=%LOCALAPPDATA%\\VirtualStore%CD:~2%"\nset "FF="\nwhere ffmpeg >nul 2>&1 && set "FF=ffmpeg"\nif not defined FF if exist "%KIT%\\ffmpeg.exe" set "FF=%KIT%\\ffmpeg.exe"\nif not defined FF if exist "ffmpeg.exe" set "FF=ffmpeg.exe"\nif not defined FF echo ffmpeg was not found: the videos stay AVI files (see README.txt)\n` +
+      made.map(v => `call :one ${v}\n`).join('') + `echo.\necho Done. The videos are in mods\\bf2\\Demos, named ${KIT}_...\npause\nexit /b 0\n\n:one\necho Rendering %1 (BF2 opens; it closes by itself when the clip ends) ...\nstart "" /wait BF2.exe +fullscreen 0 +szx 1280 +szy 720 +noSound 1 +demo %KIT%\\%1.con\nset "AVI=mods\\bf2\\Demos\\%KIT%_%1.avi"\nset "MP4=mods\\bf2\\Demos\\%KIT%_%1.mp4"\nif not exist "%AVI%" if exist "%VS%\\%AVI%" set "AVI=%VS%\\%AVI%"\nif not exist "%AVI%" echo No video was written for %1 & exit /b 1\nif not defined FF exit /b 0\n"%FF%" -hide_banner -loglevel warning -y -ss ${trim.toFixed(2)} -i "%AVI%" -t ${dur.toFixed(2)} -c:v libx264 -crf 20 -preset veryfast -pix_fmt yuv420p "%MP4%"\nif exist "%MP4%" for %%F in ("%MP4%") do if %%~zF GTR 100000 del "%AVI%"\nif exist "%AVI%" echo The MP4 did not come out - the AVI is kept: %AVI%\nexit /b 0\n` + nobf2) });
+    const VN = Object.fromEntries(GV_VIEWS.map(([k, n]) => [k, n]));
+    files.push({ name: `${KIT}/README.txt`, data: crlf(`BF2 Round Replay - game video kit
+${lbl}
+
+What it is: the round's demo from this moment on, for Battlefield 2 to play and film itself${made.length ? `, and a camera for each view: ${made.map(v => VN[v]).join(', ')}` : ''}.
+The first ${fmtDur(P.leadIn + 3)} of it are the round before the clip, packed (the game plays a demo only from its start); the videos leave them out.
+
+1. Unpack this zip into the Battlefield 2 folder, next to BF2.exe (the folder ${KIT} goes there).
+${made.length ? `2. Run ${KIT}\\make-videos.bat. For each view BF2 opens in a 1280x720 window, plays the clip and closes by itself
+   (about 1.5 min to load, then ~${Math.ceil((P.TB + P.shift - first) / 30 / 0.4 / 60)} min of rendering a view). Don't use the PC for games meanwhile.
+3. With ffmpeg (https://ffmpeg.org - Download, a Windows build; put ffmpeg.exe into this folder or anywhere in PATH) each
+   view becomes mods\\bf2\\Demos\\${KIT}_<view>.mp4 (${fmtDur(dur)}), and the big AVI (~2.8 MB a frame) is deleted.
+   Without ffmpeg the AVIs stay: uncompressed 1280x720, ~83 MB a second - most players can't play them smoothly.
+` : ''}Or run watch-in-game.bat to watch it in the game with your own camera (keys 1-9 set the speed: 1 pause, 2 normal,
+3 = 5%, 4 = 25%, 5 = 50%, 6 = 75%, 7 = 150%, 8 = 300%, 9 = 1000%).
+
+There is no HUD or crosshair in the videos: the game shows none when it plays a demo.
+`) });
     if (job.cancelled) { clipMsg(job.why + '.'); return; }
-    const base = src.name.replace(/\.bf2demo(\.gz)?$/i, ''), tag = F === 1 ? '' : F ? '_x' + F : '_fastest';
-    const plan = c.fast >= 1 ? (F === 1 ? `the round from its start (${fmtDur(c.fast)} before the clip)` : `${fmtDur(c.fast)} of the round ${F ? '×' + F : 'as fast as can be'}${F ? '' : ` (${fmtDur(c.fastPlay)} at 30 ticks a second)`}`) + `, then ${fmtDur(c.real)} at the real pace` : `${fmtDur(c.real)} from the round's start`;
-    const o = { blob, ext: 'bf2demo', mime: 'application/octet-stream', url: URL.createObjectURL(blob), name: `${base}_clip_${mmss(a)}_${mmss(b)}${tag}.bf2demo`, plan, secs: c.real };
-    try { o.share = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [new File([o.blob], o.name, { type: o.mime })] })); } catch (e) { o.share = false; }
-    dropClipOut(); clip.out = o; toast('Demo ready · ' + kbOf(blob.size));
+    step(0.97, 'Zip');
+    const blob = zipStore(files);
+    const o = { blob, ext: 'zip', mime: 'application/zip', url: URL.createObjectURL(blob), name: KIT + '.zip', plan: `${made.length ? made.map(v => VN[v]).join(', ') : 'the demo only'} · the round before the clip packed into ${fmtDur(P.leadIn + 3)}`, secs: dur };
+    o.share = false;
+    dropClipOut(); clip.out = o; toast('Game video kit ready · ' + kbOf(blob.size));
   } catch (e) {
     if (src.url && !src.file && /any more/.test(e && e.message || '')) { src.gone = true; clipMsg("The server doesn't have this round's demo any more: open your copy of it (Open my copy…)."); }
-    else clipMsg("Couldn't make the demo: " + (e && e.message || e) + '.');
+    else if (!job.cancelled) clipMsg("Couldn't make the kit: " + (e && e.message || e) + '.');
+    else clipMsg(job.why + '.');
   } finally { if (clip.job === job) clip.job = null; renderClipBar(); }
 }
 // (v153) your own copy of the round's demo, when the server has none: the same server, date and map in its header
@@ -8568,8 +8759,8 @@ const LEGEND = [
   [null, () => 'Crosshair: wall', 'Where the followed soldier\'s crosshair meets a wall, a roof, the ground or the sea (with how far)', () => {
     const k = 8; cx.beginPath(); cx.moveTo(-k, 0); cx.lineTo(k, 0); cx.moveTo(0, -k); cx.lineTo(0, k); cx.moveTo(k * 0.62, 0); cx.arc(0, 0, k * 0.62, 0, Math.PI * 2);
     cx.lineCap = 'round'; cx.lineWidth = 6; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 2.8; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
-  ['aimLn', () => 'Aim line', 'From the followed soldier to where his crosshair meets something; dashed: into the sky, to the fog limit (Aim line in his card, X)', () => {
-    cx.beginPath(); cx.moveTo(-10, 5); cx.lineTo(10, -5); cx.lineCap = 'round'; cx.lineWidth = 4.2; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 1.8; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
+  ['aimLn', () => 'Aim line', 'From the followed soldier to where his crosshair meets something; dashed: into the sky, to the fog limit (Aim line on the map by His view, in his card, X)', () => {
+    cx.beginPath(); cx.moveTo(-10, 5); cx.lineTo(10, -5); cx.lineCap = 'round'; cx.lineWidth = 6; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 3; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
   [null, () => 'He sees him', 'Over an enemy the followed soldier sees: in his field of view with nothing in between', () => drawEye(0, 0, 1.1)],
   [null, () => 'Behind cover', 'In the followed soldier\'s field of view, but hidden by a wall, a hill, smoke or bushes', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--muted'); cx.lineWidth = 2.2; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); }],
   ['spots', () => 'Spotted', 'Spotted by the other side (the game\'s Q): until the spot runs out; the tag over it says who spotted', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); spotCorners(0, 0, 17); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 5; cx.stroke(); cx.strokeStyle = css('--spot'); cx.lineWidth = 2.6; cx.stroke(); }],
@@ -10089,6 +10280,13 @@ function playerRecord(B, P, L) {
 }
 // the same work as scanRecords, on the block's records only
 function scanRecs(B, recs, t, st) {
+  if (st.kindLog) {   // (v229: for packDemo - what each record's object was at that moment)
+    const L = new Uint8Array(recs.length);
+    for (let k = 0; k < recs.length; k++) { const rc = recs[k]; if (rc.gone) { L[k] = 255; continue; } const gid = B.u(rc.s + 2, 16);
+      L[k] = st.cps.has(rc.id) ? 6 : (st.pgs && gid >= 1 && gid <= 256) ? 7 : st.camIds.has(rc.id) ? 8 : st.uavIds.has(rc.id) ? 5 : st.statIds.has(rc.id) ? 3 : st.crateIds.has(rc.id) ? 4
+        : (st.sids.has(rc.id) && !st.vehTpl.has(rc.id)) ? 1 : st.vehTpl.has(rc.id) ? 2 : 0; }
+    (st.kindLog[st.tickNow] ||= []).push(L);
+  }
   const n = B.n, rot = st.rot, cp = st.cp, vt = st.vehTpl, em = st.statIds;
   for (let k = 0; k < recs.length; k++) {
     const rc = recs[k];
@@ -10134,7 +10332,9 @@ function preambleInfo(p, mapName) {
   return { mode: s.slice(i + 2, i + 2 + glen), size: p[i + 2 + glen] | (p[i + 3 + glen] << 8) };
 }
 
-async function decodeDemo(data, progress) {
+// (v229) opt.kinds: each ghost record's kind, packet by packet ({ tick: [codes] }, KIND_CODES - for packDemo); opt.until:
+// stop after that tick and return only the players and joins
+async function decodeDemo(data, progress, opt) {
   const R = demoRecords(data); if (!R) return null;
   const [server, date, mapPath] = R.hdr.fields; const mapName = mapPath.split('/').pop() || mapPath;
   TMAP = tmapOf(mapName);   // (v136: Armored Fury's numbering; v156: Euro Force's and Special Forces')
@@ -10153,10 +10353,13 @@ async function decodeDemo(data, progress) {
   let dblk = null, sRot = null;   // (v174) the data block being read, the rotation's entry of this map from one
   const rootOf = id => { for (let r = id; r >= 0 && id - r < 64; r--) if (xlive.has(r)) return r; return null; };
   const st = { obs, rotOut: rot, hp, vhp, stance, item, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false, pgs: [], uavIds: new Set(), uav: [], sgIds: new Set(), sgu: [], sst: [], sstLast: new Map(), chIds: new Set(), chObs: [], stam: [], rag: [], crateIds: new Set(), crate: [], camIds: new Map(), cam: [], camLast: new Map() };
+  if (opt && opt.kinds) st.kindLog = opt.kinds;
   let lastYield = performance.now();
   for (let i = 0; i < R.recs.length; i++) {
     const [tick, p] = R.recs[i];
     if (tick >= 0xfffffff0 || !p.length) continue;
+    if (opt && opt.until != null && t0 !== null && tick > opt.until) return { early: true, players, joins };
+    st.tickNow = tick;
     if (t0 === null) t0 = st.tick0 = tick; lastTick = tick;
     const t = (tick - t0) / 30, typ = p[0] & 7, B = mkBits(p);
     if (live.size) for (const [id, pr] of live) if (t - pr.t > 2 || t - pr.t0 > FLYING[pr.tpl][3]) live.delete(id);   // landed, went off or gone
@@ -11682,6 +11885,122 @@ async function buildTimeline(r) {
     stats: { emplacements: emplacements.length, throws: throws.length, smokes: smokes.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, emplacementAim: (r.emp || []).length, packets: r.packets, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, presses: ents.reduce((a, e) => a + (e.fire ? e.fire.length : 0), 0), outside: ents.reduce((a, e) => a + (e.out ? e.out.length : 0), 0), spawnGroups: sgroups.length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
 }
 
+// ---------- (v229) the game video kit: a .bf2demo the game plays from a moment of the round on (packDemo) ----------
+// The game plays a demo only from its start, one record a tick, so the part before the clip (the lead-in) is packed:
+// - every game event (kills, spawns, rockets, chat) is kept, in order, but packed into as few event blocks as fit (255
+//   events, 3 800 bytes a packet). The game hands blocks on strictly by their 5-bit number (a later one waits for a
+//   missing one), so every later block - the last 3 s before the clip and the clip, kept as recorded - is renumbered;
+// - of the ghost records (an object's state), per object and life the newest and any older one with a field (a bit of
+//   its flag mask) no newer kept record has; creations and removals always; the updates of a ghost removed later in the
+//   lead-in go. Masks: soldier 21 bits, vehicle / emplacement / crate / UAV 19, flag 7, player 28, commander's camera 4,
+//   an object made by a game event (projectiles, bags, charges) 6, any other 12.
+// A packet takes the next packets' events and kept records until a record's object is in it already, 511 records, 255
+// events or 3 800 bytes; a packet's events go before its records, and a later packet's events never before an earlier
+// one's creation or removal (an id freed by a removal can be the next creation's). Every record after the opening
+// snapshot gets the next tick, and the tick inside each packet too. =FL= 2026-10-13 21:14: a moment at 2 min -> a 3 s
+// lead-in, 20 min -> 15 s, 40 min -> 23 s (tested in the game: everyone where the site has them at 20:00).
+// Packet bits: [0] player actions (0), [1] events: count 8, block 5, resend 1, the events; then the ghost part: present 1,
+// tick 32, count 9, records.
+const KIND_MASK = [12, 21, 19, 19, 19, 19, 7, 28, 4], PACK_MAX = 3800;
+async function packDemo(u8, a, b, progress) {
+  const hd = readHeader(u8); if (!hd) throw new Error("the file's header isn't a Battle Recorder one");
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), at = [], tk = [], ln = [];
+  for (let o = hd.end; o + 8 <= u8.length; ) { const n = dv.getUint32(o + 4, true); if (o + 8 + n > u8.length) break; at.push(o); tk.push(dv.getUint32(o, true)); ln.push(n); o += 8 + n; }
+  const NR = at.length, normal = i => tk[i] < 0xfffffff0;
+  let i0 = -1, iS = -1; for (let i = 0; i < NR && iS < 0; i++) if (normal(i) && ln[i]) { if (i0 < 0) i0 = i; if ((u8[at[i] + 8] & 7) === 4 && ln[i] >= 5) iS = i; }
+  if (iS < 0) throw new Error('no packets in the demo');
+  const T0 = tk[i0], TS = tk[iS], TA = T0 + Math.round(a * 30), TB = T0 + Math.round(b * 30), TF = Math.max(TS + 1, TA - 90);
+  // what each record's object was (the decoder, up to the clip's end), and the players' slots
+  const kinds = {}, dec = await decodeDemo(u8.slice(), (f, stage) => progress && progress(f * 0.8, stage), { kinds, until: TB });
+  const ep = new Map();
+  for (const pl of (dec && dec.players) || []) ep.set(pl.index, [[-1, pl.name]]);
+  for (const j of ((dec && dec.joins) || []).slice().sort((x, y) => x.t - y.t)) { if (!ep.has(j.index)) ep.set(j.index, []); ep.get(j.index).push([j.t, j.name]); }
+  // objects made by a game event before the clip (they take a 6-bit mask)
+  const parse = (i, p) => {
+    const typ = p[0] & 7, B = mkBits(p); let blk = null; try { blk = ghostBlock(B, typ, tk[i]); } catch (e) {}
+    const ev = (typ & 2) && blk ? { n: B.u(2, 8), seq: B.u(10, 5), end: blk.b + 2 } : null;
+    return { typ, B, blk, ev };
+  };
+  const made = new Set();
+  for (let i = iS + 1; i < NR; i++) { if (!normal(i) || !ln[i]) continue; if (tk[i] >= TF) break; const p = u8.subarray(at[i] + 8, at[i] + 8 + ln[i]); if (!((p[0] & 7) & 2)) continue;
+    const { B, blk } = parse(i, Uint8Array.from(p)); if (!blk) continue; const E = readEvents(msgBits(B, blk.b + 2)); if (E) for (const e of E) if (e.id === 6 && e.oid != null) { made.add(e.oid); made.add(2 * e.oid); } }
+  // the lead-in's packets: their events and ghost records
+  const L = []; let evIn = 0, blocksIn = 0, firstSeq = null; const seen = {};
+  for (let i = 0; i <= iS; i++) {   // (the decoder's kinds come packet by packet: those before the lead-in counted first)
+    if (!normal(i) || !ln[i]) continue; const p = Uint8Array.from(u8.subarray(at[i] + 8, at[i] + 8 + ln[i])), typ = p[0] & 7;
+    if (typ !== 2 && typ !== 4 && typ !== 6) continue; if (parse(i, p).blk) seen[tk[i]] = (seen[tk[i]] || 0) + 1;
+  }
+  for (let i = iS + 1; i < NR; i++) {
+    if (!normal(i)) continue; if (tk[i] >= TF) break; const n = ln[i]; if (!n) continue;
+    const p = Uint8Array.from(u8.subarray(at[i] + 8, at[i] + 8 + n)), { B, blk, ev } = parse(i, p);
+    if (!blk) throw new Error('a packet without its ghost part at ' + ((tk[i] - T0) / 30).toFixed(1) + ' s');
+    if ((p[0] & 7) & 2 && !readEvents(msgBits(B, blk.b + 2))) throw new Error('events not read exactly at ' + ((tk[i] - T0) / 30).toFixed(1) + ' s');
+    if (ev) { evIn += ev.n; blocksIn++; if (firstSeq === null) firstSeq = ev.seq; }
+    const K = kinds[tk[i]], ki = seen[tk[i]] = (seen[tk[i]] || 0) + 1, codes = K && K[ki - 1] && K[ki - 1].length === blk.recs.length ? K[ki - 1] : null;
+    const recs = blk.recs.map((r, q) => {
+      const act = r.gone ? 3 : B.u(r.s, 2), end = act === 1 ? r.s + 32 + r.L : r.s + 18, k = codes ? codes[q] : 0;
+      const w = k === 255 ? 0 : k === 0 && made.has(r.id) ? 6 : KIND_MASK[k], m = act === 1 && w ? (r.L >= w ? B.u(r.s + 32, w) : -1) : -1;
+      return { id: r.id, s: r.s, end, act, isNew: act === 1 && !!r.f, m, src: p };
+    });
+    L.push({ recs, ev, p });
+    if (progress && !(L.length % 2000)) { progress(0.8 + 0.1 * (tk[i] - TS) / Math.max(1, TF - TS), 'pack'); await new Promise(r => setTimeout(r, 0)); }
+  }
+  // backwards: which ghost records stay
+  const cov = new Map(), dead = new Set(); let kept = 0;
+  for (let j = L.length - 1; j >= 0; j--) for (let q = L[j].recs.length - 1; q >= 0; q--) {
+    const r = L[j].recs[q];
+    if (r.act !== 1) { r.keep = true; kept++; if (r.act === 3) { cov.delete(r.id); dead.add(r.id); } continue; }
+    if (dead.has(r.id) && !r.isNew) { r.keep = false; continue; }
+    let keep = r.isNew || r.m < 0; const c = cov.get(r.id);
+    if (!keep) keep = c === undefined || (r.m & ~c) !== 0;
+    if (keep) cov.set(r.id, (c || 0) | (r.m < 0 ? 0 : r.m));
+    if (r.isNew) { cov.delete(r.id); dead.delete(r.id); }
+    r.keep = keep; if (keep) kept++;
+  }
+  // the packets out (bits written low bit first, as the game reads them)
+  const W = () => ({ b: [], n: 0, put(v, k) { for (let j = 0; j < k; j++) { const by = this.n >> 3; if (by >= this.b.length) this.b.push(0); if ((v >>> j) & 1) this.b[by] |= 1 << (this.n & 7); this.n++; } },
+    copy(src, from, k) { for (let j = 0; j < k; j++) { const pos = from + j; this.put((src[pos >> 3] >>> (pos & 7)) & 1, 1); } } });
+  const parts = [u8.subarray(0, at[iS] + 8 + ln[iS])]; let cur = TS, seq = firstSeq ?? 0, nEv = 0, lastRec = null;
+  const rec = (tick, payload) => { const r = new Uint8Array(8 + payload.length), v = new DataView(r.buffer); v.setUint32(0, tick, true); v.setUint32(4, payload.length, true); r.set(payload, 8); parts.push(r); };
+  let run = null; const fresh = () => ({ ev: [], evN: 0, evBits: 0, recs: [], recBits: 0, ids: new Set(), struct: false }); run = fresh();
+  const flush = () => {
+    const R = run; if (!R.evN && !R.recs.length) return;
+    if (R.evN && !R.recs.length && lastRec) R.recs.push(lastRec);   // (an event packet carries a ghost record: the last sent, again)
+    cur++; const w = W();
+    if (R.evN) { w.put(0, 1); w.put(1, 1); w.put(R.evN, 8); w.put(seq, 5); w.put(0, 1); for (const [src, s0, e0] of R.ev) w.copy(src, s0, e0 - s0); w.put(1, 1); seq = (seq + 1) & 31; nEv++; }
+    else { w.put(0, 1); w.put(0, 1); w.put(1, 1); }
+    w.put(cur, 32); w.put(R.recs.length, 9); for (const r of R.recs) w.copy(r.src, r.s, r.end - r.s);
+    if (R.recs.length) lastRec = R.recs[R.recs.length - 1];
+    rec(cur, Uint8Array.from(w.b)); run = fresh();
+  };
+  const size = () => 16 + run.evBits + 42 + run.recBits;
+  for (const P of L) {
+    if (P.ev && P.ev.n) {
+      const bits = P.ev.end - 16;
+      if (run.struct || run.evN + P.ev.n > 255 || size() + bits > PACK_MAX * 8) flush();
+      run.ev.push([P.p, 16, P.ev.end]); run.evN += P.ev.n; run.evBits += bits;
+    }
+    for (const r of P.recs) {
+      if (!r.keep) continue; const bits = r.end - r.s;
+      if (run.ids.has(r.id) || run.recs.length >= 511 || size() + bits > PACK_MAX * 8) flush();
+      run.recs.push(r); run.recBits += bits; run.ids.add(r.id); if (r.act !== 1 || r.isNew) run.struct = true;
+    }
+  }
+  flush();
+  // the last 3 s before the clip and the clip, as recorded: the tick in each packet and each event block's number
+  const delta = (blocksIn - nEv) & 31, put = (pl, bit, v, k) => { for (let j = 0; j < k; j++) { const pos = bit + j, by = pos >> 3, mm = 1 << (pos & 7); if ((v >>> j) & 1) pl[by] |= mm; else pl[by] &= ~mm; } };
+  let shift = null, last = cur;
+  for (let i = iS + 1; i < NR; i++) {
+    if (!normal(i)) continue; if (tk[i] < TF) continue; if (tk[i] > TB) break;
+    const n = ln[i], pl = u8.slice(at[i] + 8, at[i] + 8 + n); cur++; if (shift === null) shift = cur - tk[i];
+    if (n) { const { blk, ev } = parse(i, pl); if (blk) put(pl, blk.b + 3, cur, 32); if (ev) put(pl, 10, (ev.seq - delta) & 31, 5); }
+    rec(cur, pl); last = cur;
+  }
+  const endR = new Uint8Array(8); new DataView(endR.buffer).setUint32(0, last + 1, true); parts.push(endR);
+  const total = parts.reduce((x, q) => x + q.length, 0), data = new Uint8Array(total); let off = 0; for (const q of parts) { data.set(q, off); off += q.length; }
+  if (progress) progress(1, 'pack');
+  return { data, T0, TS, TF, TA, TB, shift: shift ?? 0, lastTick: last, leadIn: (TF + (shift ?? 0) - TS) / 30, kept, events: evIn, blocks: nEv, slots: [...ep] };
+}
 // @worker-end
 
 $('#fDemo').addEventListener('change', async e => { const fs = [...e.target.files]; e.target.value=''; if (fs.length > 1) await openSession(fs); else if (fs[0]) await openDemo(fs[0]); });
@@ -11707,6 +12026,10 @@ function workerMain() {
     GAME = ev.data.game;
     let last = 0;
     try {
+      if (ev.data.op === 'pack') {   // (v229: the game video kit's demo)
+        const pk = await packDemo(ev.data.data, ev.data.a, ev.data.b, (f, stage) => { const now = Date.now(); if (now - last > 100) { last = now; self.postMessage({ type: 'progress', f, stage }); } });
+        self.postMessage({ type: 'done', tl: pk }, [pk.data.buffer]); return;
+      }
       const tl = await decodeDemo(ev.data.data, (f, stage) => { const now = Date.now(); if (now - last > 100) { last = now; self.postMessage({ type: 'progress', f, stage }); } });
       // the timeline's columns are handed over, not copied
       const bufs = tl && tl.cols ? ['X', 'Y', 'A', 'L', 'HH', 'VT', 'HP', 'DN', 'PT', 'SP', 'VV', 'GA', 'GB', 'DR', 'FO', 'FC', 'TK'].map(k => tl.cols[k].buffer) : [];
@@ -11716,7 +12039,7 @@ function workerMain() {
   self.postMessage({ type: 'ready' });
 }
 // resolves with the timeline; rejects with 'no-worker' when no worker could be started (then decode on the page)
-function decodeInWorker(data, keep, job, onProgress) {
+function decodeInWorker(data, keep, job, onProgress, extra) {
   return new Promise((resolve, reject) => {
     const url = decoderWorkerURL(); if (!url) { reject(new Error('no-worker')); return; }
     let w; try { w = new Worker(url); } catch (e) { workerBroken = true; reject(new Error('no-worker')); return; }
@@ -11727,7 +12050,7 @@ function decodeInWorker(data, keep, job, onProgress) {
     w.onerror = e => { if (e.preventDefault) e.preventDefault(); end(); if (!started) workerBroken = true; reject(new Error(started ? 'Decoder failed: ' + (e.message || 'error in the worker') : 'no-worker')); };
     w.onmessage = ev => {
       const m = ev.data;
-      if (m.type === 'ready') { started = true; clearTimeout(timer); w.postMessage({ data, game: { maps: GAME.maps, statics: GAME.statics } }, keep ? [] : [data.buffer]); }
+      if (m.type === 'ready') { started = true; clearTimeout(timer); w.postMessage({ data, game: { maps: GAME.maps, statics: GAME.statics }, ...(extra || {}) }, keep ? [] : [data.buffer]); }
       else if (m.type === 'progress') onProgress(m.f, m.stage);
       else if (m.type === 'done') { end(); resolve(m.tl); }
       else if (m.type === 'error') { end(); reject(new Error(m.message)); }

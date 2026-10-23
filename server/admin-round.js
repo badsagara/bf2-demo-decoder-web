@@ -1,7 +1,7 @@
-// BF2 Round Replay v228 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v230 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v228';
-// ---- part 1 (page line 6609) ----
+const ADM_V = 'v230';
+// ---- part 1 (page line 6634) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
 // Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
@@ -84,7 +84,7 @@ function kitSpots(R) {
 // most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
 // ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
 // (v170: the commander's supply crates are counted too - crateVisits)
-// ---- part 2 (page line 6694) ----
+// ---- part 2 (page line 6719) ----
 function ammoBags(R, i, t0, t1) {
   let n = 0;
   for (const b of R.events) {
@@ -94,7 +94,7 @@ function ammoBags(R, i, t0, t1) {
   }
   return n;
 }
-// ---- part 3 (page line 6741) ----
+// ---- part 3 (page line 6766) ----
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
 // i spent within CRATE_R of one (the crate's radius 5 m, Weapons/Handheld/supply_crate: it refills ammo and heals,
@@ -812,7 +812,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 let CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 7464) ----
+// ---- part 4 (page line 7489) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -909,7 +909,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 let SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 7676) ----
+// ---- part 5 (page line 7701) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1195,7 +1195,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 7964) ----
+// ---- part 6 (page line 7989) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1712,14 +1712,15 @@ function renderAdmin() {
   box.innerHTML = `<p class="admwarn">Hints for a closer look, not proof. Walls are the map's collision shapes, and some fences, thin walls and boards let bullets through; views and positions are known 10 times a second; good players turn fast too. Watch the moment (and its side view) before you judge.</p>
     ${(round._trackRun && !round._tracks) || (round._geoRun && !round._geo) ? '<p class="admtop">Wall tracking, walls and floating: still going through the round (a few seconds)…</p>' : ''}${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => pn(id) + ' <span class="w">' + c + '</span>').join(', ')}</p>` : ''}
     <div class="hlchips">${[['all', 'All', nAll], ...ADM_KINDS.map(([k, n]) => [k, n, cnt(k)])].filter(([k, , c]) => k === 'all' || c).map(([k, n, c]) => `<button class="btn${admFilter === k ? ' on' : ''}" data-f="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
-    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = admDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffOn() || ffFlag !== 'all' ? 'Nothing for this filter.' : 'Nothing to look at in this round.'}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(([h, i]) => { const [b, html] = admDescribe(h); return `<li data-i="${i}"><button class="hli" data-i="${i}" title="Jump to ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button></li>`; }).join('') : `<li class="empty">${ffOn() || ffFlag !== 'all' ? 'Nothing for this filter.' : 'Nothing to look at in this round.'}</li>`}</ul>
     <p class="stnote">${A.noLos ? 'No wall data for this map: "No line of sight" is not checked. ' : ''}${A.wait ? `Checking ${A.wait} kill${A.wait > 1 ? 's' : ''} against the map's exact collision shapes… ` : ''}Click to jump there.</p>`;
   box.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { admFilter = b.dataset.f; renderAdmin(); });
   box.querySelectorAll('.hli').forEach(b => b.onclick = () => jumpTo(A[+b.dataset.i]));
-  box.querySelectorAll('.hlclip:not(.hlside)').forEach(b => b.onclick = () => clipAround(A[+b.dataset.i]));
+  box.querySelectorAll('.hlclip:not(.hlside):not(.hlgv)').forEach(b => b.onclick = () => clipAround(A[+b.dataset.i]));
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
+  box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 10660) ----
+// ---- part 7 (page line 10852) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -1934,7 +1935,7 @@ function admSubHints(el, re) {
     </div>
     <div class="hlchips">${[['all', 'All', pass.length], ...ADM_KINDS.map(([k, n]) => [k, n, cnt.get(k) || 0])].filter(([k, , c]) => k === 'all' || c || k === F.kind).map(([k, n, c]) => `<button class="btn${F.kind === k ? ' on' : ''}" data-k="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
     ${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => `<button class="linkb" data-who="${esc(id)}">${pn(id)}</button> <span class="w">${c}</span>`).join(', ')}</p>` : ''}
-    <ul class="feed hlist">${L.length ? L.map(({ h, i, s: st, key }) => { const [b, html] = admDescribe(h), mk = M[key], tr = trustedId(h.actor); return `<li class="${tr ? 'admtr' : ''}${mk ? ' admm-' + mk.state : ''}"><button class="hli" data-i="${i}" title="Watch it: ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html} <span class="admstr s${st}">${ADM_STR[st]}</span>${tr ? ' <span class="admtrb" title="A trusted player (Players: ★): not highlighted">★ trusted</span>' : ''}${mk ? ' ' + admMarkBadge(mk) : ''}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}<button class="hlclip hlvid" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button>${on ? admRvButtons(i, mk) : ''}</li>`; }).join('') : `<li class="empty">No hint with these filters.${F.str !== 'all' && A.some(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)) ? ` (${A.filter(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)).length} ${F.str === 'strong' ? 'weaker' : 'minor'} ones not shown: Strength)` : ''}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(({ h, i, s: st, key }) => { const [b, html] = admDescribe(h), mk = M[key], tr = trustedId(h.actor); return `<li class="${tr ? 'admtr' : ''}${mk ? ' admm-' + mk.state : ''}"><button class="hli" data-i="${i}" title="Watch it: ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html} <span class="admstr s${st}">${ADM_STR[st]}</span>${tr ? ' <span class="admtrb" title="A trusted player (Players: ★): not highlighted">★ trusted</span>' : ''}${mk ? ' ' + admMarkBadge(mk) : ''}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip hlvid" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button>${on ? admRvButtons(i, mk) : ''}</li>`; }).join('') : `<li class="empty">No hint with these filters.${F.str !== 'all' && A.some(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)) ? ` (${A.filter(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)).length} ${F.str === 'strong' ? 'weaker' : 'minor'} ones not shown: Strength)` : ''}</li>`}</ul>
     <p class="stnote">${L.length} of ${A.length} hints${V === null ? ' · loading the marks…' : V && V.ok === false ? ' · the marks: ' + esc(V.msg || V.error || 'no answer') : ''}${A.noLos ? ' · no wall data for this map: "No line of sight" is not checked' : ''}${A.wait ? ` · still checking ${A.wait} kill${A.wait > 1 ? 's' : ''} against the exact shapes…` : ''}${(round._trackRun && !round._tracks) || (round._geoRun && !round._geo) ? ' · wall tracking and floating still going through the round…' : ''}. A click: the moment on the map (Battle).</p>`;
   $('#apWho').onchange = e => { F.who = e.target.value; re(); };
   $('#apTeam').onchange = e => { F.team = e.target.value; re(); };
@@ -1948,6 +1949,7 @@ function admSubHints(el, re) {
   el.querySelectorAll('[data-who]').forEach(b => b.onclick = () => { F.who = b.dataset.who; re(); });
   el.querySelectorAll('.hli').forEach(b => b.onclick = () => { paneSet('battle', true); jumpTo(A[+b.dataset.i]); });
   el.querySelectorAll('.hlside').forEach(b => b.onclick = () => { paneSet('battle', true); openSide(A[+b.dataset.i].kill); });
+  el.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { paneSet('battle', true); const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
   el.querySelectorAll('.hlvid').forEach(b => b.onclick = () => { paneSet('battle', true); clipAround(A[+b.dataset.i]); });
   // (v198) a mark: the same button again clears it; suspicious asks what was seen (for the report)
   el.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => {
@@ -2323,7 +2325,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 14788) ----
+// ---- part 8 (page line 15113) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2341,7 +2343,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 14824) ----
+// ---- part 9 (page line 15149) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

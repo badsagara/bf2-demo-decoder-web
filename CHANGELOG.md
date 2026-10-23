@@ -5,6 +5,46 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v230
+
+**The aim line: a button on the map, and a clearer line** (Sagara: the aim line as a visible yellow line on the 2D map,
+its button next to His view, usable once a soldier is picked):
+
+- **New: the Aim line button on the map**, right after His view: on and off for the soldier or vehicle you follow (its
+  guns), the same setting as `X`, the button in his card and Filters ▾ (remembered). With nobody followed it is dimmed,
+  and a click says to pick a soldier first; while the line is on, the button is yellow, as the line.
+- **The line is easier to see**: 3 px of yellow on a 6 px dark edge (was 1.8 on 4.2); the dashes into the sky are longer
+  and less faded. The legend's sample matches.
+
+Only the page changes; the decoder is the same as v229's (`e3ddfc2d41`): nothing is decoded or analysed again.
+
+## v229
+
+**Game video: Battlefield 2 films the moment itself** (Sagara: a clip from the game's own picture — his eyes, behind him
+— made from the site):
+
+- **New in the Clip bar: Game video (BF2 renders it)**, in place of the BF2 demo file. It makes a kit — a `.zip` of a
+  few hundred KB — for the game on your PC: the round's demo, a camera for each view ticked, and `make-videos.bat`.
+  Unpacked into the game's folder, the .bat has the game play the demo and film each view (1280×720, 30 frames a second;
+  the game closes by itself at the end), and with ffmpeg (in PATH, the kit's folder or the game's) cuts each film to the
+  clip and makes it an MP4. `watch-in-game.bat` plays it in the game with your own camera.
+- **The views** (ticked in the Clip bar, remembered): **His eyes** (a camera at his eyes, a little in front of them so his
+  head and shoulders stay out of the picture when he lies down or throws; in a vehicle, his seat's view), **Behind him**
+  (7 m behind and above, turning with him), **From the side** (5 m), **Still** (one camera over the shooter and his
+  target). Twice as far in a vehicle; while he is dead the camera waits where it was.
+- **The demo is packed**: the game can't jump in a demo, so the round before the clip goes into a short stretch (about
+  18 s for 20 minutes of round) — each object's newest state, the events merged into large blocks in the order the
+  game needs — then the last 3 s before the clip and the clip as recorded. Game-tested at 2 and 20 minutes into a round:
+  the vehicles and soldiers are where they were, nothing jumps after the packed part.
+- **A game video button by each kill**: in the kill feed, in Highlights and in the admins' hints (the battle pane and the
+  Admin tab). It sets the clip 8 s before the kill and 3 s after, following the killer.
+- Shown only where the round's demo is at hand and the account may take demos and make clips. Made in the browser
+  in seconds.
+- **Nothing is decoded again**: the packer lives in the decoder's part of the page (it runs in its worker), so the
+  decoder's hash changed (`e3ddfc2d41`), but every round comes out byte for byte the same (21 test rounds): the rounds
+  are only marked as made by it. The rule is now in `server/decoders.mjs`, which the background analysis reads too —
+  so it doesn't look at every round again either (before, a round marked so was analysed again).
+
 ## v228
 
 **His view: a button on the map, and the empty vehicles** (Sagara: the button was hard to find; in one soldier's view

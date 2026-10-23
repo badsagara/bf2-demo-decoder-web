@@ -6,7 +6,7 @@ numbers are worked out (and what a demo can't tell) is in [features.md](features
 
 Contents: [The site at a glance](#the-site-at-a-glance) · [Logging in](#logging-in) · [Watching a round](#watching-a-round) ·
 [Following a soldier](#following-a-soldier) · [What the map shows (Filters)](#what-the-map-shows-filters) ·
-[The panels and tabs](#the-panels-and-tabs) · [Clips](#clips-video-gif-or-a-demo-for-the-game) ·
+[The panels and tabs](#the-panels-and-tabs) · [Clips](#clips-video-gif-or-a-game-video) ·
 [All rounds](#all-rounds) · [A player's page](#a-players-page) · [A map's page](#a-maps-page) · [Records](#records) ·
 [Stats](#stats) · [Links, previews, RSS](#links-previews-rss) · [On your own computer](#on-your-own-computer) ·
 [Keys](#keys-and-mouse) · [Questions](#questions)
@@ -51,7 +51,8 @@ were going (the same round and moment). On an open site the **Log in** button at
 - **The timeline** under the map: drag to any moment; its marks are kills in each side's colour, ▼ flags captured,
   ▽ neutralised. `←` / `→` jump 10 s back or on.
 - **The map**: scroll to zoom, drag to move. The zoom slider shows how many metres the map shows across.
-- **Buttons over the map**: **His view** (`V`, v228: only what the soldier you follow knew — see below), **Full screen** (`F`), **Scoreboard** (hold `Tab`, or click to keep it open — the game's own
+- **Buttons over the map**: **His view** (`V`, v228: only what the soldier you follow knew — see below), **Aim line**
+  (`X`, v230: his aim line, while you follow someone — see below), **Full screen** (`F`), **Scoreboard** (hold `Tab`, or click to keep it open — the game's own
   scoreboard at this moment, both sides by squad), **Bigger map**, **Lock camera** (`K`, keeps the soldier you follow in
   the middle; dragging unlocks), **Fit action** (zoom to the part of the map the round was played on), **Whole map**, **Copy link** (a link to
   this round at this moment, following the soldier you follow), **Controls left** (these buttons in a column left of the
@@ -83,8 +84,10 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   its crew knew. The **Sounds** of shots and
   explosions he could hear show as rings (an arrow at the map's edge for those off it); the speaker in his tag turns
   them on or off.
-- **Aim line** (`X`) — a line from him (or his vehicle's guns) to where his crosshair meets something: a soldier, a
-  vehicle, a wall or the ground; dashed into the sky, out to the fog limit.
+- **Aim line** (`X`; v230: the **Aim line** button on the map, next to His view, or the one in his card) — a yellow line
+  from him (or his vehicle's guns) to where his crosshair meets something: a soldier, a vehicle, a wall or the ground;
+  dashed into the sky, out to the fog limit. The map's button works while you follow a soldier or a vehicle (dimmed
+  otherwise) and turns yellow while the line is on; the setting is remembered.
 - **Next N s** (`A`, while paused) — where he goes in the next 1–30 s: a dashed path with a dot every 5 s, a ring where
   he is at the end, a cross where he dies (and how many seconds on). `−` / `+` by the button (or the mouse wheel over it)
   change the seconds; **For him** / everyone.
@@ -156,22 +159,43 @@ maps the site doesn't know. `?` lists the keys.
 rounds page): rounds, score, kills, deaths, K/D and more; column groups including **Duels & teamwork**; **Find a player**
 (Enter on a single match opens his page); **Players CSV**.
 
-## Clips: video, GIF or a demo for the game
+## Clips: video, GIF or a game video
 
 **Clip** (under the map) opens the clip bar. Mark the stretch with **Start here** / **End here** (`I` / `O`), or drag the
 ends of the yellow band on the timeline.
 
 - **File**: **Video (MP4)** (up to 2 minutes of video), **GIF** (plays everywhere, also in chats without video; 600 px, 10
-  frames a second, up to 20 s), or **BF2 demo (for the game)** — a Battle Recorder file to watch the clip in BF2 itself
-  (an experiment: the game plays a demo only from its start, so the part before the clip goes by fast — **Before the
-  clip** sets how fast; if the game stops, try a slower one). Put it in the game's demos folder.
+  frames a second, up to 20 s), or **Game video (BF2 renders it)** — below.
 - **Size**: 720p, 1080p, Square, Vertical. **Speed**: 0.5× to 16×. **Sound**: shots, rockets and explosions made from
   the demo (up to 2×). **Camera**: **Follow** the soldier you follow, or **As on screen**.
 - **Make video** — the clip is made in your browser (faster than real time where the browser has a video encoder);
   then **Save video**, **Share…** (on phones), **Discard**.
 - The clip shows the map with the layers you have on, the round clock, tickets and kills.
-- If the site no longer has the demo, a game clip asks for **Open my copy…** — your own `.bf2demo` of that round (it is
-  checked to be the same round).
+
+### Game video: the moment filmed by Battlefield 2 itself
+
+A kit for the game on your PC (Windows, Battlefield 2 installed): the game plays the round's demo and films it — the
+real game picture, not the map. Follow a soldier first; tick the views you want:
+
+- **His eyes** — what he saw (in a vehicle, from his seat);
+- **Behind him** — the game's camera 7 m behind him and above, turning with him;
+- **From the side** — 5 m from his side;
+- **Still** — one camera over the place, the shooter and his target in it.
+
+**Make the kit** packs a `.zip` (a few hundred KB): the round's demo, with the part of the round before the clip packed
+into a short stretch so the game gets there fast; a camera for each view; and `make-videos.bat`. Unpack the zip into the
+game's folder (its folder goes next to `BF2.exe`) and run `make-videos.bat`: the game opens, films one view (1280×720,
+30 frames a second) and closes by itself, then the next. With [ffmpeg](https://ffmpeg.org) (in PATH, in the kit's folder
+or the game's) each film is cut to the clip and made an MP4 (`mods\bf2\Demos\…_eyes.mp4` and so on); without it, the
+films stay large AVI files. `watch-in-game.bat` plays the demo in the game with your own camera instead. The game shows
+no HUD or crosshair in a demo.
+
+The quickest way: the **game video** button (a play sign in a film frame) by a kill in the kill feed, in a highlight or
+in an admin's hint — it sets the clip 8 s before the kill and 3 s after, following the killer, with the views you ticked
+last time; then **Make the kit**.
+
+A kit needs the round's demo (Download demos and Video clips, when the site is closed in part). If the site no longer
+has it, the Clip bar asks for **Open my copy…** — your own `.bf2demo` of that round (checked to be the same round).
 
 ## All rounds
 

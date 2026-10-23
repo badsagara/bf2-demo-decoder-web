@@ -226,9 +226,17 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   or follows the soldier (a cut when he respawns). Sound is made from the demo: shots while a fire button is held,
   rockets leaving their launcher, explosions — louder near the middle, panned left or right.
 - **GIF**: 10 frames a second, at most 20 s, 600 px on the longer side.
-- **BF2 demo**: the original demo cut for the game (an experiment). The game can't jump in a demo, so the file holds the
-  round from its start; the part before the clip goes by fast, and the last 3 s before it and the clip at the real
-  pace. It needs the round's demo (the server's, or your own copy).
+- **Game video** (v229): a kit for the game rather than a file — Battlefield 2 films the moment itself. The kit holds:
+  - **the demo**, packed: the game can't jump in a demo, so the round before the clip is packed into a short stretch
+    (each object's newest state, the events merged into large blocks, in the order the game needs), then the last 3 s
+    before the clip and the clip as recorded, with the ticks and event blocks renumbered;
+  - **a camera track per view** (`.bf2cam`): His eyes (a free camera at his eyes, a little in front of them so the body
+    stays out of the picture; in a vehicle, its seat's view), Behind him / From the side (the game's camera on his
+    player slot, turned with him, 7 m / 5 m, twice as far in a vehicle), Still (one camera over the shooter and his
+    target);
+  - **`make-videos.bat`**: the game films each view at 1280×720, 30 frames a second, and quits at the track's end; ffmpeg,
+    when found, cuts the film to the clip and makes it an MP4 (H.264, the AVI deleted).
+  The kit is made in the browser in seconds; it needs the round's demo (the server's, or your own copy).
 
 ## Posts and summaries
 
@@ -308,7 +316,7 @@ Set on the admin page, card **Users and access** ([admin-guide.md](admin-guide.m
   asks `admin.mjs` for that round alone (`/admin/api/round-ref`). Round names follow their time
   (`auto_2026_10_18_20_28_05`), so this hides the list, not the rounds themselves.
 - **Video clips** is the only part checked by the page alone: a clip is drawn in the browser from what the page shows, so
-  there is no file to refuse. (A clip for the game needs the demo, and so Download demos.)
+  there is no file to refuse. (A game video needs the demo, and so Download demos too.)
 - **Closed link previews**: Discord, Telegram and the others never log in, so with Link previews unticked (and Watch
   rounds closed to guests) a link shows no card and the round posts show no map picture.
 - **If `admin.mjs` is down** while the site is closed, Caddy can't ask, and the closed parts answer with an error until

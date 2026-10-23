@@ -261,7 +261,7 @@ Who may open what (v224; before it this card was *Servers' admins*). The owner's
 | Players and maps | players' pages and comparisons, Players · all rounds, maps' pages and heat maps; `/players/`, `/maps/` |
 | Records | `/records/` |
 | Stats | clans, vehicles, the servers' pages, search moments |
-| Download demos | ⬇ Demo, and clips for the game |
+| Download demos | ⬇ Demo, and game videos (the kits for BF2) |
 | Video clips | the Clip button (a video or GIF made in the browser) |
 | Link previews (guests only) | the cards Discord / Telegram show under a link to a round or player, and the map pictures of the round posts — chat apps never log in |
 

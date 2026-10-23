@@ -28,6 +28,7 @@ import crypto from 'node:crypto';
 import os from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { compactIndex, expandIndex } from './roundsidx.mjs';
+import { sameRules } from './decoders.mjs';   // (v229)
 import { demoPolicy, demoPlan, hintRounds, sourceList, refetchWanted, REFETCH_FILE, DEMOS_LAST_FILE } from './demos.mjs';
 
 // ---------- settings ----------
@@ -53,21 +54,7 @@ const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'
 const INDEX = path.join(DATA, 'rounds.json'), FULL_INDEX = path.join(DATA, '.rounds-full.json'), HEAT_DIR = path.join(DATA, '.kills'), OLD_HEAT_DIR = path.join(DATA, 'heat'), SHARE_DIR = path.join(DATA, 'share');
 const DOMAIN = opt('BF2R_DOMAIN', '').trim();
 const args = new Set(process.argv.slice(2));
-// Decoders whose rounds come out the same as the current one's (a fix that changes only demos that failed before): rounds
-// they made are not decoded again after the update, only marked as made by the current decoder. (v138 used it once:
-// 054e89ecf1 = 3621404639 but for maps not among the 22. v140's decoder adds to every round: none now.)
-// (v156) { from: [hashes], except: [maps] }: the same, but rounds on these maps are decoded again - a629ba2a28 numbers the
-// Euro Force's and Special Forces' templates (their maps below); every other round comes out byte for byte as with
-// 1d5536877e (the 9 test rounds checked), so only these are decoded again
-const EF_SF_MAPS = ['greatwall', 'taraba_quarry', 'operationsmokescreen', 'devils_perch', 'ghost_town', 'iron_gator', 'leviathan', 'mass_destruction', 'night_flight', 'surge', 'warlord'];
-// (v161) a list of such rules: e9d9e7595f is a629ba2a28 made faster (the packets' bits read when asked, not worked out
-// for every bit position first; a soldier's rides looked up from where the last frame left off; the map size's 99th
-// percentile picked without sorting every position) - every round comes out byte for byte the same (80 rounds checked),
-// so nothing is decoded again; rounds still made by 1d5536877e keep v156's rule
-// (v185) 5e7024cf21 is f70674b7e0 with the Special Forces rounds' sides taken from the Player ghost when the kits put
-// everyone on one side (todo 225): every other round comes out byte for byte the same (23 test rounds checked; of the
-// 1667 rounds of the analysis only two had one side, both on SF maps), so only the EF / SF maps are decoded again
-const SAME_ROUNDS = { e9d9e7595f: [{ from: ['a629ba2a28'] }, { from: ['1d5536877e'], except: EF_SF_MAPS }], '5e7024cf21': [{ from: ['f70674b7e0'], except: EF_SF_MAPS }] };
+// Decoders whose rounds come out the same as the current one's: server/decoders.mjs (v229: analyze.mjs uses them too)
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
 
 // ---------- the page's decoder ----------
@@ -1074,7 +1061,7 @@ async function main() {
   AGG = loadAgg();
   if (AGG) { let st = null; try { st = JSON.parse(fs.readFileSync(STATS_STATE, 'utf8')); } catch (e) {} if (!st || st.v !== AGG.v || !idx.stats) { changed = true; log(st ? 'stats: the page\'s code changed - all written again' : 'stats: written for the first time'); } }
   if (args.has('--rebuild')) aggTouch.full = true;
-  const S0 = SAME_ROUNDS[dec.hash], rules = (Array.isArray(S0) ? (S0.every(x => typeof x === 'string') ? [{ from: S0 }] : S0) : S0 ? [S0] : []).map(q => ({ from: q.from || [], except: new Set(q.except || []) }));
+  const rules = sameRules(dec.hash);
   for (const r of idx.rounds) if (rules.some(q => q.from.includes(r.decoder) && !q.except.has(mapOf(r.sum)))) { r.decoder = dec.hash; changed = true; }
   // rounds listed before with fewer players than BF2R_MIN_PLAYERS (set or raised since) leave the list
   for (const r of idx.rounds.filter(r => r.sum && !r.sum.empty && r.sum.players < MIN_PLAYERS)) {

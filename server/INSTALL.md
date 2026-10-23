@@ -967,8 +967,9 @@ sudo rm /srv/bf2replay/data/.admin/hint-thresholds.json   # the site's: all reco
 
 A round on the site lives in its decoded file (`data/rounds/*.bfr`, 5-7 MB): the map, the statistics, the hints, the
 players' pages. The demo (`data/demos`, 20-35 MB — ~80% of a round's room) is needed for only two things: to decode the
-round again when the decoder changed (as the SF rounds in v185), and to cut a clip for the game. So old demos can be
-removed — the rounds stay and open as before (the page then offers to cut a game clip from the visitor's own demo).
+round again when the decoder changed (as the SF rounds in v185), and to make a game video (v229: the kit for BF2). So old
+demos can be removed — the rounds stay and open as before (the page then offers to make the kit from the visitor's own
+demo).
 Compressing the demos themselves harder doesn't work: xz gives −15-19%, zstd −10-12%.
 
 (v202) Every round on the site has the button **⬇ Demo** (in the round's line over the map) and the link **Download the

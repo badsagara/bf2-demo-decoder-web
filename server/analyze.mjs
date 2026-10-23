@@ -49,6 +49,7 @@ import { readRoundList } from './roundsidx.mjs';
 import { aggGlitch } from './glitch.mjs';
 import { alertRound } from './alerts.mjs';   // (v214)
 import { siteHv as htSiteHv } from './hintcfg.mjs';   // (v227)
+import { sameAs as decSame } from './decoders.mjs';   // (v229)
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -287,7 +288,7 @@ if (AUTO) {   // (v185) not done yet first, then done by older hint rules; the c
   let fl = {}; try { fl = JSON.parse(fs.readFileSync(path.join(OUT, 'failed.json'), 'utf8')); } catch (e) {}
   const HV = pageHv(), none = [], old = [];
   let skipF = 0;
-  for (const r of todo) { if (copies[r.name]) continue; if (fl[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && decOf(f) !== r.decoder)) old.push(r); }
+  for (const r of todo) { if (copies[r.name]) continue; if (fl[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); }
   // (v225) while ingest.mjs decodes the rounds again for a new decoder (data/reprocess.json), the rounds it has done come
   // first: one not done yet would be looked at now and again once it is
   { let P = null; try { P = JSON.parse(fs.readFileSync(path.join(DATA, 'reprocess.json'), 'utf8')); } catch (e) {}
