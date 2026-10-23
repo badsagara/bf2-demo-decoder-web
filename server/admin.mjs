@@ -37,6 +37,7 @@ import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf, TLABEL } from './notify.mjs';
 import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
 import { expandIndex } from './roundsidx.mjs';
+import { SITE_FILE as HT_SITE_FILE, MINE_FILE as HT_MINE_FILE, siteSet as htSiteSet, pageSpec as htPageSpec, checkSet as htCheckSet, siteHv as htSiteHv } from './hintcfg.mjs';   // (v227)
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, oldRounds, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 import { ACCESS_FILE, GATE_FILE, SITE as ACC_SITE, GUEST_EXTRA as ACC_GUEST, CARDS as ACC_CARDS, guestsOf, userRights, normRights, normGuests, gateNeeded, siteRights, needOf, allowed, openPlaces } from './access.mjs';   // (v224)
 
@@ -251,6 +252,7 @@ async function state(C = null) {
     o.rounds = { total: R.length, current: cur, old: R.length - cur, oldHere: OR.here, oldBack: OR.back, stuck: OR.stuck, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null };
     o.records = recordsState();   // (v206)
   }
+  if (want('hints')) o.hints = htState();   // (v227)
   if (want('decode')) {
     const idx = index(), inc = listDir(INC), incDemos = inc.filter(f => /\.bf2demo(\.gz)?$/i.test(f)), parts = inc.filter(f => f.endsWith('.part')), bad = demoFiles(BAD);
     Object.assign(o, { reprocess: idx.reprocess || null, lastReprocess: readJson(path.join(DATA, 'reprocess.json'), null),
@@ -342,17 +344,43 @@ function archives() {
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
 function pageVer() { pageHintsV(); return hvPage.ver; }
+// ---------- (v227) the hints' thresholds (hintcfg.mjs): the site's set - the owner and the accounts with the right
+// ('hints'), sent from the page's editor; each admin's own (any account with the Admin tab) ----------
+const HT_ADM = () => path.join(HERE, 'admin-round.js'), htMineF = () => path.join(DATA, '.admin', HT_MINE_FILE);
+function htState() {
+  const S = htSiteSet(DATA), P = htPageSpec(HT_ADM()), by = new Map((P.spec || []).map(s => [s.k, s]));
+  return { n: (P.spec || []).length, changed: Object.entries(S.values).map(([k, v]) => ({ k, v, d: by.get(k)?.d ?? null, h: by.get(k)?.h || '', l: by.get(k)?.l || '' })), off: S.off, at: S.at, by: S.by, hv: pageHintsV() };
+}
+function htSiteSave(b, s) {
+  const P = htPageSpec(HT_ADM()), c = htCheckSet(b, P, false); if (c.bad.length) return { ok: false, msg: c.bad.slice(0, 5).join('; ') };
+  fs.mkdirSync(path.join(DATA, '.admin'), { recursive: true });
+  const f = path.join(DATA, '.admin', HT_SITE_FILE), was = htSiteSet(DATA), v = { values: c.values, off: c.off, at: new Date().toISOString(), by: whoOf(s) };
+  if (!Object.keys(v.values).length && !v.off.length) { try { fs.unlinkSync(f); } catch (e) {} } else writeJson(f, v);
+  anCache.at = 0;   // (the analysis card: the new rules at once)
+  log(`hint thresholds (the site's) by ${whoOf(s)}: ${Object.keys(v.values).length} changed${v.off.length ? ', off: ' + v.off.join(' ') : ''} (were ${Object.keys(was.values).length}${was.off.length ? ' + ' + was.off.length + ' off' : ''}) - hint rules ${pageHintsV()}`);
+  return { ok: true, site: htSiteSet(DATA) };
+}
+function htMineGet(s) { const all = readJson(htMineF(), {}) || {}, m = all[whoOf(s)] || null; return { ok: true, mine: m }; }
+function htMineSave(b, s) {
+  const P = htPageSpec(HT_ADM()), c = htCheckSet(b, P, true); if (c.bad.length) return { ok: false, msg: c.bad.slice(0, 5).join('; ') };
+  fs.mkdirSync(path.join(DATA, '.admin'), { recursive: true });
+  const all = readJson(htMineF(), {}) || {}, who = whoOf(s), m = { values: c.values, off: c.off, on: c.on, use: !!(b && b.use), at: new Date().toISOString() };
+  if (!Object.keys(m.values).length && !m.off.length && !m.on.length && !m.use) delete all[who]; else all[who] = m;
+  writeJson(htMineF(), all);
+  return { ok: true, mine: all[who] || null };
+}
 function pageHintsV() {   // (v196: HINTS_V is in the admins' part of the page, server/admin-round.js)
   const f = path.join(SITE, 'index.html'), g = path.join(HERE, 'admin-round.js'); let mt = 0; try { mt = fs.statSync(f).mtimeMs + fs.statSync(g).mtimeMs; } catch (e) { return 0; }
   if (mt !== hvPage.mt) { let v = 0, ver = ''; try { const t = fs.readFileSync(f, 'utf8'), a = fs.readFileSync(g, 'utf8'); v = +((/const HINTS_V = (\d+)/.exec(a) || /const HINTS_V = (\d+)/.exec(t) || [])[1] || 0); ver = (/const APP_VERSION = '(v\d+)'/.exec(t) || [])[1] || ''; } catch (e) {} hvPage = { mt, v, ver }; }
-  return hvPage.v;
+  // (v227) with the site's hint thresholds: HINTS_V.<hash> while they differ from the recommended (hintcfg.mjs)
+  return hvPage.v ? htSiteHv(hvPage.v, DATA, HT_ADM()) : hvPage.v;
 }
 function analysisState() {
   if (anCache.v && Date.now() - anCache.at < (anCache.v.pack?.on || anCache.v.running ? 5e3 : 30e3)) return anCache.v;
   const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
   const copies = readJson(path.join(DATA, '.copies.json'), {})?.copies || {}, fileOf = n => String(n || '').replace(/\.bf2demo$/i, '').replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz';
   const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty && r.bfr && !copies[r.name] && !((r.sum.players ?? 0) < 6));
-  let cur = 0, old = 0; for (const r of R) { const v = hv[fileOf(r.name)]; if (v === undefined) continue; if (v >= HV) cur++; else old++; }
+  let cur = 0, old = 0; for (const r of R) { const v = hv[fileOf(r.name)]; if (v === undefined) continue; if (String(v) === String(HV)) cur++; else old++; }   // (v227: HINTS_V.<hash> - the same, or older)
   const auto = readJson(path.join(OUTD, 'auto.json'), null), run = readJson(path.join(OUTD, 'run.json'), null);
   const runOn = !!(run && !run.ended && alive(run.pid)), autoOn = !!(auto && !auto.ended && alive(auto.pid));
   const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
@@ -786,6 +814,7 @@ function userSet(b) {
 function userRemove(b) {
   const name = String(b.name || ''), j = readUsers(); if (!j.users[name]) return { ok: false, msg: 'no such account' };
   delete j.users[name]; writeUsers(j); logoutUser(name);
+  { const all = readJson(htMineF(), null); if (all && all[name]) { delete all[name]; writeJson(htMineF(), all); } }   // (v227: his own hint thresholds go too)
   log(`account ${name}: removed`); return { ok: true, msg: `${name}: removed (logged out)` };
 }
 function accessSet(b) {
@@ -916,15 +945,20 @@ const server = http.createServer(async (req, res) => {
     const R = rightsOfS(s), own = R.owner;
     // (v196) the Admin tab: the admins' part of the page, the analysis's private files, a round's server side, the review
     // (v224: the accounts with the Admin tab among their rights, while their admin powers last)
-    const tab = (what === 'admin.js' || what === 'round') && req.method === 'GET' || what.startsWith('data/') && req.method === 'GET' || req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what);
+    const tab = (what === 'admin.js' || what === 'round') && req.method === 'GET' || what.startsWith('data/') && req.method === 'GET' || req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what)
+      || what === 'hints-mine' || what === 'hints-site' && req.method === 'POST';   // (v227: the hints' thresholds)
     if (tab) {
       if (!R.admin) return send(res, 403, { error: 'this account has no Admin tab' });
       if (!admOk(s)) return send(res, 401, AGAIN);
       admTouch(s);
       if (what === 'admin.js') return sendFile(res, path.join(HERE, 'admin-round.js'), 'text/javascript; charset=utf-8');
-      if (what.startsWith('data/')) { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..')) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
+      if (what.startsWith('data/')) { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..') || rel === HT_MINE_FILE) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
       if (what === 'round') return send(res, 200, roundInfo(url.searchParams.get('name'), s));   // (v197)
+      if (what === 'hints-mine' && req.method === 'GET') return send(res, 200, htMineGet(s));   // (v227)
+      if (what === 'hints-mine' && req.method !== 'POST') return send(res, 405, { error: 'method' });
       const b = await bodyOf(req);   // (v198)
+      if (what === 'hints-mine') return send(res, 200, htMineSave(b, s));
+      if (what === 'hints-site') return R.owner || R.cards.hints ? send(res, 200, htSiteSave(b, s)) : send(res, 403, { ok: false, msg: "the site's thresholds: the owner's, or an account's with that right", error: 'not for this account' });
       return send(res, 200, what === 'review-get' ? revGet(b, s) : what === 'review-mark' ? revMark(b, s) : what === 'review-note' ? revNote(b, s) : revTrusted(b, s));
     }
     // this page: the owner's - or (v224) an account's cards

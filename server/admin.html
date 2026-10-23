@@ -200,6 +200,14 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <div id="anBox"></div>
   </section>
 
+  <section class="card wide" data-card="hints" aria-labelledby="hHt">
+    <h2 id="hHt">Hint thresholds</h2>
+    <p class="help">When each hint for admins fires: ours, recommended, set on thousands of real rounds - or the site's own. The site's thresholds are what the background analysis, the players' hint cards and the alerts use; changing them sends every round through the analysis again (it can take hours; the Background analysis card shows how far it got). Each admin can also set his own, for the rounds he opens. They are set in the site's page: the editor opens with the button below, from the Admin tab of a round, or from the Log in button.</p>
+    <div class="row" id="htSum"></div>
+    <div id="htList" class="mono"></div>
+    <div class="row"><a class="btn primary" id="htEdit" href="/#thresholds" target="_blank" rel="noopener">Open the editor</a><span class="muted" id="htHv"></span></div>
+  </section>
+
   <section class="card wide" data-card="sources" aria-labelledby="hF">
     <h2 id="hF">Where demos come from</h2>
     <p class="help">The demo pages (a web folder listing .bf2demo files) and game servers (their address: the demo page they announce is found by itself) new demos are downloaded from. <b>read</b>: how often each is looked at. <b>Check</b>: reads it now and says what is there - downloads nothing. <b>Remove</b>: no more downloads from it (its rounds stay). <b>What would be downloaded?</b> lists the new demos on every page.</p>
@@ -332,8 +340,16 @@ function render() {
   if (S.decode) renderJobs();
   if (S.demos) renderDemos();
   if (S.analysis) renderAnalysis();
+  if (S.hints) renderHints();   // (v227)
   if (S.users) { renderAccess(); renderUsers(); }
   if (S.settings) $('#settings').innerHTML = Object.entries(S.settings).map(([k, v]) => `<tr><td class="mono">${esc(k)}</td><td class="mono">${esc(v) || '<span class="muted">(empty)</span>'}</td></tr>`).join('');
+}
+// (v227) the site's hint thresholds in short: what differs from the recommended, and the hint rules they make
+function renderHints() {
+  const H = S.hints, n = H.changed.length;
+  $('#htSum').innerHTML = n || H.off.length ? `<span class="warn">${n} of ${H.n} changed from the recommended${H.off.length ? `, ${H.off.length} hint${H.off.length === 1 ? '' : 's'} off (${esc(H.off.join(', '))})` : ''}</span><span class="muted">${H.by ? ' · by ' + esc(H.by === 'owner' ? "the site's owner" : H.by) : ''}${H.at ? ' · ' + ago(H.at) : ''}</span>` : `<span class="ok">all ${H.n} recommended</span>`;
+  $('#htList').innerHTML = H.changed.map(c => `<div>${esc(c.k)} <b>${esc(String(c.v))}</b> <span class="muted">(recommended ${esc(String(c.d))}) · ${esc(c.h)}: ${esc(c.l)}</span></div>`).join('');
+  $('#htHv').textContent = `hint rules ${H.hv}`;
 }
 function renderRounds() {
   const R = S.rounds;

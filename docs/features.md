@@ -249,6 +249,9 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
 - **Thresholds** were tuned on archives of all rounds (1,619 rounds in v182, 2,779 in v213). Places where the game itself
   does what a hint looks for (teleports on Dragon Valley and Gulf of Oman, fast stretches, BTR-90 roads on Kubra Dam,
   spawn points missing from the layouts) are left out.
+- (v227) **They are settable**: our tuned values are the *recommended* ones; the site can have its own set (used by the
+  background analysis — a new set sends every round through it again) and each admin his own over it, for the rounds he
+  opens — or a hint turned off. Both are kept on the server (`data/.admin`), never in the public page.
 - **Field of view** for hints is the same 95° / scope model as above; Wide view looks at 50–70° off — a player with a
   21:9 (111°) or 32:9 screen honestly gets it, and the hint says so.
 - **Prone**: when a soldier lies down the demo seems to record where his body points, not where he looks — aim hints for

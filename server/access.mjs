@@ -28,7 +28,7 @@ export const GUEST_EXTRA = [['share', 'Link previews', 'the cards Discord, Teleg
 export const CARDS = [
   ['rounds', 'Rounds'], ['decode', 'Being decoded'], ['disk', 'Disk, last download'], ['demos', 'Demos: what to keep'],
   ['services', 'Services'], ['analysis', 'Background analysis'], ['sources', 'Where demos come from'],
-  ['posts', 'Posts about new rounds (his servers)'], ['log', 'Log'],
+  ['posts', 'Posts about new rounds (his servers)'], ['log', 'Log'], ['hints', "Hint thresholds: the site's"],   // (v227)
 ];
 const SITE_KEYS = SITE.map(([k]) => k), GUEST_KEYS = [...SITE_KEYS, 'share'], CARD_KEYS = CARDS.map(([k]) => k);
 const all = keys => Object.fromEntries(keys.map(k => [k, true]));

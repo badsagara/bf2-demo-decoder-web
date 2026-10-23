@@ -939,6 +939,30 @@ ones, `summing up N rounds again (summary version 15 ...)`; 39 s for 25 rounds).
 taken by kit and slot (a sniper with his rifle — the scope, a pistol — 0.8, the rest — 0.65), because only the page knows
 the weapon in his hands.
 
+### The hints' thresholds: the site's and each admin's own (v227)
+
+Every threshold of the hints (148 of 50 hints: times, angles, distances, counts, odds) can be set from the site's page:
+the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
+admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
+
+- **Recommended** — ours, in the page; nothing to do: until someone changes them the site works exactly as v226.
+- **The site's** — `data/.admin/hint-thresholds.json` (only what differs from the recommended, and the hints turned
+  off; no file — all recommended). Set by the owner or an account with the right *Hint thresholds: the site's* (card
+  Users and access; it needs the Admin tab too). The background analysis, the players' hint cards, the suspicion score
+  and the alerts use it. The hint rules become `HINTS_V.<code>` (`7.2ea50c81`) while the site's set differs from the
+  recommended, so saving it sends **every round** through the background analysis again (as an update that changes the
+  hint rules: hours to a day; **All rounds now** on the Background analysis card makes it faster). The Log card says
+  who changed it: `hint thresholds (the site's) by owner: 3 changed, off: clay (were 0) - hint rules 7.2ea50c81`.
+- **Each admin's own** — `data/.admin/hint-mine.json` (one entry per account; removed with the account): over the
+  site's, only in the rounds he opens, only while he has "Use mine" on; the server's analysis never uses it.
+
+Both files are in the weekly copy (`backup.sh`). A new version of the site that renames or drops a threshold simply
+leaves it out of the set (the page and the server agree on what is left). To go back to ours at once:
+
+```bash
+sudo rm /srv/bf2replay/data/.admin/hint-thresholds.json   # the site's: all recommended (the analysis goes over the rounds again)
+```
+
 ## 21. Old demos: what to keep so that there is room (v186)
 
 A round on the site lives in its decoded file (`data/rounds/*.bfr`, 5-7 MB): the map, the statistics, the hints, the
@@ -1083,7 +1107,8 @@ what he may open. Everything is on the admin page, card **Users and access** (th
   ticked: open, as before. Some unticked: those need a login. None: every page goes to the login page `/login`.
 - **Accounts** — a name and a password, and in its row: the parts of the site (on top of the guests'), the **Admin tab**
   (hints and review of the rounds of **his servers**), and **cards of the admin page** he may see and use (Posts: his
-  servers only; Users and access and Settings stay the owner's). A new account may watch everything but the demos.
+  servers only; v227: *Hint thresholds: the site's* — may change the thresholds the whole site uses; Users and access
+  and Settings stay the owner's). A new account may watch everything but the demos.
 - **One login** for the site, the Admin tab and the admin page: `/login`, the site's **Log in** button (it shows the name
   once logged in), the Admin tab, the admin page (a Name field: empty for the owner). 12 hours (2 without a visit), or
   with **Keep me logged in** 30 days (14 without a visit); the admin powers in any login last 12 hours (2 without a step),

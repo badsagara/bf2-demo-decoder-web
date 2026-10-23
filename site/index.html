@@ -1072,7 +1072,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v226';
+const APP_VERSION = 'v227';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -8869,13 +8869,14 @@ function admDlgDraw() {
   box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">${on ? 'Logged in' : 'Log in'}</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
     + (on ? `<p>Logged in as <b>${esc(own ? "the site's owner" : acc.user)}</b>${own ? '' : `${acc.admin ? ` <span class="w">· Admin tab: ${esc((acc.servers || []).join(', ') || 'no servers')}</span>` : ''}<br><span class="w">may open: ${esc(may.join(', ') || 'nothing more than guests')}</span>`}.</p>
       ${again ? `<p class="w">An admin's powers (the Admin tab${acc.pageCards ? ', the admin page' : ''}) last 12 hours from the login (2 without a step): the password again for them.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg', own ? '' : acc.user)}` : ''}
-      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
+      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${acc.admin && !again && ADM.htOpen ? '<button class="btn" type="button" id="admDlgHt">Hint thresholds</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
       : `<p class="w">With the name and password you were given. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}`);
   $('#admDlgX').onclick = () => $('#admDlg').close();
   const f = $('#admDlgForm');
   if (f) admLoginBind(f, () => { $('#admDlg').close(); toast(`Logged in as ${acc?.owner ? "the site's owner" : acc?.user || ''}`); });
   if ($('#admDlgTab')) $('#admDlgTab').onclick = () => { $('#admDlg').close(); if (ppage.nick || ppage.map) closePlayerPage(); paneSet('admin', true); $('#pnAdmin')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   if ($('#admDlgOut')) $('#admDlgOut').onclick = admLogout;
+  if ($('#admDlgHt')) $('#admDlgHt').onclick = () => { $('#admDlg').close(); ADM.htOpen(); };   // (v227)
 }
 function admDlgOpen() {
   const d = $('#admDlg'); if (!d) return;

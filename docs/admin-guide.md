@@ -111,6 +111,14 @@ Playwright is missing, whether everything is done).
 
 The page part of the analysis needs Playwright, installed by one `analyze.sh start` ([install.md §11](install.md#11-background-analysis-hints-for-admins)).
 
+### Hint thresholds
+
+(v227) Whether the site uses our recommended thresholds for the hints or its own: "all 148 recommended", or how many are
+changed and which hints are off, by whom and when, each changed one with its recommended value beside it, and the hint
+rules now (`7` while all are recommended, `7.<code>` with the site's own). **Open the editor** opens it in the site's
+page (see [Part 3](#thresholds-the-sites-and-your-own)). The owner's card, or an account's with the right *Hint
+thresholds: the site's* (and the Admin tab).
+
 ### Where demos come from
 
 The demo pages and game servers new demos are downloaded from: those from `BF2R_FETCH_URLS` (changed in
@@ -271,8 +279,9 @@ that:
 - **His servers** — the game servers of the Admin tab, and of the Posts card below.
 - **This page** — cards of the admin page he may see and use: Rounds, Being decoded, Disk, Demos: what to keep, Services,
   Background analysis, Where demos come from, **Posts about new rounds** (his servers only — not the Telegram bot, the
-  default minimum of players, templates or "Use on all servers", which stay the owner's), Log. *Users and access* and
-  *Settings* are always the owner's.
+  default minimum of players, templates or "Use on all servers", which stay the owner's), Log, **Hint thresholds: the
+  site's** (v227: may change the thresholds the whole site uses; with the Admin tab). *Users and access* and *Settings*
+  are always the owner's.
 - **Save his rights**; **Set** a new password (logs him out everywhere); **Remove** (logs him out).
 
 The row shows when he last logged in and whether he is logged in now. Accounts made before v224 (server admins) keep what
@@ -432,6 +441,32 @@ The kinds fall into groups (55 in all):
 | Server rules (minor) | Team kills, Claymore at a flag, Claymore kills, Side switch, TK + revive |
 
 Each is described, with its conditions and examples, in [admin-hints.md](admin-hints.md).
+
+### Thresholds: the site's and your own
+
+(v227) A hint fires past its thresholds: a time, an angle, a distance, a count in a round, odds. Ours are **recommended** —
+set on thousands of real rounds so that honest play stays under them — and they are what the site uses until it is told
+otherwise. The editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in
+dialog (once logged in), the admin page's card, or `/#thresholds`. Its table has, for each hint (and *Every hint* for
+what they share), each threshold with what it means, its name, the recommended value and two columns:
+
+- **The site's** — what the background analysis, the players' hint cards, the suspicion score and the alerts use. Only
+  the owner and the accounts with the right change it. **Save the site's** asks first: every round is then gone over
+  again in the background (it can take hours or a day — the Background analysis card shows how far; until then the
+  players' cards count only the rounds already done). **The site's: all recommended**, then Save, goes back to ours.
+- **Mine** — every admin's own, over the site's, for the rounds **he** opens (the Admin tab, the For admins list, the
+  marks on the map). It changes nothing for anyone else and nothing in the background analysis. **Use mine in the rounds
+  I open** turns it on and off without losing it; **Save mine**; **Clear mine**.
+
+An empty box means "as the column to its left" (yours: the site's; the site's: the recommended). Each hint's row has an
+**on** tick in both columns: untick it to turn that hint off — for the site, or only for you (or tick it to have for
+yourself a hint the site turned off). **Find** filters by a hint's or threshold's name; **advanced** adds the game's own
+figures (weapon fire rates, reach, speeds) and measured shares that are better left alone; **only the changed** shows
+what differs from the recommended. A value outside its bounds is refused with the bounds; odds are written as a share:
+0.001 = 1 in 1,000, 1e-6 = 1 in a million.
+
+Tips: change one threshold at a time and watch what it does on a few rounds with *Mine* before changing the site's; a
+looser threshold gives more hints and more false ones.
 
 ### A suggested routine
 

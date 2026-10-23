@@ -5,6 +5,30 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v227
+
+**The hints' thresholds: the site's own, and each admin's own** (Sagara: every admin can set what he needs himself,
+with our recommended thresholds kept):
+
+- **New: the thresholds editor**, in the site's page — the **Thresholds** button in a round's Admin tab, **Hint
+  thresholds** in the Log in dialog, or `/#thresholds`. Every threshold of the hints — 148 of 50 hints: times, angles,
+  distances, counts in a round, odds — with what it means, its name and our **recommended** value, and an on/off tick for
+  each of the 56 hints. Find, *advanced* (the game's own figures and measured shares), *only the changed*.
+- **The site's set** (the owner, or an account with the new right *Hint thresholds: the site's*): what the background
+  analysis, the players' hint cards, the suspicion score and the alerts use. Saving it sends every round through the
+  background analysis again (the hint rules become `7.<code>` while the set differs from the recommended). Kept in
+  `data/.admin/hint-thresholds.json` — only what differs; *all recommended* removes the file.
+- **Each admin's own set**, over the site's, for the rounds he opens (the Admin tab, For admins, the marks on the map),
+  with *Use mine* to switch it on and off; it never touches the background analysis or anyone else. Kept in
+  `data/.admin/hint-mine.json`; removed with the account.
+- **New card on the admin page, Hint thresholds**: recommended or how many changed, which hints are off, by whom and
+  when, each changed value against the recommended, the hint rules now, and a button to the editor.
+- Both files are in the weekly copy (`backup.sh`). The server and the page clean a set the same way (a threshold a new
+  version renames or drops is left out), so they always agree on the hint rules.
+
+With the recommended thresholds nothing changes: the hint rules stay 7, no round is analysed again
+([server/INSTALL.md §20](server/INSTALL.md#the-hints-thresholds-the-sites-and-each-admins-own-v227)).
+
 ## v226
 
 **Rounds that can't be decoded again, and keeping the demos they need** (a site's report: 289 rounds stayed on an older
