@@ -140,6 +140,9 @@ let hvIdx = null;
 const hvLoad = () => { if (!hvIdx) { try { hvIdx = JSON.parse(fs.readFileSync(HVI, 'utf8')); } catch (e) { hvIdx = {}; } } return hvIdx; };
 const hvSave = () => { if (hvIdx) { try { fs.writeFileSync(HVI + '.tmp', JSON.stringify(hvIdx)); fs.renameSync(HVI + '.tmp', HVI); } catch (e) {} } };
 const hvOf = f => { const I = hvLoad(); if (I[f] !== undefined) return I[f]; let v = 0; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).hv || 0; } catch (e) {} return (I[f] = v); };
+// (v225) the decoder of the round's .bfr a file was worked out from ('' not known): a round decoded again since by a new
+// decoder (v225: where a soldier looks - the head's way, not the body's) is looked at again, as for new hint rules
+const decOf = f => { const I = hvLoad(), k = '@' + f; if (I[k] !== undefined) return I[k]; let v = ''; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).round?.decoder || ''; } catch (e) {} return (I[k] = v); };
 const NOT_SUS = new Set(['tk', 'claycap', 'clay', 'idle', 'spotspam', 'outside', 'teamsw', 'tkrev', 'prone', 'bhop', 'afkbot']);   // (v214: + the new rule ones)
 // (v214, todo 265: a suspicion score on the player card) log10 of P(X >= k), X ~ Binomial(n, p), summed in logs
 function tail10(k, n, p) {
@@ -172,7 +175,7 @@ function aggHints() {
         // claymores at a flag, idle, spot spam, out of bounds, unsure artillery) - its demo is kept for them (demos.mjs)
         const sus = [...new Set((d.H || []).filter(h => h && !h.info && !NOT_SUS.has(h.kind) && !(h.kind === 'arty' && !h.sure)).map(h => h.kind))];
         c = cache[f] = { cv: 2, mt: st.mtimeMs, hv: d.hv || 0, name: d.round?.name || d.name, date: d.meta?.date || '', pl, sus, h: [...hc].map(([k, n]) => { const [j, kind] = k.split('|'); return [+j, kind, n]; }) };
-        hvLoad()[f] = d.hv || 0;
+        hvLoad()[f] = d.hv || 0; hvLoad()['@' + f] = d.round?.decoder || '';
       } catch (e) { continue; }
     }
     out[f] = c;
@@ -281,7 +284,11 @@ if (AUTO) {   // (v185) not done yet first, then done by older hint rules; the c
   let fl = {}; try { fl = JSON.parse(fs.readFileSync(path.join(OUT, 'failed.json'), 'utf8')); } catch (e) {}
   const HV = pageHv(), none = [], old = [];
   let skipF = 0;
-  for (const r of todo) { if (copies[r.name]) continue; if (fl[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (hvOf(f) < HV) old.push(r); }
+  for (const r of todo) { if (copies[r.name]) continue; if (fl[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (hvOf(f) < HV || (r.decoder && decOf(f) && decOf(f) !== r.decoder)) old.push(r); }
+  // (v225) while ingest.mjs decodes the rounds again for a new decoder (data/reprocess.json), the rounds it has done come
+  // first: one not done yet would be looked at now and again once it is
+  { let P = null; try { P = JSON.parse(fs.readFileSync(path.join(DATA, 'reprocess.json'), 'utf8')); } catch (e) {}
+    if (P && P.hash && !P.end) { const L = r => r.decoder === P.hash ? 0 : 1; for (const A of [none, old]) A.sort((a, b) => L(a) - L(b)); } }
   hvSave(); todo = none.concat(old);
   if (!todo.length) {
     const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); }   // (all done: the boost is over)
@@ -363,7 +370,7 @@ async function worker(w) {
       if (!d || d.error) throw new Error(d ? d.error : 'no numbers');
       d.round = { name: r.name, decoder: r.decoder || null, bytes: r.bytes || null, sum: r.sum ? { ...r.sum, P: undefined, top: undefined } : null }; d.pageErrors = page._errs; d.wallMs = Date.now() - t0;
       fs.writeFileSync(fileOf(r.name) + '.part', zlib.gzipSync(JSON.stringify(d), { level: 9 })); fs.renameSync(fileOf(r.name) + '.part', fileOf(r.name));
-      hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0;
+      hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0; hvLoad()['@' + path.basename(fileOf(r.name))] = r.decoder || '';
       await alertRound(d);   // (v214: its hints to the server's admin channel, when it has one and the round is new)
       delete failed[r.name]; page._n++; done++; kills += d.K.length; hints += d.H.length;
       runInfo.done = done; try { fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); } catch (e) {}   // (v193: how far, for the admin page)

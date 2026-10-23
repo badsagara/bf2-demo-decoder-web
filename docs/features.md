@@ -20,6 +20,13 @@ A `.bf2demo` is the game server's Battle Recorder file: the network stream it se
 
 - every soldier's position, where he looks (yaw and pitch), stance and movement **10 times a second** (one step = 0.1 s);
   health, sprint stamina, the kit, the weapon in his hands, the vehicle and seat;
+- where a soldier looks is **the way his body faces plus how far his head is turned from it** — the demo has both.
+  Standing, the mouse turns only the head, up to 40° either way; past that, or walking, the body follows at 120°/s and
+  the head turns back as much. (Before v225 the site took the body's way for the view: up to 40° off while a soldier
+  stood or lay and looked round — the aim at a kill was 3.3° off in the middle, now 0.6–0.9°);
+- **bodies**: a soldier who dies falls as a ragdoll — the demo has his hips and shoulders 30 times a second while he
+  falls (3–5 s), then where he lies. The body stays until the game uses that soldier again for a spawn — the game keeps
+  a fixed set of soldiers, so a body can lie for a few seconds or for minutes (the Bodies layer);
 - the fire buttons going **down and up** (not each shot), with the rounds in the magazine at each press, and presses
   shorter than a game tick;
 - vehicles: position, turning, hit points; projectiles in flight (rockets, missiles, grenades, shells) and who fired
@@ -48,6 +55,11 @@ A `.bf2demo` is the game server's Battle Recorder file: the network stream it se
   page), so a demo opened in your browser and a round on the site read the same.
 - A decoded round is a `.bfr` file (about 6× smaller than the demo) named after the decoder's hash. When the decoder
   changes, every round that still has its demo is decoded again by itself (the site works meanwhile).
+- **Movement between the records.** The demo has a moving soldier or vehicle about 30 times a second. Each 0.1 s step
+  of the round holds where it was at that very moment, as the game itself shows it: between the two records either
+  side, when they are less than 0.5 s apart, else the last one (the game's own rule; before v225 always the last record —
+  up to 1/30 s old: a jet 4–6 m behind one time in ten, a jeep up to 0.8 m). Between the steps the page draws it in a
+  straight line.
 - Each round's **summary** (players, kills with their positions and weapons, highlights, the extra statistics) is
   worked out from the `.bfr`. When that code changes (`SUM_V`), every round is summed up again from its `.bfr` without
   decoding — minutes for thousands of rounds — and Records, players' pages and the statistics are rewritten.

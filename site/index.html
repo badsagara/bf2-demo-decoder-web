@@ -982,6 +982,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn on" id="tOrders" title="Each squad's current order (attack, defend, move) where its leader put it, with the game's icon and the squad's name; an order shows for 3 minutes or until the next one">Squad orders</button>
       <button class="btn" id="tSpawnG" title="Where each flag's soldiers spawn (the middle of its spawn points, as the demo has it), in the colour of the side that can spawn there - a dashed ring round a dot; grey while nobody can">Spawn points</button>
       <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
+      <button class="btn on" id="tBodies" title="The bodies of those who died, as the game's ragdoll had them: how each fell, and where it lies, head this way - until the game uses his soldier again for a spawn (often minutes later) or a medic revives him">Bodies</button>
       <button class="btn on" id="tView" title="What the soldier you follow sees (95° across - a 16:9 screen, narrower through his sights or scope - out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
       <button class="btn" id="tAimLn" aria-pressed="false" title="The soldier you follow: a line from him (or his vehicle's guns) to where his crosshair meets something - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit. Also in his card (Aim line) and the X key">Aim line</button>
       <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
@@ -1071,7 +1072,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v224';
+const APP_VERSION = 'v225';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1446,7 +1447,7 @@ function normalize(d) {
   const downOf = new Map(); for (const e of events) if (e.type === 'kill' && e.down) { if (!downOf.has(e.victim)) downOf.set(e.victim, []); downOf.get(e.victim).push([e.t, e.down, e]); }
   const wreckOf = new Map(); for (const e of events) if (e.type === 'wreck') { if (!wreckOf.has(e.vehicle)) wreckOf.set(e.vehicle, []); wreckOf.get(e.vehicle).push([e.t, e.until ?? duration, e.gone ?? (e.until ?? duration)]); }
   return { raw:d, meta:d.meta||{}, teams:d.teams||[{id:0,name:'Team 1'},{id:1,name:'Team 2'}], players:d.players, flags:d.flags||[], emplacements: (d.emplacements||[]).slice().sort((a,b)=>a.t-b.t),
-           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, DR: C.DR || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf, breaks: d.breaks || [] };
+           times, PR: C.PR || null, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, PT: C.PT || null, SP: C.SP || null, VV: C.VV || null, GA: C.GA || null, GB: C.GB || null, DR: C.DR || null, FO, FC, TK, events, duration, pidx, wreckOf, downOf, breaks: d.breaks || [], bodies: d.bodies || [] };
 }
 // frames rows of a timeline file -> columns: per value one typed array, frame after frame, an entry per player (as in
 // d.players); a player without a row in a frame keeps his values from the frame before. VT = index into VTN (vehicle names).
@@ -1537,12 +1538,12 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['veh', 'Vehicles', 'The names of empty vehicles (Vodnik 3, T-90); of all of them when the crew\'s names are off'], ['down', 'Wounded', 'The name by a wounded soldier waiting for a medic'],
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
-const opts = { feed:true, kills:true, spots:true, medic:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, aimLn:false, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+const opts = { feed:true, kills:true, spots:true, medic:true, bodies:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, aimLn:false, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.vehicles') === 'icons') opts.models = false; } catch (e) {}
-try { if (localStorage.getItem('bf2rr.legend') === '0') opts.legend = false; } catch (e) {}
+try { if (localStorage.getItem('bf2rr.legend') === '0') opts.legend = false; if (localStorage.getItem('bf2rr.bodies') === '0') opts.bodies = false; } catch (e) {}
 // (v155, Sagara: "вимкнемо заливку висот, додамо можливість вимикати в фільтрах") the relief's parts: the shading (on) and
 // the ground higher than the followed soldier's eyes (turquoise fill and hatching: off unless turned on)
 try { if (localStorage.getItem('bf2rr.relShade') === '0') opts.relShade = false; if (localStorage.getItem('bf2rr.relAbove') === '1') opts.relAbove = true; } catch (e) {}
@@ -1845,6 +1846,50 @@ function hpBlink() {
 function spotCorners(x, y, h, g = cx) {
   const L = 2 * h / 3; g.beginPath();
   for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const X = x + sx * h, Y = y + sy * h; g.moveTo(X, Y - sy * L); g.lineTo(X, Y); g.lineTo(X - sx * L, Y); }
+}
+// (v225) a body at time tt: where its hips are, the way to its head (0 = north, clockwise) and how long the torso looks
+// from above (0.5 m lying flat) - along its fall, then where it came to rest; null when there is none then
+function bodyAt(b, tt) {
+  if (tt < b.a || tt >= b.b) return null;
+  const P = b.path; let k = 0; while (k + 1 < P.length && P[k + 1][0] <= tt) k++;
+  const p = P[k], q = P[k + 1];
+  if (!q || tt <= p[0]) return { x: p[1], y: p[2], yaw: p[3], len: p[4] };
+  const u = (tt - p[0]) / (q[0] - p[0]); let d = q[3] - p[3]; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+  return { x: p[1] + (q[1] - p[1]) * u, y: p[2] + (q[2] - p[2]) * u, yaw: p[3] + d * u, len: p[4] + (q[4] - p[4]) * u };
+}
+// a body lying on the map: a figure from above, head this way, in his side's colour gone dull - torso, head, legs and arms
+// as thick round strokes on a dark edge (the torso shorter when the body sits up against something: its length seen from
+// above). L: its length on the screen, head to feet (1.75 m to scale, never under 13 px nor over 80)
+function drawBody(px, py, yaw, len, col, a = 1, Lfix = 0) {
+  const L = Lfix || Math.max(13, Math.min(80, 1.75 / view.span * size)), f = Math.max(0.35, Math.min(1, len / 0.48));
+  const ux = Math.sin(yaw), uy = -Math.cos(yaw), vx = -uy, vy = ux;
+  const P = (along, side) => [px + ux * along * L + vx * side * L, py + uy * along * L + vy * side * L];
+  const T = 0.3 * f, S = [
+    [P(0, 0), P(T, 0), Math.max(3.4, L * 0.2)],                                  // torso
+    [P(-0.02, -0.05), P(-0.46, -0.09), Math.max(1.8, L * 0.085)], [P(-0.02, 0.05), P(-0.46, 0.09), Math.max(1.8, L * 0.085)],   // legs
+    [P(T - 0.02, -0.09), P(T - 0.2, -0.2), Math.max(1.5, L * 0.065)], [P(T - 0.02, 0.09), P(T - 0.2, 0.2), Math.max(1.5, L * 0.065)],   // arms
+  ];
+  const H = P(T + 0.12, 0), hr = Math.max(2.2, L * 0.085);
+  cx.save(); cx.globalAlpha *= a; cx.lineCap = 'round';
+  for (const pass of [0, 1]) {
+    cx.strokeStyle = pass ? col : 'rgba(10,12,10,.8)';
+    for (const [p0, p1, w] of S) { cx.lineWidth = w + (pass ? 0 : 2.2); cx.beginPath(); cx.moveTo(p0[0], p0[1]); cx.lineTo(p1[0], p1[1]); cx.stroke(); }
+    cx.fillStyle = pass ? col : 'rgba(10,12,10,.8)'; cx.beginPath(); cx.arc(H[0], H[1], hr + (pass ? 0 : 1.1), 0, Math.PI * 2); cx.fill();
+  }
+  cx.restore();
+}
+// (his side's colour, darker and mixed half-way with a grey: a body reads as not one of the living markers)
+const deadCol = c => { const h = String(c).trim().replace('#', ''); if (!/^[0-9a-f]{6}$/i.test(h)) return c; const v = parseInt(h, 16), m = (k, g) => Math.round(((v >> k) & 255) * 0.5 + g * 0.5); return `rgb(${m(16, 112)},${m(8, 116)},${m(0, 110)})`; };
+function drawBodies(tt) {
+  for (const b of round.bodies) {
+    if (b.a > tt) break; if (tt >= b.b) continue;
+    const i = round.pidx.get(b.p); if (i === undefined) continue;
+    if (POV && !POV.known.has(i) && !povKnewAt(i, b.a)) continue;   // (his view: only those he knew of)
+    const q = bodyAt(b, tt); if (!q) continue;
+    const [px, py] = toC(q.x, q.y); if (px < -40 || py < -40 || px > size + 40 || py > sizeH + 40) continue;
+    // (fading in over its first half second, as it goes from the soldier's marker to the ground)
+    drawBody(px, py, q.yaw, q.len, deadCol(teamColor(teamOf(i, b.a))), Math.min(1, (tt - b.a) / 0.5) * 0.9);
+  }
 }
 function drawZoomDot(px, py, yaw) {
   const x = px + Math.sin(yaw) * 22, y = py - Math.cos(yaw) * 22;
@@ -4611,6 +4656,8 @@ function draw() {
     cx.globalAlpha = 1; cx.shadowBlur = 0; cx.shadowColor = 'transparent';
   }
 
+  // (v225) the bodies, under everything that moves
+  if (opts.bodies && round.bodies.length) drawBodies(t);
   // death markers & kill lines
   for (const e of round.events) {
     if (e.t > t) break; if (e.type!=='kill') continue;
@@ -8419,8 +8466,8 @@ $('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 
 $('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tStatic:'statics', tBlast:'blasts', tFire:'fire', tSpawnG:'spawns', tOrders:'orders', tView:'view', tWalls:'walls', tLift:'lift', tRelief:'relief', tFront:'front', tAhead:'ahead', tLegend:'legend' };
-Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } if (k === 'legend') { try { localStorage.setItem('bf2rr.legend', opts.legend ? '1' : '0'); } catch (e) {} } if (k === 'ahead') { if (aheadOnly.size) opts.ahead = true; aheadAll(opts.ahead); return; } refresh(true); });
+const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tBodies:'bodies', tStatic:'statics', tBlast:'blasts', tFire:'fire', tSpawnG:'spawns', tOrders:'orders', tView:'view', tWalls:'walls', tLift:'lift', tRelief:'relief', tFront:'front', tAhead:'ahead', tLegend:'legend' };
+Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } if (k === 'legend' || k === 'bodies') { try { localStorage.setItem('bf2rr.' + k, opts[k] ? '1' : '0'); } catch (e) {} } if (k === 'ahead') { if (aheadOnly.size) opts.ahead = true; aheadAll(opts.ahead); return; } refresh(true); });
 $('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front);
 $('#tAimLn').onclick = () => aimLnSet(!opts.aimLn);   // (v201)
 // (v155) the relief's parts: turning one on turns the relief on too
@@ -8429,7 +8476,7 @@ for (const [id, k, key] of [['tRelShade', 'relShade', 'bf2rr.relShade'], ['tRelA
   opts[k] = !opts[k]; try { localStorage.setItem(key, opts[k] ? '1' : '0'); } catch (e) {}
   if (opts[k] && !opts.relief) $('#tRelief').click(); else { relSub(); refresh(true); }
 };
-relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend);
+relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend); $('#tBodies').classList.toggle('on', opts.bodies);
 // (v181) the sounds in his view: remembered
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
@@ -8491,6 +8538,7 @@ const LEGEND = [
   ['medic', () => 'Down', 'Wounded: a medic can still revive him until the ring in his side\'s colour runs out', () => {
     cx.scale(0.85, 0.85); cx.strokeStyle = teamColor(0); cx.lineWidth = 2; cx.globalAlpha = 0.3; cx.beginPath(); cx.arc(0, 0, 13, 0, Math.PI * 2); cx.stroke();
     cx.globalAlpha = 1; cx.lineWidth = 3; cx.beginPath(); cx.arc(0, 0, 13, -Math.PI / 2, Math.PI); cx.stroke(); downMark(0, 0, 8.5); }],
+  ['bodies', () => 'Body', 'Where one who died lies, head this way, until the game uses his soldier again for a spawn or a medic revives him (Bodies)', () => drawBody(-2, 5, Math.PI / 4, 0.48, deadCol(teamColor(0)), 1, 24)],
   [null, () => 'Killed', 'Where one died (for 10 s)', () => {
     cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(-4.5, -4.5); cx.lineTo(4.5, 4.5); cx.moveTo(4.5, -4.5); cx.lineTo(-4.5, 4.5);
     cx.strokeStyle = 'rgba(235,235,225,.75)'; cx.lineWidth = 4; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.95)'; cx.lineWidth = 2; cx.stroke(); cx.lineCap = 'butt'; }],
@@ -9141,6 +9189,13 @@ function recEnd(B, d) {
 // round, in pairs - the lowest bit 0, then 1 0.1-5 s later; the next 7 bits always the same; not a shot, smoke, a weapon
 // switch or a seat change: not known). Flags 10, 15 and 18 come only in a creation record (not read). After the own data:
 // the rotating parts (rotBlock) and, on jeeps, other parts - all zero bits at rest (jeep and tank 29, APC 54), not read.
+// (v225, the game's SimpleObjectNetworkable / SpringNetworkable / EngineNetworkable - simpleRec reads the own data exactly
+// since v170) the old names: "flag 3's mode" is 0x8's vector and 0x400's 2 bits; flag 7 (0x80) the physics asleep (1: it
+// came to rest); flag 16 (0x10000) the vehicle's ammo, 5 bits - PlayerControlObject::calcAmmoStatus: the magazines left of
+// its weapons not full, 0-15, 15 full (the pairs: a shell fired, then the gun loaded again); 0x40000 1 bit, ducking. The
+// tail is its parts' own records one after another in the order of the vehicle's parts: a rotating part (turret, gun,
+// cupola: 7 flags), each wheel's spring (1 flag - 0 at rest; moving, 2 vectors and the wheel's spin) and the engine
+// (11 flags: throttle, revs, gear ...) - nothing the map shows.
 // vehOwn: { f, p (the bit after the own data), h (the hit points' bit, or -1) }, or null when it can't be walked
 function vehOwn(B, d) {
   const P = d + 19, f = B.u(P, 19); if (f & ~(1 | 2 | 8 | 16 | 128 | 65536)) return null;
@@ -9744,14 +9799,17 @@ function scanRecords(B, t, st) {
 // north, each a sign bit and 11 bits of cm/s (on the ground "up" rests at -0.48 m/s); then 12 bits for each of header
 // bits 20-23: 20 the view direction (low 11 bits, 0 = north, clockwise; read as 16 bits from 5 bits earlier), 21 and 22
 // something that moves with turning (2048 = still; not used), 23 the view pitch (2048 = level, 0 = straight up, 4095 =
-// straight down). Without bit 26, or with bit 24 / 25 (stance, health) set, the layout differs and is not read
-function solObs(B, s, t, st, P = s - 23) {
-  // (P: where the record's flags start; the bit-pattern search only reads records with no data before x)
+// straight down). (v225: 20 is the way his body faces, 21 how far his head is turned from it - the view is the two
+// added up - and 22 the turn the body still has to make; solExact) Without bit 26, or with bit 24 / 25 (stance, health) set, the layout differs and is not read
+function solObs(B, s, t, st, P = s - 23, sx = null) {
+  // (P: where the record's flags start; the bit-pattern search only reads records with no data before x. sx: the record
+  // read exactly, solExact - its view, v225: the body's way plus the head's turn)
   const p = xyzAt(B, s); if (!p) return; const n = B.n, [x, y, z] = p;
   const f7 = B.bit(P + 7), f1 = B.bit(P + 1), q = s + 98 + (f7 ? 36 : 0), pq = q + 12 * (f1 + B.bit(P + 2) + B.bit(P + 3));
   const vc = o => (B.bit(s + o) ? -1 : 1) * B.u(s + o + 1, 11) / 100, vel = f7 && s + 134 <= n ? [vc(98), vc(110), vc(122)] : null;
   const pt = B.bit(P + 4) && pq + 12 <= n ? (2048 - B.u(pq, 12)) / 2048 * Math.PI / 2 : null;
-  st.obs.push([t, 'S', 2 * B.u(P - 30, 16), x, y, z, f1 && q + 11 <= n ? B.u(q - 5, 16) / 65536 * 2 * Math.PI : null, pt, vel]);
+  const yw = sx ? sx.eye ?? null : f1 && q + 11 <= n ? B.u(q - 5, 16) / 65536 * 2 * Math.PI : null;
+  st.obs.push([t, 'S', 2 * B.u(P - 30, 16), x, y, z, yw, pt, vel]);
 }
 // A soldier's record read by its flags (exact framing; 99.9% of them add up to their length in tests 9, 11, 13): 21 flags
 // and 2 bits (the stance), then the data of the flags set, in this order: 6 9 bits (health: 6 of them); 5 6 bits;
@@ -9780,14 +9838,27 @@ function solExact(B, p, L) {
   const sk = k => { if (q + k > e) throw 0; q += k; };
   const vec = () => { const m = rd(2); sk(m === 0 ? 96 : 3 * SV1[m]); };
   const vec2 = () => { const m = rd(3); if (m !== 7) sk(m === 0 ? 96 : 3 * SV2[m]); };
+  const fl = () => { if (q + 32 > e) throw 0; const v = B.f(q); q += 32; return v; };
+  const sg = k => { const s = rd(1), m = rd(k); return s ? -m : m; };
   try {
     const mask = rd(21); let h8;
     if (mask & 0x40) { h8 = rd(8); sk(1); }   // (v170) the health, 8 bits (255 full; the decoder read the top 6 before)
     if (mask & 0x20) sk(6);
-    if (mask & 0x8000) { sk(9); sk(96); vec2(); vec2(); vec2(); return q === e ? { sky: 0, swim: 0, ladder: 0, zoom: 0, rag: 1, h8 } : null; }
+    // (v225, the game's RagDoll::writeCurrentState) the ragdoll: 9 bits (the length of what follows), then its four
+    // network-driven points - the hips (bones 1 and 6) and the shoulders (15 and 31): the first as 3 floats, the others
+    // relative to it (a compressed vector, 1 cm steps; 7 = the same point, 0 = 3 floats of its own)
+    if (mask & 0x8000) {
+      const L9 = rd(9), q0 = q, p0 = [fl(), fl(), fl()], pts = [p0];
+      for (let k = 0; k < 3; k++) { const m = rd(3); if (m === 7) pts.push(p0.slice()); else if (m === 0) pts.push([fl(), fl(), fl()]); else { const b = SV2[m] - 1, d = [sg(b), sg(b), sg(b)]; pts.push([p0[0] + d[0] * 0.01, p0[1] + d[1] * 0.01, p0[2] + d[2] * 0.01]); } }
+      return q === e && q - q0 === L9 ? { sky: 0, swim: 0, ladder: 0, zoom: 0, rag: 1, h8, pts } : null;
+    }
     if (mask & 0x1) vec();
     if (mask & 0x80) vec();
-    for (const b of [2, 4, 8, 0x10]) if (mask & b) sk(12);
+    // (v225, the game's SoldierNetworkable) the four look angles, 12 bits each: 0x2 the way his body faces (-360..360
+    // degrees), 0x4 how far his head and gun are turned from it (-90..90: the view is the body plus this), 0x8 the turn
+    // the body still has to make to catch up (-180..180), 0x10 the view up and down (-90..90)
+    const ang = (b, r) => mask & b ? (rd(12) / 4095 * 2 - 1) * r : undefined;
+    const face = ang(2, 360), look = ang(4, 90), pend = ang(8, 180), updn = ang(0x10, 90);
     const zoom = rd(3); sk(2); const sky = rd(1), swim = rd(1); sk(1);   // (v146) zoom: 1 looking through the sights / scope
     if (mask & 0x400) sk(10); if (mask & 0x800) sk(10);
     sk(1);
@@ -9796,8 +9867,10 @@ function solExact(B, p, L) {
     if (mask & 0x2000) sk(2);
     let ladder = null; if (mask & 0x10000) { ladder = rd(9); if (ladder) sk(12); }
     if (mask & 0x100000) { if (rd(16)) sk(12); }
-    if (mask & 0x80000) sk(5);
-    return q === e ? { sky, swim, ladder, zoom, rag: 0, h8, stam } : null;
+    // (v225) 0x80000 his ammo (Soldier::calcAmmoStatus: the magazines left of the weapons not full, on average, 0-15;
+    // 15 = full - the game's "needs ammo" is 14 or less)
+    let ammo; if (mask & 0x80000) ammo = rd(5);
+    return q === e ? { sky, swim, ladder, zoom, rag: 0, h8, stam, face, look, pend, updn, ammo } : null;
   } catch (x) { return null; }
 }
 // a soldier's state when it changes: [t, id, 1 free fall | 2 swimming | 4 on a ladder | 16 aiming down the sights] (0 when
@@ -9813,6 +9886,22 @@ function solState(B, rc, t, st) {
   // (v170) the sprint's stamina (0x4000, 5 bits: 31 full; sprinting takes ~4 a second, it comes back ~1.5 a second -
   // =FL= 20:37): kept when it moves by 5 or more, empties or fills
   if (f.stam !== undefined) { const v = f.stam, q = o.st; if (q === undefined || Math.abs(v - q) >= 5 || ((v === 0 || v === 31) && v !== q)) { st.stam.push([+t.toFixed(1), rc.id, v]); o.st = v; } }
+  if (!f.rag) {
+    // (v225) where he looks: the way his body faces and how far his head and gun are turned from it, each sent when it
+    // changes. Standing, the mouse turns only the head up to 40 degrees either way (soldier-lookMaxAngle); past that, or
+    // walking, the body follows at 4 degrees a tick and the head turns back as much - the view stays put. The decoder
+    // took the body's way for the view before: up to 40 degrees off while he stood and looked round (=FL= 20:37: half of
+    // all records with the head turned, 5 degrees or more in two of three)
+    if (f.face !== undefined) o.face = f.face;
+    if (f.look !== undefined) o.look = f.look;
+    if ((f.face !== undefined || f.look !== undefined) && o.face !== undefined) { let a = (o.face + (o.look || 0)) % 360; if (a < 0) a += 360; f.eye = a * Math.PI / 180; }
+  } else {
+    // (v225) the body: its hips' middle, the way from them to the shoulders (0 = north, clockwise) and how long that is
+    // seen from above (0.5 m lying flat, less sitting up against something)
+    const [a, b, c, d] = f.pts, h = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2], dx = (c[0] + d[0]) / 2 - h[0], dz = (c[2] + d[2]) / 2 - h[2];
+    f.body = [h[0], h[1], h[2], Math.atan2(dx, dz), Math.hypot(dx, dz)];
+    st.rag.push([+t.toFixed(3), rc.id, ...f.body.map(v => +v.toFixed(2))]);
+  }
   return f;
 }
 // (v140) a parachute's flight: its own object (template 4471) carries the soldier hanging under it, whose own records
@@ -9834,7 +9923,12 @@ function solRecord(B, rc, t, st, sx) {
   if (sx) { if (sx.rag) st.hp.push([t, rc.id, -1]); else if (sx.h8 !== undefined) st.hp.push([t, rc.id, +(sx.h8 * 100 / 255).toFixed(1)]); }
   else if (f & 0x8000) st.hp.push([t, rc.id, -1]);
   else if ((f & 0x40) && !(f & ~(0xff | 0x4000)) && x0 <= n) st.hp.push([t, rc.id, B.u(P + 23, 6) * 100 / 63]);
-  if (B.bit(P)) { if (x0 + 98 <= n) solObs(B, x0, t, st, P); return; }
+  if (B.bit(P)) { if (x0 + 98 <= n) solObs(B, x0, t, st, P, sx); return; }
+  if (sx) {   // (v225) read exactly: the view without a position, or the body of one who fell
+    if (sx.rag) st.obs.push([t, 'B', rc.id, sx.body[0], sx.body[1], sx.body[2]]);
+    else if (sx.eye !== undefined) st.rotOut.push([t, rc.id, sx.eye, sx.updn !== undefined ? -sx.updn * Math.PI / 180 : null]);
+    return;
+  }
   if (B.bit(P + 1) && !(f & ~0xfe)) {   // the view without a position (flags 1-7 only)
     const q = x0 + (B.bit(P + 7) ? 36 : 0), pq = q + 12 * (1 + B.bit(P + 2) + B.bit(P + 3));
     if (q + 11 <= n) st.rotOut.push([t, rc.id, B.u(q - 5, 16) / 65536 * 2 * Math.PI, B.bit(P + 4) && pq + 12 <= n ? (2048 - B.u(pq, 12)) / 2048 * Math.PI / 2 : null]);
@@ -10014,7 +10108,7 @@ async function decodeDemo(data, progress) {
   const xlive = new Map(), xev = []; let nX = 0, nXbad = 0, nXv = 0, nXs = 0;
   let dblk = null, sRot = null;   // (v174) the data block being read, the rotation's entry of this map from one
   const rootOf = id => { for (let r = id; r >= 0 && id - r < 64; r--) if (xlive.has(r)) return r; return null; };
-  const st = { obs, rotOut: rot, hp, vhp, stance, item, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false, pgs: [], uavIds: new Set(), uav: [], sgIds: new Set(), sgu: [], sst: [], sstLast: new Map(), chIds: new Set(), chObs: [], stam: [], crateIds: new Set(), crate: [], camIds: new Map(), cam: [], camLast: new Map() };
+  const st = { obs, rotOut: rot, hp, vhp, stance, item, sids, vehTpl, live, cps, cpEv, tkEv, tur, cup, emp, empBase, statIds, rot: false, cp: false, pgs: [], uavIds: new Set(), uav: [], sgIds: new Set(), sgu: [], sst: [], sstLast: new Map(), chIds: new Set(), chObs: [], stam: [], rag: [], crateIds: new Set(), crate: [], camIds: new Map(), cam: [], camLast: new Map() };
   let lastYield = performance.now();
   for (let i = 0; i < R.recs.length; i++) {
     const [tick, p] = R.recs[i];
@@ -10146,7 +10240,7 @@ async function decodeDemo(data, progress) {
   // (v174) no rotation in the opening: the one sent during the round, else the game mode alone (the map block)
   if (!info.mode && sRot?.found) { info.mode = sRot.mode; info.size = sRot.size; }
   if (!info.mode && PA.mapMode) info.mode = PA.mapMode;
-  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, settings, players, joins, obs, evs, rot, hp, vhp, stance, item, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, objs: [...objs.entries()].filter(([id, o]) => o.hits.length && o.L >= 100 && o.L <= 120 && o.hits.length <= 300 && !sids.has(id) && !vehTpl.has(id) && !statIds.has(id) && !cps.has(id)).map(([, o]) => o), packets: { exact: nBlk, searched: nOld, events: nX, eventsLost: nXbad, vehiclesAdded: nXv, emplacementsAdded: nXs }, tplOf: id => vehTpl.get(id), pgs: st.pgs, sst: st.sst, chObs: st.chObs, stam: st.stam, crate: st.crate, cam: st.cam, camTeam: [...st.camIds], xev, uav: st.uav, sgu: st.sgu,
+  return await buildTimeline({ server, date, map: mapName, mode: info.mode, size: info.size, settings, players, joins, obs, evs, rot, hp, vhp, stance, item, duration, cps: cpList, cpEv, tkEv, stat, flights, tur, cup, emp, empBase, objs: [...objs.entries()].filter(([id, o]) => o.hits.length && o.L >= 100 && o.L <= 120 && o.hits.length <= 300 && !sids.has(id) && !vehTpl.has(id) && !statIds.has(id) && !cps.has(id)).map(([, o]) => o), packets: { exact: nBlk, searched: nOld, events: nX, eventsLost: nXbad, vehiclesAdded: nXv, emplacementsAdded: nXs }, tplOf: id => vehTpl.get(id), pgs: st.pgs, sst: st.sst, chObs: st.chObs, stam: st.stam, rag: st.rag, crate: st.crate, cam: st.cam, camTeam: [...st.camIds], xev, uav: st.uav, sgu: st.sgu,
     progress: progress ? f => progress(0.6 + 0.4 * f, 'build') : null });
 }
 // the k-th smallest of f(each item) (k from 0), as Float64Array.from(L, f).sort()[k] gives it (NaN after every number)
@@ -10942,8 +11036,46 @@ async function buildTimeline(r) {
     }
   }
   await step(0.45);
+  // (v225) the bodies (the ragdoll's records, solState): where each one who died fell and then lies - [t, x, z, the way
+  // from his hips to his shoulders (0 = north, clockwise), how long that is seen from above (0.5 m flat)] every 0.1 s
+  // while it falls (3-5 s), the last where it came to rest. It lies until his soldier is used again for a spawn (the game
+  // keeps a fixed set of soldiers: =FL= 20:37, a body lay from 6 s to over 5 min), until he is revived, or to the round's
+  // end; a position of that soldier away from the body ends it too (whatever moved it)
+  const bodies = [];
+  {
+    const M = new Map(), r2 = x => Math.round(x * 100) / 100, r3 = x => Math.round(x * 1000) / 1000; for (const q of r.rag || []) push(M, q[1], q);
+    const sAt = new Map(); for (const o of r.obs) if (o[1] === 'S' && M.has(o[2])) push(sAt, o[2], o);
+    for (const [id, L] of M) {
+      L.sort((a, b) => a[0] - b[0]);
+      for (let i = 0; i < L.length; ) {
+        let j = i; while (j + 1 < L.length && L[j + 1][0] - L[j][0] < 2) j++;
+        const a = L[i][0], e = L[j][0], pl = who(id, a + 0.05), q = L[j];
+        if (pl !== null && P.has(pl)) {
+          // (a point every 0.1 s at most, and only once it moved 10 cm, turned 0.1 rad or rose or sank 5 cm since the last)
+          const path = []; let lw = null;
+          for (let k = i; k <= j; k++) {
+            const w = L[k]; let dy = lw ? Math.abs(w[5] - lw[5]) : 9; if (dy > Math.PI) dy = 2 * Math.PI - dy;
+            if (!lw || k === j || (w[0] - lw[0] >= 0.1 && (Math.hypot(w[2] - lw[2], w[4] - lw[4]) >= 0.1 || dy >= 0.1 || Math.abs(w[6] - lw[6]) >= 0.05))) { path.push([r2(w[0]), r2(w[2]), r2(w[4]), r3(w[5]), r2(w[6])]); lw = w; }
+          }
+          let end = r.duration;
+          const sp = spawns.find(x => x.id === id && x.t > e); if (sp) end = Math.min(end, sp.t);
+          const ns = spawns.find(x => x.player === pl && x.t > a), rv = revives.find(x => x.pl === pl && x.t > a && (!ns || x.t < ns.t)); if (rv) end = Math.min(end, rv.t);
+          const mv = (sAt.get(id) || []).find(o => o[0] > e + 0.2 && Math.hypot(o[3] - q[2], o[5] - q[4]) > 3); if (mv) end = Math.min(end, mv[0]);
+          if (end > a) bodies.push({ p: 'p' + pl, a: r2(a), b: r2(end), path });
+        }
+        i = j + 1;
+      }
+    }
+    bodies.sort((x, y) => x.a - y.a);
+  }
   const fps = 10, n = Math.floor(r.duration * fps) + 1;
   const vlast = new Map(), vyaw = new Map();   // each vehicle's last record and heading at the current frame
+  // (v225) a frame holds where everything is at its own time exactly, as the game shows it (SoldierNetworkable and
+  // SimpleObjectNetworkable::predict): between the two records either side of that time when they are less than 0.5 s
+  // apart, else the last record (before v225 always the last record: up to 1/30 s old - a jet 4-6 m behind, one time in
+  // ten; a jeep 0.8 m)
+  const lerpA = (a, b, u) => { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return a + d * u; };
+  const between = (o, nx, t, vmax) => nx && nx[0] > o[0] && nx[0] - o[0] < 0.5 && t > o[0] && Math.hypot(nx[1] - o[1], nx[3] - o[3]) < 3 + vmax * (nx[0] - o[0]) ? (t - o[0]) / (nx[0] - o[0]) : 0;
   // vehicle heading when the records carry no rotation at all (see vehicleYaw) comes from the way it moves: every
   // 1.5 m it covers is a step, and each step is driven either forwards or in reverse. The choice for the whole track is
   // the one that keeps the hull turning smoothly (it can't spin round in an instant) with as little reversing as
@@ -11045,7 +11177,8 @@ async function buildTimeline(r) {
   const vIdx = new Map(vids.map((v, j) => [v, j]));
   const PS = plist.map(pl => ({ pl, id: 'p' + pl, tr: track.get(pl) || [], i: 0, last: null, yaw: undefined, yawAt: undefined, rt: rtrack.get(pl) || null, ri: 0,
     R: ride.get(pl) || null, life: life.get(pl) || [], li: 0, al: false, start: -1, hl: hpTr.get(pl) || [], hi: 0, pt: null, ptAt: -99, vel: null,
-    E: eride.filter(o => o.pl === pl).sort((a, b) => a.t0 - b.t0), bt: (btrack.get(pl) || []).sort((a, b) => a[0] - b[0]), bi: 0, body: null, died: -1 }));
+    E: eride.filter(o => o.pl === pl).sort((a, b) => a.t0 - b.t0), bt: (btrack.get(pl) || []).sort((a, b) => a[0] - b[0]), bi: 0, body: null, died: -1,
+    ys: [...(track.get(pl) || []).filter(o => o[4] != null).map(o => [o[0], o[4]]), ...(rtrack.get(pl) || []).map(o => [o[0], o[1]])].sort((a, b) => a[0] - b[0]), yi: 0 }));
   const withHp = hasHp || hasVhp, withDown = withHp || downWin.size > 0;
   // The frames go straight into columns (one typed array per value, frame after frame, an entry per vehicle and then per
   // soldier, in the order of the players list below), the form the viewer plays from; a round logger file's frames rows
@@ -11076,7 +11209,10 @@ async function buildTimeline(r) {
       { const H = V.H; let k = V.k; while (k < H.length && H[k][0] <= t) { vyaw.set(v, H[k][1]); k++; } V.k = k; }
       V.i = i; const o = vlast.get(v);
       if (o) {
-        const e = b + j; cX[e] = r2(o[1]); cY[e] = r2(o[3]); cA[e] = r3(vyaw.get(v) || 0) || 0; cL[e] = 1; cHH[e] = r2(o[2]); cVT[e] = 0;
+        const nx = tr[i], u = between(o, nx, t, 150), H = V.H, h0 = V.k ? H[V.k - 1] : null, h1 = H[V.k];
+        V.x = u ? o[1] + (nx[1] - o[1]) * u : o[1]; V.y = u ? o[2] + (nx[2] - o[2]) * u : o[2]; V.z = u ? o[3] + (nx[3] - o[3]) * u : o[3];
+        V.hy = h0 && h1 && h1[0] - h0[0] < 0.5 ? lerpA(h0[1], h1[1], (t - h0[0]) / (h1[0] - h0[0])) : vyaw.get(v) || 0;
+        const e = b + j; cX[e] = r2(V.x); cY[e] = r2(V.z); cA[e] = r3(V.hy) || 0; cL[e] = 1; cHH[e] = r2(V.y); cVT[e] = 0;
         if (V.gun) {   // the main gun: GA its yaw, PT (unused for a vehicle otherwise) its elevation
           const re = lastRe(v, t), [gy, ge] = gunWorld(vyaw.get(v) || 0, V.fy, V.ry, A12(valNow(V.ty, t, re)), -A12(valNow(V.tp, t, re)));
           cGA[e] = mradOf(gy); cPT[e] = Math.round(ge * 1000);
@@ -11105,6 +11241,8 @@ async function buildTimeline(r) {
       const rt = S.rt; if (rt) { let k = S.ri; while (k < rt.length && rt[k][0] <= t) { if (rt[k][0] >= (S.yawAt ?? -99)) { S.yaw = rt[k][1]; S.yawAt = rt[k][0]; } if (rt[k][2] != null && rt[k][0] >= S.ptAt) { S.pt = rt[k][2]; S.ptAt = rt[k][0]; } k++; } S.ri = k; }
       const o = S.last; if (!o) continue;
       let x = o[1], y = o[2], z = o[3], yw = S.yaw || 0, veh = '';
+      { const u = between(o, tr[i], t, 60); if (u) { const nx = tr[i]; x += (nx[1] - x) * u; y += (nx[2] - y) * u; z += (nx[3] - z) * u; } }
+      { const Y = S.ys; let k = S.yi; while (k < Y.length && Y[k][0] <= t) k++; S.yi = k; const ny = Y[k]; if (ny && S.yaw !== undefined && S.yawAt !== undefined && t > S.yawAt && ny[0] - S.yawAt < 0.5) yw = lerpA(S.yaw, ny[1], (t - S.yawAt) / (ny[0] - S.yawAt)); }
       const R = S.R; let rd = null, lo = null;
       if (R) {
         // (the rides in order of their start, none ending before it starts: from the first one that can count, up to the
@@ -11115,7 +11253,7 @@ async function buildTimeline(r) {
           for (; k < R.length; k++) { const q = R[k]; if (q[0] > t) break; if (t < q[2]) rd = q; else if (q[2] <= t) lo = q; }
         } else for (const q of R) { if (q[0] < o[0] - 0.5) continue; if (q[0] <= t && t < q[2]) rd = q; else if (q[2] <= t) lo = q; }
       }
-      if (rd && vlast.has(rd[1])) { const v = rd[1], vo = vlast.get(v); x = vo[1]; y = vo[2]; z = vo[3]; yw = vyaw.get(v) || 0; veh = vname.get(v); }
+      if (rd && vlast.has(rd[1])) { const v = rd[1], V = VS[vIdx.get(v)]; if (V && V.x !== undefined) { x = V.x; y = V.y; z = V.z; yw = V.hy; } else { const vo = vlast.get(v); x = vo[1]; y = vo[2]; z = vo[3]; yw = vyaw.get(v) || 0; } veh = vname.get(v); }
       else {
         // just got out, his own records not started yet: he stands where the vehicle was when he left it (not where he
         // last walked before getting in, which made him jump back there for a frame or more)
@@ -11493,7 +11631,7 @@ async function buildTimeline(r) {
     for (const tm of [0, 1]) sides[tm] = [...c[tm]].sort((a, b) => b[1] - a[1])[0]?.[0] || null; }
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', ...(r.settings ? { settings: r.settings } : {}), scoreEstimate: !ents.some(e => e.sb), ...(r.packets?.events ? { exactEvents: true } : {}), manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: sides[0] || (mi ? mi.teams[0] : 'Team 1'), tickets: tkStart[0] ?? 0 }, { id: 1, name: sides[1] || (mi ? mi.teams[1] : 'Team 2'), tickets: tkStart[1] ?? 0 }],
-    players: ents, flags, frames: [], cols, events, emplacements, ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(crates.length ? { crates } : {}), ...(cams.length ? { cams: cams.map(({ id, ...c }) => c) } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
+    players: ents, flags, frames: [], cols, events, emplacements, ...(bodies.length ? { bodies } : {}), ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(crates.length ? { crates } : {}), ...(cams.length ? { cams: cams.map(({ id, ...c }) => c) } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
     // the map's destroyable objects that were hit: where (x east, y north, h), template, [time, hit points (-1 back after a
     // respawn, -2 gone), flag]
     breaks: (r.objs || []).map(o => ({ x: +o.x.toFixed(2), y: +o.z.toFixed(2), h: +o.y.toFixed(2), tpl: o.tpl, hits: o.hits })),

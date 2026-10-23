@@ -300,7 +300,7 @@ it, publishes `site/` and updates the services. Don't want to wait: `sudo system
 A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v224   # the version in the archive's name
+V=v225   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push
@@ -312,7 +312,7 @@ What happens after an update, by itself:
 |---|---|---|
 | the decoder (its hash) | every round that still has its demo is decoded again (5–15 s a round, several at once); the site works meanwhile; "Updating rounds 25% · ~40 min" in the site's header | admin page *Being decoded*, `sudo bf2replay-status` |
 | the round summaries (`SUM_V`) | every round is summed up again from its `.bfr` (no decoding; ~0.2–0.5 s a round), then the statistics, Records and pages are rewritten | `journalctl -u bf2replay-ingest \| grep -i summ` |
-| the hint rules (`HINTS_V`) | the background analysis goes over every round again (hours to a day or two) | admin page *Background analysis* |
+| the hint rules (`HINTS_V`) | the background analysis goes over every round again (hours to a day or two); since v225 also each round once it has been decoded again by a new decoder | admin page *Background analysis* |
 
 Open pages notice a new version (they check `version.json` every 2 min) and show **A new version is out · Reload**;
 Reload reopens the same moment of the same round.

@@ -109,6 +109,7 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
 | **Squad orders** | each squad's order (attack, defend, move) where its leader put it, for 3 minutes or until the next |
 | **Spawn points** | where each flag's soldiers spawn, in the colour of the side that can spawn there |
 | **Medic** | revives, heals, repairs, health bars, dropped ammo and medic bags, and calls for a medic, ammo, a repair or a revive |
+| **Bodies** | the bodies of those who died, as the game's ragdoll had them: how each fell and where it lies, head this way — until the game uses that soldier again for a spawn (often minutes later; the game keeps a fixed set of soldiers) or a medic revives him |
 | **View** | the field of view of the soldier you follow and who is in it |
 | **Aim line** | as above (`X`) |
 | **Buildings** (`B`) | houses, walls, fences, containers and rocks a soldier can't walk through, from the game's files; trees and bushes as green discs |

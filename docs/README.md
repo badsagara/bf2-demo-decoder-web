@@ -7,7 +7,7 @@ publishes rounds, player pages, maps, records and statistics. It can also post e
 it gives the servers' admins a private set of tools for checking suspicious play. The site can be open to everyone, or
 closed — whole or in parts — to visitors without an account.
 
-This folder documents version **v224**. [CHANGELOG.md](../CHANGELOG.md) has what every version changed, and
+This folder documents version **v225**. [CHANGELOG.md](../CHANGELOG.md) has what every version changed, and
 [server/INSTALL.md](../server/INSTALL.md) has the detailed notes on each part of the server.
 
 ## Which document to read

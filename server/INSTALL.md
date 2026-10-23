@@ -856,8 +856,9 @@ end of each of its runs it starts `analyze.mjs --auto` at low priority, one roun
    ```
 2. **40 rounds in the page** (as `analyze.sh start`, so Playwright is needed: if `start` has never run, this step is
    skipped with a line in the log). First those not yet in `analysis/rounds`, then those done by older hint rules
-   (`HINTS_V` in the page), newest first. A round that failed with this version of the page is not tried again until the
-   next site update.
+   (`HINTS_V` in the page) or from a `.bfr` that has since been decoded again by a new decoder (v225), newest first;
+   while the rounds are being decoded again (`data/reprocess.json`), those already done come first. A round that failed
+   with this version of the page is not tried again until the next site update.
 3. **The card "Hints over his rounds"** on the player's page: each hint, in how many of his rounds it was, against the
    share of all soldier-rounds, and the chance of it by luck (the least likely in red), with links to the rounds. The
    files `data/.admin/hints.json` and `data/.admin/hints/<nick>.json` (since v196 — for admins only). Only rounds done by

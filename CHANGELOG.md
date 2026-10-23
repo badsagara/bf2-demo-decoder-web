@@ -5,6 +5,30 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v225
+
+**Where a soldier looks, bodies, and movement as the game shows it** (from the game's own networking code, as rebuilt by
+the OpenBF2 project — read for its knowledge only, none of its code is in the site):
+
+- **The view is where the head looks.** The demo sends a soldier's view in two parts: the way his body faces and how far
+  his head is turned from it (up to 40° either way while he stands or lies; walking, or past that, the body follows).
+  The site took the body's way for the view; now it adds the two up. At a kill the killer's aim was 3.3° off the victim
+  in the middle, now 0.6–0.9° — the field of view on the map, *In view*, who saw whom first, the side view and every hint
+  that asks where he looked are that much nearer the truth. *Smooth aim* has a new threshold (0.5°, 4 kills).
+- **Bodies.** The demo has a dead soldier's ragdoll (his hips and shoulders) while he falls, then where he lies: the new
+  **Bodies** layer shows each body, head this way, until the game uses that soldier again for a spawn (the game keeps a
+  fixed set of soldiers: from seconds to minutes) or a medic revives him. A wounded man's mark now sits on his hips.
+- **Movement between the records.** Each 0.1 s step holds where a soldier or vehicle was at that very moment, between
+  the records either side when they are less than 0.5 s apart (the game's own rule) — not the last record, up to 1/30 s
+  old: a jet was up to 4–6 m behind, a jeep up to 0.8 m.
+- The decoder's notes name the rest of what the demo holds: the two unknown fields of a soldier (the head's turn and the
+  turn his body still has to make), a vehicle's "flag 16" (its ammo, 0–15) and flag 7 (at rest), a soldier's ammo, and
+  the "tail" of a vehicle's record (its turret, each wheel's spring and the engine: nothing the map shows).
+
+The decoder changed: the server decodes every round again by itself, and the background analysis goes over every round
+again (`HINTS_V` 7) — also each round decoded again by a new decoder, which it did not do before. The `.bfr` files are
+2–5% bigger.
+
 ## v224
 
 **Who may open the site.** On the admin page the card *Servers' admins* became **Users and access**: ticks for what

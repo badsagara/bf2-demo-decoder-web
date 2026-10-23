@@ -1,7 +1,7 @@
-// BF2 Round Replay v224 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v225 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v224';
-// ---- part 1 (page line 6519) ----
+const ADM_V = 'v225';
+// ---- part 1 (page line 6566) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
 // Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
@@ -81,7 +81,7 @@ function kitSpots(R) {
 // most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
 // ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
 // (v170: the commander's supply crates are counted too - crateVisits)
-// ---- part 2 (page line 6601) ----
+// ---- part 2 (page line 6648) ----
 function ammoBags(R, i, t0, t1) {
   let n = 0;
   for (const b of R.events) {
@@ -91,7 +91,7 @@ function ammoBags(R, i, t0, t1) {
   }
   return n;
 }
-// ---- part 3 (page line 6648) ----
+// ---- part 3 (page line 6695) ----
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
 // i spent within CRATE_R of one (the crate's radius 5 m, Weapons/Handheld/supply_crate: it refills ammo and heals,
@@ -809,7 +809,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 const CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 7371) ----
+// ---- part 4 (page line 7418) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -906,7 +906,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 const SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 7583) ----
+// ---- part 5 (page line 7630) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1066,7 +1066,10 @@ function objHints(R) {
 // - Smooth aim (an aimbot without a snap): kills 10 m or more away of a target moving across his view (4 deg/s or more
 //   over the last second): the middle angle between his view and the victim over that second. 146 such kills: middle
 //   8.3 deg, the lowest 0.5; per player the lowest middle 2.6 (3 kills). The hint: SMOOTH_N or more with the middle of
-//   them SMOOTH_ERR or less.
+//   them SMOOTH_ERR or less. (v225: the view is where his head looks now - the body's way plus the head's turn - not
+//   where his body faces: 9 rounds, 150 such kills, middle 2.3 deg (7.5 with the body's way); per player the lowest
+//   middles 0.67 (3 kills), 0.95 (3), 1.10 (5), 1.22 (4) - 1.2 and 3 would have had three honest players. Now 0.5 and 4:
+//   as far under the lowest as 1.2 was under 2.6)
 // - Target switch ("closest target" aimbots): two small-arms kills of two enemies SWITCH_DT s or less apart, SWITCH_A
 //   deg or more apart as he saw them. 9 rounds: the quickest such pair 1.5 s (115 deg).
 // - Pre-aim (ESP, radar): the victim came into his sight after 1 s or more hidden (engagement) and his view was already
@@ -1086,7 +1089,7 @@ const CHUTE_H = 15, CHUTE_UP = 1;
 const SPREAD_CLASS = { shotgun: [5380, 5382, 5398, 5439, 5483, 5487], pistol: [5372, 5374, 5417, 5419, 5462, 5464], smg: [5376, 5390, 5429, 5450, 5482], sniper: [5384, 5400, 5431, 5478, 5489, 5491] };
 const NOSPREAD_D = { shotgun: 40, pistol: 150, smg: 120, rifle: 250 }, BULLET_REACH = { 5370: 500, 5372: 300, 5374: 300, 5376: 500, 5378: 500, 5380: 150, 5382: 150, 5384: 1000, 5388: 1000, 5390: 1000, 5392: 500, 5394: 500, 5398: 150, 5400: 1000, 5402: 500, 5413: 500, 5415: 500, 5417: 300, 5419: 300, 5425: 500, 5427: 500, 5429: 500, 5431: 1000, 5433: 500, 5435: 500, 5437: 500, 5439: 1000, 5444: 1000, 5446: 1000, 5448: 500, 5450: 1000, 5458: 500, 5462: 300, 5464: 300, 5468: 1000, 5470: 500, 5472: 500, 5474: 500, 5476: 500, 5478: 1000, 5480: 500, 5482: 500, 5483: 150, 5485: 500, 5487: 150, 5489: 1000, 5491: 1000 };
 const PRE_SNIPER = 0.22;   // (v214) a sniper's kills: on him already at first sight, against the other snipers' share or at least this
-const TRIG_ON = 0.15, TRIG_PRESS = 0.12, TRIG_N = 6, TRIG_P = 0.001, SMOOTH_ERR = 1.2, SMOOTH_N = 3, SMOOTH_W = 4, SWITCH_DT = 0.8, SWITCH_A = 40, PRE_N = 5, PRE_P = 0.001, BLIND_N = 12, BLIND_SHARE = 0.75, UNDER_D = 1.5, UNDER_T = 2;
+const TRIG_ON = 0.15, TRIG_PRESS = 0.12, TRIG_N = 6, TRIG_P = 0.001, SMOOTH_ERR = 0.5, SMOOTH_N = 4, SMOOTH_W = 4, SWITCH_DT = 0.8, SWITCH_A = 40, PRE_N = 5, PRE_P = 0.001, BLIND_N = 12, BLIND_SHARE = 0.75, UNDER_D = 1.5, UNDER_T = 2;
 const wClass = wid => { for (const [k, L] of Object.entries(SPREAD_CLASS)) if (L.includes(wid)) return k; return 'rifle'; };
 function aimHints(R) {
   const out = [], pid = id => R.pidx.get(id), DEG = Math.PI / 180, D = losData(), med = a => { const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
@@ -1189,7 +1192,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 7868) ----
+// ---- part 6 (page line 7918) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1356,7 +1359,7 @@ const ANALYZE_V = 2;   // (v214: Q, U - the fire presses; K's hp)
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 6;   // (v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
+const HINTS_V = 7;   // (v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
 const ANALYZE_COLS = {
   K: ['t', 'killer', 'victim', 'wid', 'weapon', 'cause', 'hit', 'tk', 'kveh', 'vveh', 'd', 'dz', 'cls', 'kst', 'vst', 'kv', 'vv', 'ping',
     'err', 'brgRate', 'react', 'eng', 'losK', 'losX', 'press', 'fog', 'smoke', 'pitchErr', 'hp'],
@@ -1630,7 +1633,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlclip:not(.hlside)').forEach(b => b.onclick = () => clipAround(A[+b.dataset.i]));
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
 }
-// ---- part 7 (page line 10479) ----
+// ---- part 7 (page line 10530) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -2166,7 +2169,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 14449) ----
+// ---- part 8 (page line 14590) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2183,7 +2186,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HINTS_V ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 14484) ----
+// ---- part 9 (page line 14625) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';
