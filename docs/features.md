@@ -103,7 +103,9 @@ ambushes, Highlights, and many admin hints.
   vehicles' launchers blocks for as long as it lasts.
 - "**In view**" means inside the frame; whether walls were in between is checked separately (and only on the 22 maps).
 - **His view** keeps an enemy faded for a few seconds where he was last seen, and adds what his side spotted; **Crew's
-  view** does the same for everyone in a vehicle.
+  view** does the same for everyone in a vehicle. An enemy vehicle counts as seen when its hull is in sight (its middle,
+  roof, nose or tail; v228 — before, its own hull was mostly taken for a wall, so it was seen mainly through someone in it), and
+  every empty vehicle is shown: nobody is in it to know of (a burning wreck only where he could see it).
 - **Who saw whom first** (for kills on foot with small arms or an AT launcher): over the 6 s before the kill, every
   0.2 s — *first* (the killer saw him 0.3 s+ before he was seen), *even*, *second* (the victim saw him first and lost),
   *ambush* (the victim never had him in view), *blind* (no clear sight for the killer: through foliage or a gap the grid

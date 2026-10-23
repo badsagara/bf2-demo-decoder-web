@@ -306,6 +306,10 @@ input[type=file] { display: none; }
 .mapctl .vlock[aria-pressed="false"] .sh { transform: translate(2.6px, -1.2px) rotate(16deg); transform-origin: 10.7px 7.2px; }   /* (open) */
 .mapctl .vlock[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapctl .vlock.wait { border-style: dashed; }   /* (on, but nobody followed) */
+.mapctl .vpov { gap: 6px; }   /* (v228) His view on the map: filled while on - it changes what the whole map shows */
+.mapctl .vpov svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.mapctl .vpov[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
+.mapctl .vpov.wait { background: color-mix(in srgb, var(--bg) 82%, transparent); color: var(--accent); border-style: dashed; }   /* (on, but nobody followed) */
 .mapctl .vside { gap: 6px; }
 /* Controls left: the buttons, speed and zoom in a column down the map's left side; play and the round time stay at the
    bottom in one row - the bottom of the map stays free (not on a phone: there the bar is under the map anyway) */
@@ -888,7 +892,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><button class="btn vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
     </div>
     <div class="sideview svbox" id="sideView" aria-label="Side view of a kill" hidden>
@@ -1072,7 +1076,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v227';
+const APP_VERSION = 'v228';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -4258,13 +4262,15 @@ function spreadOut() {
 // ---------- (v177) one soldier's view (Sagara: "Режим одного гравця. Видно лише те, що бачить один гравець, +
 // підспотані гравці та техніка, + союзники (але без того, що вони бачать). Треба щоб подивитися, від чого саме
 // відштовхується гравець у грі") ----------
-// The card's "His view" button (V), for the soldier followed: the map shows only what he knew in the game -
+// The map's and the card's "His view" button (V; v228: on the map too), for the soldier followed: the map shows only what he knew in the game -
 //   himself; his side - its soldiers and the vehicles they ride (they are on his minimap), not where they look or what
 //   they see;
 //   the enemies he had in sight (inViewOf: in his field of view, out to the fog limit, with nothing in between - walls,
 //   hills, trees, smoke, vehicles): soldiers, and vehicles ridden by one of them or seen themselves; for POV_MEMORY s
 //   after he lost sight of one, where he last saw him (a faded marker in a dashed ring);
 //   those his side spotted (on his minimap until the spot runs out, SPOT_SHOW s), and the places his side spotted.
+//   (v228) every empty vehicle (nobody in it to know of; a wreck only where he could see it); a vehicle he sees is
+//   seen by its own hull (povSeesVeh), not only through someone in it.
 // Left out: the other side's spots, squad orders, UAV and commander's camera; the death, kill line and +1 of those he
 // didn't know; the other side's grenades, rockets, shells, charges and bags he couldn't see (an explosion: in his field
 // of view, or within POV_HEAR m); supply crates he couldn't see; the front line. The panels (kill feed, scoreboard,
@@ -4272,7 +4278,7 @@ function spreadOut() {
 // over to him; none followed: the whole map again. (v179) A vehicle followed: "Crew's view" - all its riders saw, each
 // from his seat's camera (as they change: who rides it at the moment); empty, only the vehicle itself. Not known here:
 // what the UAV shows his side (its range is not in the game files we have), what he heard.
-let pov = false, POV = null;
+let pov = false, POV = null, povKey = '';   // (povKey: the map's button as last drawn - povSync)
 const POV_MEMORY = 3, POV_STEP = 0.2, POV_HEAR = 40;
 const povOn = () => !!(pov && round && sel !== null && round.players[sel]);
 // (v179, Sagara: "додай можливість his view для техніки") whose eyes count: a soldier's own; a vehicle's - the soldiers
@@ -4297,9 +4303,28 @@ function povSeen(s, tt) {
     const dx = o.x - V.x, dy = o.y - V.y; if (Math.hypot(dx, dy) > R) return;
     const ve = V.eye ?? (V.h != null ? eyeOf(who, V, tt) : null), hk = ve != null && o.h != null;
     if (!inCam(camOf(V, who, tt), dx, dy, hk ? o.h - 1.0 - ve : null, hk ? o.h + 1.5 - ve : null, 2.5)) return;
-    if (canSee(who, j, tt, V) !== false) out.add(j);
+    if (povSeesVeh(who, j, tt, V) !== false) out.add(j);   // (v228: its hull, not hidden by itself)
   });
   return out;
+}
+// (v228) a vehicle itself in sight of soldier i (V: where he sees from): the middle of its hull, its roof, its nose and its
+// tail (VEH_BOX; a vehicle without a box: as a soldier, 0.6 and 1.4 m up) - the map's walls and hills (the exact shapes
+// where they are in), other vehicles, trees, smoke. Before, canSee took the vehicle's own hull for a wall in the way, so
+// a vehicle was "seen" only through someone in it, and an empty one never
+function povSeesVeh(i, j, tt, V) {
+  const q = V, o = playerAt(j, tt), p = round.players[j];
+  if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return false;
+  const D = losData(); if (!D || q.h == null || o.h == null) return null;
+  const eye = q.eye ?? eyeOf(i, q, tt); if (eye == null) return null;
+  const G = geoData(true), B = VEH_BOX[typeof p.tpl === 'string' ? p.tpl.toLowerCase() : TPL_NAME[p.tpl]], mid = B ? (B[4] + B[5]) / 2 : 0;
+  const pts = B ? [[0, mid], [0, B[5] - 0.15], [B[3] * 0.85, mid], [B[2] * 0.85, mid]] : [[0, 0.6], [0, 1.4]], sn = Math.sin(o.yaw), cs = Math.cos(o.yaw);
+  for (const [z, hh] of pts) {
+    const bx = o.x + z * sn, by = o.y + z * cs, bh = o.h + hh;
+    if (losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt))) continue;
+    if (vehBlocks(q.x, q.y, eye, bx, by, bh, tt, q.veh, p.name) || vegBlocks(q.x, q.y, eye, bx, by, bh)) continue;
+    return true;
+  }
+  return false;
 }
 // the same on a POV_STEP grid, kept (as the map's walls, trees and exact shapes come in, worked out again)
 function povSeenAt(s, tq) {
@@ -4316,7 +4341,7 @@ function povSpots(tm) {
   C.set(tm, M); return M;
 }
 const povSpotted = (i, tt, tm) => (povSpots(tm).get(i) || []).some(a => a <= tt && tt - a <= SPOT_SHOW);
-// what the followed soldier knows at tt: known (row -> 'self' | 'ally' | 'seen' | 'spot'), mem (row -> when he last saw
+// what the followed soldier knows at tt: known (row -> 'self' | 'ally' | 'seen' | 'spot' | 'empty'), mem (row -> when he last saw
 // one he no longer knows of)
 function povFrame(tt) {
   const s = sel, tm = povTeam(s, tt), known = new Map([[s, 'self']]), mem = new Map(), rid = povRiders(tt), vrow = new Map();
@@ -4325,6 +4350,9 @@ function povFrame(tt) {
   for (const [vn, L] of rid) { const j = vrow.get(vn); if (j !== undefined && !known.has(j) && L.some(i => known.has(i))) known.set(j, 'ally'); }   // (his side's vehicles, his own)
   for (const i of povSeen(s, tt)) if (!known.has(i)) known.set(i, 'seen');
   for (const [i] of povSpots(tm)) if (!known.has(i) && povSpotted(i, tt, tm)) known.set(i, 'spot');
+  // (v228, Sagara: "Коли вмикаєш режим виду з очей одного солдата, він не бачить пустої техніки") the empty vehicles: all
+  // of them - nobody in them to know of; a wreck only where he could see it (it tells of a kill he may not know of)
+  round.players.forEach((p, i) => { if (!p.vehicle || known.has(i) || rid.has(p.name)) return; const q = playerAt(i, tt); if (!q.alive || !Number.isFinite(q.x) || (round.wreckOf.get(p.id) || []).some(w => w[0] <= tt && tt < w[1])) return; known.set(i, 'empty'); });
   // a known vehicle's riders, a known rider's vehicle
   for (const [vn, L] of rid) { const j = vrow.get(vn); if (j === undefined) continue; if (known.has(j)) { for (const i of L) if (!known.has(i)) known.set(i, known.get(j)); } else { const k = L.find(i => known.has(i)); if (k !== undefined) known.set(j, known.get(k)); } }
   for (let g = Math.floor(tt / POV_STEP + 1e-6) * POV_STEP; g > tt - POV_MEMORY - 1e-6 && g >= 0; g -= POV_STEP)
@@ -4414,7 +4442,7 @@ function aimLnSet(on) {
   toast(opts.aimLn ? (sel !== null ? 'Aim line on (X)' : 'Aim line on (X): it shows for the soldier you follow - click one') : 'Aim line off (X)'); refresh(true);
 }
 function sndSet(on) { opts.sound = !!on; try { localStorage.setItem('bf2rr.sound', opts.sound ? '1' : '0'); } catch (e) {} const tb = $('#tSound'); if (tb) { tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); } refresh(true); }
-function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); refresh(true); }
+function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); povSync(); refresh(true); }
 // ---------- (v181) what he could hear (Sagara, todo 212: "Звуки в «His view» ... кнопку, щоб їх можна було вимикати ...
 // Постріли й вибухи з дальністю чутності з файлів гри показувати хвилями, а те, що поза екраном, — стрілкою на краю мапи.
 // Кроки ... поки без них") ----------
@@ -4547,7 +4575,7 @@ function drawLift(px, py, up, hg, col) {
 }
 function draw() {
   if (!round) return;
-  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) povTag();   // (v177: his view only)
+  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) { povTag(); povSync(); }   // (v177: his view only; v228: the map's button)
   if (cx === cvCtx) { lockView(); syncZoom(); }
   cx.setTransform(dpr,0,0,dpr,0,0);
   cx.clearRect(0,0,size,sizeH);
@@ -5740,6 +5768,21 @@ function setCamLock(on) {
 }
 for (const b of document.querySelectorAll('.vlock')) b.onclick = () => { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); };
 lockSync();
+// (v228, Sagara: "Зроби кнопку на мапі - вид з очей, для обраного солдата, вона непомітна в інших місцях") His view on the
+// map, next to Filters: on / off for the soldier or vehicle followed (V, the card's button); filled while on, dashed while
+// on with nobody followed (it starts with the next one clicked)
+function povSync() {
+  const veh = !!(sel !== null && round && round.players[sel]?.vehicle), k = pov + '|' + (sel !== null) + '|' + veh; if (k === povKey) return; povKey = k;
+  for (const b of document.querySelectorAll('.vpov')) {
+    b.setAttribute('aria-pressed', String(pov)); b.classList.toggle('wait', pov && sel === null);
+    b.querySelector('span').textContent = veh ? "Crew's view" : 'His view';
+    b.title = pov ? (sel === null ? 'His view is on: click a soldier or a vehicle and the map shows only what he knew in the game (V turns it off)' : `The map shows only what ${veh ? 'its crew' : 'he'} knew in the game: click for the whole map again (V)`)
+      : sel === null ? 'His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side\'s spots (V). Follow a soldier first: click one'
+      : `${veh ? "Crew's view: only what its crew" : 'His view: only what he'} knew in the game - ${veh ? 'their' : 'his'} side, the enemies ${veh ? 'they' : 'he'} had in sight, ${veh ? 'their' : 'his'} side's spots, the empty vehicles (V)`;
+  }
+}
+for (const b of document.querySelectorAll('.vpov')) b.onclick = () => povSet(!pov);
+povSync();
 // Controls left (v108): the map's buttons, the speed and the zoom moved into a column on the left of the map (and back);
 // remembered in this browser. Not on a phone (the bar sits under the map there).
 const PHONE = window.matchMedia('(max-width: 640px)');

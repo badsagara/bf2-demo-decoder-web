@@ -5,6 +5,24 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v228
+
+**His view: a button on the map, and the empty vehicles** (Sagara: the button was hard to find; in one soldier's view
+the empty vehicles were missing):
+
+- **New: the His view button on the map**, next to Filters (an eye): on and off for the soldier or vehicle you follow
+  (*Crew's view* for a vehicle), as `V` and the button in his card. Filled while on — it changes what the whole map
+  shows; pressed with nobody followed, it waits (dashed) for the next soldier you click.
+- **Empty vehicles in His view**: every vehicle nobody is in is shown — he could know of it and it hides nobody (a
+  burning wreck only where he could see it, as it tells of a kill). Before, only an empty vehicle he had in sight
+  showed, and seldom (below) — not even the BTR he stood by and repaired.
+- **A vehicle seen by its hull**: an enemy vehicle counts as seen when its hull is in his sight — its middle, roof, nose
+  or tail, with the map's walls, the exact shapes, other vehicles, trees and smoke in between. Before, the vehicle's own
+  hull was mostly taken for a wall in the way, so a vehicle was seen mainly through someone in it (on Strike at Karkand, of
+  empty vehicles in a soldier's field of view within 120 m: 15% seen before, 35% now — the rest behind houses and walls).
+
+Only the page's His view changes: the hints and the background analysis are as they were (the hint rules stay 7).
+
 ## v227
 
 **The hints' thresholds: the site's own, and each admin's own** (Sagara: every admin can set what he needs himself,

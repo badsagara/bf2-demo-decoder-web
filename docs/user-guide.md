@@ -51,7 +51,7 @@ were going (the same round and moment). On an open site the **Log in** button at
 - **The timeline** under the map: drag to any moment; its marks are kills in each side's colour, ▼ flags captured,
   ▽ neutralised. `←` / `→` jump 10 s back or on.
 - **The map**: scroll to zoom, drag to move. The zoom slider shows how many metres the map shows across.
-- **Buttons over the map**: **Full screen** (`F`), **Scoreboard** (hold `Tab`, or click to keep it open — the game's own
+- **Buttons over the map**: **His view** (`V`, v228: only what the soldier you follow knew — see below), **Full screen** (`F`), **Scoreboard** (hold `Tab`, or click to keep it open — the game's own
   scoreboard at this moment, both sides by squad), **Bigger map**, **Lock camera** (`K`, keeps the soldier you follow in
   the middle; dragging unlocks), **Fit action** (zoom to the part of the map the round was played on), **Whole map**, **Copy link** (a link to
   this round at this moment, following the soldier you follow), **Controls left** (these buttons in a column left of the
@@ -76,8 +76,11 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   ✕ deaths (faint: revived), click to go there; **Killed with**, **Killed most**, **Killed by**; **All his rounds ›**
   opens his page.
 - `N` / `P` — his next / previous moment (a kill, a death, a revive…).
-- **His view** (`V`) — only what he knew in the game: his side, the enemies he had in sight (faded for a few seconds
-  where he last saw one), his side's spots. For a vehicle, **Crew's view**: what its crew knew. The **Sounds** of shots and
+- **His view** (`V`; the **His view** button with an eye on the map, next to Filters, or the one in his card) — only what he knew
+  in the game: his side, the enemies he had in sight (faded for a few seconds where he last saw one), his side's spots,
+  and every empty vehicle (v228; a burning wreck only where he could see it). The map's button is filled while it is on;
+  pressed with nobody followed, it waits (dashed) for the next soldier you click. For a vehicle, **Crew's view**: what
+  its crew knew. The **Sounds** of shots and
   explosions he could hear show as rings (an arrow at the map's edge for those off it); the speaker in his tag turns
   them on or off.
 - **Aim line** (`X`) — a line from him (or his vehicle's guns) to where his crosshair meets something: a soldier, a
