@@ -963,9 +963,15 @@ Everything is on the admin page, card **Demos: what to keep**:
   come back), then the oldest (0 — no limit);
 - **Keep the demos of rounds with hints for admins** — the demos of rounds with "suspicious" hints don't go (by the
   background analysis, §20; while it runs, a round it hasn't seen yet waits for it);
+- **Whatever the days, keep a demo no page lists any more** (v226, on by default) — the days never remove a demo that
+  can't be downloaded again: its page no longer lists it (game servers list only their recent demos), or it was sent
+  rather than downloaded. Without it such a round could never be decoded again after a decoder change. Only the GB
+  limit (the oldest of them first) or a nearly full disk removes them — with no GB limit they stay until the disk is
+  nearly full;
 - **When the decoder changes, download a removed demo again…** — after a decoder update, `fetch.mjs` downloads again the
   rounds without a demo that the source page still has (so many at a time), `ingest.mjs` decodes them again, and the demo
-  goes again;
+  goes again. A round whose demo is gone and that no page lists any more can't be decoded again: it stays as it was and
+  opens as before; card **Rounds** counts these apart ("… by an older decoder that can't be decoded again");
 - **What would go?** — what would go with these settings, before saving (how many, how many GB, which exactly); **Save**;
   **Remove now** — apply it now (otherwise within ≤ 2 min, with the next run of `ingest.mjs`);
 - **Keep these demos** — rounds whose demo stays whatever the settings (a name, a link `…/r/<round>` or an id).

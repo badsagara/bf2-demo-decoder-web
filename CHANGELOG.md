@@ -5,6 +5,27 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v226
+
+**Rounds that can't be decoded again, and keeping the demos they need** (a site's report: 289 rounds stayed on an older
+decoder for a day after an update):
+
+- **Why they stayed:** their demo had been removed for its age (*Keep the demos of the last 30 days*) and their page no
+  longer lists it — a game server's page lists only its recent demos — so there is nothing to decode them again from.
+  They open as before, made by the older decoder.
+- **Card Rounds** now counts them apart: "… by an older decoder that can't be decoded again (demo gone, no page lists
+  it)"; the warning is left for rounds still to be decoded again (with how many are downloaded again from their page
+  first).
+- **New, card Demos: *Whatever the days, keep a demo no page lists any more*** (on by default): the days no longer
+  remove a demo that can't be downloaded again (its page no longer lists it, or it was sent rather than downloaded), so
+  its round can be decoded again after the next decoder change. Only *Demos may take at most N GB* (the oldest of them
+  first) or a nearly full disk removes such demos — with no GB limit they stay until the disk is nearly full, so set a
+  limit if the disk is small. *What would go?* and the plan show them as "no page lists (older than the days)".
+- The decoding log no longer says "289 rounds with no demo left: kept as they were" every minute: once, when the number
+  changes, with how many can be downloaded again and how many can't.
+
+Nothing is decoded again (the decoder is unchanged).
+
 ## v225
 
 **Where a soldier looks, bodies, and movement as the game shows it** (from the game's own networking code, as rebuilt by

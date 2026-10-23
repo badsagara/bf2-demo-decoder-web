@@ -300,7 +300,7 @@ it, publishes `site/` and updates the services. Don't want to wait: `sudo system
 A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v225   # the version in the archive's name
+V=v226   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push
@@ -395,7 +395,8 @@ A round lives in its decoded file; the demo is needed only to decode the round a
 clip for the game. So old demos can go while the rounds stay on the site. Set it on the admin page, card **Demos: what to
 keep** ([admin-guide.md](admin-guide.md#demos-what-to-keep)): keep the last N days, a GB limit, keep rounds with admin
 hints, a list of demos to keep always, and download a removed demo again when the decoder changes (if its page still has
-it). Compressing demos doesn't pay (xz −15–19 %, zstd −10–12 %).
+it). A demo no page lists any more doesn't go for its age (only the GB limit or a nearly full disk removes it): its round
+could not be decoded again without it. Compressing demos doesn't pay (xz −15–19 %, zstd −10–12 %).
 
 Safety nets: below `BF2R_MIN_FREE_GB` (3 GB) free, downloading stops; below 3 + 2 GB, `ingest.mjs` removes the least
 needed demos until 5 GB are free (`BF2R_RAW_AUTOCLEAN=0` turns that off). A demo on the Keep list, and a demo whose round

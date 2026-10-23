@@ -1145,8 +1145,14 @@ async function main() {
     if (args.has('--rebuild')) idx.rounds = idx.rounds.filter(r => all.includes(r.name) || fs.existsSync(path.join(DATA, r.bfr)));
     const gone = [], names = all.filter(name => { if (fs.existsSync(path.join(DIRS.demos, name))) return true; gone.push(name); return false; });
     // (v186: one line for them all - with demos removed there can be thousands; downloaded again by fetch.mjs while their
-    // page lists them: step 3)
-    if (gone.length) log(`${gone.length} round${gone.length === 1 ? '' : 's'} with no demo left: kept as ${gone.length === 1 ? 'it was' : 'they were'} (${gone.slice(0, 3).join(', ')}${gone.length > 3 ? ', …' : ''})`);
+    // page lists them: step 3. v226: said once, when their number changes - bf2replay-reprocess runs every minute, and
+    // the same 289 Lost-Soldiers rounds filled the log with it)
+    { const GF = path.join(DATA, '.reprocess-gone.json'); let was = null; try { was = JSON.parse(fs.readFileSync(GF, 'utf8')); } catch (e) {}
+      const S = sourceList(DATA), byName = new Map(idx.rounds.map(r => [r.name, r])), back = demoPolicy(DATA, opt).refetch ? gone.filter(n => { const r = byName.get(n); return r && r.decoder && r.sum && !r.sum.empty && S.has(n); }).length : 0;
+      if (gone.length && (was?.hash !== dec.hash || was?.n !== gone.length || was?.back !== back))
+        log(`${gone.length} round${gone.length === 1 ? '' : 's'} with no demo left: kept as ${gone.length === 1 ? 'it was' : 'they were'} - ${back} to download again from their page, ${gone.length - back} that cannot be decoded again (no page lists them any more, or empty) (${gone.slice(0, 3).join(', ')}${gone.length > 3 ? ', …' : ''})`);
+      if (was?.hash !== dec.hash || was?.n !== gone.length || was?.back !== back) writeJsonF(GF, { at: new Date().toISOString(), hash: dec.hash, n: gone.length, back });
+    }
     if (names.length) {
       // (newest rounds first: rounds.json lists them so; several at once in worker threads, decodeAll; progress kept in
       // rounds.json)

@@ -139,7 +139,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 <main>
   <section class="card" data-card="rounds" aria-labelledby="hR">
     <h2 id="hR">Rounds</h2>
-    <p class="help">How many rounds the site has and which decoder made them - one an older decoder made is decoded again by itself after an update. Under it: the rounds of each game server, and the newest. <b>Recalculate all records</b> sums every round up again from its decoded file (no decoding, about 0.5 s a round, the site stays up): for when the Records page or the players' numbers look wrong.</p>
+    <p class="help">How many rounds the site has and which decoder made them - one an older decoder made is decoded again by itself after an update: from its demo, or from its page downloaded again. One whose demo is gone and that no page lists any more can't be: it stays as it was and opens as before (shown apart). Under it: the rounds of each game server, and the newest. <b>Recalculate all records</b> sums every round up again from its decoded file (no decoding, about 0.5 s a round, the site stays up): for when the Records page or the players' numbers look wrong.</p>
     <div class="big" id="rTotal">–</div>
     <div class="row" id="rDec"></div>
     <div id="rServers" class="mono muted"></div>
@@ -173,6 +173,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
       <label><span>Keep the demos of the last</span><input id="dmDays" type="number" min="0" max="3650" step="1" aria-label="Days"><span>days</span><span class="w" id="dmDaysW">by when the round was played · 0: no demo goes for its age</span></label>
       <label><span>Demos may take at most</span><input id="dmGB" type="number" min="0" step="1" aria-label="GB"><span>GB</span><span class="w">over it the least needed go first: those their page still lists, then the oldest · 0: no limit</span></label>
       <label class="ck"><input id="dmHint" type="checkbox"><span>Keep the demos of rounds with hints for admins <span class="w" id="dmHintW"></span></span></label>
+      <label class="ck"><input id="dmUnl" type="checkbox"><span>Whatever the days, keep a demo no page lists any more (it can't be downloaded again, so without it its round could never be decoded again) <span class="w" id="dmUnlW"></span></span></label>
       <label class="ck"><input id="dmRef" type="checkbox"><span>When the decoder changes, download a removed demo again from its page (while the page lists it), decode it anew and remove it again</span></label>
       <label style="padding-left:24px"><span>at most</span><input id="dmRefN" type="number" min="1" max="500" step="1" aria-label="Demos downloaded again a run"><span>demos a run</span><span class="w">(each time new demos are looked for)</span></label>
       <div class="row"><button type="button" id="dmPrev">What would go?</button><button type="submit" class="primary">Save</button><button type="button" id="dmNow" title="Decode waiting demos and apply the saved settings now (it also runs by itself every 2 min)">Remove now</button><span class="muted">never removed: a demo on the keep list below, nor one of a round still to be decoded again</span></div>
@@ -337,7 +338,11 @@ function render() {
 function renderRounds() {
   const R = S.rounds;
   $('#rTotal').innerHTML = `${R.total} <small>rounds on the site</small>`;
-  $('#rDec').innerHTML = R.old ? `<span class="warn">${R.old} made by an older decoder</span><span class="muted">· ${R.current} by this one</span>` : `<span class="ok">all made by this decoder</span>`;
+  // (v226) the older decoder's rounds: being decoded again (demo here / downloaded again) apart from those that can't be
+  const st = R.stuck || 0, todo = R.old - st, stuckTxt = `<span class="muted" title="Their demo was removed and no page lists it any more (or an empty round): nothing to decode them again from. They open as before.">· ${st} by an older decoder that can't be decoded again (demo gone, no page lists it)</span>`;
+  $('#rDec').innerHTML = !R.old ? `<span class="ok">all made by this decoder</span>`
+    : !todo ? `<span class="ok">${R.current} by this decoder</span>${stuckTxt}`
+    : `<span class="warn">${todo} made by an older decoder: to decode again${R.oldBack ? ` (${R.oldBack} downloaded again from their page first)` : ''}</span><span class="muted">· ${R.current} by this one</span>${st ? stuckTxt : ''}`;
   const sv = Object.entries(R.servers).sort((a, b) => b[1] - a[1]);
   $('#rServers').innerHTML = sv.length > 1 || (sv[0] && sv[0][0] !== '?') ? sv.map(([s, n]) => `${esc(s)}: ${n}`).join('<br>') : '';
   // (v206) Recalculate all records: asked for / how far / the last time
@@ -564,7 +569,7 @@ function planHtml(p, what) {
   if (!p) return '';
   const W = { age: 'older than the days', limit: 'over the limit', disk: 'the disk nearly full' }, k = p.kept;
   const head = p.n ? `<div class="row"><b>${what}: ${p.n} demo${p.n === 1 ? '' : 's'} go (${mb(p.bytes)})</b><span class="muted">${Object.entries(p.by).map(([w, n]) => `${n} ${W[w] || w}`).join(', ')}${p.back ? ` · ${p.back} of them their page still lists (they can come back)` : ''}</span></div>` : `<div class="row"><b>${what}: no demo goes</b></div>`;
-  const kept = `<div class="row muted">demos now: ${p.demos} (${mb(p.total)})${p.n ? ` → ${mb(p.after)}` : ''} · kept: ${k.recent} recent, ${k.hinted} with hints, ${k.waiting} not looked at yet, ${k.pinned} on the keep list, ${k.pending} to decode again</div>`;
+  const kept = `<div class="row muted">demos now: ${p.demos} (${mb(p.total)})${p.n ? ` → ${mb(p.after)}` : ''} · kept: ${k.recent} recent, ${k.hinted} with hints, ${k.waiting} not looked at yet, ${k.pinned} on the keep list, ${k.pending} to decode again${k.unlisted ? `, ${k.unlisted} no page lists (older than the days)` : ''}</div>`;
   const over = p.over ? '<div class="row warn">the demos kept take more than the limit by themselves</div>' : '';
   const list = p.names.length ? `<details><summary>which (${p.names.length < p.n ? 'the first ' + p.names.length : 'all'})</summary><div class="mono">${p.names.map(x => `${esc(x.name)} <span class="muted">${dayStr(x.at)} · ${mb(x.bytes)}${x.back ? ' · on its page' : ''}</span>`).join('<br>')}</div></details>` : '';
   return head + kept + over + list;
@@ -582,16 +587,17 @@ function renderDemos() {
   $('#dmGone').innerHTML = `rounds without a demo: ${D.gone}${D.gone ? ` (${D.back} their page still lists)` : ''}${R && R.want ? ` · <span class="warn">downloading again for the new decoder: ${R.want} left</span>` : ''}${D.last && D.last.at ? ` · last removed ${ago(D.last.at)}: ${D.last.n} (${mb(D.last.bytes)})${D.last.total ? `, in all ${D.last.total} (${mb(D.last.totalBytes || 0)})` : ''}` : ''}${D.autoclean ? '' : ' · <span class="warn">BF2R_RAW_AUTOCLEAN=0: a full disk removes nothing</span>'}`;
   const P = D.policy, form = $('#dmForm');
   if (!dmDirty && !form.contains(document.activeElement)) {
-    $('#dmDays').value = P.keepDays; $('#dmDays').disabled = !!P.keepDaysConf; $('#dmGB').value = P.maxGB; $('#dmHint').checked = P.keepHinted; $('#dmRef').checked = P.refetch; $('#dmRefN').value = P.refetchPerRun;
+    $('#dmDays').value = P.keepDays; $('#dmDays').disabled = !!P.keepDaysConf; $('#dmGB').value = P.maxGB; $('#dmHint').checked = P.keepHinted; $('#dmUnl').checked = P.keepUnlisted; $('#dmRef').checked = P.refetch; $('#dmRefN').value = P.refetchPerRun;
   }
   $('#dmDaysW').innerHTML = P.keepDaysConf ? `<span class="tag" title="Edited in /etc/bf2replay.conf on the VPS: remove it there to choose here">BF2R_RAW_KEEP_DAYS</span>` : 'by when the round was played · 0: no demo goes for its age';
+  $('#dmUnlW').textContent = !P.keepDays ? 'only counts with days set above' : P.maxGB > 0 ? `the GB limit above takes the oldest of them first` : 'no GB limit set: they stay until the disk is nearly full (then the oldest go)';   // (v226)
   const H = D.hints; $('#dmHintW').textContent = H.alive ? `the background analysis has looked at ${H.rounds} rounds; one it has not looked at yet waits for it` : H.rounds ? `the analysis looked at ${H.rounds} rounds (not running now: the others count as without hints)` : 'the background analysis (Hints over all rounds) has not looked at any round yet';
   $('#dmPlan').innerHTML = dmPreview ? planHtml(dmPreview, 'With these (not saved yet)') + '<div class="row"><button type="button" id="dmPrevX" style="padding:2px 8px">Back to the saved ones</button></div>' : planHtml(D.plan, 'With the saved settings, at the next run');
   if ($('#dmPrevX')) $('#dmPrevX').onclick = () => { dmPreview = null; dmDirty = false; render(); };
   $('#dmKeepList').innerHTML = D.keep.length ? D.keep.map(k => `<div class="src"><span class="u mono">${esc(k.name)}</span>${k.here ? '' : '<span class="tag">not on the site</span>'}<span class="tag">since ${esc(String(k.at || '').slice(0, 10))}</span><button type="button" class="danger" data-unkeep="${esc(k.name)}">Remove</button></div>`).join('') : '<div class="muted">none</div>';
   for (const b of document.querySelectorAll('#dmKeepList [data-unkeep]')) b.onclick = () => act('demos-keep', { round: b.dataset.unkeep, on: false }, b);
 }
-const dmVals = () => ({ ...(S?.demos?.policy?.keepDaysConf ? {} : { keepDays: +$('#dmDays').value }), maxGB: +$('#dmGB').value, keepHinted: $('#dmHint').checked, refetch: $('#dmRef').checked, refetchPerRun: +$('#dmRefN').value });
+const dmVals = () => ({ ...(S?.demos?.policy?.keepDaysConf ? {} : { keepDays: +$('#dmDays').value }), maxGB: +$('#dmGB').value, keepHinted: $('#dmHint').checked, keepUnlisted: $('#dmUnl').checked, refetch: $('#dmRef').checked, refetchPerRun: +$('#dmRefN').value });
 $('#dmForm').addEventListener('input', () => { dmDirty = true; });
 $('#dmForm').addEventListener('submit', e => { e.preventDefault(); act('demos-set', dmVals(), e.submitter).then(j => { if (j && j.ok) { dmDirty = false; dmPreview = null; } }); });
 $('#dmPrev').onclick = async () => { const b = $('#dmPrev'); b.disabled = true; try { const j = await api('demos-preview', dmVals()); if (j.ok) { dmPreview = j.plan; render(); } else toast(j.msg || j.error || 'no', false); } catch (e) { toast(e.message, false); } finally { b.disabled = false; } };

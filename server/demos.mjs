@@ -4,6 +4,9 @@
 // for the game. So old demos may go and their rounds stay - with what the admin page sets (data/.demos.json):
 //   keepDays     the demos of the last N days stay (by when the round was played, not when it was downloaded); 0 = no
 //                demo goes for its age (BF2R_RAW_KEEP_DAYS in /etc/bf2replay.conf, when above 0, wins)
+//   keepUnlisted (v226) the days never remove a demo no page lists (any more): it could not come back, and its round
+//                could never be decoded again (as 289 Lost-Soldiers rounds after v225) - only maxGB (the oldest first)
+//                or a nearly full disk does
 //   maxGB        the demos may take at most this much; over it the least needed go first (0 = no limit)
 //   keepHinted   the demos of rounds with hints for admins stay (the background analysis: data/.hint-rounds.json;
 //                while it runs, a round it has not looked at yet waits for it)
@@ -18,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 export const DEMOS_FILE = '.demos.json', HINT_ROUNDS_FILE = '.hint-rounds.json', SOURCE_LIST_FILE = '.source-list.json', REFETCH_FILE = '.refetch.json', DEMOS_LAST_FILE = '.demos-last.json';
-export const DEMO_DEFAULTS = { keepDays: 0, maxGB: 0, keepHinted: true, refetch: true, refetchPerRun: 20 };
+export const DEMO_DEFAULTS = { keepDays: 0, maxGB: 0, keepHinted: true, keepUnlisted: true, refetch: true, refetchPerRun: 20 };
 const GB = 2 ** 30, DAY = 86400e3, ANALYSIS_ALIVE = 3 * DAY;
 const readJson = (f, d = null) => { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch (e) { return d; } };
 export const linkId = n => String(n || '').replace(/\.bf2demo(\.gz)?$/i, '');
@@ -29,7 +32,7 @@ export function demoPolicy(DATA, opt) {
   const conf = Math.max(0, Math.floor(+opt('BF2R_RAW_KEEP_DAYS', '0')) || 0);
   return {
     keepDays: conf || Math.floor(num(j.keepDays, DEMO_DEFAULTS.keepDays, 0, 3650)), keepDaysConf: conf || null,
-    maxGB: num(j.maxGB, DEMO_DEFAULTS.maxGB, 0, 1e5), keepHinted: j.keepHinted ?? DEMO_DEFAULTS.keepHinted,
+    maxGB: num(j.maxGB, DEMO_DEFAULTS.maxGB, 0, 1e5), keepHinted: j.keepHinted ?? DEMO_DEFAULTS.keepHinted, keepUnlisted: j.keepUnlisted ?? DEMO_DEFAULTS.keepUnlisted,
     refetch: j.refetch ?? DEMO_DEFAULTS.refetch, refetchPerRun: Math.floor(num(j.refetchPerRun, DEMO_DEFAULTS.refetchPerRun, 1, 500)),
     keep: j.keep && typeof j.keep === 'object' ? j.keep : {}, set: j.set || null
   };
@@ -53,7 +56,7 @@ const playedAt = r => { const d = Date.parse(String(r.sum?.date || '').replace('
 export function demoPlan({ rounds, policy, hash, hints, source, has = r => !!r.demo, emergency = 0, now = Date.now() }) {
   const P = policy, H = hints || { alive: false, rounds: new Map() }, S = source || new Map(), pin = new Set(Object.keys(P.keep || {}).map(linkId));
   const cut = P.keepDays > 0 ? now - P.keepDays * DAY : -Infinity;
-  const why = { pinned: 0, pending: 0, recent: 0, hinted: 0, waiting: 0 }, free = [], recent = [], hinted = [], waiting = [];
+  const why = { pinned: 0, pending: 0, recent: 0, hinted: 0, waiting: 0, unlisted: 0 }, free = [], recent = [], hinted = [], waiting = [], unl = [];
   let total = 0, n = 0;
   for (const r of rounds) {
     if (!has(r)) continue;
@@ -71,8 +74,9 @@ export function demoPlan({ rounds, policy, hash, hints, source, has = r => !!r.d
   free.sort(order); waiting.sort(order); recent.sort((a, b) => a.at - b.at); hinted.sort((a, b) => a.at - b.at);
   const out = []; let left = total;
   const take = (o, w) => { out.push({ name: o.name, bytes: o.bytes, at: o.at, back: o.back, why: w }); left -= o.bytes; };
-  if (P.keepDays > 0) for (const o of free) take(o, 'age');   // (older than keepDays, nothing keeps it)
-  const rest = P.keepDays > 0 ? [] : free.slice();
+  // (older than keepDays, nothing keeps it; v226: unless no page lists it - then only the limit or the disk takes it)
+  if (P.keepDays > 0) for (const o of free) { if (P.keepUnlisted && !o.back) { why.unlisted++; unl.push(o); } else take(o, 'age'); }
+  const rest = P.keepDays > 0 ? unl : free.slice();
   if (P.maxGB > 0) for (const o of rest.concat(waiting)) { if (left <= P.maxGB * GB) break; take(o, 'limit'); }
   let need = emergency;
   if (need > 0) {
@@ -84,6 +88,17 @@ export function demoPlan({ rounds, policy, hash, hints, source, has = r => !!r.d
     remove: out, kept: why, demos: n, bytes: total, after: left, back: out.filter(x => x.back).length,
     over: P.maxGB > 0 && left > P.maxGB * GB   // (the kept ones alone are over the limit)
   };
+}
+// (v226) the rounds an older decoder made, split: with their demo here (decoded again by ingest --reprocess), to download
+// again (their page lists them, not empty; refetch on), and those that cannot be decoded again by themselves (no demo,
+// no page lists it any more, an empty round, or no decoder at all)
+export function oldRounds({ rounds, hash, source, has = r => !!r.demo, refetch = true }) {
+  const S = source || new Map(), o = { old: 0, here: 0, back: 0, stuck: 0 };
+  for (const r of rounds) {
+    if (r.decoder === hash) continue; o.old++;
+    if (has(r)) o.here++; else if (refetch && r.decoder && r.sum && !r.sum.empty && S.has(r.name)) o.back++; else o.stuck++;
+  }
+  return o;
 }
 // the rounds whose demo is gone and that the decoder has changed for, with the address their page lists them at
 export function refetchWanted({ rounds, hash, source, has = r => !!r.demo }) {

@@ -62,8 +62,12 @@ cutting a game clip need the demo (and the clip can then be cut from the visitor
   come back), then the oldest (0: no limit).
 - **Keep the demos of rounds with hints for admins** — rounds with "suspicious" hints keep their demo (from the
   background analysis; a round it hasn't seen yet waits for it).
+- **Whatever the days, keep a demo no page lists any more** (on by default) — a demo that can't be downloaded again
+  doesn't go for its age: without it its round could never be decoded again after a decoder change. Only the GB limit
+  (oldest first) or a nearly full disk removes it.
 - **When the decoder changes, download a removed demo again…** — rounds without a demo whose source page still has it
-  are downloaded again (so many at a time), decoded again, and the demo goes again.
+  are downloaded again (so many at a time), decoded again, and the demo goes again. A round whose demo is gone and that
+  no page lists any more stays as it was (card **Rounds** counts these apart).
 - **What would go?** shows what these settings would remove (how many, how many GB, which) before you save; **Save**;
   **Remove now** applies them at once (otherwise within 2 minutes, with the next decoding run).
 - **Keep these demos** — rounds whose demo stays whatever the settings: a round's name, its link `…/r/<round>` or id.

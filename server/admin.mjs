@@ -37,7 +37,7 @@ import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf, TLABEL } from './notify.mjs';
 import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
 import { expandIndex } from './roundsidx.mjs';
-import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
+import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, oldRounds, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 import { ACCESS_FILE, GATE_FILE, SITE as ACC_SITE, GUEST_EXTRA as ACC_GUEST, CARDS as ACC_CARDS, guestsOf, userRights, normRights, normGuests, gateNeeded, siteRights, needOf, allowed, openPlaces } from './access.mjs';   // (v224)
 
 const conf = {};
@@ -246,7 +246,9 @@ async function state(C = null) {
     const idx = index(), R = idx.rounds || [], cur = R.filter(r => r.decoder === dec.hash).length, servers = {};
     for (const r of R) { const s = r.server || r.sum?.server || '?'; servers[s] = (servers[s] || 0) + 1; }
     const newest = R.reduce((b, r) => !b || (r.added || '') > (b.added || '') ? r : b, null);
-    o.rounds = { total: R.length, current: cur, old: R.length - cur, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null };
+    // (v226) the older decoder's rounds split: demo here / to download again / cannot be decoded again by themselves
+    const OR = oldRounds({ rounds: R, hash: dec.hash, source: sourceList(DATA), refetch: !!demoPolicy(DATA, opt).refetch });
+    o.rounds = { total: R.length, current: cur, old: R.length - cur, oldHere: OR.here, oldBack: OR.back, stuck: OR.stuck, servers, newest: newest ? { name: newest.name, added: newest.added || null } : null };
     o.records = recordsState();   // (v206)
   }
   if (want('decode')) {
@@ -393,7 +395,7 @@ function demoState() {
   const gone = R.filter(r => !r.demo && r.sum && !r.sum.empty), back = gone.filter(r => I.source.has(r.name)).length;
   const rf = readJson(path.join(DATA, REFETCH_FILE), null), byName = new Set(R.map(r => linkId(r.name)));
   return {
-    policy: { keepDays: P.keepDays, keepDaysConf: P.keepDaysConf, maxGB: P.maxGB, keepHinted: !!P.keepHinted, refetch: !!P.refetch, refetchPerRun: P.refetchPerRun, set: P.set },
+    policy: { keepDays: P.keepDays, keepDaysConf: P.keepDaysConf, maxGB: P.maxGB, keepHinted: !!P.keepHinted, keepUnlisted: !!P.keepUnlisted, refetch: !!P.refetch, refetchPerRun: P.refetchPerRun, set: P.set },
     keep: Object.entries(P.keep).map(([n, at]) => ({ name: n, at, here: byName.has(linkId(n)) })),
     du: duAll(), plan: planOut(plan), gone: gone.length, back, hints: { alive: I.hints.alive, at: I.hints.at, rounds: I.hints.rounds.size },
     source: I.source.size, refetch: rf ? { want: (rf.want || []).length, at: rf.at } : null, last: readJson(path.join(DATA, DEMOS_LAST_FILE), null),
@@ -405,6 +407,7 @@ const demoFields = (b, P) => {
   if (b.keepDays !== undefined) { const n = Math.floor(+b.keepDays); if (n >= 0 && n <= 3650) o.keepDays = n; else bad.push('days: 0 to 3650'); }
   if (b.maxGB !== undefined) { const n = +b.maxGB; if (n >= 0 && n <= 1e5) o.maxGB = Math.round(n * 10) / 10; else bad.push('GB: 0 or more'); }
   if (b.keepHinted !== undefined) o.keepHinted = !!b.keepHinted;
+  if (b.keepUnlisted !== undefined) o.keepUnlisted = !!b.keepUnlisted;   // (v226)
   if (b.refetch !== undefined) o.refetch = !!b.refetch;
   if (b.refetchPerRun !== undefined) { const n = Math.floor(+b.refetchPerRun); if (n >= 1 && n <= 500) o.refetchPerRun = n; else bad.push('a run: 1 to 500'); }
   return { o, bad };
@@ -417,7 +420,7 @@ function demosPreview(b) {
 function demosSet(b) {
   const f = path.join(DATA, DEMOS_FILE), cur = readJson(f, {}) || {}, { o, bad } = demoFields(b, demoPolicy(DATA, opt)); if (bad.length) return { ok: false, msg: bad.join(', ') };
   const v = { ...cur, ...o, set: new Date().toISOString() }; writeJson(f, v); duCache.at = 0;
-  log('demo settings:', JSON.stringify({ keepDays: v.keepDays, maxGB: v.maxGB, keepHinted: v.keepHinted, refetch: v.refetch, refetchPerRun: v.refetchPerRun }));
+  log('demo settings:', JSON.stringify({ keepDays: v.keepDays, maxGB: v.maxGB, keepHinted: v.keepHinted, keepUnlisted: v.keepUnlisted, refetch: v.refetch, refetchPerRun: v.refetchPerRun }));
   const conf = Math.max(0, Math.floor(+opt('BF2R_RAW_KEEP_DAYS', '0')) || 0);
   return { ok: true, msg: 'saved: ingest applies them at its next run (within 2 min, or "Remove now")' + (conf && o.keepDays !== undefined ? ` - but BF2R_RAW_KEEP_DAYS=${conf} in /etc/bf2replay.conf wins for the days: remove it there` : '') };
 }
