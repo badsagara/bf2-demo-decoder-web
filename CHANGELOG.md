@@ -5,6 +5,22 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v231
+
+**The players' score is back in the posts and summaries** (Sagara: in the day summary on Discord every score was 0, and
+in the round post too — Best three and each side's five):
+
+- **Fixed**: since v221 the round summaries had no score. A note added in v221 to the line before it ran on into the
+  score's line and turned it into a comment, so every round summed up since — and v221 summed up every round again —
+  had none: 0 in the round posts (Best three, the sides' best five), the day / week / month summaries (Top by score,
+  Player of the period), the Records' Best score, the players' pages and the rounds list's "best".
+- **Summary version 17**: after the update the server sums up every round again from its decoded round (`.bfr`, ~0.5 s
+  a round — about half an hour for 3,600 rounds; nothing is decoded again), as for any summary version.
+- **While that runs**: a new round's post compares its records only with rounds summed up as it is (else every new round
+  would break the Best score record of rounds with no score yet); a day / week / month summary waits until its rounds are
+  done (the log says so) and is then posted as usual. Posts already sent can't be changed.
+- `SUM_V` now lives in `server/roundsidx.mjs` (digest.mjs reads it too).
+
 ## v230
 
 **The aim line: a button on the map, and a clearer line** (Sagara: the aim line as a visible yellow line on the 2D map,

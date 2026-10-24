@@ -27,7 +27,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
-import { compactIndex, expandIndex } from './roundsidx.mjs';
+import { compactIndex, expandIndex, SUM_V } from './roundsidx.mjs';   // (v231: SUM_V there, for digest.mjs too)
 import { sameRules } from './decoders.mjs';   // (v229)
 import { demoPolicy, demoPlan, hintRounds, sourceList, refetchWanted, REFETCH_FILE, DEMOS_LAST_FILE } from './demos.mjs';
 
@@ -140,7 +140,8 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-const SUM_V = 16;   // (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
+// SUM_V = 17 (server/roundsidx.mjs since v231): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
+// (17, v231: the players' score again - v221 had lost it; every round is summed up again from its .bfr, nothing decoded)
 const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
 // (v219) the page's field of view (VIEW_HALF, viewZoom) for the summaries: 95° across (a 16:9 screen: Hor+ since the 1.5
 // patch, the camera 1.1 rad high); through the sights or a scope (the Player ghost's move code 16) narrower - here without
@@ -209,7 +210,10 @@ function summarize(tl, hdr, dec) {
     return { name: pl.name.trim(), team: tm, win: winner !== null && tm === winner, k: s.k[0] + s.k[1], kVeh: s.k[1], d: s.d[0] + s.d[1], tk: s.tk,
       sui: ev.filter(e => mine(e) && e.victim === id).length, hs: enemy.filter(e => e.hit === 'head').length,
       rev: ev.filter(e => e.type === 'revive' && e.medic === id).length, heal: ev.filter(e => e.type === 'heal' && e.medic === id && e.player !== id).length,
-      rep: ptsLab ? (pl.pts || []).filter(q => /^repair$/i.test(q[2] || '')).length : ev.filter(e => e.type === 'repair' && e.by === id).length,   // (v221: as the game counts them - the page's repairsOf) score: pl.sb ? pl.sb[pl.sb.length - 1][1] : (pl.pts || []).reduce((a, q) => a + q[1], 0),   // (v132: the game's own score)
+      rep: ptsLab ? (pl.pts || []).filter(q => /^repair$/i.test(q[2] || '')).length : ev.filter(e => e.type === 'repair' && e.by === id).length,   // (v221: as the game counts them - the page's repairsOf)
+      // (v231: v221's note above ran on into this line and turned the score into a comment - every round summed up since
+      // had no score: 0 in the posts, the summaries and the records)
+      score: pl.sb ? pl.sb[pl.sb.length - 1][1] : (pl.pts || []).reduce((a, q) => a + q[1], 0),   // (v132: the game's own score)
       streak: streak(i), long: Math.max(0, ...enemy.filter(e => e.dist !== undefined && !/artillery/i.test(e.weapon || '')).map(e => e.dist)), alive: Math.round(s.foot + s.veh) };   // (v202: not the commander's artillery, as the page's longKill)
   });
   const top = P.slice().sort((a, b) => b.score - a.score)[0];
@@ -1112,7 +1116,7 @@ async function main() {
     if (forced && !old.length) { writeJsonF(RDF, { at: forced, end: new Date().toISOString(), n: 0, bad: 0, ms: 0 }); try { fs.unlinkSync(RNF); } catch (e) {} }
     if (old.length && !siteChanged()) {
       const t0 = Date.now(); let k = 0, bad = 0;
-      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (${forced ? 'asked for on the admin page: "Recalculate all records"' : `summary version ${SUM_V}`}: ${SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
+      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (${forced ? 'asked for on the admin page: "Recalculate all records"' : `summary version ${SUM_V}`}: ${SUM_V >= 17 ? "the players' score, the records" : SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
       for (const r of old) {
         if (siteChanged()) { log(`the site was updated: ${old.length - k} rounds left to sum up again at the next run`); break; }
         try { const B = bfrRead(path.join(DATA, r.bfr)), sum = summarize(B.tl, B.info?.hdr || null, dec); aggMark(r.sum); r.sum = sum; heatPut(r.name, sum); aggMark(sum); }

@@ -19,6 +19,7 @@
 // next 10:00 (not at once for the period that is already over).
 import { opt, DOMAIN, SITE, log, notifySettings, saveNotify, serverOf, mapName, aggFns, allRounds, escTg, escDc, DRAW_RGB, cut, monoTable, send, alignedRows, tpl, DISCORD_RE } from './notify.mjs';
 import fs from 'node:fs';
+import { SUM_V } from './roundsidx.mjs';   // (v231)
 import path from 'node:path';
 
 export const DIGEST_TZ = String(opt('BF2R_DIGEST_TZ', 'Europe/Bratislava')).trim() || 'Europe/Bratislava';
@@ -70,6 +71,9 @@ export function digestOf(server, kind, now = Date.now()) {
   const R = allRounds().filter(r => { const s = r.sum, d = String(s?.date || '').slice(0, 10); return s && !s.empty && Array.isArray(s.P) && serverOf(r) === server && (s.players || 0) >= mp && d >= P.from && d <= P.to; })
     .sort((a, b) => String(a.sum.date).localeCompare(String(b.sum.date)));
   const out = { server, kind, period: P, minPlayers: mp, rounds: R.length };
+  // (v231) rounds of the period still summed up by an older summarize (ingest.mjs SUM_V: after an update every round is
+  // summed up again, ~0.5 s each) - runDue waits for them (v221-v230's summaries had no score)
+  out.stale = R.filter(r => r.bfr && (r.sumV || 1) < SUM_V).length;
   if (!R.length) return out;
   const bot = n => /^Player \d+$/.test(A.nickOf(n)), unit = Object.fromEntries(A.REC_KEYS.map(([k, , u]) => [k, u || '']));
   // the server's numbers
@@ -245,6 +249,7 @@ export async function runDue(now = Date.now()) {
     const what = `${kind} ${P.label}`, F = normDigestFmt(c.digestFmt, c), T = digestTargets(S, server, F);
     if (!T.length) { saveSrv(server, x => ({ digestLast: { ...x.digestLast, [kind]: P.key }, digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what, ok: false, msg: 'Discord and Telegram off for the summaries (or no webhook / chat): not posted' } } })); log(`summary (${server}) ${what}: Discord and Telegram off for the summaries, or no webhook or chat - not posted`); continue; }   // (done: not posted late when one is turned on)
     let D; try { D = digestOf(server, kind, now); } catch (e) { log(`summary (${server}) ${what}: ${e.message}`); continue; }
+    if (D.stale) { log(`summary (${server}) ${what}: waits - ${D.stale} of its rounds are still being summed up again after the update`); continue; }   // (v231)
     if (!D.rounds) { saveSrv(server, x => ({ digestLast: { ...x.digestLast, [kind]: P.key }, digestLog: { ...x.digestLog, [kind]: { at: new Date().toISOString(), what, ok: true, msg: 'no rounds: nothing posted' } } })); log(`summary (${server}) ${what}: no rounds with ${D.minPlayers}+ players - nothing posted`); continue; }
     const R = await deliver(D, T, S, F), ok = R.every(([, r]) => r.ok), m = told(R); n++;
     log(`summary (${server}) ${what}: ${D.rounds} rounds - ${m}`);

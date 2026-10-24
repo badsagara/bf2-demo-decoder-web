@@ -244,7 +244,10 @@ const playedAt = d => { const t = Date.parse(String(d || '').replace(' ', 'T') +
 export function newRecords(entry, max = 6) {
   const A = aggFns(), s = entry.sum; if (!A || !A.REC_KEYS || !A.recVal || !s || !Array.isArray(s.P)) return [];
   const t0 = playedAt(s.date); if (t0 === null) return [];
-  const before = allRounds().filter(r => r.name !== entry.name && r.sum && !r.sum.empty && Array.isArray(r.sum.P) && r.sum.server === s.server && playedAt(r.sum.date) !== null && playedAt(r.sum.date) < t0);
+  // (v231) only rounds summed up as this one (sumV): while the rounds are summed up again after an update, the older
+  // summaries may lack a figure (v221-v230: the score) and every new round would break that record
+  const sv = entry.sumV || 1;
+  const before = allRounds().filter(r => r.name !== entry.name && r.sum && !r.sum.empty && Array.isArray(r.sum.P) && r.sum.server === s.server && playedAt(r.sum.date) !== null && playedAt(r.sum.date) < t0 && (r.sumV || 1) >= sv);
   // (one pass over the earlier rounds: each period's count and best of every record)
   const N = {}, BEST = {}; for (const [pk] of REC_PER) { N[pk] = 0; BEST[pk] = {}; }
   for (const r of before) {

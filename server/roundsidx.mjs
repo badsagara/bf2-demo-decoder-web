@@ -6,6 +6,9 @@
 // round's last element (x): demo (0: gone; or another place), bfr, d (another decoder), se (empty), s (other summary
 // figures), o (other fields). ~3 times smaller than v166's (6000 rounds: 3.1 MB -> ~1 MB, ~400 -> ~160 KB sent).
 // The page (expandIndex, the same rule) and the server's scripts turn it back into the usual objects.
+// (v231) SUM_V: how a round is summed up (ingest.mjs summarize - its history is there); a round summed up by an older
+// one is summed up again from its .bfr. Here, so digest.mjs knows it too: a summary waits while its rounds are redone
+export const SUM_V = 17;
 export const IDX_COLS = ['name', 'date', 'map', 'server', 'duration', 'players', 'kills', 'teams', 'tickets', 'winner', 'top', 'x'];
 const SUM_KEYS = new Set(['date', 'map', 'server', 'duration', 'empty', 'players', 'kills', 'teams', 'tickets', 'winner', 'top']);
 const ENTRY_KEYS = new Set(['name', 'demo', 'bfr', 'decoder', 'sum']), SERVER_ONLY = new Set(['bytes', 'bfrBytes', 'added', 'resumAt']);   // (v206: resumAt - when "Recalculate all records" did it)
