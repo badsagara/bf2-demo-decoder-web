@@ -5,6 +5,117 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v235
+
+**What OpenBattlefield2 and two other projects showed about the game, checked on our demos** (Sagara: "take from them
+what we can"; OpenBattlefield2 - a new implementation of the engine, MIT - the Refractor 2 BitStream emulator and a
+GameSpy emulator, read for knowledge only; 43 of our demos checked):
+
+- **The decoder: a soldier's stance was lost when his health came in the same record.** The game sends the stance after
+  the health; the decoder read it from the wrong place then - a spawn, or a man hit as he went down - and skipped or
+  misread it (Karkand 21:14: ~700 of ~3900 stance records; 0.1-0.4% of the soldiers' time had the wrong stance, a man
+  shown standing who was lying). Fixed. The decoder also keeps each kill's direction now (where the killing hit came
+  from: within 0.5-5 deg of the killer for bullets) for later, and the game video kit packs at most 255 records in a
+  packet (the game reads 256 or more as something else and would break the film). **New decoder `18e8999d15`: the server
+  decodes every round that still has its demo again by itself** (`bf2replay-status` shows how far it is).
+- **The fog as the game draws it.** Inside the view distance the map's fog hides a man sooner: on Karkand nothing of him
+  is left past 99.5 m (drawn to 140), on Mashtuur past 155 m, Songhua 204, Jalalabad 207, Highway Tampa 305 - unless he
+  stands against the sky (nothing behind him, ground or houses, up to the view distance). "He sees him", who saw whom
+  first and every hint that asks whether he could see count such a man as hidden; Beyond fog also takes kills past that
+  distance with no sky behind the victim.
+- **Ticket bleed by the game's rule**: a side loses tickets while the other side's flags weigh 100 or more (each flag's
+  weight from the level's files) and more than its own - 10 a minute for each 100 of difference. Checked on 42 demos in
+  stretches where nobody of that side died (Daqing 50 against 100: 5.05 a minute, the rule 5.00). On Karkand the 8 flags
+  weigh 104, on Wake the 6 weigh 100: a side bleeds there only while the other holds every flag. Round stats count the
+  bleed this way, and a new row shows tickets taken all at once when a side has no flag and nobody alive (the game ends
+  the round: Wake 14.10, 180 tickets in 0.8 s, counted as "Other" before). The flags' tooltips say why a side bleeds.
+- **Fast flag** counts men as the game does: a man down doesn't count, and of a vehicle's crew only the first man.
+- **Bunny hop**: 15 jumps in 15 s, not 20 - a jump on flat ground lasts ~0.9 s, so the game allows 16-17 there.
+- **Stamina**: without vehicles the game drains the sprint half as fast, so the one-sprint rule (rounds without the
+  stamina value) is 26 s on such servers.
+- **Three new hints from the game's physics** (none of them in the 43 demos):
+  - **Sideways sprint** - 2 s or more at sprint speed moving 60 deg or more off where he looks (the game sprints only
+    forward; by hand 1.0 s at the most);
+  - **Speed in the air** - twice, 4 m/s or more gained during a jump (the game adds at most 2 m/s in the air);
+  - **Shot in a jump** - twice, a small-arms kill 0.15-0.55 s after he jumped (the game lets nobody fire for 0.7 s after a
+    jump; by hand none in ~1700 kills).
+- **Hint rules 10** (`HINTS_V`): the background analysis goes over every round again. On 11 test rounds the hints came out
+  the same.
+- The admins' hint pages explain what a player's own game had: the server sends each player the enemies near him and in
+  his view direction (walls do not matter), the demo has everyone; others are seen ~100 ms late; a lagging man runs on
+  for up to 1 s.
+
+## v234
+
+**The eye height, the field of view and where the sight lines start - checked by stance and in jumps** (Sagara: "is our
+aim height, field of view and the sight ray's origin right - standing, lying, jumping, crouching?"; OpenBF2 read for
+knowledge, the Kakarotto22 viewer - it has no eye or field-of-view model, only a direction arrow - and our demos):
+
+- **The eye straight over his position again** (v233 put it 0.1 m in front): the game keeps only the height of the
+  soldiers' `poseCameraPosition` and sets the other two parts back to 0, so the camera is 0.47 / −0.05 / −0.63 m over his
+  position (which is 1 m over his feet) standing / crouching / lying, and rifles fire from it (`fireInCameraDof`, no
+  start offset). Checked on 978 small-arms kills (5-80 m) of 17 rounds: with these heights the killer's aim passes the victim at
+  the same height whatever the killer's stance, within ~0.15 m.
+- **Jumps**: only a standing man jumps (6 m/s up); in the demos his position rises 1.37-1.43 m over the take-off, is at
+  the top after ~0.45 s and lands after ~0.9 s (424 jumps, 2 rounds), and the standing eye goes with it - the demo's
+  heights carry it already, nothing to change.
+- **Through the sights**: the weapon's zoom factor is the view's height itself in radians (the game hands it to the
+  player's field of view; 0 means the camera's own 1.1), not a share of 1.1 - every zoomed view is 10% narrower than
+  before: the M4's iron sights 40° high and 66° across (were 44° / 72°), the L96A1's scope 11.5° (12.6°). This counts
+  for the map's view, He sees him, who saw whom first, Reaction, Pre-aim and the kills' "didn't see his killer".
+- **Wide screens**: the game widens the picture up to 16:9 only - a 21:9 screen shows about 92°, a 32:9 one 90° (not 111° /
+  131° as written before). So the Wide view hint no longer says a 21:9 monitor explains it.
+- **Game video**: BF2 plays a demo at (height / width) × `renderFieldOfView` up and down, so the kit's "95" was 53° high
+  and 84° across, not the soldier's 95°. His eyes are now rendered at the game's own view (`renderFieldOfView` 112.05 at
+  1280×720, through his sights the weapon's factor: the L96A1 20.37), so what goes over the film (names, crosshair) sits
+  on the soldiers; behind / side / still stay as tested (95, 84° across), and their overlay now uses that.
+- **Hint rules 9** (`HINTS_V`) and **summary version 18** (`SUM_V`): the background analysis goes over every round again,
+  and every round is summed up again from its decoded file - nothing is decoded again (the decoder is as it was,
+  `e3ddfc2d41`). The hints of two test rounds came out the same (23 and 13).
+
+## v233
+
+**Sight lines from where the game's camera is; the Speed hint checked against the game's own speeds** (Sagara, after
+reading OpenBF2 for where a soldier looks and what the game counts as seen):
+
+- **The eye 0.1 m in front of his position**: the game's soldier camera sits at the pose's `poseCameraPosition` — 0.47 /
+  −0.05 / −0.63 m over his position standing / crouching / lying (as before) and, in every stance, 0.1 m ahead. Every
+  sight line from a soldier on foot now starts there: He sees him and His view on the map, the aim line, the side view
+  of a kill, and the hints that ask whether he could see (No line of sight, Through thin walls, Through a gap, Wall
+  tracking, Pre-aim, Spots unseen…). On Strike at Karkand 21:14, 0.5% of ~98,000 soldier pairs within the fog limit
+  change (as many become visible as hidden); the hints of the test rounds came out the same. The game video's eye camera
+  stays exactly where it was tested.
+- **Hint rules 8** (`HINTS_V`): the background analysis goes over every round again by itself.
+- **Speed**: the game's own speeds (sprint 7.0, run 3.9, walk 1.5, crouch 2.0, crawl 0.8 m/s) match what the demos show
+  (in 1-second stretches with one stance all through, 10 rounds: standing 6.93, crouching 1.98, lying 0.79 at the 99th
+  percentile), so the hint stays as it was (8.7 m/s for 2 s). No limit by stance: the demo's stance lags behind dives to
+  the ground (a man "lying" at 6.9 m/s for 3 s), and a man carried where the decoder doesn't seat him shows as crouching
+  at the vehicle's speed.
+- The decoder and the summaries are as they were (`e3ddfc2d41`, summary version 17): nothing is decoded or summed up again.
+
+## v232
+
+**Game video: names, health, the crosshair and the zoom of his sights over the films** (Sagara: in his eyes the
+crosshair and the aim line; over the players in the picture their name, health and distance; zoom in when he looks
+through his sights, and a sniper's black round scope — from the demo, which has when he aims):
+
+- **New tick in the Clip bar: Names & crosshair** (on by default, remembered). The kit then holds an `.ass` file for each
+  view, and `make-videos.bat` has ffmpeg burn it into the MP4:
+  - **His eyes**: the crosshair in the middle, with how far it meets something (and whom); through his sights or scope
+    the picture zoomed in — his eyes are rendered once more at that narrower view for each zoom of the clip (up to two),
+    and ffmpeg puts that film in for those seconds; a scope (L96A1, M24, M95, SVD, QBU-88, the SUSAT) has the game's
+    round sight, black round it, with its cross.
+  - **Every view**: over the soldiers and manned vehicles in the picture within the fog limit (the 14 nearest) the
+    name in the side's colour (his own yellow), the health and how far from him — faded where he couldn't see them
+    (walls, hills, smoke, trees: the map's He sees him); a yellow ring round the one he aims at.
+  - **Behind him, From the side, Still**: his aim line, as on the map, from his eye to where it meets something.
+- **Behind him and From the side are now cameras the page makes** (free cameras, as His eyes and Still), placed as the
+  game's were (7 m behind and 20° from above; 5 m to his right, 10°), so the drawing lands where it belongs; never under
+  the ground; while he is dead they wait, and before he is alive they wait where he will be.
+- An ffmpeg without libass makes the films plain (the .bat says so). The `.ass` files are deflated in the zip (a kit
+  is now ~0.5 MB).
+- Only the page changes; the decoder is the same (`e3ddfc2d41`).
+
 ## v231
 
 **The players' score is back in the posts and summaries** (Sagara: in the day summary on Discord every score was 0, and

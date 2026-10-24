@@ -939,6 +939,21 @@ ones, `summing up N rounds again (summary version 15 ...)`; 39 s for 25 rounds).
 taken by kit and slot (a sniper with his rifle — the scope, a pistol — 0.8, the rest — 0.65), because only the page knows
 the weapon in his hands.
 
+(v234) Two corrections from the game's own code (OpenBF2, read for knowledge): the weapon's zoom factor is the view's
+height in radians, not a share of 1.1 — every view through the sights is 10% narrower (pistols 74–78° across, rifles
+58–66°; scopes round, as high as the screen: L85A1 23°, SVD / QBU-88 17°, M24 / L96A1 / M95 11.5°); and a screen wider
+than 16:9 is not wider in the game (21:9 about 92°, 32:9 90°), so a 21:9 monitor does not explain Wide view. Nothing to do
+after the update: the hint rules become version 9 and the round summaries version 18 — the background analysis and
+`ingest` go over every round again by themselves (`summing up N rounds again (summary version 18: the kills seen through
+the sights, the records)` in the log, nothing decoded again).
+
+(v235) **The decoder changes: every round that still has its demo is decoded again** (decoder `18e8999d15`: a soldier's
+stance read right where his health came in the same record; each kill's direction kept). Nothing to do — the server
+does it by itself after the update, as for earlier decoders; `sudo bf2replay-status` shows how many rounds are done and
+how many are left, `journalctl -u bf2replay-reprocess -f` the progress live (about an hour for the earlier full re-decodes). Rounds whose demos are gone
+stay as they were. The hint rules become version 10 (the fog in the sight lines, Fast flag's men counted as the game
+counts them, Bunny hop 15, Stamina, three new physics hints): the background analysis goes over every round again too.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (148 of 50 hints: times, angles, distances, counts, odds) can be set from the site's page:

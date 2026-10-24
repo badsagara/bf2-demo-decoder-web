@@ -19,6 +19,9 @@ export const SAME_ROUNDS = { e9d9e7595f: [{ from: ['a629ba2a28'] }, { from: ['1d
 // its worker) and two options for it in decodeDemo (the kind of each ghost record; stop after a tick): with neither,
 // every round comes out byte for byte the same (21 test rounds checked), so nothing is decoded again
 SAME_ROUNDS.e3ddfc2d41 = [{ from: ['ed60068be7'] }];
+// (v235) 18e8999d15 has no rule: it reads a soldier's stance right where his health came in the same record (lost or
+// misread before - 0.1-0.4% of the time in the test rounds), keeps each kill's direction (todo 286 a) and packs at most
+// 255 records a packet for the game video kit - every round with its demo is decoded again
 
 // the rules for a decoder: [{ from: [hashes], except: Set of maps }]
 export function sameRules(hash) {

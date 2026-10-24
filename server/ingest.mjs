@@ -140,20 +140,23 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-// SUM_V = 17 (server/roundsidx.mjs since v231): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
+// SUM_V = 18 (server/roundsidx.mjs since v231): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
 // (17, v231: the players' score again - v221 had lost it; every round is summed up again from its .bfr, nothing decoded)
+// (18, v234: through the sights the zoom factor is the view's height itself, not a share of the 1.1 rad - Player::setFov in
+// OpenBF2; the kills' unseen flag - again from the .bfr, nothing decoded)
 const GL_W = /grenade launcher|^GP-\d|^M203$|\bGL\b/i, GREN_W = w => /grenade|Flashbang|Tear gas/i.test(w || '') && !GL_W.test(w || ''), C4_W = w => /^C4$/i.test(w || '');   // (as the page's HL_GL / HL_GREN / HL_C4)
 // (v219) the page's field of view (VIEW_HALF, viewZoom) for the summaries: 95° across (a 16:9 screen: Hor+ since the 1.5
 // patch, the camera 1.1 rad high); through the sights or a scope (the Player ghost's move code 16) narrower - here without
 // the weapon itself (the page knows it): the sniper kit's rifle (slot 3) 0.25 of the height and round, a pistol (slot 2)
-// 0.8, else 0.65 (the page's ZOOM_F: scopes 0.2-0.4, rifles 0.6-0.7, pistols, shotguns, SMGs 0.8)
+// 0.8, else 0.65 (the page's ZOOM_F: scopes 0.2-0.4, rifles 0.6-0.7, pistols, shotguns, SMGs 0.8) - (v234, SUM_V 18) that
+// many rad high (the page's fovV; v219-v233 that share of 1.1)
 const VIEW_ASPECT = 16 / 9, VIEW_H = Math.atan(Math.tan(0.55) * VIEW_ASPECT);
 const lastAt = (L, tt) => { let v = null; for (const e of L || []) { if (e[0] > tt + 1e-6) break; v = e[1]; } return v; };
 function viewHalfOf(p, tt) {
   if (!p || !((lastAt(p.mv, tt) || 0) & 16)) return VIEW_H;
   const slot = lastAt(p.items, tt); let kit = null, kt = -Infinity;
   for (const L of [p.kits, p.pk]) for (const [ts, k] of L || []) { if (ts > tt + 0.05) break; if (ts >= kt) { kit = k; kt = ts; } }
-  const z = slot === 3 && kit === 'Sniper' ? 0.25 : slot === 2 ? 0.8 : 0.65, hv = 0.55 * z;
+  const z = slot === 3 && kit === 'Sniper' ? 0.25 : slot === 2 ? 0.8 : 0.65, hv = z / 2;
   return Math.min(1.55, (z <= 0.4 ? hv : Math.atan(Math.tan(hv) * VIEW_ASPECT)) + 10 * Math.PI / 180);   // (+ the page's ZOOM_SLACK, 10°)
 }
 function summarize(tl, hdr, dec) {
@@ -1116,7 +1119,7 @@ async function main() {
     if (forced && !old.length) { writeJsonF(RDF, { at: forced, end: new Date().toISOString(), n: 0, bad: 0, ms: 0 }); try { fs.unlinkSync(RNF); } catch (e) {} }
     if (old.length && !siteChanged()) {
       const t0 = Date.now(); let k = 0, bad = 0;
-      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (${forced ? 'asked for on the admin page: "Recalculate all records"' : `summary version ${SUM_V}`}: ${SUM_V >= 17 ? "the players' score, the records" : SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
+      log(`summing up ${old.length} round${old.length === 1 ? '' : 's'} again (${forced ? 'asked for on the admin page: "Recalculate all records"' : `summary version ${SUM_V}`}: ${SUM_V >= 18 ? "the kills seen through the sights, the records" : SUM_V >= 17 ? "the players' score, the records" : SUM_V >= 7 ? "the kills' distances, the records" : SUM_V >= 3 ? "the round's highlights for the posts" : "the kills' hit part, a weapon where the game names none"}) from the decoded rounds - no decoding`);
       for (const r of old) {
         if (siteChanged()) { log(`the site was updated: ${old.length - k} rounds left to sum up again at the next run`); break; }
         try { const B = bfrRead(path.join(DATA, r.bfr)), sum = summarize(B.tl, B.info?.hdr || null, dec); aggMark(r.sum); r.sum = sum; heatPut(r.name, sum); aggMark(sum); }

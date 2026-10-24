@@ -86,20 +86,29 @@ Used by the View layer, His view, "In view" / "Seen by", who saw whom first, "Di
 ambushes, Highlights, and many admin hints.
 
 - **Field of view: 95° across, 63° up and down** — what a **16:9** screen shows (since the 1.5 patch the game widens
-  the picture with the screen: 4:3 79°, 16:10 89°, 16:9 95°, 21:9 111°, 32:9 131°). The demo doesn't record the screen,
-  so 16:9 is assumed for everyone; players with wider screens see more than the site assumes.
+  the picture with the screen up to 16:9: 4:3 79°, 16:10 89°, 16:9 95°; a 21:9 or 32:9 screen is not wider — about 92° /
+  90°, the game keeps it near 16:9's width; v234). The demo doesn't record the screen, so 16:9 is assumed for everyone;
+  players with 4:3 or 16:10 screens see less than the site assumes.
 - It is the **exact frame** of the screen, not width and height taken apart: less is seen up and down at its edges, and
   looking down, the ground near him is seen wider.
-- **Through the sights the view is narrower**, by weapon (from the game files): pistols, shotguns and SMGs 80°, most
-  rifles and machine guns 63–72°, L85A1 43°, SVD and QBU-88 33°, M24, L96A1 and M95 22° (a scope is round) — plus 10° to
+- **Through the sights the view is narrower**, by weapon (from the game files): pistols, shotguns and SMGs 74–78°, most
+  rifles and machine guns 58–66°; a scope is round, as high as the screen: L85A1 23°, SVD and QBU-88 17°, M24, L96A1 and
+  M95 11.5° (v234: the weapon's zoom factor is the view's height itself — up to v233 10% wider) — plus 10° to
   each side because the demo's view is sometimes slightly off. The narrow view counts for those he could miss, never for
   the man he is shooting at. (The server's summaries, which don't know the weapon in his hands at every moment, use the
   kit: a sniper with his rifle — the scope, a pistol 0.8, the rest 0.65.)
-- **Line of sight**: lines from the eyes (at the height of the game's camera) to the target's head, chest, shoulders
+- **Line of sight**: lines from the eyes (where the game's camera is: straight over his position, 0.47 / −0.05 / −0.63 m
+  standing / crouching / lying — v233 put it 0.1 m in front, v234 back: the game drops that part) to the target's head, chest, shoulders
   and hips; blocked by the map's shapes, the relief and tree trunks. **Thin walls** (wooden boards, thin metal, plastic,
   cloth) don't stop bullets: a kill only through such things is "through thin walls", not "no line of sight".
 - **Fog**: nothing is seen beyond the map's view distance (Karkand 140 m, Blue Pearl 90, Sharqi 195, Mashtuur 200,
-  Songhua 250, Jalalabad 270, Fushe Pass and Gulf of Oman 400, Wake and Kubra 600, …). **Smoke** from grenades and
+  Songhua 250, Jalalabad 270, Fushe Pass and Gulf of Oman 400, Wake and Kubra 600, …). (v235) Inside it the map's
+  fog, worked out as the game draws it, hides a man sooner: on Karkand nothing of him is left past 99.5 m, on Mashtuur
+  past 155 m, on Songhua 204 m, Highway Tampa 305 m — unless he stands against the sky, which has no fog.
+- **Ticket bleed** (v235): a side loses tickets while the other side's flags weigh 100 or more (each flag's weight comes
+  from the level's files) and more than its own — 10 a minute for each 100 of difference. On Karkand the 8 flags weigh
+  104 and on Wake the 6 weigh 100, so there a side bleeds only while the other holds every flag. Round stats count the
+  bleed this way; "Other" is what neither the deaths nor the bleed explain. **Smoke** from grenades and
   vehicles' launchers blocks for as long as it lasts.
 - "**In view**" means inside the frame; whether walls were in between is checked separately (and only on the 22 maps).
 - **His view** keeps an enemy faded for a few seconds where he was last seen, and adds what his side spotted; **Crew's
@@ -237,6 +246,15 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   - **`make-videos.bat`**: the game films each view at 1280×720, 30 frames a second, and quits at the track's end; ffmpeg,
     when found, cuts the film to the clip and makes it an MP4 (H.264, the AVI deleted).
   The kit is made in the browser in seconds; it needs the round's demo (the server's, or your own copy).
+- **Over the game videos** (v232, the idea from DemoAnalyzer, 2008, which draws in the game itself): an `.ass` file a
+  view (shapes and text at each frame's time) that ffmpeg burns in. Every camera is one the page made — its place, yaw
+  and pitch at every tick, 95° across — so each point of the round lands on the picture where it is: labels over the
+  soldiers and manned vehicles within the fog limit (name, health, distance from him; faded where the map's He sees him
+  says he couldn't), a ring round the one he aims at (the map's aim), in his eyes the crosshair with its distance, in the
+  other views his aim line. Through his sights (`viewZoom`, the weapon's zoom from the game's files) his eyes are
+  rendered again at that narrower view (`renderFieldOfView`, up to two zooms a clip) and ffmpeg puts that film in for
+  those seconds; a scope (zoom 0.4 and under) gets the game's round sight, black round it. Behind him and From the side
+  became free cameras made the same way as the game's (7 m / 5 m) for this.
 
 ## Posts and summaries
 
@@ -262,8 +280,8 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
 - (v227) **They are settable**: our tuned values are the *recommended* ones; the site can have its own set (used by the
   background analysis — a new set sends every round through it again) and each admin his own over it, for the rounds he
   opens — or a hint turned off. Both are kept on the server (`data/.admin`), never in the public page.
-- **Field of view** for hints is the same 95° / scope model as above; Wide view looks at 50–70° off — a player with a
-  21:9 (111°) or 32:9 screen honestly gets it, and the hint says so.
+- **Field of view** for hints is the same 95° / scope model as above; Wide view looks at 50–70° off — a 21:9 or 32:9
+  screen does not reach it (the game keeps those near 16:9's width; v219–v233 said it did).
 - **Prone**: when a soldier lies down the demo seems to record where his body points, not where he looks — aim hints for
   a prone shooter need care.
 - **Strength**: minor / hint / strong; a "chance" compares him with everyone in the same round (how often luck would give

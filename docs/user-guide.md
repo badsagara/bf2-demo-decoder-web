@@ -178,9 +178,14 @@ A kit for the game on your PC (Windows, Battlefield 2 installed): the game plays
 real game picture, not the map. Follow a soldier first; tick the views you want:
 
 - **His eyes** — what he saw (in a vehicle, from his seat);
-- **Behind him** — the game's camera 7 m behind him and above, turning with him;
-- **From the side** — 5 m from his side;
-- **Still** — one camera over the place, the shooter and his target in it.
+- **Behind him** — a camera 7 m behind him and above, turning with him;
+- **From the side** — 5 m to his right;
+- **Still** — one camera over the place, the shooter and his target in it;
+- **Names & crosshair** (v232) — what the game doesn't show in a demo, drawn over the films by ffmpeg: in his eyes the
+  crosshair with how far it meets something (and whom), and through his sights or scope the picture zoomed in (a scope
+  black round its round sight — his eyes are filmed once more for each zoom); over the soldiers and vehicles in the
+  picture their name (in their side's colour, his own yellow), health and distance from him, faded where he couldn't
+  see them (walls, hills, smoke, trees); a ring round the one he aims at; in the other views his yellow aim line.
 
 **Make the kit** packs a `.zip` (a few hundred KB): the round's demo, with the part of the round before the clip packed
 into a short stretch so the game gets there fast; a camera for each view; and `make-videos.bat`. Unpack the zip into the
@@ -188,7 +193,8 @@ game's folder (its folder goes next to `BF2.exe`) and run `make-videos.bat`: the
 30 frames a second) and closes by itself, then the next. With [ffmpeg](https://ffmpeg.org) (in PATH, in the kit's folder
 or the game's) each film is cut to the clip and made an MP4 (`mods\bf2\Demos\…_eyes.mp4` and so on); without it, the
 films stay large AVI files. `watch-in-game.bat` plays the demo in the game with your own camera instead. The game shows
-no HUD or crosshair in a demo.
+no HUD or crosshair in a demo; without **Names & crosshair** the films are as the game draws them. (The drawing over the
+films needs an ffmpeg with libass — the usual Windows builds have it; without, the films are made plain.)
 
 The quickest way: the **game video** button (a play sign in a film frame) by a kill in the kill feed, in a highlight or
 in an admin's hint — it sets the clip 8 s before the kill and 3 s after, following the killer, with the views you ticked

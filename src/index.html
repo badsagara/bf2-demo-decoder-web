@@ -492,6 +492,7 @@ input[type=number] { width: 84px; font: 500 13px var(--font-data); background: v
 .svb:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cliprow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .gviews { display: inline-flex; flex-wrap: wrap; gap: 4px 10px; } .gviews label { white-space: nowrap; }   /* (v229) the game video's views */
+.gviews .gvover { padding-left: 10px; border-left: 1px solid var(--line); }   /* (v232) and what is drawn over them */
 .cliprow label { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
 .cliprow .btn { padding: 7px 10px; }
 .cliprow .spacer { flex: 1; }
@@ -1085,7 +1086,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v231';
+const APP_VERSION = 'v235';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -2033,7 +2034,9 @@ const rgbaOf = (col, a) => { const h = String(col).trim().replace('#', ''); if (
 // (v219, Sagara: "the 1.5 patch gave native widescreen, nearly everyone plays 16:9") The game's soldier camera
 // (Objects/Soldiers/Common/SoldierCamera.tweak: worldFOV 1.1 rad) is 1.1 rad high, and since the 1.5 patch as wide as the
 // screen (Hor+: "Widescreen FoV on widescreen resolutions"): ~79 deg on 4:3 (v47-v215), 89 on 16:10, 95 on 16:9 (taken
-// here: VIEW_HALF 47.5 deg each side; v216-v218 90), 111 on 21:9, 131 on 32:9. The demo holds nothing of his screen.
+// here: VIEW_HALF 47.5 deg each side; v216-v218 90). (v234) Wider than 16:9 it is not wider: RenderView::setAdjustedFov
+// (OpenBF2, read for knowledge) scales the height by the aspect then - 92 deg across on 21:9, 90 on 32:9 (not 111 / 131
+// as written here before); 5:4 79. The demo holds nothing of his screen.
 // Nobody sees past the map's fog limit (Init.con GameLogic.MaximumLevelViewDistance: Karkand 140 m, Mashtuur 200 m, open
 // maps 400-600 m). Walls and hills are not in the demo, so "in view" means inside that frame, not necessarily in sight
 // (canSee / viewShed: the game's files). The view drawn and "In view" / "Seen by" reach the fog limit (v47-v93: 50 m).
@@ -2046,12 +2049,16 @@ const VIEW_VHALF = 0.55;
 // looking at pitch pt? (pt null: not known, counts as yes) - (v219: the side view's wedge; the rest goes by viewCam)
 const inVBand = (pt, eye, d, zlo, zhi) => pt == null || (Math.atan2(zhi - eye, d) >= pt - VIEW_VHALF && Math.atan2(zlo - eye, d) <= pt + VIEW_VHALF);
 // (v219) through the sights or a scope (zoomNow: the demo has it since v146) the view closes to the weapon's
-// ObjectTemplate.zoom.addZoomFactor (Objects/Weapons/Handheld/*/*.tweak) times its height - read so: the L96A1's 0.2 makes
-// 12.6 deg, the M4's 0.7 iron sights 44 deg high and 72 across. 0.4 and under (M24, L96A1, M95 0.2; SVD, QBU-88 0.3;
+// ObjectTemplate.zoom.addZoomFactor (Objects/Weapons/Handheld/*/*.tweak). (v234) That factor IS the field of view up and
+// down, in rad - not a share of the 1.1: DefaultZoomComp hands it to Player::setFov, where 0 stands for the camera's own
+// worldFOV (OpenBF2, read for knowledge). So the L96A1's 0.2 is 11.5 deg high (v219-v233: 0.2 x 1.1, 12.6), the M4's 0.7
+// iron sights 40 deg high and 66 across (were 44 / 72). 0.4 and under (M24, L96A1, M95 0.2; SVD, QBU-88 0.3;
 // L85A1's SUSAT 0.4): a scope - the round sight the game draws, as high as the screen, black round it. By template
 // (55 hand-held weapons); one not known (an unlock not yet seen to kill in this life): 0.7, a pistol 0.8
 const ZOOM_F = {"5369":0.85,"5370":0.6,"5372":0.8,"5374":0.8,"5376":0.8,"5378":0.6,"5380":0.8,"5382":0.8,"5384":0.3,"5388":0.7,"5390":0.7,"5392":0.6,"5394":0.8,"5396":0.7,"5398":0.8,"5400":0.2,"5402":0.6,"5413":0.6,"5415":0.6,"5417":0.8,"5419":0.8,"5421":0.7,"5423":0.7,"5425":0.6,"5427":0.6,"5429":0.8,"5431":0.3,"5433":0.6,"5435":0.6,"5437":0.6,"5439":0.8,"5441":0.7,"5444":0.7,"5446":0.7,"5448":0.7,"5450":0.7,"5453":0.8,"5455":0.85,"5458":0.6,"5462":0.8,"5464":0.8,"5466":0.7,"5468":0.7,"5470":0.7,"5472":0.6,"5474":0.6,"5476":0.6,"5478":0.2,"5480":0.7,"5482":0.8,"5483":0.8,"5485":0.4,"5487":0.8,"5489":0.8,"5491":0.2};
 const ZOOM_SCOPE = 0.4;
+// the field of view up and down (rad) at zoom z (viewZoom's: 1 not zoomed - the camera's 1.1; else the weapon's factor)
+const fovV = z => z >= 1 ? 2 * VIEW_VHALF : z;
 // how far soldier i's view is closed at tt: 1 not aiming (or in a vehicle), else his weapon's factor (kept per 0.1 s)
 function viewZoom(i, tt) {
   const p = round.players[i]; if (!p || p.vehicle || !zoomNow(p, tt)) return 1;
@@ -2067,11 +2074,11 @@ function viewZoom(i, tt) {
 // width), round }
 // Through the sights the frame is ZOOM_SLACK wider each way than the game's: the demo's view is that far off the man he
 // shoots at times (21.10 21:03: of 103 kills through the sights, 14 with the victim 6-20° off where he looked - the scope
-// shows 6.3° each side - most of them in the 0.1 s of the shot; the rest 0-5°), and the sights' frame is for the others
+// shows 5.7° each side - most of them in the 0.1 s of the shot; the rest 0-5°), and the sights' frame is for the others
 // round him (a man coming from the side), not for the one in it
 const ZOOM_SLACK = 10 * Math.PI / 180;
 function viewCam(yaw, pitch, z = 1) {
-  const sc = z <= ZOOM_SCOPE, hv = VIEW_VHALF * z, hw = sc ? hv : Math.atan(Math.tan(hv) * VIEW_ASPECT), sl = z < 1 ? ZOOM_SLACK : 0;
+  const sc = z <= ZOOM_SCOPE, hv = fovV(z) / 2, hw = sc ? hv : Math.atan(Math.tan(hv) * VIEW_ASPECT), sl = z < 1 ? ZOOM_SLACK : 0;
   return { yaw, c: pitch == null ? null : Math.cos(pitch), s: pitch == null ? null : Math.sin(pitch), tv: Math.tan(Math.min(1.55, hv + sl)), tw: Math.tan(Math.min(1.55, hw + sl)), round: sc };
 }
 // the cam of a view (looking / viewOf's fields) of soldier who: through his sights on foot
@@ -2110,6 +2117,27 @@ const bodyCol = (j, o, tt) => [o.h - 1.0, o.h + (o.veh ? 1.0 : AIM_H[stanceNow(r
 const pitchText = pt => { const g = Math.round(pt * 180 / Math.PI); return Math.abs(g) < 3 ? 'level' : Math.abs(g) + '° ' + (g > 0 ? 'up' : 'down'); };
 const viewRange = () => fogRange();
 const fogRange = () => GAME.maps[mapKey()]?.view || 150;
+// (v235) the fog itself, as the game draws it (OpenBattlefield2's reading of the game's shaders, checked there on frames of
+// the game): t = (d - start) / (end - start), visibility = max(1 - base t, floor) - t^3 - the level's Sky.con
+// Renderer.fogStartEndAndBase start / end / base / floor. Karkand 0/135/2.3/0.4: 66% at 20 m, 35% at 50 m, nothing left
+// past 99.5 m though the game draws to 140 m; Mashtuur gone at 155 m (drawn to 200), Highway Tampa 305 (450), Songhua
+// 204 (250). The sky is not fogged: a man against the sky still stands out as a shape (skyBehind)
+const FOG_LV = {"dalian_plant":[0,610,0,0.5],"daqing_oilfields":[10,450,2,0.85],"dragon_valley":[0,500,0.4,0.4],"fushe_pass":[15,400,1,1],"greatwall":[10,450,2,0.5],"gulf_of_oman":[0,450,0.25,0.5],"highway_tampa":[10,450,5,0.3],"mashtuur_city":[30,200,1.4,0.4],"midnight_sun":[10,425,0.8,0.7],"operationharvest":[20,470,1.6,0.6],"operationroadrage":[75,400,1,0.5],"operationsmokescreen":[10,540,0.5,0.7],"operation_blue_pearl":[0,90,2,0.6],"operation_clean_sweep":[0,600,2,0.6],"road_to_jalalabad":[5,260,1,0.5],"sharqi_peninsula":[30,190,0.5,0.75],"songhua_stalemate":[10,300,7,0.3],"strike_at_karkand":[0,135,2.3,0.4],"taraba_quarry":[75,535,1,0.8],"wake_island_2007":[0,600,0.25,0.5],"zatar_wetlands":[0,440,1,0.7],"kubra_dam":[15,600,0,0]};
+const fogVis = (d, mk = mapKey()) => { const f = FOG_LV[mk]; if (!f) return 1; const t = Math.max(0, (d - f[0]) / (f[1] - f[0])); return Math.max(1 - f[2] * t, f[3]) - t ** 3; };
+// how far before the fog leaves nothing (m; Infinity: not known, or not before the view distance)
+const FOG_GONE = new Map();
+const fogGone = (mk = mapKey()) => { if (FOG_GONE.has(mk)) return FOG_GONE.get(mk); let lo = 0, hi = GAME.maps[mk]?.view || 0, v = Infinity;
+  if (FOG_LV[mk] && hi > 0 && fogVis(hi, mk) <= 0) { for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if (fogVis(m, mk) > 0) lo = m; else hi = m; } v = Math.round(hi * 10) / 10; }
+  FOG_GONE.set(mk, v); return v; };
+// is the sky behind a point seen from an eye: the line from the eye through it, carried on to the view distance, meets
+// neither the ground nor the map's objects (houses, walls: the sight grid, losBlocked) - then only the sky is behind him
+function skyBehind(D, ax, ay, ah, bx, by, bh, tt) {
+  if (!D) return true;
+  const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy) || 1, far = fogRange(); if (far <= L + 2) return true;
+  const u = far / L; return !losBlocked(D, bx, by, bh, ax + dx * u, ay + dy * u, ah + dh * u, tt);
+}
+// lost in the fog: farther than fogGone, with no sky behind (b: the point of him that would show, e.g. the top of his head)
+const fogHides = (D, ax, ay, ah, bx, by, bh, tt) => { const fz = fogGone(); return fz < Infinity && Math.hypot(bx - ax, by - ay, bh - ah) > fz && !skyBehind(D, ax, ay, ah, bx, by, bh, tt); };
 const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
 // where soldier i looks: on foot his view; in a seat with a gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a
 // passenger at a firing port) where the gun points, up or down (gun: true); a jeep's driver, a passenger without a port:
@@ -2920,6 +2948,15 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot) {
 // victim does not change with the distance (no angle error) and from a crouching / prone killer it comes 0.38 / 1.02 m
 // lower than from a standing one at the same kind of target (the game's 0.52 / 1.10 fit better than 0.60 / 1.20)
 const EYE_H = [0.47, -0.05, -0.63], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75]];
+// (v233) the eye 0.1 m in front of his position (the .tweak's poseCameraPosition 0/0.47/0.1, 0/-0.05/0.1, 0/-0.63/0.1 -
+// across / up / ahead). (v234) Not so in the game: SoldierTemplate::poseCameraPosition keeps the height alone, x and z
+// set back to 0 (OpenBF2, read for knowledge: "0/0.47/0.1 yields (0, 0.47, 0)") - the camera is straight over his
+// position, EYE_FWD 0 again; the bullets leave from it too (rifles: fireInCameraDof, no projectileStartPosition).
+// A jump (only a standing man jumps: Soldier::handlePlayerInput) lifts his position - 6 m/s up; in the demos 1.37-1.43 m
+// over the take-off, ~0.45 s up, ~0.9 s in the air - and the standing eye with it: the demo's heights carry it (its 0.1 s
+// steps cut 2 cm off the top at most). eyeXY: his position moved by EYE_FWD (kept for the sight lines that call it)
+const EYE_FWD = 0;
+const eyeXY = q => EYE_FWD && q && !q.veh && Number.isFinite(q.x) && Number.isFinite(q.yaw) ? { ...q, x: q.x + EYE_FWD * Math.sin(q.yaw), y: q.y + EYE_FWD * Math.cos(q.yaw) } : q;
 // (in a vehicle: his seat's camera, seatView; 1.5 m over the vehicle's position where that is not known)
 const eyeOf = (i, q, tt) => q.eye != null ? q.eye : q.veh ? (seatView(i, tt)?.eye ?? q.h + 1.5) : q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
 // ---------- smoke (sight lines) ----------
@@ -2974,6 +3011,7 @@ function canSee(i, j, tt, V) {
   if (q.h == null || o.h == null) return null;
   const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[st];
   if (eye == null) return null;
+  if (fogHides(D, q.x, q.y, eye, o.x, o.y, o.h + Math.max(...pts), tt)) return false;   // (v235: lost in the fog)
   const G = geoData(true);
   const clear = (bx, by, bh) => !(losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt)))
     && !vehBlocks(q.x, q.y, eye, bx, by, bh, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, bx, by, bh);
@@ -3185,7 +3223,7 @@ function seatView(i, tt, q) {
 function sightOf(i, tt) {
   const q = playerAt(i, tt);
   if (q.alive && q.veh) { const s = seatView(i, tt, q); if (s) return { ...q, x: s.x, y: s.y, eye: s.eye }; }
-  return q;
+  return q.alive ? eyeXY(q) : q;   // (v233: on foot from his eye - v234: straight over his position, EYE_FWD 0)
 }
 // the view drawn for soldier i (or vehicle i: its driver's, else a gunner's) - on foot where he looks, in a seat its camera
 // (in third person when that is picked, opts.cam3): looking()'s fields with x, y, eye of the camera, role, ahead, third,
@@ -3199,7 +3237,7 @@ function viewOf(i, tt) {
     return null;
   }
   const q = playerAt(i, tt); if (!q.alive) return null;
-  if (!q.veh) { const lk = looking(i, tt); return lk ? { ...lk, eye: lk.h != null ? eyeOf(i, lk, tt) : null, role: 'foot', who: i } : null; }
+  if (!q.veh) { const lk = looking(i, tt); return lk ? { ...eyeXY(lk), eye: lk.h != null ? eyeOf(i, lk, tt) : null, role: 'foot', who: i } : null; }   // (v233: from his eye)
   const s = seatView(i, tt, q); if (!s) return null;
   const third = !!(opts.cam3 && s.c3);
   return { ...q, x: third ? s.c3.x : s.x, y: third ? s.c3.y : s.y, eye: third ? s.c3.eye : s.eye, yaw: s.yaw, pitch: third ? s.c3.pitch : s.pitch, gun: s.gun, ahead: s.ahead, role: s.role, third, seat: s, who: i };
@@ -3447,6 +3485,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
   else {   // (in a seat: from its camera)
     q = looking(i, tt); if (!q || !Number.isFinite(q.x)) return null;
     if (q.veh) { const sv = seatView(i, tt); if (sv) q = { ...q, x: sv.x, y: sv.y, eye: sv.eye }; }
+    else q = eyeXY(q);   // (v233: from his eye; v234: EYE_FWD 0)
     eye = q.h != null ? q.eye ?? eyeOf(i, q, tt) : null;
   }
   const flat = eye == null, pt = flat ? 0 : q.pitch ?? 0, cp = Math.cos(pt), ux = Math.sin(q.yaw) * cp, uy = Math.cos(q.yaw) * cp, uh = Math.sin(pt);
@@ -3717,7 +3756,9 @@ function seesVeh(i, j, tt, zoom = true) {
   const eye = eyeOf(i, q, tt), hk = q.h != null && o.h != null && eye != null;
   if (!inCam(zoom ? camOf(q, i, tt) : viewCam(q.yaw, q.pitch), dx, dy, hk ? o.h - 1.0 - eye : null, hk ? o.h + 1.5 - eye : null, 2.5)) return false;
   const D = losData(); if (!D || q.h == null || o.h == null) return true;
-  for (const th of [1.2, 0.4]) if (!losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + th, tt) && !vegBlocks(q.x, q.y, eye, o.x, o.y, o.h + th)) return true;
+  const qe = eyeXY(q);   // (v233)
+  if (fogHides(D, qe.x, qe.y, eye, o.x, o.y, o.h + 1.5, tt)) return false;   // (v235: lost in the fog)
+  for (const th of [1.2, 0.4]) if (!losBlocked(D, qe.x, qe.y, eye, o.x, o.y, o.h + th, tt) && !vegBlocks(qe.x, qe.y, eye, o.x, o.y, o.h + th)) return true;
   return false;
 }
 // An attack looked at from both sides over the 8 s before it (before the rocket left the launcher, or the first hit), as
@@ -5879,7 +5920,7 @@ function pickAt(e) {
 // Worked out once per round from the timeline: who had more soldiers on the field and more flags over time, what the
 // tickets were lost to, kills by weapon, kills and deaths on foot and in vehicles, the longest kill streaks.
 const CAUSES = [['small', 'Small arms'], ['veh', 'Vehicle guns'], ['expl', 'Grenades & explosives'], ['at', 'Anti-tank launchers'],
-  ['emp', 'Emplacements'], ['none', 'No weapon (roadkill, crash…)'], ['tk', 'Team kills'], ['self', 'Suicides & other deaths'], ['bleed', 'Bleed (enemy holds the flags)'], ['missed', 'Other (deaths not decoded)']];
+  ['emp', 'Emplacements'], ['none', 'No weapon (roadkill, crash…)'], ['tk', 'Team kills'], ['self', 'Suicides & other deaths'], ['bleed', 'Bleed (enemy holds the flags)'], ['wipe', 'No flag and nobody alive (the game ends it)'], ['missed', 'Other (deaths not decoded)']];
 // the weapon of a kill as the feed names it: with the vehicle it was fired from when he sat in one ("T-90 2 · cannon",
 // "Humvee 3 · M2 HMG", "Vodnik 1" for one run over)
 // The weapon as the game's kill message names it ("Killer [M16A2] Victim"): someone in a vehicle or at an emplacement
@@ -6005,15 +6046,24 @@ function roundStats() {
     for (const e of kills) { if (e.revived) continue; const vi = R.pidx.get(e.victim); if (vi === undefined) continue; const vt = team(vi, e.t); if (vt === 0 || vt === 1) dts[vt].push(e.down ?? e.t); }
     for (const e of ev) if (e.type === 'death' && e._x === false) { const vi = R.pidx.get(e.player); if (vi === undefined) continue; const vt = team(vi, e.t); if (vt === 0 || vt === 1) dts[vt].push(e.t); }
     for (const tm of [0, 1]) {
-      const D = dts[tm].sort((a, b) => a - b); let bleed = 0;
+      const D = dts[tm].sort((a, b) => a - b); let bleed = 0, wipe = 0;
       for (let k = 1; k < F; k++) {
-        const drop = R.TK[(k - 1) * 2 + tm] - R.TK[k * 2 + tm]; if (drop <= 0 || drop > 20) continue;
+        const drop = R.TK[(k - 1) * 2 + tm] - R.TK[k * 2 + tm];
+        // (v235) a side with no flag left and nobody alive: the game takes its tickets all at once and the round ends
+        // (gpm_cq.py's ticketLossAtEnd; Wake 14.10 15:51 - 180 in 0.8 s, 20 a tenth of a second): not deaths the decoder
+        // missed - 5 or more at once with no flag held
+        if (drop >= 5) { let held = false; if (R.FO) for (let j = 0; j < R.nf; j++) if (R.FO[k * R.nf + j] === tm) held = true; if (!held) { wipe += drop; continue; } }
+        if (drop <= 0 || drop > 20) continue;
         const tt = R.times[k]; let lo = 0, hi = D.length; while (lo < hi) { const m = (lo + hi) >> 1; if (D[m] < tt - 1.2) lo = m + 1; else hi = m; }
         if (!(lo < D.length && D[lo] <= tt + 1.2)) bleed += drop;
       }
       const counted = Object.values(lost[tm]).reduce((a, b) => a + b, 0), total = tk0[tm] - tk1[tm];
+      // (v235) the bleed by the game's rule where the flags' weights are known (modelBleed): what the drops with no death
+      // near them found (deaths at the same moment hid some: 2-45% fewer in the 42 demos) only where they are not
+      const mb = modelBleed(R); if (mb) bleed = Math.round(mb[tm]);
       if (bleed) lost[tm].bleed = bleed;
-      if (total - counted - bleed > 0) lost[tm].missed = total - counted - bleed;
+      if (wipe) lost[tm].wipe = wipe;
+      if (total - counted - bleed - wipe > 0) lost[tm].missed = total - counted - bleed - wipe;
     }
   }
   // time on foot / in vehicles (alive)
@@ -6042,7 +6092,7 @@ function roundStats() {
     const s = { players: ps.length, kills: 0, deaths: 0, revives: ev.filter(e => e.type === 'revive' && team(R.pidx.get(e.player), e.t) === tm).length,
       caps: ev.filter(e => e.type === 'flag' && e.team === tm).length, alive: alive[tm].reduce((a, b) => a + b, 0) / Math.max(1, alive[tm].length),
       flags: flags[tm].reduce((a, b) => a + b, 0) / Math.max(1, flags[tm].length), tickets: hasTk ? [tk0[tm], tk1[tm]] : null, lost: Object.values(lost[tm]).reduce((a, b) => a + b, 0) };
-    s.deaths = s.lost - (lost[tm].bleed || 0) - (lost[tm].missed || 0);
+    s.deaths = s.lost - (lost[tm].bleed || 0) - (lost[tm].wipe || 0) - (lost[tm].missed || 0);
     return s;
   });
   for (const e of kills) { const ki = R.pidx.get(e.killer), vi = R.pidx.get(e.victim); if (ki === undefined || vi === undefined || ki === vi) continue; const kt = team(ki, e.t), vt = team(vi, e.t); if (kt !== vt && (kt === 0 || kt === 1)) summary[kt].kills++; }
@@ -6544,7 +6594,7 @@ function highlights() {
     if (!q.alive || !o.alive || q.h == null || o.h == null || R.players[ki].vehicle) continue;
     const c = killCause(e, !!q.veh), direct = c === 'small' || c === 'at' || c === 'emp' || c === 'veh', hd = Math.hypot(o.x - q.x, o.y - q.y);
     if (!q.veh && (c === 'small' || c === 'at') && q.h - o.h >= 4 && (!D || q.h - 1 - groundAt(D, q.x, q.y) >= 2.5)) out.push({ t: e.t, kind: 'above', actor: e.killer, kill: e, dh: q.h - o.h, x: e.x, y: e.y });
-    if (D && !q.veh && c === 'small' && hd >= 8) { const [n] = bodyLines(D, q, eyeOf(ki, q, tt), vi, o, tt); if (n >= 1 && n <= 2) out.push({ t: e.t, kind: 'gap', actor: e.killer, kill: e, lines: n, x: e.x, y: e.y }); }
+    if (D && !q.veh && c === 'small' && hd >= 8) { const [n] = bodyLines(D, eyeXY(q), eyeOf(ki, q, tt), vi, o, tt); if (n >= 1 && n <= 2) out.push({ t: e.t, kind: 'gap', actor: e.killer, kill: e, lines: n, x: e.x, y: e.y }); }
     if (direct && !o.veh) {
       const away = tq => { const a = playerAt(vi, tq), b = playerAt(ki, tq); return a.alive && !a.veh ? angOff(Math.atan2(b.x - a.x, b.y - a.y), a.yaw) : 0; };
       const a0 = away(tt); if (a0 >= 2.36 && away(tt - 1) >= 2.09) out.push({ t: e.t, kind: 'back', actor: e.killer, kill: e, away: a0, x: e.x, y: e.y });
@@ -6670,7 +6720,7 @@ function jumpTo(h, keepSel) {
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['glitch', 'Glitch spot'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map'], ['hssn', 'Sniper headshots'], ['clicker', 'Clicker'], ['brate', 'Bullet rate'], ['spotbot', 'Spot rhythm'], ['lagsw', 'Lag switch'], ['onehit', 'One-hit kills'], ['silent', 'Silent aim'], ['vlock', 'Aim lock'], ['spin', 'Spin'], ['afkbot', 'Anti-AFK script'], ['teamsw', 'Side switch'], ['tkrev', 'TK + revive'], ['prone', 'Prone spam'], ['bhop', 'Bunny hop']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['glitch', 'Glitch spot'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map'], ['hssn', 'Sniper headshots'], ['clicker', 'Clicker'], ['brate', 'Bullet rate'], ['spotbot', 'Spot rhythm'], ['lagsw', 'Lag switch'], ['onehit', 'One-hit kills'], ['silent', 'Silent aim'], ['vlock', 'Aim lock'], ['spin', 'Spin'], ['sidesprint', 'Sideways sprint'], ['airspeed', 'Speed in the air'], ['jumpfire', 'Shot in a jump'], ['afkbot', 'Anti-AFK script'], ['teamsw', 'Side switch'], ['tkrev', 'TK + revive'], ['prone', 'Prone spam'], ['bhop', 'Bunny hop']];
 // (v227) thresholds that were figures in the code, named so that the admins can set them (HT_SPEC); HT_OFF: the hints
 // turned off (the site's, or an admin's own)
 let WALL_T = 0.7, SNAP_FROM = 30, SNAP_TO = 5, HS_KMIN = 6, HSSN_MIN = 6, FOG_SLACK = 10, TEAMSW_TK = 50, TEAMSW_T = 60, HT_OFF = new Set(), HT_GEN = 0;
@@ -6846,7 +6896,7 @@ function cheatHints(R) {
   // in an aircraft or out of one in the 5 s before (he dies where it comes down, far from where it was hit); only on maps
   // whose view distance is known (v213 archive: on 2779 rounds such kills of the other weapons, 2 or more of one soldier
   // in a round, in about 60 soldier-rounds); from an aircraft the distance in 3 dimensions
-  const air = airNames(), fogKnown = !!GAME.maps[mapKey()]?.view;
+  const air = airNames(), fogKnown = !!GAME.maps[mapKey()]?.view, fz = fogGone(), Dfog = fz < Infinity ? losData() : null;
   const fogKill = (e, vi) => { const w = e.weapon || ''; if (!w || FOG_SKIP.test(w) || e.noDist === 'veh' || e.noDist === 'foot' || e.noDist === 'fired') return false;   // (v221: not where killFix found the weapon named is not what he shot from there)
     for (let k = 0; k <= 5; k++) if (air.has(playerAt(vi, e.t - 0.05 - k).veh)) return false; return true; };
   for (const e of ev) {
@@ -6857,6 +6907,11 @@ function cheatHints(R) {
     if (fogKnown && fogKill(e, vi)) {
       const up = air.has(q.veh), df = up && Number.isFinite(q.h) && Number.isFinite(o.h) ? Math.hypot(d, o.h - q.h) : d;
       if (df > fog + FOG_SLACK) out.push({ t: e.t, kind: 'fog', adm: true, actor: e.killer, kill: e, d: df, fog, x: e.x, y: e.y, ...(q.veh ? { veh: q.veh } : {}), ...(small ? {} : { other: 1 }) });
+      // (v235) or inside the view distance but past where the fog leaves nothing of him (fogGone), with no sky behind him
+      else if (fz < Infinity && df > fz + FOG_SLACK && Dfog) {
+        const sv = sightOf(ki, e.t - 0.05), eye = sv.eye ?? (Number.isFinite(sv.h) ? eyeOf(ki, sv, e.t - 0.05) : null);
+        if (eye != null && Number.isFinite(o.h) && fogHides(Dfog, sv.x, sv.y, eye, o.x, o.y, o.h + (o.veh ? 1.4 : 0.8), e.t - 0.05)) out.push({ t: e.t, kind: 'fog', adm: true, actor: e.killer, kill: e, d: df, fog, thick: fz, x: e.x, y: e.y, ...(q.veh ? { veh: q.veh } : {}), ...(small ? {} : { other: 1 }) });
+      }
     }
     if (!small) continue;
     let smoky = true; for (let k = 0; k <= 5 && smoky; k++) { const tt = e.t - 0.05 - k * 0.2, a = playerAt(ki, tt), b = playerAt(vi, tt); if (!a.alive || !b.alive || !smokeBlocks(a.x, a.y, b.x, b.y, tt)) smoky = false; }
@@ -6879,8 +6934,22 @@ let BRATE = { smg: 16, pistol: 16, rifle: 10.5 }, BRATE_X = 1.5, BRATE_SHOTS = 8
 const LMG_W = /RPK|PKM|M249|MG36|Type 95 LMG|MG3\b|Minimi|M60|Negev|Saw\b/i;
 // Spot rhythm: 10 spots in a row spaced 1.5 s or more apart, varying 10% or less (honest at least 36%)
 let SPOTR_N = 10, SPOTR_CV = 0.1, SPOTR_MIN = 1.5;
-// Prone spam (dolphin diving) 12+ drops to the ground in 30 s (honest 8); bunny hop 20+ jumps in 15 s (honest 13) - rules
-let PRONE_N = 12, PRONE_T = 30, BHOP_N = 20, BHOP_T = 15, BHOP_VUP = 2.5;
+// Prone spam (dolphin diving) 12+ drops to the ground in 30 s (honest 8); bunny hop 15+ jumps in 15 s (honest 13) - rules.
+// (v235) 15, not 20: a jump on the flat lasts ~27 ticks before the next can start (0.9 s; OpenBattlefield2's soldier
+// physics, our demos' 0.9 s in the air), so 16-17 in 15 s is the most the game allows there - 20 needed slopes
+let PRONE_N = 12, PRONE_T = 30, BHOP_N = 15, BHOP_T = 15, BHOP_VUP = 2.5;
+// (v235) three from the game's own soldier physics (OpenBattlefield2's soldier physics, read for knowledge), checked on 43
+// demos (39 rounds, ~1700 small-arms kills, ~4000 jumps on the flat):
+// - Sideways sprint: the game sprints only where he looks (the strafe is zeroed, "forward" is needed; running any way tops
+//   out at 3.86 m/s) - SIDE_V m/s or more (the soldier's own velocity) moving SIDE_DEG or more off his view, on the flat,
+//   SIDE_T s on end; 43 demos: 1.0 s at the most (a turn: the move follows the view a little late)
+// - Speed in the air: a jump keeps its speed (air control adds only while slower than a limit falling from 2 m/s to 0 in
+//   2 s) - AIR_GAIN m/s or more gained between the take-off and the landing of a jump on the flat (0.6-1.2 s), AIR_N
+//   times in a round; 43 demos: 2.6 m/s at the 99.9th percentile, 3.6 once
+// - Shot in a jump: the game lets no one fire for 0.7 s after a jump (fire-delay-after-jump in its data) - a small-arms
+//   kill JF_MIN + his distance / 300 m/s (a bullet fired before the jump still on its way) to JF_MAX s after his
+//   take-off, JF_N times in a round; 43 demos: none at all between 0.1 and 0.6 s (28 kills 0.6-1.2 s after a jump)
+let SIDE_V = 4.3, SIDE_DEG = 60, SIDE_T = 2, AIR_GAIN = 4, AIR_N = 2, JF_MIN = 0.15, JF_MAX = 0.55, JF_N = 2;
 // Lag switch: his records held 0.5-3 s while he ran (2.5 m/s+) and others' went on, then 4 m+ at once, with a kill of his
 // from the start of it to 1.5 s after - twice or more in a round, his ping under 250 (honest: none)
 let LAG_MIN = 0.5, LAG_MAX = 3, LAG_RUN = 2.5, LAG_WARP = 4, LAG_N = 2, LAG_AFTER = 1.5;
@@ -6907,6 +6976,10 @@ function macroHints(R) {
   const sold = R.players.map((p, i) => p.vehicle ? -1 : i).filter(i => i >= 0);
   const sA = (a, b) => { let x = (a - b) % (2 * Math.PI); if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return x; };
   const step = (T[1] - T[0]) || 0.1, fr = t => Math.max(0, Math.min(F - 1, Math.round((t - T[0]) / step)));
+  // (v235) for the physics hints: a vehicle within 8 m at frame k, a blast within 15 m in the 2 s before t; each soldier's jumps
+  const vehIdx = R.players.map((p, j) => p.vehicle ? j : -1).filter(j => j >= 0), blastL = R.events.filter(e => e.type === 'blast' && e.x != null), jumpsOf = new Map();
+  const nearVehK = (k, x, y) => vehIdx.some(j => { const e = k * n + j; return L[e] && Math.hypot(X[e] - x, Y[e] - y) < 8; });
+  const blastK = (t, x, y) => blastL.some(b => b.t <= t + 0.2 && b.t > t - 2 && Math.hypot(b.x - x, b.y - y) < 15);
   const at = (i, t) => { const q = playerAt(i, t); return { x: Number.isFinite(q.x) ? q.x : null, y: Number.isFinite(q.y) ? q.y : null }; };
   const maxIn = (L, w) => { let m = 0, a = 0; for (let b = 0; b < L.length; b++) { while (L[b] - L[a] > w) a++; m = Math.max(m, b - a + 1); } return m; };
   const firstIn = (L, w, k) => { let a = 0; for (let b = 0; b < L.length; b++) { while (L[b] - L[a] > w) a++; if (b - a + 1 >= k) return L[a]; } return null; };
@@ -6960,9 +7033,39 @@ function macroHints(R) {
     const drops = []; { let prev = 0; for (const [ts, s] of p.stance || []) { if (s === 2 && prev !== 2) drops.push(ts); prev = s; } }
     { const m = maxIn(drops, PRONE_T); if (m >= PRONE_N) { const t0 = firstIn(drops, PRONE_T, PRONE_N); out.push({ t: t0, kind: 'prone', adm: true, actor: id, n: m, within: PRONE_T, all: drops.length, ...at(i, t0) }); } }
     if (R.VV) {
-      const J = []; let up = false;
-      for (let k = 1; k < F; k++) { const e = k * n + i; if (!L[e] || VT[e]) { up = false; continue; } const v = R.VV[e] === -32768 ? null : R.VV[e] / 100; if (v === null) continue; if (v > BHOP_VUP && !up) { J.push(T[k]); up = true; } else if (v < 0.5) up = false; }
+      const J = [], JK = []; let up = false;
+      for (let k = 1; k < F; k++) { const e = k * n + i; if (!L[e] || VT[e]) { up = false; continue; } const v = R.VV[e] === -32768 ? null : R.VV[e] / 100; if (v === null) continue; if (v > BHOP_VUP && !up) { J.push(T[k]); JK.push(k); up = true; } else if (v < 0.5) up = false; }
       const m = maxIn(J, BHOP_T); if (m >= BHOP_N) { const t0 = firstIn(J, BHOP_T, BHOP_N); out.push({ t: t0, kind: 'bhop', adm: true, actor: id, n: m, within: BHOP_T, all: J.length, ...at(i, t0) }); }
+      jumpsOf.set(i, J);
+      // (v235) speed in the air
+      if (R.SP && R.HH) {
+        const SPD = R.SP, HH = R.HH; let best = null, cnt = 0;
+        for (const k0 of JK) {
+          const e0 = k0 * n + i, eb = e0 - n; if (k0 < 1 || SPD[e0] < 0 || SPD[eb] < 0) continue;
+          let k1 = null; for (let k = k0 + 3; k < Math.min(F, k0 + 14); k++) { const e = k * n + i; if (!L[e] || VT[e]) break; if (HH[e] <= HH[eb] + 0.05) { k1 = k; break; } }
+          if (k1 === null || T[k1] - T[k0] < 0.6 || T[k1] - T[k0] > 1.2) continue;
+          let mx = 0, km = k0; for (let k = k0 + 1; k < k1; k++) { const e = k * n + i; if (SPD[e] > mx) { mx = SPD[e]; km = k; } }
+          const v0 = Math.max(SPD[e0], SPD[eb]) / 100, gain = mx / 100 - v0;
+          if (gain < AIR_GAIN || nearVehK(k0, X[e0], Y[e0]) || blastK(T[km], X[e0], Y[e0])) continue;
+          cnt++; if (!best || gain > best.gain) best = { t: T[k0], gain, v0, v1: mx / 100, x: X[e0], y: Y[e0] };
+        }
+        if (cnt >= AIR_N) out.push({ t: best.t, kind: 'airspeed', adm: true, actor: id, n: cnt, gain: best.gain, v0: best.v0, v1: best.v1, x: best.x, y: best.y });
+      }
+    }
+    // (v235) sideways sprint
+    if (R.SP && R.HH) {
+      const SPD = R.SP, HH = R.HH, DN = R.DN; let run = null, best = null;
+      const close = () => { if (run && (!best || run.k1 - run.k0 > best.k1 - best.k0)) best = run; run = null; };
+      for (let k = 1; k < F - 1; k++) {
+        const e = k * n + i, a = e - n, b = e + n;
+        if (!L[e] || !L[a] || !L[b] || VT[e] || (DN && DN[e]) || SPD[e] < SIDE_V * 100 || Math.abs(HH[b] - HH[a]) >= 0.4) { close(); continue; }
+        const dx = X[b] - X[a], dy = Y[b] - Y[a]; if (Math.hypot(dx, dy) < 0.6) { close(); continue; }
+        const off = Math.abs(sA(Math.atan2(dx, dy), A[e])) / DEG;
+        if (off < SIDE_DEG || nearVehK(k, X[e], Y[e]) || blastK(T[k], X[e], Y[e])) { close(); continue; }
+        if (!run) run = { k0: k, k1: k, off: 0, v: 0, m: 0 }; run.k1 = k; run.m++; run.off = Math.max(run.off, off); run.v += SPD[e] / 100;
+      }
+      close();
+      if (best && T[best.k1] - T[best.k0] + step >= SIDE_T) out.push({ t: T[best.k0], kind: 'sidesprint', adm: true, actor: id, dur: T[best.k1] - T[best.k0] + step, off: best.off, v: best.v / best.m, x: X[best.k0 * n + i], y: Y[best.k0 * n + i] });
     }
     // ---- lag switch
     { const mine = kills.get(i) || [], G = []; let g0 = -1;
@@ -7022,6 +7125,19 @@ function macroHints(R) {
       if (dist >= 15 && dist <= 150 && o.h != null) { const lk = looking(ki, e.t); if (lk && lk.pitch != null) { const hd = Math.hypot(o.x - lk.x, o.y - lk.y), sv = stanceNow(R.players[vi], e.t) ?? 0; const pe = Math.abs((Math.atan2(o.h + AIM_H[sv][1] - eyeOf(ki, lk, e.t), hd) - lk.pitch) / DEG); const b = bump(vl, ki); b.n++; b.L.push(pe); if (!b.first) b.first = e; } }
     }
   }
+  // (v235) shot in a jump
+  { const jf = new Map();
+    for (const [ki, L2] of kills) { const J = jumpsOf.get(ki); if (!J || !J.length) continue;
+      for (const e of L2) {
+        const vi = pid(e.victim), q = playerAt(ki, e.t - 0.05), o = playerAt(vi, e.t - 0.05);
+        if (q.veh || !q.alive || killCause(e, false) !== 'small' || /knife|defib|shock|paddle/i.test(e.weapon || '')) continue;
+        const dist = e.dist ?? Math.hypot(o.x - q.x, o.y - q.y), lo = JF_MIN + (Number.isFinite(dist) ? dist : 0) / 300;
+        const tj = J.find(t0 => e.t - t0 >= lo && e.t - t0 <= JF_MAX); if (tj === undefined || blastK(tj, q.x, q.y)) continue;
+        if (!jf.has(ki)) jf.set(ki, []); jf.get(ki).push({ e, dt: e.t - tj, d: dist });
+      }
+    }
+    for (const [ki, L2] of jf) if (L2.length >= JF_N) out.push({ t: L2[0].e.t, kind: 'jumpfire', adm: true, actor: R.players[ki].id, n: L2.length, all: kills.get(ki).length, list: L2.slice(0, 6).map(x => [x.e.t, +x.dt.toFixed(2), Math.round(x.d), x.e.weapon || '']), x: L2[0].e.x, y: L2[0].e.y });
+  }
   for (const [ki, o] of oh) { if (o.q < ONEHIT_N) continue; const p = Math.max(ONEHIT_BASE, (OHQ - o.q + ONEHIT_BASE * 50) / (OHN - o.n + 50)); if (binTail(o.q, o.n, p) < ONEHIT_P) out.push({ t: o.first.t, kind: 'onehit', adm: true, actor: R.players[ki].id, kill: o.first, q: o.q, n: o.n, others: p, x: o.first.x, y: o.first.y }); }
   for (const [ki, o] of sil) { if (o.q < SIL_N) continue; const p = Math.max(SIL_BASE, (SQ - o.q + SIL_BASE * 50) / (SN - o.n + 50)); if (binTail(o.q, o.n, p) < SIL_P) out.push({ t: o.first.t, kind: 'silent', adm: true, actor: R.players[ki].id, kill: o.first, q: o.q, n: o.n, others: p, offs: o.L.slice(0, 6), x: o.first.x, y: o.first.y }); }
   for (const [ki, o] of vl) { if (o.n < VLOCK_N) continue; const s = [...o.L].sort((a, b) => a - b), md = s[s.length >> 1], p9 = s[Math.floor(s.length * 0.9)]; if (md <= VLOCK_MED && p9 <= VLOCK_P90) out.push({ t: o.first.t, kind: 'vlock', adm: true, actor: R.players[ki].id, n: o.n, mid: md, p90: p9, x: o.first.x, y: o.first.y }); }
@@ -7047,7 +7163,8 @@ let WF_T = 1.4, WF_T0 = 0.6, WF_N = 6,   // (v213: 4 -> 6 - SiC's infantry-only 
 // (v157, Sagara's todo 140 n: "ULTRAWIDE FOV") Wide view - a weak sign: a soldier sees 95° across on a 16:9 screen
 // (FOV_HALF each side, VIEW_HALF; v157-v215: 79°, a 4:3 screen, with the band 42-62°; v216-v218: 90°, 47.5-67.5°). A
 // 21:9 screen honestly shows 111° (55.5° each side, into the band), 32:9 131°: such a player gets this hint without a hack
-// - it says so (v219). Each time an enemy he can see in the open comes into the band just outside that (FOV_IN-FOV_OUT° off where
+// - it says so (v219). (v234) Not so: wider than 16:9 the game keeps the width near 16:9's (RenderView::setAdjustedFov,
+// OpenBF2: 92° on 21:9, 90° on 32:9), so a wide monitor does not reach the band - the text says so now. Each time an enemy he can see in the open comes into the band just outside that (FOV_IN-FOV_OUT° off where
 // he looks), 8-FOV_FAR m away, and he had not had him within his view for FOV_FRESH s, has no other cue for him (the enemy
 // fired in the 1.5 s before, his side spotted him in the 6 s before, or he himself was hit in the 2 s before: none) -
 // a chance; he takes it if he turns to put him within FOV_HIT° of his aim inside FOV_REACT s. A hint when he took
@@ -7195,6 +7312,12 @@ function wallTracks(R, done) {
 // at 10 m/s on a T-90 for 5 s), had a blast within 15 m in the 2 s before (knocked away: 23 m/s by an SRAW), or jumps
 // further in one step than 40 m/s (the decoder losing track of him: a respawn not seen, an id given to someone else).
 // Those 6 rounds: no stretch left. Soldiers only: vehicles' tracks jump at every respawn and wreck, and they fly off ramps.
+// (v233, checked against the game's own speeds - Soldier.cpp's phy-soldier-* vars, OpenBF2, knowledge only: sprint 7.0,
+// run 3.9, walk 1.5, crouch 2.0, crawl 0.8 m/s, times phy-soldier-speed-factor 1.0. 10 demos, 1-s stretches with the same
+// stance all through: standing p99 6.93, crouching 1.98, lying 0.79 - the game's figures. No limits by stance: the
+// demo's stance lags behind fast stance changes (Karkand 21:14, 28:51: "lying" at 6.9 m/s for 3 s between dives to the
+// ground), and a man carried in a seat the decoder doesn't place shows "crouching" - the game seats every carried man
+// in pose 1 - at a vehicle's speed (6 m/s for minutes): such limits would mostly catch these)
 let SPEED_RUN = 6.93, SPEED_V = 8.7, SPEED_T = 2;
 // (v213, the archive of 2779 rounds, todo 227) spots of a map where the game itself does what a hint looks for - the same
 // place in many rounds, for many soldiers: a point players are put on (a teleport's end exactly the same in 9 of 10 rounds:
@@ -7321,7 +7444,10 @@ function moreHints(R) {
     const SM = R.players[i].stam; let si = 0, sv = 31, e0 = null, h0 = null, hv = 31;
     const exactOut = (how, t0, t1, k0, k1, v) => out.push({ t: t0, kind: 'stam', adm: true, actor: id, how, dur: t1 - t0, dist: path(i, k0, k1), sv: v, x: X[k0 * n + i], y: Y[k0 * n + i] });
     let run = null, dip = 0;
-    const close = () => { if (!SM && run && run.t1 - run.t0 >= STAM_T) out.push({ t: run.t0, kind: 'stam', adm: true, actor: id, dur: run.t1 - run.t0, dist: path(i, run.k0, run.k1), x: run.x, y: run.y }); run = null; dip = 0; };
+    // (v235) without vehicles the game drains the sprint half as fast (OpenBattlefield2's SprintState: a full bar 10 s with a
+    // light kit, 8 s with a heavy one, refilled in 17 / 20 s; a jump costs 0.15 / 0.2 of it) - so twice STAM_T there
+    const stamT = STAM_T * (R.meta?.settings?.noVehicles ? 2 : 1);
+    const close = () => { if (!SM && run && run.t1 - run.t0 >= stamT) out.push({ t: run.t0, kind: 'stam', adm: true, actor: id, dur: run.t1 - run.t0, dist: path(i, run.k0, run.k1), x: run.x, y: run.y }); run = null; dip = 0; };
     const endE = (k) => { if (e0 && T[k] - e0.t >= STAM_E) exactOut('empty', e0.t, T[k], e0.k, k, 0); e0 = null; };
     const endH = (k) => { if (h0 && T[k] - h0.t >= STAM_H) exactOut('hold', h0.t, T[k], h0.k, k, hv); h0 = null; };
     for (let k = 5; k < F; k++) {
@@ -7597,6 +7723,49 @@ function cpTimes(R) {
   }
   return (R._cpt = best && best.ok ? R.flags.map(f => f.main ? null : best.L.find(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 6) || null) : null);
 }
+// (v235) the flags' weight for the bleed, from the levels' GamePlayObjects.con: [x, y north, areaValueTeam1,
+// areaValueTeam2] per map and layout (main bases too: 0 mostly). The game's rule (gpm_cq.py, the game's own script, as
+// OpenBattlefield2 reads it): a side loses tickets while the other side's flags weigh 100 or more and more than its own,
+// lossPerMin / 60 x (theirs - its own) / 100 a second. 42 demos: matches where nobody of that side died for 4 s (Daqing
+// 50 against 100: 5.05 a minute, the rule's 5.00; Dalian 0 / 150: 14.98, 15.00; nothing below 100 - Karkand's 8 flags weigh
+// 104, Wake's 6 100: a side bleeds only while the other holds them all); lossPerMin 10 everywhere - Karkand's and Wake's
+// Init.con say 12 / 6, but the servers bleed 10 a minute there too (9.8-10.1 measured)
+const CP_AREA = {"dalian_plant":{"gpm_cq:64":[[88.0,-40.0,25,25],[786.0,49.7,0,0],[52.0,184.0,25,25],[246.8,-242.4,25,25],[-254.0,-210.0,25,25],[-706.0,-367.0,0,0],[-190.3,54.7,25,25],[-32.6,-391.1,25,25]],"gpm_cq:32":[[88.0,-40.0,34,34],[246.8,-242.4,34,34],[-32.5,-391.2,34,34],[786.0,49.7,0,0],[-254.0,-210.0,34,34],[-707.0,-367.0,0,0]],"gpm_cq:16":[[-92.3,-260.8,35,35],[-151.8,-58.9,35,35],[88.0,-40.0,35,35],[-254.0,-210.0,35,35]],"sp1:16":[[-92.3,-260.8,35,35],[-151.8,-58.9,35,35],[88.0,-40.0,35,35],[-254.0,-210.0,35,35]],"gpm_coop:16":[[-92.3,-260.8,35,35],[-151.8,-58.9,35,35],[88.0,-40.0,35,35],[-254.0,-210.0,35,35]]},"daqing_oilfields":{"gpm_cq:64":[[-245.7,380.4,0,0],[346.0,-578.0,0,0],[-53.5,-243.0,25,25],[129.0,255.0,25,25],[-212.0,21.0,25,25],[319.0,-103.0,25,25],[-363.7,-115.2,25,25],[67.8,-43.9,25,25],[486.0,175.0,25,25]],"gpm_cq:32":[[-245.7,380.4,0,0],[346.0,-578.0,0,0],[-53.5,-243.0,34,34],[129.0,255.0,34,34],[-212.0,21.0,34,34],[319.0,-103.0,34,34],[67.8,-43.9,34,34]],"gpm_cq:16":[[-53.5,-243.0,50,50],[129.0,255.0,50,50],[67.8,-43.9,50,50]],"sp1:16":[[-53.5,-243.0,50,50],[129.0,255.0,50,50],[67.8,-43.9,50,50]],"gpm_coop:16":[[-53.5,-243.0,50,50],[129.0,255.0,50,50],[67.8,-43.9,50,50]]},"dragon_valley":{"gpm_cq:64":[[-225.1,875.9,12,12],[-211.3,-430.1,12,12],[-224.0,479.0,12,12],[116.1,314.2,12,12],[-78.0,100.0,12,12],[-50.5,-227.4,12,12],[74.9,588.7,12,12],[-83.1,410.2,12,12],[122.4,-562.2,12,12],[382.6,822.5,0,0],[-298.4,-192.4,12,12]],"gpm_cq:32":[[116.1,314.2,0,0],[-78.0,100.0,20,20],[-298.4,-192.3,20,20],[122.5,-562.1,20,20],[-211.4,-430.1,20,20],[-50.5,-227.3,20,20]],"gpm_cq:16":[[122.6,-562.2,34,34],[-211.4,-430.1,34,34],[-50.5,-227.4,34,34],[-298.4,-192.3,34,34]],"sp1:16":[[122.6,-562.2,34,34],[-211.4,-430.1,34,34],[-50.5,-227.4,34,34],[-298.4,-192.3,34,34]],"gpm_coop:16":[[122.6,-562.2,34,34],[-211.4,-430.1,34,34],[-50.5,-227.4,34,34],[-298.4,-192.3,34,34]]},"fushe_pass":{"gpm_cq:64":[[-668.1,-493.8,0,0],[-531.5,231.7,20,20],[-248.9,287.5,20,20],[-150.3,-24.4,20,20],[139.2,128.1,20,20],[83.0,-199.0,20,20],[302.0,-203.0,20,20],[608.6,576.8,0,0],[276.8,125.6,20,20],[-273.9,-130.7,20,20]],"gpm_cq:32":[[-248.9,287.5,34,34],[139.2,128.1,34,34],[-150.3,-24.4,34,34],[83.0,-199.1,34,34],[-531.5,231.7,0,0],[302.0,-203.0,0,0]],"gpm_cq:16":[[-150.3,-24.4,50,50],[139.2,128.0,50,50],[94.4,-37.0,50,50]],"sp1:16":[[-150.3,-24.4,50,50],[139.2,128.0,50,50],[94.4,-37.0,50,50]],"gpm_coop:16":[[-150.3,-24.4,50,50],[139.2,128.0,50,50],[94.4,-37.0,50,50]]},"greatwall":{"gpm_cq:32":[[-158.0,-70.0,34,34],[9.0,36.0,34,34],[128.0,255.8,0,0],[-233.0,-264.0,0,0],[204.0,-56.0,34,34],[-306.0,100.0,34,34]],"gpm_cq:16":[[-58.5,13.7,25,25],[-113.0,-41.0,25,25],[-203.0,-4.0,25,25],[15.0,37.0,25,25],[-250.0,94.0,0,0],[-18.0,-64.0,25,25]],"sp1:64":[[-119.4,-39.6,33,33],[18.0,34.0,33,33],[128.0,255.8,33,33],[-233.0,-264.0,33,33],[204.0,-56.0,33,33],[-50.0,506.0,0,0],[-84.0,-512.0,0,0],[-278.0,90.0,33,33]],"sp1:32":[[-119.4,-39.6,33,33],[18.0,34.0,33,33],[128.0,255.8,33,33],[-233.0,-264.0,33,33],[204.0,-56.0,33,33],[-50.0,506.0,0,0],[-84.0,-512.0,0,0],[-278.0,90.0,33,33]],"sp1:16":[[16.4,55.1,34,34],[-56.5,-24.9,34,34],[68.9,-34.3,0,0],[-203.0,-4.0,34,34],[-157.9,-62.6,34,34],[-18.0,-64.0,34,34]],"gpm_coop:16":[[16.4,55.1,34,34],[-56.5,-24.9,34,34],[68.9,-34.3,0,0],[-203.0,-4.0,34,34],[-157.9,-62.6,34,34],[-18.0,-64.0,34,34]]},"gulf_of_oman":{"gpm_cq:64":[[281.8,-94.7,20,20],[49.4,33.5,20,20],[-133.0,176.2,20,20],[118.0,-253.6,20,20],[-65.2,-202.1,20,20],[-208.4,-141.1,20,20],[-331.5,28.2,20,20],[282.0,215.6,0,0],[-664.6,-553.5,0,0]],"gpm_cq:32":[[-664.6,-553.5,0,0],[-65.2,-202.1,25,25],[-208.4,-141.2,25,25],[-331.5,28.2,25,25],[281.8,-94.7,25,25],[49.4,33.5,25,25],[282.0,215.6,0,0]],"gpm_cq:16":[[34.0,-296.2,34,34],[124.8,-46.1,34,34],[10.3,-136.4,34,34],[49.4,33.5,34,34]],"sp1:16":[[34.0,-296.2,34,34],[124.8,-46.1,34,34],[10.2,-136.4,34,34],[49.4,33.5,34,34]],"gpm_coop:16":[[34.0,-296.2,34,34],[124.8,-46.1,34,34],[10.2,-136.4,34,34],[49.4,33.5,34,34]]},"highway_tampa":{"gpm_cq:64":[[608.0,-526.0,20,20],[-493.0,636.5,20,20],[-231.7,-503.5,20,20],[176.9,-614.3,20,20],[-290.7,-21.1,20,20],[-284.6,-781.1,20,20],[-729.0,-497.0,20,20],[105.9,-333.9,20,20]],"gpm_cq:32":[[608.0,-526.0,25,25],[-493.0,636.5,25,25],[-231.7,-503.5,25,25],[176.8,-614.2,25,25],[-290.7,-21.1,25,25],[106.0,-334.0,25,25]],"gpm_cq:16":[[608.0,-526.0,34,34],[106.0,-334.0,34,34],[176.8,-614.2,34,34],[-284.6,-781.1,34,34]]},"mashtuur_city":{"gpm_cq:64":[[-262.0,-21.0,25,25],[-368.6,-212.4,25,25],[-7.5,-82.2,25,25],[-159.0,-118.3,25,25],[-112.0,-222.3,25,25],[103.9,-322.9,25,25],[-404.0,188.0,25,25]],"gpm_cq:32":[[-262.0,-21.0,34,34],[-368.6,-212.4,34,34],[-7.5,-82.2,34,34],[-159.0,-118.3,34,34],[-112.0,-222.3,34,34]],"gpm_cq:16":[[-151.8,-222.3,34,34],[-261.9,-21.0,34,34],[-241.2,-161.4,34,34],[-173.0,-89.0,34,34]]},"midnight_sun":{"gpm_cq:64":[[-252.9,-373.4,25,25],[47.0,-20.0,25,25],[-618.0,-305.2,0,0],[-488.0,-143.5,25,25],[-179.9,-56.8,25,25],[13.6,-272.8,25,25],[248.4,-136.6,25,25],[550.6,5.3,0,0]],"gpm_cq:32":[[-179.9,-56.8,34,34],[-488.0,-143.5,34,34],[13.6,-272.8,34,34],[248.4,-136.6,34,34],[550.6,5.3,0,0],[-618.0,-305.2,0,0]],"gpm_cq:16":[[-188.7,-56.7,34,34],[-488.0,-143.5,34,34],[-199.5,-193.1,34,34],[-385.1,-97.0,34,34]],"sp1:16":[[-488.0,-143.5,34,34],[-385.1,-97.0,34,34],[-193.1,-56.7,34,34],[-199.5,-193.1,34,34]],"gpm_coop:16":[[-488.0,-143.5,34,34],[-385.1,-97.0,34,34],[-193.1,-56.7,34,34],[-199.5,-193.1,34,34]]},"operationharvest":{"gpm_cq:64":[[350.7,-482.9,0,0],[199.3,568.4,20,20],[-438.5,-487.3,0,0],[-253.6,-296.9,20,20],[135.3,-260.2,20,20],[-137.3,-68.3,20,20],[180.2,80.5,20,20],[386.6,197.4,20,20],[184.0,310.6,20,20]],"gpm_cq:32":[[-438.6,-487.3,0,0],[199.3,568.6,0,0],[-253.4,-296.8,25,25],[-383.0,-74.3,25,25],[183.8,310.6,25,25],[386.3,196.8,25,25],[180.3,80.5,25,25],[-137.6,-68.4,25,25]],"gpm_cq:16":[[-136.5,-68.2,34,34],[180.1,79.9,34,34],[386.9,197.4,34,34],[472.1,435.7,0,0],[184.0,310.7,34,34]],"sp1:16":[[180.1,79.9,34,34],[386.9,197.4,34,34],[472.1,435.7,34,34],[183.8,310.6,34,34]],"gpm_coop:16":[[180.1,79.9,34,34],[386.9,197.4,34,34],[472.1,435.7,34,34],[183.8,310.6,34,34]]},"operationroadrage":{"gpm_cq:64":[[91.2,-370.1,34,34],[-186.1,-189.8,34,34],[-32.1,31.9,34,34],[86.3,234.6,34,34],[-129.0,399.0,34,34],[-136.2,823.8,0,0],[38.1,-746.1,0,0]],"gpm_cq:32":[[-129.0,399.0,34,34],[86.4,234.8,34,34],[-186.1,-189.7,34,34],[91.2,-370.1,34,34],[-32.1,31.9,34,34],[38.0,-746.0,0,0],[-136.1,824.0,0,0]],"gpm_cq:16":[[64.6,-148.3,50,50],[217.2,-235.2,50,50],[315.5,129.7,0,0],[-31.1,54.6,50,50],[-187.2,-188.3,0,0]],"sp1:16":[[-27.6,-235.2,34,34],[-187.2,-188.3,34,34],[101.5,-103.8,34,34],[199.8,-165.8,34,34]],"gpm_coop:16":[[-27.6,-235.2,34,34],[-187.2,-188.3,34,34],[101.5,-103.8,34,34],[199.8,-165.8,34,34]]},"operationsmokescreen":{"gpm_cq:32":[[7.3,430.4,0,0],[-208.3,208.3,34,34],[-265.4,-87.6,34,34],[-110.8,-268.7,34,34],[72.5,-521.9,0,0],[152.7,-138.0,34,34],[4.4,-29.3,34,34]],"gpm_cq:16":[[-110.8,-268.8,34,34],[-265.4,-87.6,34,34],[-208.3,208.3,34,34],[72.5,-521.9,34,34]],"sp1:32":[[7.4,430.3,0,0],[-211.8,217.8,25,25],[-265.4,-87.6,25,25],[-110.8,-268.7,25,25],[72.5,-521.9,0,0],[148.4,-142.5,25,25]],"sp1:16":[[72.4,-521.9,34,34],[-110.8,-268.8,34,34],[-265.4,-87.6,34,34],[-208.3,208.3,34,34]],"gpm_coop:16":[[72.4,-521.9,34,34],[-110.8,-268.8,34,34],[-265.4,-87.6,34,34],[-208.3,208.3,34,34]]},"operation_blue_pearl":{"gpm_cq:64":[[19.8,-94.0,15,15],[-75.1,-197.2,15,15],[-103.3,-74.1,15,15],[-184.0,-128.0,15,15],[-304.0,-65.9,15,15],[-296.5,84.0,15,15],[-251.9,-164.0,15,15],[260.2,-109.2,0,0]],"gpm_cq:32":[[-184.0,-128.0,17,17],[-304.0,-66.0,17,17],[260.2,-109.2,0,0],[-75.2,-196.9,17,17],[19.8,-94.1,17,17],[-103.1,-74.0,17,17],[-251.9,-164.0,17,17]],"gpm_cq:16":[[-75.2,-196.9,34,34],[-103.3,-74.1,34,34],[-252.0,-162.8,34,34],[-304.1,-66.0,34,34]]},"operation_clean_sweep":{"gpm_cq:64":[[-552.0,544.0,0,0],[644.0,-96.0,15,15],[-538.0,-36.0,15,15],[-42.0,-424.1,15,15],[142.0,-598.0,15,15],[614.0,-281.0,15,15],[229.9,-364.0,15,15],[-308.1,-422.1,15,15]],"gpm_cq:32":[[-552.0,544.0,0,0],[-42.0,-424.1,20,20],[229.9,-364.0,20,20],[-538.0,-36.0,20,20],[-308.1,-422.1,20,20],[142.0,-598.0,20,20]],"gpm_cq:16":[[-552.0,544.0,0,0],[-538.0,-36.0,34,34],[-42.0,-424.1,34,34],[-308.1,-422.1,34,34]],"sp1:16":[[-552.0,544.0,0,0],[-538.0,-36.0,34,34],[-42.0,-424.1,34,34],[-308.1,-422.1,34,34]],"gpm_coop:16":[[-552.0,544.0,0,0],[-538.0,-36.0,34,34],[-42.0,-424.1,34,34],[-308.1,-422.1,34,34]]},"road_to_jalalabad":{"gpm_cq:64":[[-205.4,7.7,0,0],[-16.7,-207.8,17,25],[91.9,-263.2,17,25],[181.6,-170.3,17,25],[282.9,-138.2,17,25],[234.9,-42.1,17,25],[293.1,55.0,17,25],[38.5,-40.9,17,25]],"gpm_cq:32":[[293.1,55.0,20,26],[282.9,-138.2,20,26],[91.9,-263.2,20,26],[-16.7,-207.8,20,26],[-205.4,7.7,0,0],[181.6,-170.3,20,26],[234.9,-42.1,20,26]],"gpm_cq:16":[[282.9,-138.3,34,34],[181.6,-170.3,34,34],[234.9,-42.1,34,34],[293.1,55.0,34,34]],"sp1:16":[[282.9,-138.2,34,34],[293.1,55.0,34,34],[181.6,-170.3,34,34],[234.9,-42.1,34,34]],"gpm_coop:16":[[282.9,-138.2,34,34],[293.1,55.0,34,34],[181.6,-170.3,34,34],[234.9,-42.1,34,34]]},"sharqi_peninsula":{"gpm_cq:64":[[-112.4,-134.4,17,17],[-276.8,-110.6,17,17],[-316.3,-226.3,17,17],[-647.1,205.1,0,0],[-359.0,-115.0,17,17],[-307.6,-25.6,17,17],[-288.6,-597.2,0,0],[-605.0,-201.1,0,0],[-467.5,-77.1,17,17]],"gpm_cq:32":[[-112.4,-134.4,20,20],[-467.5,-77.1,20,20],[-647.1,205.1,0,0],[-276.8,-110.6,20,20],[-359.0,-115.0,20,20],[-316.3,-226.3,20,20],[-288.6,-597.2,0,0],[-605.0,-201.0,0,0]],"gpm_cq:16":[[-112.4,-134.4,34,34],[-276.8,-110.6,34,34],[-188.0,-25.6,34,34],[-316.3,-226.3,0,0]],"sp1:16":[[-112.4,-134.4,34,34],[-276.8,-110.6,34,34],[-188.0,-25.6,34,34],[-316.3,-226.3,0,0]],"gpm_coop:16":[[-112.4,-134.4,34,34],[-276.8,-110.6,34,34],[-188.0,-25.6,34,34],[-316.3,-226.3,0,0]]},"songhua_stalemate":{"gpm_cq:64":[[201.0,128.0,20,20],[113.0,-179.0,20,20],[-5.8,-349.3,20,20],[-145.4,-91.0,20,20],[-176.0,-442.0,20,20],[-269.0,-175.0,20,20],[-496.9,-127.8,20,20],[290.7,-164.8,20,20]],"gpm_cq:32":[[113.0,-179.0,25,25],[-5.8,-349.3,25,25],[-145.4,-91.0,25,25],[-269.0,-175.0,25,25],[-496.8,-127.8,25,25],[290.7,-164.8,25,25]],"gpm_cq:16":[[113.0,-179.0,34,34],[-145.4,-91.0,34,34],[-269.0,-175.0,34,34],[-58.0,-229.0,34,34]],"sp1:16":[[113.0,-179.0,34,34],[-145.4,-91.0,34,34],[-269.0,-175.0,34,34],[-58.0,-229.0,34,34]],"gpm_coop:16":[[113.0,-179.0,34,34],[-145.4,-91.0,34,34],[-269.0,-175.0,34,34],[-58.0,-229.0,34,34]]},"strike_at_karkand":{"gpm_cq:64":[[-161.0,-262.8,0,0],[-194.4,11.4,13,13],[-220.1,98.1,13,13],[-122.4,256.6,13,13],[14.0,288.9,13,13],[29.4,164.4,13,13],[183.0,166.0,13,13],[104.0,231.1,13,13],[-323.7,220.2,13,13]],"gpm_cq:32":[[-194.4,11.3,17,17],[-220.0,98.1,17,17],[-122.4,256.6,17,17],[14.0,289.0,17,17],[-161.0,-262.9,0,0],[-196.0,183.6,17,17],[-323.8,220.2,17,17]],"gpm_cq:16":[[-194.4,11.4,34,34],[-196.0,183.6,34,34],[-161.0,-262.8,0,0],[-184.8,97.3,34,34]],"sp1:16":[[-194.4,11.4,34,34],[-196.0,183.6,34,34],[-161.0,-262.8,0,0],[-184.8,97.3,34,34]],"gpm_coop:16":[[-194.4,11.4,34,34],[-196.0,183.6,34,34],[-161.0,-262.8,0,0],[-184.8,97.3,34,34]]},"taraba_quarry":{"gpm_cq:32":[[-154.6,451.0,34,34],[427.2,-461.5,0,0],[159.2,-114.7,34,34],[-488.8,-553.2,0,0],[-396.9,-89.5,34,34],[-360.0,192.1,34,34],[18.5,186.5,34,34]],"gpm_cq:16":[[245.9,40.8,34,34],[425.2,-477.1,34,34],[50.3,-137.4,34,34],[18.5,186.3,0,0],[297.1,-242.3,34,34]],"sp1:32":[[-575.7,353.9,25,25]],"sp1:16":[[18.5,186.3,34,34],[245.9,40.8,34,34],[50.3,-137.4,34,34],[297.1,-242.3,34,34],[425.2,-477.1,34,34]],"gpm_coop:16":[[18.5,186.3,34,34],[245.9,40.8,34,34],[50.3,-137.4,34,34],[297.1,-242.3,34,34],[425.2,-477.1,34,34]]},"wake_island_2007":{"gpm_cq:64":[[-28.0,-168.5,20,20],[359.9,-248.7,20,20],[259.2,184.8,20,20],[34.9,198.8,20,20],[127.6,-302.4,20,20],[-681.2,694.5,0,0]]},"zatar_wetlands":{"gpm_cq:64":[[-565.0,482.1,0,0],[-772.0,102.0,25,25],[-53.2,-241.6,25,25],[258.6,-352.6,25,25],[482.0,-164.0,25,25],[727.0,-401.3,0,0],[-367.4,-330.2,25,25],[-441.1,-59.0,25,25],[-432.6,925.4,0,0]],"gpm_cq:32":[[-772.0,102.0,0,0],[-441.1,-59.0,34,34],[-367.4,-330.2,34,34],[-53.2,-241.6,34,34],[258.6,-352.6,34,34],[482.0,-164.0,34,34],[727.0,-401.3,0,0]],"gpm_cq:16":[[-53.2,-241.6,50,50],[-367.4,-330.3,50,50],[258.6,-352.6,50,50]],"sp1:16":[[-53.2,-241.6,50,50],[-367.4,-330.3,50,50],[258.6,-352.6,50,50]],"gpm_coop:16":[[-53.2,-241.6,50,50],[-367.4,-330.3,50,50],[258.6,-352.6,50,50]]},"kubra_dam":{"gpm_cq:64":[[162.0,184.0,0,0],[-72.8,105.1,0,0],[-354.0,156.0,15,15],[-220.0,294.0,15,15],[-260.0,-14.0,15,15],[-401.6,-223.4,15,15],[-205.5,-274.9,15,15],[-495.0,-105.9,15,15],[-388.9,-520.2,15,15]],"gpm_cq:32":[[162.0,184.0,0,0],[-72.8,105.1,0,0],[-354.0,156.0,17,17],[-260.0,-14.0,17,17],[-205.5,-274.9,17,17],[-495.0,-105.9,17,17],[-388.9,-520.2,17,17],[-401.6,-223.4,17,17]],"gpm_cq:16":[[-401.6,-223.4,34,34],[-426.8,-244.1,34,34],[-205.5,-274.9,34,34],[-495.0,-105.9,34,34]]}}, BLEED_PER_MIN = 10;
+function cpAreas(R) {
+  if (R._cpa !== undefined) return R._cpa;
+  const lay = CP_AREA[String(R.meta.map || '').toLowerCase()]; let best = null;
+  if (lay) for (const [k, L] of Object.entries(lay)) {
+    let ok = 0; for (const f of R.flags) if (L.some(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 6)) ok++;
+    const sc = ok * 10 - (R.flags.length - ok) * 20 - Math.abs(L.length - R.flags.length) + (/^gpm_cq/.test(k) ? 0.5 : 0);
+    if (!best || sc > best.sc) best = { sc, L, ok };
+  }
+  return (R._cpa = best && best.ok >= R.flags.length - 1 ? R.flags.map(f => best.L.find(c => Math.hypot(c[0] - f.x, c[1] - f.y) < 6) || null) : null);
+}
+// the side's bleed now (tickets a second) by that rule from who holds the flags at frame k
+function bleedRate(R, k, tm) {
+  const A = cpAreas(R); if (!A || !R.FO) return null; const nf = R.nf, w = [0, 0];
+  for (let j = 0; j < nf; j++) { const o = R.FO[k * nf + j], c = A[j]; if (c && (o === 0 || o === 1)) w[o] += c[2 + o]; }
+  const en = w[1 - tm], own = w[tm]; return en >= 100 && en > own ? BLEED_PER_MIN / 60 * (en - own) / 100 : 0;
+}
+// the tickets each side should have bled: the rule's rate while the demo's own bleed flag is on (round.raw.bleed) -
+// [team 0, team 1], or null where the flags' weights are not known
+// why side tm bleeds at tt, in words: the other side's flags' weight against its own (or "the other side holds more
+// flags" where the weights are not known)
+function bleedWhy(tm, tt) {
+  const A = cpAreas(round); if (!A || !round.FO) return 'the other side holds more of the flags';
+  const [fa] = frameAt(tt), w = [0, 0]; for (let j = 0; j < round.nf; j++) { const o = round.FO[fa * round.nf + j], c = A[j]; if (c && (o === 0 || o === 1)) w[o] += c[2 + o]; }
+  const r = bleedRate(round, fa, tm);
+  return `the other side's flags weigh ${w[1 - tm]} against ${w[tm]} (a side bleeds while the other's weigh 100 or more and more than its own)${r ? `, the game's rate ${(r * 60).toFixed(1)} a minute` : ''}`;
+}
+function modelBleed(R) {
+  if (R._mbl !== undefined) return R._mbl;
+  const sp = R.raw?.bleed, T = R.times, F = T.length; if (!sp || !cpAreas(R) || !R.FO) return (R._mbl = null);
+  const out = [0, 0];
+  for (const tm of [0, 1]) for (const [t0, t1] of sp[tm] || []) for (let k = 0; k < F; k++) {
+    const a = Math.max(T[k], t0), b = Math.min(k + 1 < F ? T[k + 1] : T[k], t1); if (b <= a) continue; out[tm] += (bleedRate(R, k, tm) || 0) * (b - a);
+  }
+  return (R._mbl = out);
+}
 // ---------- capture zones (v168, Sagara: "при наведенні на прапор можна було побачити зону захоплення цього прапора.
 // Точну зону захоплення, не теоретичну") ----------
 // What the game does, measured in 42 demos (Karkand, Wake, Dalian, Oman: the flag's level and its change a second as the
@@ -7737,15 +7906,19 @@ function objHints(R) {
         const m = Math.abs(s0) * tm, fv = FC[((q0 + q1) >> 1) * nf + k], side = raise ? (fv > 0 ? 0 : 1) : (fv > 0 ? 1 : 0), z = zoneOf(R, k);
         let most = 0; const cnt = [0, 0], near = new Map();
         for (let q = q0 + 3; q <= q1 - 3; q += 5) {
-          const c = [0, 0], sure = [0, 0];
+          // (v235) who counts as the game counts (gpm_cq.py, the game's own script - OpenBattlefield2's notes): a man down
+          // does not, and of a vehicle's crew only its first man (v170-v234: all of them, and the men down - to be safe)
+          const c = [0, 0], sure = [0, 0], inVeh = [new Set(), new Set()], inVehS = [new Set(), new Set()];
           for (let i = 0; i < n; i++) {
             if (R.players[i].vehicle) continue; const e = q * n + i; if (!L[e]) continue; const sd = teamOf(i, T[q]); if (sd !== 0 && sd !== 1) continue;
             const d = z.h == null ? Math.hypot(X[e] - z.x, Y[e] - z.y) : Math.hypot(X[e] - z.x, Y[e] - z.y, HH[e] - z.h), down = DN && DN[e];
-            if (d <= z.r + (VT[e] ? capExtra(R, VT[e], true) : ZONE_FOOT) + 1) { c[sd]++; if (sd === side && !(near.get(i) <= d)) near.set(i, d); }   // (down too: counted, to be safe)
-            if (!down && d <= z.r + (VT[e] ? capExtra(R, VT[e], false) : ZONE_FOOT) - 1) sure[sd]++;
+            if (down) continue;
+            if (d <= z.r + (VT[e] ? capExtra(R, VT[e], true) : ZONE_FOOT) + 1 && !(VT[e] && inVeh[sd].has(VT[e]))) { if (VT[e]) inVeh[sd].add(VT[e]); c[sd]++; if (sd === side && !(near.get(i) <= d)) near.set(i, d); }
+            if (d <= z.r + (VT[e] ? capExtra(R, VT[e], false) : ZONE_FOOT) - 1 && !(VT[e] && inVehS[sd].has(VT[e]))) { if (VT[e]) inVehS[sd].add(VT[e]); sure[sd]++; }
           }
           // (the speed the men of his side there give with nobody against them: the game's own rule takes the other side's
-          // off, but 9 rounds have 1x with one against one 13 times - so only more than his own men can give is a hint)
+          // off, but 9 rounds have 1x with one against one 13 times - the other side's man down or a second man in a vehicle,
+          // counted here before v235 - so only more than his own men can give is a hint)
           most = Math.max(most, c[side]); cnt[0] = Math.max(cnt[0], c[0]); cnt[1] = Math.max(cnt[1], c[1]);
         }
         segs.push({ k, t: T[q0], t1: T[q1], m, most, cnt, side, near: [...near].map(([i, d]) => [d, i]).sort((a, b) => a[0] - b[0]), raise, tm, whole: Math.abs(m - Math.round(m)) < 0.15 });
@@ -8019,7 +8192,7 @@ let SNAP_N = 3, HS_P = 1e-4, HS_SNIPER = 0.47;   // (v182: see above)
 // seen through the fog's edge, a spotted one); the other 4 had 3-9 (tolulublessss 8, Shukrija 3)
 const HINT_N = { wall: 2, smoke: 2, fog: 2 };
 const FOG_SKIP = /Claymore|AT mine|^Mine|^C4$|artillery|Stinger|Igla|QW-2|Sidewinder|Archer|Eurofighter missiles|Sea Sparrow|\bTV\b|Hellfire|HJ-8 missile|Ataka|Kedge|Maverick|laser/i;   // (v213: Beyond fog - see cheatHints)
-let LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vspeed', 'wall', 'thru', 'track']);
+let LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vspeed', 'wall', 'thru', 'track', 'sidesprint', 'airspeed']);
 // (v185, todo 185) glitch spots: server/glitch.mjs keeps a grid of the places soldiers stood, alive on foot, over every
 // round of each map (2 m cells, 2.5 m high); data/stats/glitch/<map>.json lists the rounds where someone stayed 20 s or
 // more where no one else ever stood, while 3 or more other players stood in those columns 5-40 m above or below him -
@@ -8055,7 +8228,7 @@ function adminHints() {
       let k = 0, clear = false;
       for (; k <= 50; k++) {
         const tq = tt - k * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
-        if (bodyLines(D, a, eyeOf(ki, a, tq), vi, b, tq)[0] > 0) { clear = true; break; }
+        if (bodyLines(D, eyeXY(a), eyeOf(ki, a, tq), vi, b, tq)[0] > 0) { clear = true; break; }   // (v233: from his eye)
       }
       // (the grid can't see through: checked again against the exact shapes; until they are loaded the kill waits)
       if (k >= Math.round(WALL_T * 10)) {
@@ -8066,10 +8239,10 @@ function adminHints() {
           let k2 = 0, clear2 = false;
           for (; k2 <= 50; k2++) {
             const tq = tt - k2 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
-            if (bodyClearExact(D, G, a, eyeOf(ki, a, tq), vi, b, tq)) { clear2 = true; break; }
+            if (bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, tq), vi, b, tq)) { clear2 = true; break; }
           }
           if (k2 >= Math.round(WALL_T * 10)) {
-            const ey = eyeOf(ki, q, tt), sv = o.veh ? 0 : stanceNow(R.players[vi], tt) ?? 0, by = exactHit(D, G, q.x, q.y, ey, o.x, o.y, o.h + (o.veh ? 0.9 : AIM_H[sv][1]), false, tt);
+            const ey = eyeOf(ki, q, tt), qe = eyeXY(q), sv = o.veh ? 0 : stanceNow(R.players[vi], tt) ?? 0, by = exactHit(D, G, qe.x, qe.y, ey, o.x, o.y, o.h + (o.veh ? 0.9 : AIM_H[sv][1]), false, tt);
             // (v180) only what bullets go through in the way (wood boards, thin metal, plastic, cloth - the game's material
             // table): a bullet could get there - not "No line of sight" but "Through thin walls", listed apart (info)
             let thru = false;
@@ -8153,7 +8326,7 @@ const ANALYZE_V = 2;   // (v214: Q, U - the fire presses; K's hp)
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 7;   // (v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
+const HINTS_V = 10;   // (v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
 // (v227, Sagara: "налаштування всіх threshold'ів для кожної реакції на застереження ... щоб кожен адміністратор міг
 // налаштовувати собі все, що треба, сам. Але були наші рекомендовані thresholds") the hints' thresholds. HT_SPEC - one line
 // of JSON (admin.mjs reads it from server/admin-round.js to check what is saved): each one's name (k, the variable), hint
@@ -8162,7 +8335,7 @@ const HINTS_V = 7;   // (v225: the view where his head looks, not where his body
 // right) - the background analysis, the players' cards and the alerts use it; an admin's own set (admin.mjs hints-mine)
 // over it for the rounds he opens, when he says so. HT_HV: the hint rules with the site's set - HINTS_V while it is the
 // recommended one, else HINTS_V.<hash of it> (the analysis goes over every round again when it changes).
-const HT_SPEC = [{"k":"LAG_PING","h":"common","d":250,"t":"ms","l":"ping from which a jump or lag stretch is put down to lag (Teleport, Lag switch)","mn":0,"mx":10000},{"k":"WALL_T","h":"wall","d":0.7,"t":"s","l":"no clear line to the victim for at least this long before the kill","mn":0.1,"mx":5},{"k":"HN_WALL","h":"wall","d":2,"t":"n","l":"such kills by one soldier in a round (one is often a gap of the map's shapes)","mn":1,"mx":100000},{"k":"HN_SMOKE","h":"smoke","d":2,"t":"n","l":"kills through a dense smoke cloud by one soldier in a round","mn":1,"mx":100000},{"k":"HN_FOG","h":"fog","d":2,"t":"n","l":"kills beyond the fog by one soldier in a round","mn":1,"mx":100000},{"k":"FOG_SLACK","h":"fog","d":10,"t":"m","l":"how far past the map's view distance the kill must be","mn":0,"mx":10000},{"k":"TRACK_DEG","h":"track","d":3,"t":"deg","l":"his view within this much across of the hidden enemy","mn":0,"mx":360},{"k":"TRACK_VDEG","h":"track","d":6,"t":"deg","l":"... and this much up or down","mn":0,"mx":360},{"k":"TRACK_T","h":"track","d":2,"t":"s","l":"on the same hidden enemy for this long on end","mn":0,"mx":3600},{"k":"TRACK_TURN","h":"track","d":10,"t":"deg","l":"the bearing to the enemy turning at least this much meanwhile (his view following)","mn":0,"mx":360},{"k":"TRACK_STEP","h":"track","d":0.2,"t":"s","l":"step of the scan (also Fired at a wall)","a":1,"mn":0.1,"mx":1},{"k":"WF_T","h":"wallfire","d":1.4,"t":"s","l":"one burst this long at an enemy hidden behind cover gives the hint","mn":0,"mx":3600},{"k":"WF_T0","h":"wallfire","d":0.6,"t":"s","l":"... or bursts of at least this long","mn":0,"mx":3600},{"k":"WF_N","h":"wallfire","d":6,"t":"n","l":"... this many of them in a round","mn":1,"mx":100000},{"k":"WF_PRE","h":"wallfire","d":3,"t":"s","l":"the enemy not seen by him in this long before","mn":0,"mx":3600},{"k":"WF_NEAR","h":"wallfire","d":8,"t":"deg","l":"no enemy he can see within this much of his crosshair","mn":0,"mx":360},{"k":"FOV_IN","h":"fov","d":50,"t":"deg","l":"the band just outside the view: from this far off where he looks","mn":0,"mx":360},{"k":"FOV_OUT","h":"fov","d":70,"t":"deg","l":"... to this far","mn":0,"mx":360},{"k":"FOV_FRESH","h":"fov","d":1.5,"t":"s","l":"the enemy not in his view for this long before","mn":0,"mx":3600},{"k":"FOV_HIT","h":"fov","d":15,"t":"deg","l":"taken: he turns to within this much of the enemy","mn":0,"mx":360},{"k":"FOV_REACT","h":"fov","d":1.2,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"FOV_FAR","h":"fov","d":150,"t":"m","l":"enemies at most this far count","mn":0,"mx":10000},{"k":"FOV_N","h":"fov","d":5,"t":"n","l":"chances taken in a round, at least","mn":1,"mx":100000},{"k":"FOV_P","h":"fov","d":0.001,"t":"p","l":"odds of taking so many at the round's others' rate, under","mn":1e-15,"mx":1},{"k":"FOV_HALF","h":"fov","d":47.5,"t":"deg","l":"half the honest view across (16:9 screen)","a":1,"mn":0,"mx":360},{"k":"SNAP_FROM","h":"snap","d":30,"t":"deg","l":"his view this far or more off the victim 0.1 s before ...","mn":0,"mx":360},{"k":"SNAP_TO","h":"snap","d":5,"t":"deg","l":"... and within this much one step later, in the 1.5 s before the kill","mn":0,"mx":360},{"k":"SNAP_N","h":"snap","d":3,"t":"n","l":"such snaps by one soldier in a round","mn":1,"mx":100000},{"k":"REACT_Q","h":"react","d":0.25,"t":"s","l":"a kill this soon after first seeing the victim is a quick one","mn":0,"mx":3600},{"k":"REACT_MIN","h":"react","d":4,"t":"n","l":"quick kills, at least","mn":1,"mx":100000},{"k":"REACT_N","h":"react","d":8,"t":"n","l":"of at least this many kills measured","mn":1,"mx":100000},{"k":"REACT_P","h":"react","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"HS_KMIN","h":"hs","d":6,"t":"n","l":"kills with a hit place (no sniper rifles), at least","mn":1,"mx":100000},{"k":"HS_P","h":"hs","d":0.0001,"t":"p","l":"odds of so many in the head at the others' share (his weapons), under (also Sniper headshots)","mn":1e-15,"mx":1},{"k":"HSSN_MIN","h":"hssn","d":6,"t":"n","l":"sniper rifle kills with a hit place, at least","mn":1,"mx":100000},{"k":"HS_SNIPER","h":"hssn","d":0.47,"t":"f","l":"share in the head for a sniper rifle with no measured share of its own","a":1,"mn":0,"mx":1},{"k":"SPEED_V","h":"speed","d":8.7,"t":"mps","l":"on foot faster than this over each second","mn":-100,"mx":1000},{"k":"SPEED_T","h":"speed","d":2,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"SPAWN_START","h":"speed","d":10,"t":"s","l":"not in the round's first seconds (also Spawn: the start's spawns)","a":1,"mn":0,"mx":3600},{"k":"STAM_T","h":"stam","d":13,"t":"s","l":"one sprint this long (rounds without the stamina value)","mn":0,"mx":3600},{"k":"STAM_E","h":"stam","d":3.5,"t":"s","l":"sprinting with no stamina left for this long","mn":0,"mx":3600},{"k":"STAM_H","h":"stam","d":13,"t":"s","l":"sprinting with the stamina not going down for this long","mn":0,"mx":3600},{"k":"TELE_D","h":"tele","d":15,"t":"m","l":"a jump on foot of this much in one step","mn":0,"mx":10000},{"k":"TELE_GAP","h":"tele","d":13,"t":"mps","l":"not a gap in his records: over the gap no faster than this","mn":-100,"mx":1000},{"k":"CLIP_N","h":"clip","d":15,"t":"n","l":"steps through a wall in a round, at least","mn":1,"mx":100000},{"k":"CLIP_P","h":"clip","d":10,"t":"n","l":"... in at least this many places (5 m apart)","mn":1,"mx":100000},{"k":"FLY_H","h":"fly","d":5,"t":"m","l":"his feet this high over what is under him","mn":0,"mx":10000},{"k":"FLY_T","h":"fly","d":8,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"FLY_V","h":"fly","d":2,"t":"mps","l":"moving across this fast on average","mn":-100,"mx":1000},{"k":"FLY_VZ","h":"fly","d":-1,"t":"mps","l":"and not coming down faster than this (negative: down)","mn":-50,"mx":50},{"k":"CHUTE_H","h":"chute","d":15,"t":"mps","l":"under a parachute faster than this across","mn":-100,"mx":1000},{"k":"CHUTE_UP","h":"chute","d":1,"t":"mps","l":"... or rising this fast","mn":-100,"mx":1000},{"k":"UNDER_D","h":"under","d":1.5,"t":"m","l":"alive on foot this deep under the ground","mn":0,"mx":10000},{"k":"UNDER_T","h":"under","d":2,"t":"s","l":"... for this long","mn":0,"mx":3600},{"k":"SPAWN_D","h":"spawn","d":25,"t":"m","l":"appearing further than this from any spawn point, team mate or vehicle","mn":0,"mx":10000},{"k":"SG_NEAR","h":"spawn","d":150,"t":"m","l":"a map spawn point counts if within this of a spawn group his side held","a":1,"mn":0,"mx":10000},{"k":"SG_R","h":"spawn","d":150,"t":"m","l":"maps without spawn points: this far from a held group's middle","a":1,"mn":0,"mx":10000},{"k":"SPAWN_EARLY","h":"respawn","d":0.5,"t":"s","l":"spawned this much earlier than the game allows","mn":0,"mx":3600},{"k":"VSPD_X","h":"vspeed","d":1.35,"t":"x","l":"faster than this many times the most its type made","mn":0,"mx":100},{"k":"VSPD_T","h":"vspeed","d":3,"t":"s","l":"... over this long","mn":0,"mx":3600},{"k":"DMG_HP","h":"dmg","d":25,"t":"hp","l":"a closed vehicle killed through by small arms with this much health or more left","mn":0,"mx":100},{"k":"MELEE_SLACK","h":"reach","d":2.5,"t":"m","l":"knife / defibrillator kill further than its reach plus this","mn":0,"mx":10000},{"k":"AMMO_X","h":"ammo","d":2,"t":"x","l":"more launches in one life than this many times what he could have had","mn":0,"mx":100},{"k":"PICK_R","h":"ammo","d":2.5,"t":"m","l":"a kit may have been picked up within this of where its carrier died (also Fire rate)","a":1,"mn":0,"mx":10000},{"k":"PICK_T","h":"ammo","d":300,"t":"s","l":"... in this long after","a":1,"mn":0,"mx":3600},{"k":"CRATE_R","h":"ammo","d":6,"t":"m","l":"near a supply crate: within this","a":1,"mn":0,"mx":10000},{"k":"FARM_N","h":"farm","d":4,"t":"n","l":"one killer kills the same standing victim this many times","mn":1,"mx":100000},{"k":"IDLE_T","h":"idle","d":240,"t":"s","l":"alive on foot, not moving 1 m nor turning 2 deg for this long","mn":0,"mx":3600},{"k":"OUT_T","h":"outside","d":25,"t":"s","l":"outside the combat area this long on end","mn":0,"mx":3600},{"k":"NOFIRE_T","h":"nofire","d":1.5,"t":"s","l":"a bullet kill with every fire button up for this long before","mn":0,"mx":3600},{"k":"TRIG_ON","h":"trigger","d":0.15,"t":"s","l":"the kill this soon after his aim landed (rounds without fire buttons)","mn":0,"mx":3600},{"k":"TRIG_PRESS","h":"trigger","d":0.12,"t":"s","l":"the trigger pressed within this after his aim landed","mn":0,"mx":3600},{"k":"TRIG_N","h":"trigger","d":6,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"TRIG_P","h":"trigger","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"SMOOTH_ERR","h":"smooth","d":0.5,"t":"deg","l":"the middle angle between his view and a moving target, at most","mn":0,"mx":360},{"k":"SMOOTH_N","h":"smooth","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SMOOTH_W","h":"smooth","d":4,"t":"dps","l":"the target crossing his view at least this fast","mn":0,"mx":10000},{"k":"SWITCH_DT","h":"switch","d":0.8,"t":"s","l":"two kills of two enemies this close in time","mn":0,"mx":3600},{"k":"SWITCH_A","h":"switch","d":40,"t":"deg","l":"... this far apart as he saw them","mn":0,"mx":360},{"k":"PRE_N","h":"preaim","d":5,"t":"n","l":"kills with his view already on the victim as he came out of cover, at least","mn":1,"mx":100000},{"k":"PRE_P","h":"preaim","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"PRE_SNIPER","h":"preaim","d":0.22,"t":"f","l":"snipers: the others' share, at least this","a":1,"mn":0,"mx":1},{"k":"NSD_SHOTGUN","h":"spread","d":40,"t":"m","l":"a shotgun kill further than this","mn":0,"mx":10000},{"k":"NSD_PISTOL","h":"spread","d":150,"t":"m","l":"a pistol kill further than this","mn":0,"mx":10000},{"k":"NSD_SMG","h":"spread","d":120,"t":"m","l":"an SMG kill further than this","mn":0,"mx":10000},{"k":"NSD_RIFLE","h":"spread","d":250,"t":"m","l":"a rifle / machine gun kill further than this","mn":0,"mx":10000},{"k":"BLIND_N","h":"blindspot","d":12,"t":"n","l":"spots of soldiers nobody of his side could see, at least","mn":1,"mx":100000},{"k":"BLIND_SHARE","h":"blindspot","d":0.75,"t":"f","l":"... and this share of his spots","mn":0,"mx":1},{"k":"GUIDE_V","h":"guided","d":5,"t":"mps","l":"the target moving at least this fast","mn":-100,"mx":1000},{"k":"GUIDE_N","h":"guided","d":3,"t":"n","l":"such hits of one gunner, at least","mn":1,"mx":100000},{"k":"GUIDE_ERR","h":"guided","d":0.5,"t":"deg","l":"the middle angle of the flight to the target, at most","mn":0,"mx":360},{"k":"GUIDE_NOSE","h":"guided","d":0.25,"t":"deg","l":"... for missiles whose nose the demo has","a":1,"mn":0,"mx":360},{"k":"TV_N","h":"guided","d":8,"t":"n","l":"TV missiles fired, at least","mn":1,"mx":100000},{"k":"TV_P","h":"guided","d":1e-05,"t":"p","l":"odds of so many TV hits, under","mn":1e-15,"mx":1},{"k":"TV_RATE","h":"guided","d":0.383,"t":"f","l":"the share of TV missiles that hit, measured","a":1,"mn":0,"mx":1},{"k":"ART_GAP","h":"arty","d":50,"t":"s","l":"a strike this soon after the last one of that side","mn":0,"mx":3600},{"k":"ART_BURST","h":"arty","d":5,"t":"n","l":"more shells than this from a gun","a":1,"mn":1,"mx":100000},{"k":"ART_ROF","h":"arty","d":1.7,"t":"s","l":"two shells of one gun closer than this","mn":0,"mx":3600},{"k":"FLAG_X","h":"fastcap","d":2,"t":"x","l":"a flag moving this many soldiers' worth faster than the men there","mn":0,"mx":100},{"k":"SPAM_60","h":"spotspam","d":30,"t":"n","l":"spots in 60 s, at least","mn":1,"mx":100000},{"k":"SPAM_10","h":"spotspam","d":12,"t":"n","l":"... or in 10 s","mn":1,"mx":100000},{"k":"CLK_GAP","h":"clicker","d":0.3,"t":"s","l":"a press this soon after the last","mn":0,"mx":3600},{"k":"CLK_N","h":"clicker","d":15,"t":"n","l":"such presses of one weapon, at least","mn":1,"mx":100000},{"k":"CLK_RATE","h":"clicker","d":12,"t":"ps","l":"... at this many a second or more","mn":0,"mx":100},{"k":"CLK_CVN","h":"clicker","d":20,"t":"n","l":"or this many presses ...","mn":1,"mx":100000},{"k":"CLK_CV","h":"clicker","d":0.03,"t":"f","l":"... their spacing varying this little","mn":0,"mx":1},{"k":"HID_REC","h":"clicker","d":3,"t":"n","l":"or presses too short for a tick in this many records ...","mn":1,"mx":100000},{"k":"HID_N","h":"clicker","d":6,"t":"n","l":"... this many in all","mn":1,"mx":100000},{"k":"BRATE_X","h":"brate","d":1.5,"t":"x","l":"bullets of one press at this many times the weapon's rate","mn":0,"mx":100},{"k":"BRATE_SHOTS","h":"brate","d":8,"t":"n","l":"... at least this many bullets","mn":1,"mx":100000},{"k":"BRATE_N","h":"brate","d":2,"t":"n","l":"... this many times in a round","mn":1,"mx":100000},{"k":"SPOTR_N","h":"spotbot","d":10,"t":"n","l":"spots in a row","mn":1,"mx":100000},{"k":"SPOTR_CV","h":"spotbot","d":0.1,"t":"f","l":"their spacing varying this little","mn":0,"mx":1},{"k":"SPOTR_MIN","h":"spotbot","d":1.5,"t":"s","l":"spaced at least this on average","mn":0,"mx":3600},{"k":"LAG_MIN","h":"lagsw","d":0.5,"t":"s","l":"his records held for at least this ...","mn":0,"mx":3600},{"k":"LAG_MAX","h":"lagsw","d":3,"t":"s","l":"... and at most this","mn":0,"mx":3600},{"k":"LAG_RUN","h":"lagsw","d":2.5,"t":"mps","l":"while he ran at least this fast","mn":-100,"mx":1000},{"k":"LAG_WARP","h":"lagsw","d":4,"t":"m","l":"then at least this far at once","mn":0,"mx":10000},{"k":"LAG_AFTER","h":"lagsw","d":1.5,"t":"s","l":"with his kill up to this long after","mn":0,"mx":3600},{"k":"LAG_N","h":"lagsw","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"ONEHIT_D","h":"onehit","d":15,"t":"m","l":"a rifle / SMG / pistol body kill from this far","mn":0,"mx":10000},{"k":"ONEHIT_HP","h":"onehit","d":95,"t":"hp","l":"of a man with this much health 0.2 s before","mn":0,"mx":100},{"k":"ONEHIT_N","h":"onehit","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"ONEHIT_P","h":"onehit","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"ONEHIT_BASE","h":"onehit","d":0.015,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"SIL_ERR","h":"silent","d":30,"t":"deg","l":"his view this far off the victim at the kill","mn":0,"mx":360},{"k":"SIL_D","h":"silent","d":10,"t":"m","l":"kills from this far","mn":0,"mx":10000},{"k":"SIL_N","h":"silent","d":5,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SIL_P","h":"silent","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"SIL_BASE","h":"silent","d":0.055,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"VLOCK_N","h":"vlock","d":10,"t":"n","l":"kills at 15-150 m, at least","mn":1,"mx":100000},{"k":"VLOCK_MED","h":"vlock","d":0.3,"t":"deg","l":"his view's height off the chest: the middle, at most","mn":0,"mx":360},{"k":"VLOCK_P90","h":"vlock","d":0.8,"t":"deg","l":"... and 9 in 10, at most","mn":0,"mx":360},{"k":"SPIN_DEG","h":"spin","d":60,"t":"deg","l":"his view turning this much in a step (0.1 s)","mn":0,"mx":360},{"k":"SPIN_N","h":"spin","d":28,"t":"n","l":"... this many times","mn":1,"mx":100000},{"k":"SPIN_T","h":"spin","d":3,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"AFKB_T","h":"afkbot","d":180,"t":"s","l":"alive on foot within a small area for this long","mn":0,"mx":3600},{"k":"AFKB_R","h":"afkbot","d":8,"t":"m","l":"... within this","mn":0,"mx":10000},{"k":"AFKB_D","h":"afkbot","d":0.5,"t":"m","l":"along the same path again and again: within this on average","mn":0,"mx":10000},{"k":"TEAMSW_TK","h":"teamsw","d":50,"t":"n","l":"over to the side this many tickets ahead","mn":1,"mx":100000},{"k":"TEAMSW_T","h":"teamsw","d":60,"t":"s","l":"not in the round's first seconds","mn":0,"mx":3600},{"k":"TKREV_N","h":"tkrev","d":3,"t":"n","l":"team kills revived by the same medic, at least","mn":1,"mx":100000},{"k":"TKREV_T","h":"tkrev","d":30,"t":"s","l":"... revived within this long","mn":0,"mx":3600},{"k":"PRONE_N","h":"prone","d":12,"t":"n","l":"drops to the ground ...","mn":1,"mx":100000},{"k":"PRONE_T","h":"prone","d":30,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_N","h":"bhop","d":20,"t":"n","l":"jumps ...","mn":1,"mx":100000},{"k":"BHOP_T","h":"bhop","d":15,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_VUP","h":"bhop","d":2.5,"t":"mps","l":"a jump: rising at least this fast","a":1,"mn":-100,"mx":1000}];
+const HT_SPEC = [{"k":"LAG_PING","h":"common","d":250,"t":"ms","l":"ping from which a jump or lag stretch is put down to lag (Teleport, Lag switch)","mn":0,"mx":10000},{"k":"WALL_T","h":"wall","d":0.7,"t":"s","l":"no clear line to the victim for at least this long before the kill","mn":0.1,"mx":5},{"k":"HN_WALL","h":"wall","d":2,"t":"n","l":"such kills by one soldier in a round (one is often a gap of the map's shapes)","mn":1,"mx":100000},{"k":"HN_SMOKE","h":"smoke","d":2,"t":"n","l":"kills through a dense smoke cloud by one soldier in a round","mn":1,"mx":100000},{"k":"HN_FOG","h":"fog","d":2,"t":"n","l":"kills beyond the fog by one soldier in a round","mn":1,"mx":100000},{"k":"FOG_SLACK","h":"fog","d":10,"t":"m","l":"how far past the map's view distance the kill must be","mn":0,"mx":10000},{"k":"TRACK_DEG","h":"track","d":3,"t":"deg","l":"his view within this much across of the hidden enemy","mn":0,"mx":360},{"k":"TRACK_VDEG","h":"track","d":6,"t":"deg","l":"... and this much up or down","mn":0,"mx":360},{"k":"TRACK_T","h":"track","d":2,"t":"s","l":"on the same hidden enemy for this long on end","mn":0,"mx":3600},{"k":"TRACK_TURN","h":"track","d":10,"t":"deg","l":"the bearing to the enemy turning at least this much meanwhile (his view following)","mn":0,"mx":360},{"k":"TRACK_STEP","h":"track","d":0.2,"t":"s","l":"step of the scan (also Fired at a wall)","a":1,"mn":0.1,"mx":1},{"k":"WF_T","h":"wallfire","d":1.4,"t":"s","l":"one burst this long at an enemy hidden behind cover gives the hint","mn":0,"mx":3600},{"k":"WF_T0","h":"wallfire","d":0.6,"t":"s","l":"... or bursts of at least this long","mn":0,"mx":3600},{"k":"WF_N","h":"wallfire","d":6,"t":"n","l":"... this many of them in a round","mn":1,"mx":100000},{"k":"WF_PRE","h":"wallfire","d":3,"t":"s","l":"the enemy not seen by him in this long before","mn":0,"mx":3600},{"k":"WF_NEAR","h":"wallfire","d":8,"t":"deg","l":"no enemy he can see within this much of his crosshair","mn":0,"mx":360},{"k":"FOV_IN","h":"fov","d":50,"t":"deg","l":"the band just outside the view: from this far off where he looks","mn":0,"mx":360},{"k":"FOV_OUT","h":"fov","d":70,"t":"deg","l":"... to this far","mn":0,"mx":360},{"k":"FOV_FRESH","h":"fov","d":1.5,"t":"s","l":"the enemy not in his view for this long before","mn":0,"mx":3600},{"k":"FOV_HIT","h":"fov","d":15,"t":"deg","l":"taken: he turns to within this much of the enemy","mn":0,"mx":360},{"k":"FOV_REACT","h":"fov","d":1.2,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"FOV_FAR","h":"fov","d":150,"t":"m","l":"enemies at most this far count","mn":0,"mx":10000},{"k":"FOV_N","h":"fov","d":5,"t":"n","l":"chances taken in a round, at least","mn":1,"mx":100000},{"k":"FOV_P","h":"fov","d":0.001,"t":"p","l":"odds of taking so many at the round's others' rate, under","mn":1e-15,"mx":1},{"k":"FOV_HALF","h":"fov","d":47.5,"t":"deg","l":"half the honest view across (16:9 screen)","a":1,"mn":0,"mx":360},{"k":"SNAP_FROM","h":"snap","d":30,"t":"deg","l":"his view this far or more off the victim 0.1 s before ...","mn":0,"mx":360},{"k":"SNAP_TO","h":"snap","d":5,"t":"deg","l":"... and within this much one step later, in the 1.5 s before the kill","mn":0,"mx":360},{"k":"SNAP_N","h":"snap","d":3,"t":"n","l":"such snaps by one soldier in a round","mn":1,"mx":100000},{"k":"REACT_Q","h":"react","d":0.25,"t":"s","l":"a kill this soon after first seeing the victim is a quick one","mn":0,"mx":3600},{"k":"REACT_MIN","h":"react","d":4,"t":"n","l":"quick kills, at least","mn":1,"mx":100000},{"k":"REACT_N","h":"react","d":8,"t":"n","l":"of at least this many kills measured","mn":1,"mx":100000},{"k":"REACT_P","h":"react","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"HS_KMIN","h":"hs","d":6,"t":"n","l":"kills with a hit place (no sniper rifles), at least","mn":1,"mx":100000},{"k":"HS_P","h":"hs","d":0.0001,"t":"p","l":"odds of so many in the head at the others' share (his weapons), under (also Sniper headshots)","mn":1e-15,"mx":1},{"k":"HSSN_MIN","h":"hssn","d":6,"t":"n","l":"sniper rifle kills with a hit place, at least","mn":1,"mx":100000},{"k":"HS_SNIPER","h":"hssn","d":0.47,"t":"f","l":"share in the head for a sniper rifle with no measured share of its own","a":1,"mn":0,"mx":1},{"k":"SPEED_V","h":"speed","d":8.7,"t":"mps","l":"on foot faster than this over each second","mn":-100,"mx":1000},{"k":"SPEED_T","h":"speed","d":2,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"SPAWN_START","h":"speed","d":10,"t":"s","l":"not in the round's first seconds (also Spawn: the start's spawns)","a":1,"mn":0,"mx":3600},{"k":"STAM_T","h":"stam","d":13,"t":"s","l":"one sprint this long (rounds without the stamina value)","mn":0,"mx":3600},{"k":"STAM_E","h":"stam","d":3.5,"t":"s","l":"sprinting with no stamina left for this long","mn":0,"mx":3600},{"k":"STAM_H","h":"stam","d":13,"t":"s","l":"sprinting with the stamina not going down for this long","mn":0,"mx":3600},{"k":"TELE_D","h":"tele","d":15,"t":"m","l":"a jump on foot of this much in one step","mn":0,"mx":10000},{"k":"TELE_GAP","h":"tele","d":13,"t":"mps","l":"not a gap in his records: over the gap no faster than this","mn":-100,"mx":1000},{"k":"CLIP_N","h":"clip","d":15,"t":"n","l":"steps through a wall in a round, at least","mn":1,"mx":100000},{"k":"CLIP_P","h":"clip","d":10,"t":"n","l":"... in at least this many places (5 m apart)","mn":1,"mx":100000},{"k":"FLY_H","h":"fly","d":5,"t":"m","l":"his feet this high over what is under him","mn":0,"mx":10000},{"k":"FLY_T","h":"fly","d":8,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"FLY_V","h":"fly","d":2,"t":"mps","l":"moving across this fast on average","mn":-100,"mx":1000},{"k":"FLY_VZ","h":"fly","d":-1,"t":"mps","l":"and not coming down faster than this (negative: down)","mn":-50,"mx":50},{"k":"CHUTE_H","h":"chute","d":15,"t":"mps","l":"under a parachute faster than this across","mn":-100,"mx":1000},{"k":"CHUTE_UP","h":"chute","d":1,"t":"mps","l":"... or rising this fast","mn":-100,"mx":1000},{"k":"UNDER_D","h":"under","d":1.5,"t":"m","l":"alive on foot this deep under the ground","mn":0,"mx":10000},{"k":"UNDER_T","h":"under","d":2,"t":"s","l":"... for this long","mn":0,"mx":3600},{"k":"SPAWN_D","h":"spawn","d":25,"t":"m","l":"appearing further than this from any spawn point, team mate or vehicle","mn":0,"mx":10000},{"k":"SG_NEAR","h":"spawn","d":150,"t":"m","l":"a map spawn point counts if within this of a spawn group his side held","a":1,"mn":0,"mx":10000},{"k":"SG_R","h":"spawn","d":150,"t":"m","l":"maps without spawn points: this far from a held group's middle","a":1,"mn":0,"mx":10000},{"k":"SPAWN_EARLY","h":"respawn","d":0.5,"t":"s","l":"spawned this much earlier than the game allows","mn":0,"mx":3600},{"k":"VSPD_X","h":"vspeed","d":1.35,"t":"x","l":"faster than this many times the most its type made","mn":0,"mx":100},{"k":"VSPD_T","h":"vspeed","d":3,"t":"s","l":"... over this long","mn":0,"mx":3600},{"k":"DMG_HP","h":"dmg","d":25,"t":"hp","l":"a closed vehicle killed through by small arms with this much health or more left","mn":0,"mx":100},{"k":"MELEE_SLACK","h":"reach","d":2.5,"t":"m","l":"knife / defibrillator kill further than its reach plus this","mn":0,"mx":10000},{"k":"AMMO_X","h":"ammo","d":2,"t":"x","l":"more launches in one life than this many times what he could have had","mn":0,"mx":100},{"k":"PICK_R","h":"ammo","d":2.5,"t":"m","l":"a kit may have been picked up within this of where its carrier died (also Fire rate)","a":1,"mn":0,"mx":10000},{"k":"PICK_T","h":"ammo","d":300,"t":"s","l":"... in this long after","a":1,"mn":0,"mx":3600},{"k":"CRATE_R","h":"ammo","d":6,"t":"m","l":"near a supply crate: within this","a":1,"mn":0,"mx":10000},{"k":"FARM_N","h":"farm","d":4,"t":"n","l":"one killer kills the same standing victim this many times","mn":1,"mx":100000},{"k":"IDLE_T","h":"idle","d":240,"t":"s","l":"alive on foot, not moving 1 m nor turning 2 deg for this long","mn":0,"mx":3600},{"k":"OUT_T","h":"outside","d":25,"t":"s","l":"outside the combat area this long on end","mn":0,"mx":3600},{"k":"NOFIRE_T","h":"nofire","d":1.5,"t":"s","l":"a bullet kill with every fire button up for this long before","mn":0,"mx":3600},{"k":"TRIG_ON","h":"trigger","d":0.15,"t":"s","l":"the kill this soon after his aim landed (rounds without fire buttons)","mn":0,"mx":3600},{"k":"TRIG_PRESS","h":"trigger","d":0.12,"t":"s","l":"the trigger pressed within this after his aim landed","mn":0,"mx":3600},{"k":"TRIG_N","h":"trigger","d":6,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"TRIG_P","h":"trigger","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"SMOOTH_ERR","h":"smooth","d":0.5,"t":"deg","l":"the middle angle between his view and a moving target, at most","mn":0,"mx":360},{"k":"SMOOTH_N","h":"smooth","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SMOOTH_W","h":"smooth","d":4,"t":"dps","l":"the target crossing his view at least this fast","mn":0,"mx":10000},{"k":"SWITCH_DT","h":"switch","d":0.8,"t":"s","l":"two kills of two enemies this close in time","mn":0,"mx":3600},{"k":"SWITCH_A","h":"switch","d":40,"t":"deg","l":"... this far apart as he saw them","mn":0,"mx":360},{"k":"PRE_N","h":"preaim","d":5,"t":"n","l":"kills with his view already on the victim as he came out of cover, at least","mn":1,"mx":100000},{"k":"PRE_P","h":"preaim","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"PRE_SNIPER","h":"preaim","d":0.22,"t":"f","l":"snipers: the others' share, at least this","a":1,"mn":0,"mx":1},{"k":"NSD_SHOTGUN","h":"spread","d":40,"t":"m","l":"a shotgun kill further than this","mn":0,"mx":10000},{"k":"NSD_PISTOL","h":"spread","d":150,"t":"m","l":"a pistol kill further than this","mn":0,"mx":10000},{"k":"NSD_SMG","h":"spread","d":120,"t":"m","l":"an SMG kill further than this","mn":0,"mx":10000},{"k":"NSD_RIFLE","h":"spread","d":250,"t":"m","l":"a rifle / machine gun kill further than this","mn":0,"mx":10000},{"k":"BLIND_N","h":"blindspot","d":12,"t":"n","l":"spots of soldiers nobody of his side could see, at least","mn":1,"mx":100000},{"k":"BLIND_SHARE","h":"blindspot","d":0.75,"t":"f","l":"... and this share of his spots","mn":0,"mx":1},{"k":"GUIDE_V","h":"guided","d":5,"t":"mps","l":"the target moving at least this fast","mn":-100,"mx":1000},{"k":"GUIDE_N","h":"guided","d":3,"t":"n","l":"such hits of one gunner, at least","mn":1,"mx":100000},{"k":"GUIDE_ERR","h":"guided","d":0.5,"t":"deg","l":"the middle angle of the flight to the target, at most","mn":0,"mx":360},{"k":"GUIDE_NOSE","h":"guided","d":0.25,"t":"deg","l":"... for missiles whose nose the demo has","a":1,"mn":0,"mx":360},{"k":"TV_N","h":"guided","d":8,"t":"n","l":"TV missiles fired, at least","mn":1,"mx":100000},{"k":"TV_P","h":"guided","d":1e-05,"t":"p","l":"odds of so many TV hits, under","mn":1e-15,"mx":1},{"k":"TV_RATE","h":"guided","d":0.383,"t":"f","l":"the share of TV missiles that hit, measured","a":1,"mn":0,"mx":1},{"k":"ART_GAP","h":"arty","d":50,"t":"s","l":"a strike this soon after the last one of that side","mn":0,"mx":3600},{"k":"ART_BURST","h":"arty","d":5,"t":"n","l":"more shells than this from a gun","a":1,"mn":1,"mx":100000},{"k":"ART_ROF","h":"arty","d":1.7,"t":"s","l":"two shells of one gun closer than this","mn":0,"mx":3600},{"k":"FLAG_X","h":"fastcap","d":2,"t":"x","l":"a flag moving this many soldiers' worth faster than the men there","mn":0,"mx":100},{"k":"SPAM_60","h":"spotspam","d":30,"t":"n","l":"spots in 60 s, at least","mn":1,"mx":100000},{"k":"SPAM_10","h":"spotspam","d":12,"t":"n","l":"... or in 10 s","mn":1,"mx":100000},{"k":"CLK_GAP","h":"clicker","d":0.3,"t":"s","l":"a press this soon after the last","mn":0,"mx":3600},{"k":"CLK_N","h":"clicker","d":15,"t":"n","l":"such presses of one weapon, at least","mn":1,"mx":100000},{"k":"CLK_RATE","h":"clicker","d":12,"t":"ps","l":"... at this many a second or more","mn":0,"mx":100},{"k":"CLK_CVN","h":"clicker","d":20,"t":"n","l":"or this many presses ...","mn":1,"mx":100000},{"k":"CLK_CV","h":"clicker","d":0.03,"t":"f","l":"... their spacing varying this little","mn":0,"mx":1},{"k":"HID_REC","h":"clicker","d":3,"t":"n","l":"or presses too short for a tick in this many records ...","mn":1,"mx":100000},{"k":"HID_N","h":"clicker","d":6,"t":"n","l":"... this many in all","mn":1,"mx":100000},{"k":"BRATE_X","h":"brate","d":1.5,"t":"x","l":"bullets of one press at this many times the weapon's rate","mn":0,"mx":100},{"k":"BRATE_SHOTS","h":"brate","d":8,"t":"n","l":"... at least this many bullets","mn":1,"mx":100000},{"k":"BRATE_N","h":"brate","d":2,"t":"n","l":"... this many times in a round","mn":1,"mx":100000},{"k":"SPOTR_N","h":"spotbot","d":10,"t":"n","l":"spots in a row","mn":1,"mx":100000},{"k":"SPOTR_CV","h":"spotbot","d":0.1,"t":"f","l":"their spacing varying this little","mn":0,"mx":1},{"k":"SPOTR_MIN","h":"spotbot","d":1.5,"t":"s","l":"spaced at least this on average","mn":0,"mx":3600},{"k":"LAG_MIN","h":"lagsw","d":0.5,"t":"s","l":"his records held for at least this ...","mn":0,"mx":3600},{"k":"LAG_MAX","h":"lagsw","d":3,"t":"s","l":"... and at most this","mn":0,"mx":3600},{"k":"LAG_RUN","h":"lagsw","d":2.5,"t":"mps","l":"while he ran at least this fast","mn":-100,"mx":1000},{"k":"LAG_WARP","h":"lagsw","d":4,"t":"m","l":"then at least this far at once","mn":0,"mx":10000},{"k":"LAG_AFTER","h":"lagsw","d":1.5,"t":"s","l":"with his kill up to this long after","mn":0,"mx":3600},{"k":"LAG_N","h":"lagsw","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"ONEHIT_D","h":"onehit","d":15,"t":"m","l":"a rifle / SMG / pistol body kill from this far","mn":0,"mx":10000},{"k":"ONEHIT_HP","h":"onehit","d":95,"t":"hp","l":"of a man with this much health 0.2 s before","mn":0,"mx":100},{"k":"ONEHIT_N","h":"onehit","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"ONEHIT_P","h":"onehit","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"ONEHIT_BASE","h":"onehit","d":0.015,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"SIL_ERR","h":"silent","d":30,"t":"deg","l":"his view this far off the victim at the kill","mn":0,"mx":360},{"k":"SIL_D","h":"silent","d":10,"t":"m","l":"kills from this far","mn":0,"mx":10000},{"k":"SIL_N","h":"silent","d":5,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SIL_P","h":"silent","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"SIL_BASE","h":"silent","d":0.055,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"VLOCK_N","h":"vlock","d":10,"t":"n","l":"kills at 15-150 m, at least","mn":1,"mx":100000},{"k":"VLOCK_MED","h":"vlock","d":0.3,"t":"deg","l":"his view's height off the chest: the middle, at most","mn":0,"mx":360},{"k":"VLOCK_P90","h":"vlock","d":0.8,"t":"deg","l":"... and 9 in 10, at most","mn":0,"mx":360},{"k":"SPIN_DEG","h":"spin","d":60,"t":"deg","l":"his view turning this much in a step (0.1 s)","mn":0,"mx":360},{"k":"SPIN_N","h":"spin","d":28,"t":"n","l":"... this many times","mn":1,"mx":100000},{"k":"SPIN_T","h":"spin","d":3,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"AFKB_T","h":"afkbot","d":180,"t":"s","l":"alive on foot within a small area for this long","mn":0,"mx":3600},{"k":"AFKB_R","h":"afkbot","d":8,"t":"m","l":"... within this","mn":0,"mx":10000},{"k":"AFKB_D","h":"afkbot","d":0.5,"t":"m","l":"along the same path again and again: within this on average","mn":0,"mx":10000},{"k":"TEAMSW_TK","h":"teamsw","d":50,"t":"n","l":"over to the side this many tickets ahead","mn":1,"mx":100000},{"k":"TEAMSW_T","h":"teamsw","d":60,"t":"s","l":"not in the round's first seconds","mn":0,"mx":3600},{"k":"TKREV_N","h":"tkrev","d":3,"t":"n","l":"team kills revived by the same medic, at least","mn":1,"mx":100000},{"k":"TKREV_T","h":"tkrev","d":30,"t":"s","l":"... revived within this long","mn":0,"mx":3600},{"k":"PRONE_N","h":"prone","d":12,"t":"n","l":"drops to the ground ...","mn":1,"mx":100000},{"k":"PRONE_T","h":"prone","d":30,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_N","h":"bhop","d":15,"t":"n","l":"jumps ...","mn":1,"mx":100000},{"k":"BHOP_T","h":"bhop","d":15,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_VUP","h":"bhop","d":2.5,"t":"mps","l":"a jump: rising at least this fast","a":1,"mn":-100,"mx":1000},{"k":"SIDE_V","h":"sidesprint","d":4.3,"t":"mps","l":"moving at least this fast","a":1,"mn":0,"mx":1000},{"k":"SIDE_DEG","h":"sidesprint","d":60,"t":"deg","l":"... this far off where he looks","a":1,"mn":0,"mx":180},{"k":"SIDE_T","h":"sidesprint","d":2,"t":"s","l":"... this long on end","mn":0,"mx":3600},{"k":"AIR_GAIN","h":"airspeed","d":4,"t":"mps","l":"speed gained in a jump","a":1,"mn":0,"mx":1000},{"k":"AIR_N","h":"airspeed","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"JF_MIN","h":"jumpfire","d":0.15,"t":"s","l":"a kill from this long after his take-off (+ the distance / 300 m/s)","a":1,"mn":0,"mx":10},{"k":"JF_MAX","h":"jumpfire","d":0.55,"t":"s","l":"... up to this long","a":1,"mn":0,"mx":10},{"k":"JF_N","h":"jumpfire","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000}];
 const HT_DEF = Object.fromEntries(HT_SPEC.map(s => [s.k, s.d])), HT_BY = new Map(HT_SPEC.map(s => [s.k, s]));
 let HT_SITE = { values: {}, off: [] }, HT_MINE = null, HT_HV = HINTS_V, HT_READY = false, HT_EFF = {}, HT_WAIT = [];
 // a set as saved: the known names with numbers in bounds (whole for counts), other than the recommended; the hints off
@@ -8213,7 +8386,8 @@ function applyHT(o, off) {
   SPIN_DEG = v('SPIN_DEG'); SPIN_N = v('SPIN_N'); SPIN_T = v('SPIN_T'); AFKB_T = v('AFKB_T'); AFKB_R = v('AFKB_R');
   AFKB_D = v('AFKB_D'); TEAMSW_TK = v('TEAMSW_TK'); TEAMSW_T = v('TEAMSW_T'); TKREV_N = v('TKREV_N');
   TKREV_T = v('TKREV_T'); PRONE_N = v('PRONE_N'); PRONE_T = v('PRONE_T'); BHOP_N = v('BHOP_N'); BHOP_T = v('BHOP_T');
-  BHOP_VUP = v('BHOP_VUP');
+  BHOP_VUP = v('BHOP_VUP'); SIDE_V = v('SIDE_V'); SIDE_DEG = v('SIDE_DEG'); SIDE_T = v('SIDE_T'); AIR_GAIN = v('AIR_GAIN'); AIR_N = v('AIR_N');
+  JF_MIN = v('JF_MIN'); JF_MAX = v('JF_MAX'); JF_N = v('JF_N');
   HT_OFF = new Set(off || []);
 }
 // the sets in force: the site's, and his own over it while he uses it (his hints off and on over the site's)
@@ -8287,7 +8461,7 @@ function analysisDump(R) {
     { const r = []; for (let k = 11; k <= 20; k++) if (brg[k] != null && brg[k - 1] != null) r.push(Math.abs(sgn(brg[k], brg[k - 1])) / DEG / 0.1); row[19] = arnd(med(r), 1); }
     const g = engagement(e); if (g) { row[20] = arnd(g.react); row[21] = g.kind; }
     if (D && q.h != null && o.h != null) {
-      const back = exact => { let k = 0; for (; k <= 50; k++) { const t1 = tt - k * 0.1, a = playerAt(ki, t1), b = playerAt(vi, t1); if (!a.alive || !b.alive || a.h == null || b.h == null) break; if (exact ? bodyClearExact(D, G, a, eyeOf(ki, a, t1), vi, b, t1) : bodyLines(D, a, eyeOf(ki, a, t1), vi, b, t1)[0] > 0) return k; } return 100 + k; };
+      const back = exact => { let k = 0; for (; k <= 50; k++) { const t1 = tt - k * 0.1, a = playerAt(ki, t1), b = playerAt(vi, t1); if (!a.alive || !b.alive || a.h == null || b.h == null) break; if (exact ? bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, t1), vi, b, t1) : bodyLines(D, eyeXY(a), eyeOf(ki, a, t1), vi, b, t1)[0] > 0) return k; } return 100 + k; };
       row[22] = back(false); if (G && row[22] >= 3) row[23] = back(true);
       const ey = eyeOf(ki, q, tt), sv = stanceNow(R.players[vi], tt) ?? 0, hd = Math.hypot(o.x - q.x, o.y - q.y);
       if (q.pitch != null && hd > 1) row[27] = arnd((Math.atan2(o.h + AIM_H[sv][1] - ey, hd) - q.pitch) / DEG, 1);
@@ -8428,7 +8602,7 @@ function admDescribe0(h) {
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
   if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.crates ? `; at a supply crate ${h.crates} time${h.crates > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag, support or supply crate near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
-  if (h.kind === 'fov') return [h.q + '/' + h.n, `<b>Wide view</b> ${pn(h.actor)} <span class="w">a weak sign: ${h.q} of ${h.n} times an enemy he could see came ${FOV_IN}-${FOV_OUT}° to the side of where he looked - just outside the ${Math.round(FOV_HALF * 2)}° view taken here - with no shot, spot or hit to give him away, he turned to him within ${FOV_REACT} s (the round's others ${Math.round(h.others * 100)}%). A wider view than a 16:9 screen's would do that - an ultrawide FOV hack, or honestly a 21:9 monitor (111°, to 55° each side) or 32:9; so can sound, the minimap or a team mate's call</span>`, `Wide view: ${pt(h.actor)}, ${h.q} of ${h.n}`];
+  if (h.kind === 'fov') return [h.q + '/' + h.n, `<b>Wide view</b> ${pn(h.actor)} <span class="w">a weak sign: ${h.q} of ${h.n} times an enemy he could see came ${FOV_IN}-${FOV_OUT}° to the side of where he looked - just outside the ${Math.round(FOV_HALF * 2)}° view taken here - with no shot, spot or hit to give him away, he turned to him within ${FOV_REACT} s (the round's others ${Math.round(h.others * 100)}%). A wider view than a 16:9 screen's would do that - an ultrawide FOV hack (a 21:9 or 32:9 monitor does not widen it: the game keeps those near 16:9's width, ~92°); so can sound, the minimap or a team mate's call</span>`, `Wide view: ${pt(h.actor)}, ${h.q} of ${h.n}`];
   if (h.kind === 'wallfire') return [h.n > 1 ? h.n + '×' : h.dur.toFixed(1) + ' s', `<b>Fired at a wall</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">${h.n > 1 ? `${h.n} times this round he held the trigger (${WF_T0} s or more, ${h.total.toFixed(1)} s in all) on an enemy behind walls or a hill he hadn't seen in the ${WF_PRE} s before; the longest ` : 'held the trigger '}${h.dur.toFixed(1)} s on end with his crosshair on him behind cover, ${Math.round(h.d)} m away · ${esc(h.w)} · ${h.last === null ? 'not seen in the 6 s before' : `last seen ${h.last.toFixed(1)} s before`} · nobody in sight near his crosshair</span>`, `Fired at a wall: ${pt(h.actor)} → ${pt(h.vs)}, ${h.n > 1 ? h.n + ' times' : h.dur.toFixed(1) + ' s'}`];
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
   if (h.kind === 'speed') return [h.v.toFixed(0) + ' m/s', `<b>Speed</b> ${pn(h.actor)} <span class="w">on foot at up to ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s${h.n > 1 ? ' in ' + h.n + ' stretches over ' + Math.round(h.span) + ' s' : ''} (${Math.round(h.dist)} m, ${h.vavg.toFixed(1)} m/s on average) · the game's sprint is ${SPEED_RUN} m/s</span>`, `Speed: ${pt(h.actor)} ${h.v.toFixed(1)} m/s for ${h.dur.toFixed(1)} s`];
@@ -8452,6 +8626,9 @@ function admDescribe0(h) {
   if (h.kind === 'brate') return [h.rate.toFixed(0) + '/s', `<b>Bullet rate</b> ${pn(h.actor)} <span class="w">${h.shots} bullets from his ${esc(h.w)} in one press of ${h.hold.toFixed(2)} s - ${h.rate.toFixed(1)} a second, the weapon fires ${h.cap} at most · ${h.n} such bursts this round (the magazine's count at each press)</span>`, `Bullet rate: ${pt(h.actor)} ${h.w} ${h.rate.toFixed(1)}/s`];
   if (h.kind === 'spotbot') return [h.every.toFixed(1) + ' s', `<b>Spot rhythm</b> ${pn(h.actor)} <span class="w">${h.n} spots in a row every ${h.every.toFixed(1)} s, varying only ${(h.cv * 100).toFixed(0)}% - by hand 36% or more (${h.all} spots in the round) · a key bound to a timer</span>`, `Spot rhythm: ${pt(h.actor)} every ${h.every.toFixed(1)} s`];
   if (h.kind === 'prone') return [h.n + '×', `<b>Prone spam</b> ${pn(h.actor)} <span class="w">dropped to the ground ${h.n} times within ${h.within} s (${h.all} in the round) · dolphin diving - against the rules on many servers</span>`, `Prone spam: ${pt(h.actor)} ${h.n} in ${h.within} s`];
+  if (h.kind === 'sidesprint') return [h.dur.toFixed(1) + ' s', `<b>Sideways sprint</b> ${pn(h.actor)} <span class="w">${h.dur.toFixed(1)} s at ${h.v.toFixed(1)} m/s on the flat, up to ${Math.round(h.off)}° off where he looked - the game sprints only where a man looks (sideways or backwards 3.9 m/s at the most); honest rounds: 1 s at the most, in a sharp turn · a speed hack, or his view not where the demo has it</span>`, `Sideways sprint: ${pt(h.actor)} ${h.dur.toFixed(1)} s, ${Math.round(h.off)}° off his view`];
+  if (h.kind === 'airspeed') return [h.n + '×', `<b>Speed in the air</b> ${pn(h.actor)} <span class="w">${h.n} jumps in which he got faster in the air - the most from ${h.v0.toFixed(1)} to ${h.v1.toFixed(1)} m/s; the game keeps a jump's speed (it adds at most 2 m/s, and only to a slow one) · a speed hack, unless something pushed him</span>`, `Speed in the air: ${pt(h.actor)} ${h.n} jumps, +${h.gain.toFixed(1)} m/s`];
+  if (h.kind === 'jumpfire') return [h.n + '×', `<b>Shot in a jump</b> ${pn(h.actor)} <span class="w">${h.n} of his ${h.all} kills came ${h.list.map(x => x[1].toFixed(2) + ' s').join(', ')} after he jumped (${h.list.map(x => esc(x[3]) + ' ' + x[2] + ' m').join(', ')}) - the game lets no one fire for 0.7 s after a jump; honest rounds: none · a no-delay hack, or a jump the demo shows that was not one</span>`, `Shot in a jump: ${pt(h.actor)} ${h.n}×`];
   if (h.kind === 'bhop') return [h.n + '×', `<b>Bunny hop</b> ${pn(h.actor)} <span class="w">jumped ${h.n} times within ${h.within} s (${h.all} in the round) · against the rules on some servers; a script if it never stops</span>`, `Bunny hop: ${pt(h.actor)} ${h.n} jumps in ${h.within} s`];
   if (h.kind === 'lagsw') return [h.n + '×', `<b>Lag switch</b> ${pn(h.actor)} <span class="w">${h.n} times his records stopped while he ran and the others' went on (${h.gaps.map(g => fmt(g[0]) + ' ' + g[1].toFixed(1) + ' s, then ' + Math.round(g[2]) + ' m at once').join('; ')}), each with a kill of his - his ping was under ${LAG_PING} ms</span>`, `Lag switch: ${pt(h.actor)} ${h.n} times`];
   if (h.kind === 'spin') return [h.n + '×', `<b>Spin</b> ${pn(h.actor)} <span class="w">his view turned ${SPIN_DEG}° or more in a tenth of a second ${h.n} times within ${h.within} s - a hand at most 21 · a spinbot, or his view in the data gone wrong</span>`, `Spin: ${pt(h.actor)} ${h.n} in ${h.within} s`];
@@ -8478,7 +8655,7 @@ function admDescribe0(h) {
   const tail = `${esc(killWpn(e) || e.weapon || 'no weapon')}${e.dist !== undefined ? ' · ' + e.dist + ' m' : ''}${e.hit === 'head' ? ' · headshot' : ''}`;
   if (h.kind === 'dmg') return [Math.round(h.hp) + '%', `<b>Damage</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">killed him inside ${esc(h.veh)} (${esc(VCLASS_NAME[h.cls] || h.cls)}, ${Math.round(h.hp)}% left 1 s before) with small arms - bullets don't reach the crew · ${tail}</span>`, `Damage: ${pt(e.killer)} → ${pt(e.victim)} in ${h.veh}`];
   if (h.kind === 'smoke') return ['smoke', `<b>Through smoke</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a dense smoke cloud between them for the 1 s before the kill${h.of ? ` · ${h.of} such kills of his this round` : ''} · ${tail}</span>`, `Through smoke: ${pt(e.killer)} → ${pt(e.victim)}`];
-  if (h.kind === 'fog') return [Math.round(h.d) + ' m', `<b>Beyond fog</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${Math.round(h.d)} m, the map's view distance is ${h.fog} m${h.veh ? ' · from ' + esc(h.veh) : ''} · ${tail}</span>`, `Beyond fog: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.d)} m`];
+  if (h.kind === 'fog') return [Math.round(h.d) + ' m', `<b>Beyond fog</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">${Math.round(h.d)} m, ${h.thick ? `inside the map's view distance (${h.fog} m) but past ${Math.round(h.thick)} m, where its fog leaves nothing of a man, with no sky behind him` : `the map's view distance is ${h.fog} m`}${h.veh ? ' · from ' + esc(h.veh) : ''} · ${tail}</span>`, `Beyond fog: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.d)} m`];
   if (h.kind === 'thru') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>Through thin walls</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill, but only what bullets go through stood between them${wallBy(h)} - shooting through cover at a man he couldn't see · ${tail}</span>`, `Through thin walls: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
   if (h.kind === 'wall') { const hid = h.hidden === null ? '5 s or more' : h.hidden.toFixed(1) + ' s'; return [h.hidden === null ? '5 s+' : h.hidden.toFixed(1) + ' s', `<b>No line of sight</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">no clear line from his eyes to him for ${hid} before the kill${wallBy(h)}${h.of ? ` · ${h.of} such kills of his this round` : ''} · ${tail}</span>`, `No line of sight: ${pt(e.killer)} → ${pt(e.victim)}, ${hid}`]; }
   if (h.kind === 'snap') return [Math.round(h.from) + '°', `<b>Aim snap</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">his view swung onto him from ${Math.round(h.from)}° off to ${h.to.toFixed(1)}° in 0.1 s, ${Math.round(h.dist)} m away${h.before >= 0.05 ? ' · ' + h.before.toFixed(1) + ' s before the kill' : ' · at the kill'}${h.of ? ` · ${h.of} such snaps of his this round` : ''} · ${tail}</span>`, `Aim snap: ${pt(e.killer)} → ${pt(e.victim)}, ${Math.round(h.from)}° in 0.1 s`];
@@ -8854,7 +9031,7 @@ function drawGameTop(box, tk, bl, lim) {
   dashes('capR', '#838383', true, n[1] + n[2]); dashes('capR', teamColor(1), true, n[1]);
   for (const tm of [0, 1]) { const q = sp(tm); if (q && q[2] > 0) bmText(g, FONT_CHAT, '-' + (60 / q[2]).toFixed(1) + '/min', at(tm ? 758 : 624), (TOP_H + 12) * s, feedSide(tm), s, true, Math.max(1, Math.round(s * 0.75))); }
   box.querySelector('.srtxt').textContent = `${round.teams[0]?.name || ''} ${Math.round(tk[0])}, ${round.teams[1]?.name || ''} ${Math.round(tk[1])}, ${lim > 0 ? 'time left' : 'time'} ${tl}`;
-  box.title = (sp(0) || sp(1)) ? [0, 1].filter(tm => sp(tm)).map(tm => `${round.teams[tm]?.name || ''} holds fewer flags and bleeds tickets${sp(tm)[2] ? ': one every ' + sp(tm)[2].toFixed(1) + ' s' : ''}`).join('; ') : (lim > 0 ? 'Time left of the server\'s ' + fmt(lim) + ' limit' : 'Time played (no time limit)');
+  box.title = (sp(0) || sp(1)) ? [0, 1].filter(tm => sp(tm)).map(tm => `${round.teams[tm]?.name || ''} bleeds tickets - ${bleedWhy(tm, t)}${sp(tm)[2] ? ': one every ' + sp(tm)[2].toFixed(1) + ' s' : ''}`).join('; ') : (lim > 0 ? 'Time left of the server\'s ' + fmt(lim) + ' limit' : 'Time played (no time limit)');
 }
 // ---- the game's scoreboard (HudElementsScoreboard.con, the 800 x 600 layout), over the map while Tab is held or its
 // button is on: each side's panel (team1_byScore / team1_bySquad as the tab picked, team2_empty for the other side),
@@ -9125,7 +9302,8 @@ function drawSide() {
   const pn = i => `<span class="t${teamOf(i, e.t)}">${esc(round.players[i].name)}</span>`;
   $('#svTitle').textContent = 'Side view'; $('#svSub').textContent = fmt(e.t);
   if (ki === undefined || vi === undefined) { info.textContent = 'This kill has no positions.'; return; }
-  const tt = e.t - 0.05, q = playerAt(ki, tt), o = playerAt(vi, tt), D = losData();
+  // (v233: the killer from his eye's place, eyeXY, as the hints look - v234: straight over his position)
+  const tt = e.t - 0.05, q = (k => !k.veh && !round.players[ki].vehicle ? eyeXY(k) : k)(playerAt(ki, tt)), o = playerAt(vi, tt), D = losData();
   if (q.h == null || o.h == null) { info.textContent = 'No heights for this kill.'; return; }
   const kp = round.players[ki], vp = round.players[vi], kFoot = !q.veh && !kp.vehicle, vFoot = !o.veh;
   const kSt = kFoot ? stanceNow(kp, tt) ?? 0 : 0, vSt = vFoot ? stanceNow(vp, tt) ?? 0 : 0;
@@ -9346,7 +9524,7 @@ function renderTop() {
   if (!(tk[0] > 0 || tk[1] > 0)) { box.hidden = true; return; }
   if (opts.gameHud && hudReady()) { box.hidden = false; drawGameTop(box, tk, bl, lim); return; }   // (v142) as in the game
   box.classList.remove('game'); box.title = '';
-  const side = tm => { const sp = (bl?.[tm] || []).find(q => q[0] <= t && t < q[1]); return `<span class="tb t${tm}">${flagChip(tm, false, 13)} ${Math.round(tk[tm])}${sp ? ` <span class="bl" title="${esc(round.teams[tm]?.name || '')} holds fewer flags and bleeds tickets${sp[2] ? ': one every ' + sp[2] + ' s' : ''}">▼${sp[2] ? Math.round(60 / sp[2]) + '/min' : ''}</span>` : ''}</span>`; };
+  const side = tm => { const sp = (bl?.[tm] || []).find(q => q[0] <= t && t < q[1]); return `<span class="tb t${tm}">${flagChip(tm, false, 13)} ${Math.round(tk[tm])}${sp ? ` <span class="bl" title="${esc(round.teams[tm]?.name || '')} bleeds tickets - ${esc(bleedWhy(tm, t))}${sp[2] ? ': one every ' + sp[2] + ' s' : ''}">▼${sp[2] ? Math.round(60 / sp[2]) + '/min' : ''}</span>` : ''}</span>`; };
   box.innerHTML = side(0) + `<span class="tl" title="${lim > 0 ? 'Time left of the server\'s ' + fmt(lim) + ' limit' : 'Time played (no time limit)'}">${lim > 0 ? fmt(Math.max(0, lim - t)) : fmt(t)}</span>` + side(1);
   box.hidden = false;
 }
@@ -9382,15 +9560,17 @@ const CLIP_SPEEDS = [0.5, 1, 2, 4, 8, 16];
 const DEMO_FFS = [1, 10, 30, 100, 0], DEMO_LEAD = 90;
 const ffLabel = f => f === 1 ? 'Real pace' : f ? '×' + f : 'Fastest';
 const CLIP_HINT = 'Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills, with sound made from the demo (shots, rockets, explosions; at up to 2×).';
-const DEMO_HINT = "A kit for Battlefield 2 on your PC (Windows, the game installed): a .zip to unpack into the game's folder, with the round's demo from this moment on and a camera for each view ticked. Its make-videos.bat has the game film each view (1280x720, ~2-4 min each) and, with ffmpeg, makes them MP4. Follow a soldier for the views. No HUD or crosshair: the game shows none in a demo.";
+const DEMO_HINT = "A kit for Battlefield 2 on your PC (Windows, the game installed): a .zip to unpack into the game's folder, with the round's demo from this moment on and a camera for each view ticked. Its make-videos.bat has the game film each view (1280x720, ~2-4 min each) and, with ffmpeg, makes them MP4. Follow a soldier for the views. The game shows no HUD in a demo: with Names & crosshair, ffmpeg draws the crosshair, the zoom of his sights, names, health and distance over the films.";
 const CLIP_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg>';
 // (v229) the game video kit's views (makeDemoClip below), ticked in the clip bar, remembered
-const GV_VIEWS = [['eyes', 'His eyes', 'What he saw: the camera at his eyes (in a vehicle, his seat\'s view). No crosshair or HUD - the game shows none in a demo'],
-  ['behind', 'Behind him', "The game's own camera 7 m behind him and above: he and what he aims at"],
-  ['side', 'From the side', "The game's own camera 5 m to his side"],
+const GV_VIEWS = [['eyes', 'His eyes', 'What he saw: the camera at his eyes (in a vehicle, his seat\'s view); with Names & crosshair, the crosshair and the zoom of his sights'],
+  ['behind', 'Behind him', 'A camera 7 m behind him and above, turning with him: he and what he aims at'],
+  ['side', 'From the side', 'A camera 5 m to his right, turning with him'],
   ['still', 'Still', 'A camera that stays put over the moment, behind him and above']];
-clip.views = { eyes: true, behind: true, side: false, still: false };
-try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of GV_VIEWS) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
+// (v232) and over the films (gvOverlay): the crosshair, the zoom of his sights, names, health and distance, his aim line
+const GV_OVER = ['over', 'Names & crosshair', 'Drawn over the films by ffmpeg (the game shows no HUD in a demo): in his eyes the crosshair with how far it meets something, and through his sights or scope the picture zoomed in (one more render of his eyes for each zoom); over the soldiers and vehicles in the picture their name, health and distance from him - faded where he can\'t see them; in the other views his aim line'];
+clip.views = { eyes: true, behind: true, side: false, still: false, over: true };
+try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of [...GV_VIEWS, GV_OVER]) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
 const gvSave = () => { try { localStorage.setItem('bf2rr.gviews', JSON.stringify(clip.views)); } catch (e) {} };
 const clipForceRec = /[?&]cliprec\b/.test(location.search);   // (testing: film in real time even with WebCodecs)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.clip') || '{}'); if (CLIP_SIZES[o.size]) clip.size = o.size; if (CLIP_SPEEDS.includes(o.speed)) clip.speed = o.speed; if (o.fmt === 'gif' || o.fmt === 'demo') clip.fmt = o.fmt; if (DEMO_FFS.includes(o.ff)) clip.ff = o.ff; } catch (e) {}
@@ -9479,7 +9659,7 @@ function renderClipBar() {
     { const sl = $('#cSndL'), fast = clip.speed > SND_MAX_SPEED; sl.hidden = dem || gif; $('#cSnd').checked = clip.sound && !fast; $('#cSnd').disabled = fast; sl.classList.toggle('off', fast); sl.title = fast ? `No sound faster than ${SND_MAX_SPEED}× (it would be a din)` : 'Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)'; }
     $('#cFFl').hidden = true; $('#cHint').textContent = dem ? DEMO_HINT : CLIP_HINT;
     { const gv = $('#cViews'); gv.hidden = !dem;
-      if (!gv.childElementCount) { gv.innerHTML = GV_VIEWS.map(([k, n, tip]) => `<label title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
+      if (!gv.childElementCount) { gv.innerHTML = [...GV_VIEWS, GV_OVER].map(([k, n, tip]) => `<label${k === 'over' ? ' class="gvover"' : ''} title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
       gv.querySelectorAll('[data-gv]').forEach(c => { c.checked = !!clip.views[c.dataset.gv]; }); }
     // camera: follow the soldier you follow (if you follow one), else the map as it is on screen
     const p = sel !== null ? round.players[sel] : null, fo = $('#cCam').options[0];
@@ -10197,17 +10377,18 @@ const mmss = s => { const r = Math.max(0, Math.round(s)); return String(Math.flo
 // worker), a camera track (.bf2cam) and a con file for each view chosen, make-videos.bat (BF2 renders each view to an
 // AVI at 1280x720, then ffmpeg - from PATH or put next to it - makes an MP4 of the clip alone and the AVI goes) and
 // watch-in-game.bat (the demo in the game, the camera yours). What the tests in the game (2026-10-23/24) settled:
-// - the render copies the window as it is: 1280x720 window, 1280x720 render; renderFieldOfView is across (95 = a
-//   soldier's own on a 16:9 screen); one frame a demo record, from the demo's start (tick TS + 3) on;
+// - the render copies the window as it is: 1280x720 window, 1280x720 render; one frame a demo record, from the demo's
+//   start (tick TS + 3) on; renderFieldOfView: see gvVf (v234 - not across, as v229-v233 took it);
 // - his eyes: a free camera (mode 0: quaternion and position) at his eye, 0.45 m in front standing, 0.5 crouching,
 //   0.8 lying (so his own model's head and shoulders stay out of the picture), the height and that distance moving
 //   to a new stance's over ~0.8 s (the model takes that long to lie down); in a vehicle, his seat's camera;
-// - behind him / from the side: the game's own camera on a player (mode 1: his slot - the server's player id, not our
-//   number -, yaw and pitch round him in degrees, distance, height over the point it looks at; OpenBF2 PR #62); yaw =
-//   atan2(-cos h, -sin h) is at his side, + 90 behind him (h: where he looks, or his vehicle's heading, smoothed);
-//   behind: 7 m, 20 deg from above; side: 5 m, 10 deg;
+// - behind him / from the side: v229-v231 the game's own camera on a player (mode 1: his slot - the server's player id,
+//   not our number -, yaw and pitch round him in degrees, distance, height over the point it looks at; OpenBF2 PR #62;
+//   yaw = atan2(-cos h, -sin h) is at his side, + 90 behind him); since v232 a free camera made here the same way (behind:
+//   7 m, 20 deg from above; side: 5 m, 10 deg), so what goes over the film lands where it belongs;
 // - still: a free camera over the moment, behind the one it is about and above.
-// No HUD or crosshair in any view: the game turns the HUD off when it plays a demo.
+// No HUD or crosshair in any view: the game turns the HUD off when it plays a demo - v232 draws its own over the films
+// (gvOverlay below).
 const GV_EYE_FWD = [0.45, 0.5, 0.8], GV_RAMP = 0.8, GV_EYE_H = [0.47, -0.05, -0.63];
 // the camera file's records (zlib-packed by the caller): mode 0 a free camera, mode 1 the game's camera on a player
 function camRecs(R) {
@@ -10234,29 +10415,39 @@ function camEyes(i, P) {
         const th = foot ? GV_EYE_H[st] : 0, tf = foot ? GV_EYE_FWD[st] : 0, u = 1 / (GV_RAMP * 30);
         if (ch === null) { ch = th; cf = tf; }
         ch += Math.max(-1.1 * u, Math.min(1.1 * u, th - ch)); cf += Math.max(-1.2 * u, Math.min(1.2 * u, tf - cf));
-        last = { x: V.x + cf * Math.sin(V.yaw), y: V.y + cf * Math.cos(V.yaw), h: base + ch, yaw: V.yaw, pitch: V.pitch || 0 };
+        const fw = foot ? cf - EYE_FWD : cf;   // (v233: viewOf on foot is at his eye already, EYE_FWD in front - the kit's tested offsets are from his position)
+        last = { x: V.x + fw * Math.sin(V.yaw), y: V.y + fw * Math.cos(V.yaw), h: base + ch, yaw: V.yaw, pitch: V.pitch || 0 };
       }
       if (last) R.push({ tick: k + P.shift, ...last });
     }
   } finally { opts.cam3 = keep; }
   return R;
 }
-// the player's slot (the server's player id) at tt: the demo's own list of who held which slot when
-const gvSlot = (P, name, tt) => { for (const [idx, L] of P.slots) { let nm = null; for (const [ts, n] of L) if (ts <= tt) nm = n; if (nm === name) return idx; } return null; };
-// behind him (behind true) or at his side: the game's camera on his slot, turned with him
+// behind him (behind true) or at his right side: a free camera made here (v232; v229-v231 the game's own camera on his
+// slot, mode 1 - placed by the game, so nothing could be drawn over it where it belongs). As that one was: behind 7 m off,
+// 20 deg from above, looking at a point 1.0 m over his position (which is 1 m over his feet); side 5 m, 10 deg, 0.6 m;
+// in a vehicle twice as far and round the vehicle; turned with him (where he looks, or the vehicle's heading, smoothed
+// over 0.4 s); never under the ground; while he is dead it stays, and before he is alive it waits where he will be
 function camFollow(i, P, behind) {
-  const R = [], p = round.players[i]; let hs = null, prev = null;
+  const R = [], D = losData(); let hs = null, first = null, last = null;
   for (let k = P.TA; k <= P.TB; k++) {
-    const tt = (k - P.T0) / 30, q = playerAt(i, tt), slot = gvSlot(P, p.name, tt); if (slot === null || !q.alive) continue;   // (dead: the camera keeps its last place)
-    let h = null, veh = false;
-    if (q.alive && q.veh) { const vi = round.players.findIndex(o => o.vehicle && o.name === q.veh); if (vi >= 0) { h = playerAt(vi, tt).yaw; veh = true; } }
-    else if (q.alive) { const lk = looking(i, tt); h = lk ? lk.yaw : q.yaw; }
-    if (h == null || !Number.isFinite(h)) h = hs ?? 0;
-    if (hs === null) hs = h; else { const d = (h - hs + Math.PI * 3) % (2 * Math.PI) - Math.PI; hs += d * (1 - Math.exp(-1 / 30 / 0.4)); }
-    let a = Math.atan2(-Math.cos(hs), -Math.sin(hs)) * 180 / Math.PI + (behind ? 90 : 0);
-    if (prev !== null) a = prev + ((a - prev + 540) % 360 - 180); prev = a;
-    R.push({ tick: k + P.shift, slot, yaw: a, pitch: behind ? 20 : 10, dist: (behind ? 7 : 5) * (veh ? 2 : 1), height: behind ? 1 : 0.6 });
+    const tt = (k - P.T0) / 30, q = playerAt(i, tt);
+    if (q.alive && Number.isFinite(q.x) && q.h != null) {
+      let h = null, c = q, veh = false;
+      if (q.veh) { const vi = vehIdx(q.veh); if (vi !== undefined) { const o = playerAt(vi, tt); if (Number.isFinite(o.x) && o.h != null) { c = o; h = o.yaw; veh = true; } } }
+      if (!veh) { const lk = looking(i, tt); h = lk ? lk.yaw : q.yaw; }
+      if (h == null || !Number.isFinite(h)) h = hs ?? 0;
+      if (hs === null) hs = h; else { const d = (h - hs + Math.PI * 3) % (2 * Math.PI) - Math.PI; hs += d * (1 - Math.exp(-1 / 30 / 0.4)); }
+      const dist = (behind ? 7 : 5) * (veh ? 2 : 1), el = (behind ? 20 : 10) * Math.PI / 180, up = behind ? 1 : 0.6;
+      const ux = behind ? -Math.sin(hs) : Math.cos(hs), uy = behind ? -Math.cos(hs) : -Math.sin(hs), th = c.h + up;
+      const x = c.x + ux * dist * Math.cos(el), y = c.y + uy * dist * Math.cos(el); let hh = th + dist * Math.sin(el);
+      if (D) { const g = groundAt(D, x, y); if (g > -1e8 && hh < g + 1) hh = g + 1; }
+      last = { x, y, h: hh, yaw: Math.atan2(c.x - x, c.y - y), pitch: Math.atan2(th - hh, Math.hypot(c.x - x, c.y - y)) };
+      if (!first) first = { k, ...last };
+    }
+    if (last) R.push({ tick: k + P.shift, ...last });
   }
+  if (first) { const H = []; for (let k = P.TA; k < first.k; k++) H.push({ tick: k + P.shift, x: first.x, y: first.y, h: first.h, yaw: first.yaw, pitch: first.pitch }); return H.concat(R); }
   return R;
 }
 // a still camera over the moment: behind the one it is about (from the kill's victim, else where he looks) and above
@@ -10269,19 +10460,157 @@ function camStill(i, P, kill) {
   const R = []; for (let k = P.TA; k <= P.TB; k++) R.push({ tick: k + P.shift, x, y, h: hh, yaw, pitch });
   return R;
 }
+// ---------- (v232) over the film: what the game doesn't draw in a demo ----------
+// (Sagara: "для виду очима: приціл у центрі кадру й лінію прицілу; над гравцями в кадрі: ім'я, здоров'я й відстань;
+// приближення: коли він цілиться через приціл чи оптику, приблизити центр кадру, а для снайпера додати чорне коло оптики";
+// the idea from DemoAnalyzer (DeA, 2008), which draws such things in the game itself - here ffmpeg draws them on the
+// film.) An .ass file a view (subtitles: shapes and text at their frame's time), burnt in by make-videos.bat. Every
+// view's camera is one made here - its place, yaw and pitch at each tick, and the render's own field of view (gvVf) - so
+// a point of the round lands on the picture where gvCam / gvPix put it:
+// - over the soldiers and the manned vehicles in the picture, within the fog limit (the 14 nearest): the name in the
+//   side's colour (his own yellow), how far from him, the health; faded where he can't see them (walls, hills, smoke,
+//   trees: the map's He sees him);
+// - a ring round the one he aims at (aimLine, as on the map);
+// - his eyes: the crosshair in the middle with how far it meets something (and whom); through his sights the picture is
+//   the film of a zoomed render (gvZoomPlan: up to two zooms a clip, one more render each), a scope's round sight black
+//   round it as the game draws it (ZOOM_SCOPE); the other views: his aim line from his eye to where it meets something.
+const GV_W = 1280, GV_H = 720;
+// (v234) each render's field of view up and down (rad). Playing a demo the game takes demoConfig's: (H / W) x
+// renderFieldOfView up and down (DemoConfig::getFOV, BF2Render::render; OpenBF2, read for knowledge) - so v229-v233's
+// "95" was 53.4 deg high and 83.7 across, not the soldier's 95 (kit 9's "95 matches the playback, perhaps 3 deg wider":
+// that playback had the default 90, 80.1 across). His eyes now as the game shows them to him: 1.1 rad (95 across on
+// 16:9), through his sights the weapon's own (fovV); behind / side / still as the tests saw them (95: 83.7 across).
+const gvVf = (view, z = 1) => view === 'eyes' ? fovV(z) : 95 * Math.PI / 180 * GV_H / GV_W;
+const gvTw = (view, z) => Math.tan(gvVf(view, z) / 2) * GV_W / GV_H;   // (tan of the half width)
+const gvRF = (view, z) => gvVf(view, z) * 180 / Math.PI * GV_W / GV_H;   // (the con's renderFieldOfView for it: eyes 112.04)
+// a camera's own axes: a point of the round -> [right, up, ahead] in m
+const gvCam = c => { const sy = Math.sin(c.yaw), cy = Math.cos(c.yaw), sp = Math.sin(c.pitch), cp = Math.cos(c.pitch);
+  return (x, y, h) => { const dx = x - c.x, dy = y - c.y, dh = h - c.h; return [dx * cy - dy * sy, -dx * sy * sp - dy * cy * sp + dh * cp, dx * sy * cp + dy * cy * cp + dh * sp]; }; };
+// -> the picture's pixel (null: behind the camera)
+const gvPix = (v, tw) => { if (!v || v[2] < 0.3) return null; const f = GV_W / 2 / tw; return [GV_W / 2 + f * v[0] / v[2], GV_H / 2 - f * v[1] / v[2]]; };
+// when he looks through his sights (eyes only, on foot): the zooms of the clip (the two most often), each tick's (-1 none)
+// and their stretches [first, last] (ticks from TA); a zoom under 3 ticks is left out (the game takes ~0.2 s to zoom)
+function gvZoomPlan(i, P) {
+  const zs = [], cnt = new Map();
+  for (let k = P.TA; k <= P.TB; k++) { const tt = (k - P.T0) / 30, q = playerAt(i, tt), z = q.alive && !q.veh ? viewZoom(i, tt) : 1; zs.push(z); if (z < 1) cnt.set(z, (cnt.get(z) || 0) + 1); }
+  const Z = [...cnt].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([z]) => z).sort((a, b) => a - b);
+  const at = zs.map(z => z >= 1 || !Z.length ? -1 : Z.reduce((b, v, n) => Math.abs(v - z) < Math.abs(Z[b] - z) ? n : b, 0));
+  for (let m = 0; m < at.length;) { let e = m; while (e + 1 < at.length && at[e + 1] === at[m]) e++; if (at[m] >= 0 && e - m + 1 < 3) for (let u = m; u <= e; u++) at[u] = -1; m = e + 1; }
+  const iv = Z.map((_, n) => { const L = []; let st = null; at.forEach((v, m) => { if (v === n && st === null) st = m; if (v !== n && st !== null) { L.push([st, m - 1]); st = null; } }); if (st !== null) L.push([st, at.length - 1]); return L; });
+  const used = Z.map((_, n) => iv[n].length > 0), keep = Z.filter((_, n) => used[n]), remap = []; let c = 0; Z.forEach((_, n) => { remap[n] = used[n] ? c++ : -1; });
+  return { Z: keep, at: at.map(v => v < 0 ? -1 : remap[v]), iv: iv.filter((_, n) => used[n]) };
+}
+const gvEsc = s => String(s).replace(/[{}\\]/g, ' ');
+const gvBGR = hex => { const h = hex.replace('#', ''); return h.slice(4, 6) + h.slice(2, 4) + h.slice(0, 2); };
+const GV_C = { team: ['#ff6b4f', '#5ea8ff'], me: '#ffe14a', aim: '#ffe14a', ink: '#101010', hp: ['#ff4a3d', '#ffc107', '#57d163'] };
+const gvT = m => { const cs = Math.max(0, Math.round(m * 100 / 30)), s = Math.floor(cs / 100); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`; };
+const gvN = v => (Math.round(v * 10) / 10).toString();
+// a circle as an ASS drawing (four Bézier quarters)
+const gvCircle = (x, y, r) => { const k = 0.5523 * r, n = gvN; return `m ${n(x + r)} ${n(y)} b ${n(x + r)} ${n(y + k)} ${n(x + k)} ${n(y + r)} ${n(x)} ${n(y + r)} b ${n(x - k)} ${n(y + r)} ${n(x - r)} ${n(y + k)} ${n(x - r)} ${n(y)} b ${n(x - r)} ${n(y - k)} ${n(x - k)} ${n(y - r)} ${n(x)} ${n(y - r)} b ${n(x + k)} ${n(y - r)} ${n(x + r)} ${n(y - k)} ${n(x + r)} ${n(y)}`; };
+const gvRect = (x0, y0, x1, y1) => `m ${gvN(x0)} ${gvN(y0)} l ${gvN(x1)} ${gvN(y0)} ${gvN(x1)} ${gvN(y1)} ${gvN(x0)} ${gvN(y1)}`;
+// the scope's black round it: two halves (each one simple shape), the round sight as high as the picture, and its cross
+const GV_SCOPE = (() => { const cx = GV_W / 2, cy = GV_H / 2, r = GV_H / 2, half = s => { const P = []; for (let k = 0; k <= 48; k++) { const a = Math.PI / 2 + s * Math.PI * k / 48; P.push(`${gvN(cx + r * Math.cos(a))} ${gvN(cy + r * Math.sin(a))}`); } return P; };
+  const L = half(1), Rr = half(-1);
+  return { mask: `m ${cx + 1} 0 l 0 0 0 ${GV_H} ${cx + 1} ${GV_H} ${L.join(' ')} m ${cx - 1} 0 l ${GV_W} 0 ${GV_W} ${GV_H} ${cx - 1} ${GV_H} ${Rr.join(' ')}`,
+    cross: [gvRect(cx - r, cy - 0.8, cx + r, cy + 0.8), gvRect(cx - 0.8, 0, cx + 0.8, GV_H), gvRect(cx - r, cy - 2.5, cx - r * 0.35, cy + 2.5), gvRect(cx + r * 0.35, cy - 2.5, cx + r, cy + 2.5), gvRect(cx - 2.5, cy + r * 0.35, cx + 2.5, GV_H)].join(' ') }; })();
+// the crosshair in the middle: four short bars round a gap
+const GV_CROSS = (() => { const cx = GV_W / 2, cy = GV_H / 2; return [gvRect(cx - 15, cy - 1, cx - 5, cy + 1), gvRect(cx + 5, cy - 1, cx + 15, cy + 1), gvRect(cx - 1, cy - 15, cx + 1, cy - 5), gvRect(cx - 1, cy + 5, cx + 1, cy + 15)].join(' '); })();
+function gvOverlay(view, i, P, R, zp) {
+  const n = P.TB - P.TA + 1, by = new Map(R.map(r => [r.tick, r])), pose = []; let cur = R[0];
+  for (let m = 0; m < n; m++) { const r = by.get(P.TA + m + P.shift); if (r) cur = r; pose.push(cur); }
+  const fog = fogRange(), me = round.players[i], eyes = view === 'eyes', ev = [], open = new Map(), C = GV_C, col = h => '&H' + gvBGR(h) + '&';
+  // an event a frame; the same text on the next frame makes it longer
+  const put = (key, m, layer, style, text) => { const o = open.get(key); if (o && o.text === text && o.e === m) { o.e = m + 1; return; } if (o) ev.push(o); open.set(key, { layer, style, text, s: m, e: m + 1 }); };
+  const draw = (body, tags) => `{\\an7\\pos(0,0)\\p1${tags}}${body}{\\p0}`;
+  const seeC = new Map(), seeOf = (j, m, tt) => { const k = j * 1e5 + (m - m % 3); if (!seeC.has(k)) { let v = null; try { v = canSee(i, j, tt); } catch (e) {} seeC.set(k, v); } return seeC.get(k); };
+  for (let m = 0; m < n; m++) {
+    const tt = (P.TA + m - P.T0) / 30, c = pose[m], z = eyes && zp && zp.at[m] >= 0 ? zp.Z[zp.at[m]] : 1, cam = gvCam(c), tw = gvTw(view, z), pix = v => gvPix(v, tw);
+    const qi = playerAt(i, tt), alive = qi.alive && Number.isFinite(qi.x), myVeh = alive ? qi.veh : null, scope = z <= ZOOM_SCOPE;
+    // who is in the picture: soldiers on foot, and the manned vehicles (with their crew)
+    const crew = new Map(), L = [];
+    round.players.forEach((pl, j) => { if (pl.vehicle) return; const o = playerAt(j, tt); if (o.alive && o.veh) { if (!crew.has(o.veh)) crew.set(o.veh, []); crew.get(o.veh).push(j); } });
+    round.players.forEach((pl, j) => {
+      const o = playerAt(j, tt); if (!o.alive || !Number.isFinite(o.x) || o.h == null) return;
+      let top, tm, nm, hp = o.hp, seeJ;
+      if (pl.vehicle) {
+        const cr = crew.get(pl.name); if (!cr || !cr.length || (eyes && pl.name === myVeh)) return;
+        const k = typeof pl.tpl === 'string' ? pl.tpl.toLowerCase() : TPL_NAME[pl.tpl], B = VEH_BOX[k];
+        top = o.h + (B ? B[5] : 1.5) + 0.7; tm = teamOf(cr[0], tt); seeJ = cr.find(x => x !== i) ?? cr[0];
+        nm = `${mapNm(round, pl)} · ${round.players[cr[0]].name}${cr.length > 1 ? ' +' + (cr.length - 1) : ''}`;
+      } else {
+        if (o.veh || o.down || (eyes && j === i)) return;
+        top = bodyCol(j, o, tt)[1] + 0.3; tm = teamOf(j, tt); nm = pl.name; seeJ = j;
+      }
+      const v = cam(o.x, o.y, top); if (v[2] < 0.5 || Math.hypot(v[0], v[1], v[2]) > fog + 10) return;   // (past the fog the game shows nothing)
+      const p = pix(v); if (!p || p[0] < -40 || p[0] > GV_W + 40 || p[1] < 0 || p[1] > GV_H + 20) return;
+      const mine = j === i || (pl.vehicle && pl.name === myVeh);   // (his own vehicle too: yellow, no distance)
+      L.push({ j, p, d: v[2], tm, nm, hp, mine, dist: alive && !mine ? Math.hypot(o.x - qi.x, o.y - qi.y, o.h - qi.h) : null, seeJ });
+    });
+    L.sort((a, b) => a.d - b.d);
+    for (const l of L.slice(0, 14)) {
+      const sn = l.mine || l.seeJ === i || !alive ? true : seeOf(l.seeJ, m, tt), dim = sn === false ? '\\alpha&H70&' : '', [x, y] = l.p;
+      const nc = l.mine ? C.me : C.team[l.tm] || '#cfcfcf';
+      put('n' + l.j, m, 1, 'T', `{\\an2\\pos(${gvN(x)},${gvN(y - 9)})${dim}\\c${col(nc)}}${gvEsc(l.nm)}${l.dist != null ? `{\\c&HE6E6E6&\\fs12} ${Math.round(l.dist)} m` : ''}`);
+      if (l.hp != null) {
+        const w = 40, x0 = x - w / 2, y0 = y - 7, f = Math.max(0, Math.min(1, l.hp / 100)), hc = l.hp > 50 ? C.hp[2] : l.hp > 25 ? C.hp[1] : C.hp[0];
+        put('b' + l.j, m, 1, 'D', draw(gvRect(x0 - 1, y0 - 1, x0 + w + 1, y0 + 4), `\\1c&H000000&\\1a&H${dim ? 'C0' : '50'}&`));
+        if (f > 0) put('f' + l.j, m, 2, 'D', draw(gvRect(x0, y0, x0 + w * f, y0 + 3), `\\1c${col(hc)}${dim ? '\\1a&H90&' : ''}`));
+      }
+    }
+    // where he aims
+    const al = alive ? aimLine(i, tt) : null; let ringLow = GV_H / 2;
+    if (al && (al.kind === 'soldier' || al.kind === 'vehicle') && al.j != null) {
+      const o = playerAt(al.j, tt), mid = al.kind === 'vehicle' ? o.h + 1.2 : o.h, v = Number.isFinite(o.x) && o.h != null ? cam(o.x, o.y, mid) : null, p = pix(v);
+      if (p) { const r = Math.max(10, Math.min(70, GV_W / 2 / tw * (al.kind === 'vehicle' ? 2.2 : 0.8) / v[2]));
+        put('ring', m, 3, 'D', draw(gvCircle(p[0], p[1], r), `\\1a&HFF&\\bord2.2\\3c${col(C.aim)}`)); if (Math.abs(p[0] - GV_W / 2) < r + 60) ringLow = p[1] + r; }
+    }
+    if (eyes) {
+      if (scope) { put('mask', m, 4, 'D', draw(GV_SCOPE.mask, '\\1c&H000000&')); put('reticle', m, 5, 'D', draw(GV_SCOPE.cross, '\\1c&H000000&')); }
+      else if (alive) put('cross', m, 5, 'D', draw(GV_CROSS, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}`));
+      if (al && al.kind !== 'sky') {
+        const who = al.kind === 'soldier' ? `{\\c${col(C.team[teamOf(al.j, tt)] || '#cfcfcf')}} ${gvEsc(round.players[al.j].name)}` : al.kind === 'vehicle' ? `{\\c&HE6E6E6&} ${gvEsc(mapNm(round, round.players[al.j]))}` : '';
+        // (through a scope: right of its vertical line, under the horizontal one - out of the way of the ring)
+        put('dist', m, 6, 'T', scope ? `{\\an7\\pos(${GV_W / 2 + 10},${GV_H / 2 + 8})\\c&HFFFFFF&}${Math.round(al.l)} m${who}` : `{\\an8\\pos(${GV_W / 2},${gvN(Math.min(GV_H / 2 + 90, Math.max(GV_H / 2 + 22, ringLow + 5)))})\\c${col(C.aim)}}${Math.round(al.l)} m${who}`);   // (under the ring round him, when it is there)
+      }
+    } else if (al && al.from && Number.isFinite(al.from.x)) {
+      // his aim line: from his eye to where it meets something (the part in front of the camera)
+      const fe = al.from.eye ?? eyeOf(i, al.from, tt); let A = cam(al.from.x, al.from.y, fe), B = cam(al.x, al.y, al.h);
+      if (A[2] < 0.5 && B[2] < 0.5) A = null;
+      else if (A[2] < 0.5 || B[2] < 0.5) { const u = (0.5 - A[2]) / (B[2] - A[2]), X = A.map((a, k) => a + (B[k] - a) * u); if (A[2] < 0.5) A = X; else B = X; }
+      const pa = A && pix(A), pb = A && pix(B);
+      if (pa && pb) { const dx = pb[0] - pa[0], dy = pb[1] - pa[1], ln = Math.hypot(dx, dy);
+        if (ln > 4) { const nx = -dy / ln * 1.5, ny = dx / ln * 1.5, q = [[pa[0] + nx, pa[1] + ny], [pb[0] + nx, pb[1] + ny], [pb[0] - nx, pb[1] - ny], [pa[0] - nx, pa[1] - ny]];
+          put('aim', m, 3, 'D', draw(`m ${q.map(([x, y]) => gvN(x) + ' ' + gvN(y)).join(' l ')}`, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}${al.kind === 'sky' ? '\\1a&H70&\\3a&H90&' : ''}`));
+          if (al.kind !== 'sky' && al.kind !== 'soldier' && al.kind !== 'vehicle') put('hit', m, 3, 'D', draw(gvCircle(pb[0], pb[1], 6), `\\1a&HFF&\\bord2\\3c${col(C.aim)}`)); } }
+    }
+    for (const [k, o] of open) if (o.e !== m + 1) { ev.push(o); open.delete(k); }
+  }
+  for (const o of open.values()) ev.push(o);
+  ev.sort((a, b) => a.s - b.s || a.layer - b.layer);
+  const head = `[Script Info]\nTitle: BF2 Round Replay - ${view}\nScriptType: v4.00+\nPlayResX: ${GV_W}\nPlayResY: ${GV_H}\nScaledBorderAndShadow: yes\nWrapStyle: 2\n\n[V4+ Styles]\n` +
+    'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n' +
+    'Style: T,Arial,15,&H00FFFFFF,&H00FFFFFF,&H00101010,&H00000000,-1,0,0,0,100,100,0,0,1,2,0,2,0,0,0,1\n' +
+    'Style: D,Arial,10,&H00FFFFFF,&H00FFFFFF,&H00101010,&H00000000,0,0,0,0,100,100,0,0,1,0,0,7,0,0,0,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n';
+  // (frame m shows at m/30 s of the clip: each event from half a frame before its first to half a frame after its last)
+  return head + ev.map(o => `Dialogue: ${o.layer},${gvT(o.s - 0.5)},${gvT(o.e - 0.5)},${o.style},,0,0,0,,${o.text}`).join('\n') + '\n';
+}
 // a zip of the files as they are (stored: the demo and the tracks are packed already)
+function zipCrc(d) {
+  const T = zipCrc.T || (zipCrc.T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })());
+  let c = 0xffffffff; for (let k = 0; k < d.length; k++) c = T[(c ^ d[k]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0;
+}
 function zipStore(files) {
-  const T = zipStore.T || (zipStore.T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })());
-  const crc = d => { let c = 0xffffffff; for (let k = 0; k < d.length; k++) c = T[(c ^ d[k]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+  const crc = zipCrc;
   const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
   const dt = new Date(), dosT = (dt.getHours() << 11) | (dt.getMinutes() << 5) | (dt.getSeconds() >> 1), dosD = ((dt.getFullYear() - 1980) << 9) | ((dt.getMonth() + 1) << 5) | dt.getDate();
   for (const f of files) {
-    const nm = enc.encode(f.name), d = f.data, c = crc(d), h = new Uint8Array(30 + nm.length), v = new DataView(h.buffer);
-    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x800, true); v.setUint16(10, dosT, true); v.setUint16(12, dosD, true);
-    v.setUint32(14, c, true); v.setUint32(18, d.length, true); v.setUint32(22, d.length, true); v.setUint16(26, nm.length, true); h.set(nm, 30);
+    // (v232: f.packed - deflated already (raw), f.size its own length: the overlays' text)
+    const nm = enc.encode(f.name), d = f.data, c = f.crc ?? crc(d), full = f.size ?? d.length, meth = f.packed ? 8 : 0, h = new Uint8Array(30 + nm.length), v = new DataView(h.buffer);
+    v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x800, true); v.setUint16(8, meth, true); v.setUint16(10, dosT, true); v.setUint16(12, dosD, true);
+    v.setUint32(14, c, true); v.setUint32(18, d.length, true); v.setUint32(22, full, true); v.setUint16(26, nm.length, true); h.set(nm, 30);
     const e = new Uint8Array(46 + nm.length), w = new DataView(e.buffer);
-    w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint16(8, 0x800, true); w.setUint16(12, dosT, true); w.setUint16(14, dosD, true);
-    w.setUint32(16, c, true); w.setUint32(20, d.length, true); w.setUint32(24, d.length, true); w.setUint16(28, nm.length, true); w.setUint32(42, off, true); e.set(nm, 46);
+    w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true); w.setUint16(8, 0x800, true); w.setUint16(10, meth, true); w.setUint16(12, dosT, true); w.setUint16(14, dosD, true);
+    w.setUint32(16, c, true); w.setUint32(20, d.length, true); w.setUint32(24, full, true); w.setUint16(28, nm.length, true); w.setUint32(42, off, true); e.set(nm, 46);
     parts.push(h, d); cen.push(e); off += h.length + d.length;
   }
   const cs = cen.reduce((x, e) => x + e.length, 0), end = new Uint8Array(22), v = new DataView(end.buffer);
@@ -10289,6 +10618,12 @@ function zipStore(files) {
   return new Blob([...parts, ...cen, end], { type: 'application/zip' });
 }
 const deflateBytes = async u8 => new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate'))).arrayBuffer());
+// (v232) a text file for the zip, deflated where the browser can (deflate-raw), else as it is
+async function zipText(name, text) {
+  const d = new TextEncoder().encode(text);
+  try { const z = new Uint8Array(await new Response(new Blob([d]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()); return { name, data: z, packed: true, size: d.length, crc: zipCrc(d) }; }
+  catch (e) { return { name, data: d }; }
+}
 const crlf = s => new TextEncoder().encode(s.replace(/\r?\n/g, '\r\n'));
 // the packing, in the decoder's worker (or here when no worker can be started)
 async function packInWorker(raw, a, b, job, onP) {
@@ -10313,46 +10648,83 @@ async function makeDemoClip() {
     const KIT = `bf2r_${map}_${m ? `${m[1]}${m[2]}${m[3]}_${m[4]}${m[5]}` : 'round'}_${mmss(a)}`, demoName = KIT + '.bf2demo';
     const files = [{ name: `${KIT}/${demoName}`, data: await deflateBytes(P.data) }];
     const first = P.TS + 3, trim = Math.max(0, (P.TA + P.shift - first) / 30), dur = (P.TB - P.TA) / 30;
-    const made = [];
+    const made = [], over = clip.views.over !== false, VN = Object.fromEntries(GV_VIEWS.map(([k, n]) => [k, n]));
+    const conOf = (v, file, fov) => crlf(`rem BF2 Round Replay - game video kit, view "${v}"\nrem made on the site; run make-videos.bat, not this\ndemo.demoMode render\ndemo.cameraMode playback\ndemo.demoFile ${KIT}\\${demoName}\ndemo.cameraFile ${KIT}\\${v}.bf2cam\ndemo.renderFile mods\\bf2\\Demos\\${KIT}_${file}.avi\ndemo.renderCompressed 1\ndemo.renderPanorama 0\ndemo.numPanoramaSlices 0\ndemo.renderWidth 1280\ndemo.renderHeight 720\ndemo.renderFps 30\ndemo.renderFieldOfView ${(Math.round(fov * 100) / 100)}\ndemo.syncCameraAndDemo 1\n`);
     for (const v of views) {
+      if (job.cancelled) break;
       let R = v === 'eyes' ? camEyes(who, P) : v === 'behind' ? camFollow(who, P, true) : v === 'side' ? camFollow(who, P, false) : camStill(who, P, kill);
       if (!R.length) continue;
-      // before the clip: a free camera holding his first pose (eyes / still) or where his eyes are (behind / side)
-      const lead = R[0].slot != null ? camEyes(who, P)[0] : R[0];
-      if (lead) { const H = []; for (let k = P.TS + 1; k < R[0].tick; k++) H.push({ tick: k, x: lead.x, y: lead.y, h: lead.h, yaw: lead.yaw, pitch: lead.pitch }); R = H.concat(R); }
+      step(0.87 + 0.09 * made.length / views.length, over ? `${VN[v]}: camera and what goes over it` : `${VN[v]}: camera`);
+      await new Promise(r => setTimeout(r, 0));
+      // (v232) over the film: the zooms of his sights (eyes) and the .ass
+      const zp = over && v === 'eyes' ? gvZoomPlan(who, P) : null;
+      if (over) files.push(await zipText(`${KIT}/${v}.ass`, gvOverlay(v, who, P, R, zp)));
+      // before the clip: the camera holding its first pose
+      const lead = R[0]; { const H = []; for (let k = P.TS + 1; k < R[0].tick; k++) H.push({ tick: k, x: lead.x, y: lead.y, h: lead.h, yaw: lead.yaw, pitch: lead.pitch }); R = H.concat(R); }
       files.push({ name: `${KIT}/${v}.bf2cam`, data: await deflateBytes(camRecs(R)) });
-      files.push({ name: `${KIT}/${v}.con`, data: crlf(`rem BF2 Round Replay - game video kit, view "${v}"\nrem made on the site; run make-videos.bat, not this\ndemo.demoMode render\ndemo.cameraMode playback\ndemo.demoFile ${KIT}\\${demoName}\ndemo.cameraFile ${KIT}\\${v}.bf2cam\ndemo.renderFile mods\\bf2\\Demos\\${KIT}_${v}.avi\ndemo.renderCompressed 1\ndemo.renderPanorama 0\ndemo.numPanoramaSlices 0\ndemo.renderWidth 1280\ndemo.renderHeight 720\ndemo.renderFps 30\ndemo.renderFieldOfView 95\ndemo.syncCameraAndDemo 1\n`) });
-      made.push(v);
+      files.push({ name: `${KIT}/${v}.con`, data: conOf(v, v, gvRF(v, 1)) });
+      if (zp) zp.Z.forEach((z, n) => files.push({ name: `${KIT}/${v}_z${n + 1}.con`, data: conOf(v, `${v}_z${n + 1}`, gvRF(v, z)) }));
+      made.push({ v, zp });
     }
-    const name = who !== null ? round.players[who].name : '', lbl = `${$('#srcLabel').textContent} ${fmt(a)}-${fmt(b)}${name ? ', ' + name : ''}`.replace(/[%^&|<>"]/g, '');
+    if (job.cancelled) { clipMsg(job.why + '.'); return; }
+    const name = who !== null ? round.players[who].name : '', lbl = `${$('#srcLabel').textContent} ${fmt(a)}-${fmt(b)}${name ? ', ' + name : ''}`.replace(/[%^&|<>"!]/g, '');
     files.push({ name: `${KIT}/watch-in-game.con`, data: crlf(`rem BF2 Round Replay - the clip in the game, the camera yours (the first ${fmtDur(P.leadIn + 3)} are the round before it, packed)\ndemo.demoMode playback\ndemo.cameraMode user\ndemo.demoFile ${KIT}\\${demoName}\ndemo.syncCameraAndDemo 1\ndemo.timeDemo 0\n`) });
     const head = `@echo off\nsetlocal\nrem BF2 Round Replay - ${lbl}\nrem This folder (${KIT}) goes into the Battlefield 2 folder, next to BF2.exe.\nrem (no ( ) blocks: a path with brackets, like Program Files (x86), would break them)\ncd /d "%~dp0.."\nif not exist BF2.exe goto nobf2\nset "KIT=${KIT}"\n`;
     const nobf2 = `\n:nobf2\necho BF2.exe is not in this folder:\necho %CD%\necho Put the folder ${KIT} into the Battlefield 2 folder, next to BF2.exe.\npause\nexit /b 1\n`;
     files.push({ name: `${KIT}/watch-in-game.bat`, data: crlf(head + `start "" /wait BF2.exe +fullscreen 0 +szx 1280 +szy 720 +demo %KIT%\\watch-in-game.con\nexit /b 0\n` + nobf2) });
+    // make-videos.bat: each view rendered (and its zoomed renders), then one ffmpeg run: the clip cut out, the zoomed film
+    // over it where he looks through his sights, the .ass burnt in (FG0-FG2: with 0-2 zoomed films); an ffmpeg that can't
+    // (no libass) makes it plain
+    const en = (zp, n) => zp.iv[n].map(([s0, s1]) => `between(t,${((s0 - 0.5) / 30).toFixed(3)},${((s1 + 0.5) / 30).toFixed(3)})`).join('+');
+    const block = ({ v, zp }) => {
+      const nz = zp ? zp.Z.length : 0, sub = over ? `subtitles=${KIT}/${v}.ass:fontsdir=${KIT}/fonts` : 'null';
+      let L = `\nrem ---- ${VN[v]}\ncall :render ${v}\nset "I0=%AVI%"\nset "I1="\nset "I2="\n`;
+      for (let n = 0; n < nz; n++) L += `call :render ${v}_z${n + 1}\nset "I${n + 1}=%AVI%"\n`;
+      L += `set "FG0=[0:v]${sub}[o]"\n`;
+      if (nz >= 1) L += `set "FG1=[0:v][1:v]overlay=enable='${en(zp, 0)}'[z1];[z1]${sub}[o]"\n`;
+      if (nz >= 2) L += `set "FG2=[0:v][1:v]overlay=enable='${en(zp, 0)}'[z1];[z1][2:v]overlay=enable='${en(zp, 1)}'[z2];[z2]${sub}[o]"\n`;
+      return L + `call :mp4 ${v} ${nz}\n`;
+    };
+    const cut = `-ss ${trim.toFixed(3)} -t ${dur.toFixed(3)}`;
     if (made.length) files.push({ name: `${KIT}/make-videos.bat`, data: crlf(head + `set "VS=%LOCALAPPDATA%\\VirtualStore%CD:~2%"\nset "FF="\nwhere ffmpeg >nul 2>&1 && set "FF=ffmpeg"\nif not defined FF if exist "%KIT%\\ffmpeg.exe" set "FF=%KIT%\\ffmpeg.exe"\nif not defined FF if exist "ffmpeg.exe" set "FF=ffmpeg.exe"\nif not defined FF echo ffmpeg was not found: the videos stay AVI files (see README.txt)\n` +
-      made.map(v => `call :one ${v}\n`).join('') + `echo.\necho Done. The videos are in mods\\bf2\\Demos, named ${KIT}_...\npause\nexit /b 0\n\n:one\necho Rendering %1 (BF2 opens; it closes by itself when the clip ends) ...\nstart "" /wait BF2.exe +fullscreen 0 +szx 1280 +szy 720 +noSound 1 +demo %KIT%\\%1.con\nset "AVI=mods\\bf2\\Demos\\%KIT%_%1.avi"\nset "MP4=mods\\bf2\\Demos\\%KIT%_%1.mp4"\nif not exist "%AVI%" if exist "%VS%\\%AVI%" set "AVI=%VS%\\%AVI%"\nif not exist "%AVI%" echo No video was written for %1 & exit /b 1\nif not defined FF exit /b 0\n"%FF%" -hide_banner -loglevel warning -y -ss ${trim.toFixed(2)} -i "%AVI%" -t ${dur.toFixed(2)} -c:v libx264 -crf 20 -preset veryfast -pix_fmt yuv420p "%MP4%"\nif exist "%MP4%" for %%F in ("%MP4%") do if %%~zF GTR 100000 del "%AVI%"\nif exist "%AVI%" echo The MP4 did not come out - the AVI is kept: %AVI%\nexit /b 0\n` + nobf2) });
-    const VN = Object.fromEntries(GV_VIEWS.map(([k, n]) => [k, n]));
+      (over ? `rem (the font of what is drawn over the films: Windows' Arial Bold, copied here so ffmpeg looks no further)\nif not exist "%KIT%\\fonts" mkdir "%KIT%\\fonts"\nif exist "%WINDIR%\\Fonts\\arialbd.ttf" copy /y "%WINDIR%\\Fonts\\arialbd.ttf" "%KIT%\\fonts\\arialbd.ttf" >nul\n` : '') +
+      `set "CUT=${cut}"\nset "X264=-c:v libx264 -crf 20 -preset veryfast -pix_fmt yuv420p"\n` +
+      made.map(block).join('') + `\necho.\necho Done. The videos are in mods\\bf2\\Demos, named ${KIT}_...\npause\nexit /b 0\n\n` +
+      `:render\nset "AVI=mods\\bf2\\Demos\\%KIT%_%1.avi"\necho Rendering %1 (BF2 opens; it closes by itself when the clip ends) ...\nstart "" /wait BF2.exe +fullscreen 0 +szx 1280 +szy 720 +noSound 1 +demo %KIT%\\%1.con\nif not exist "%AVI%" if exist "%VS%\\%AVI%" set "AVI=%VS%\\%AVI%"\nif not exist "%AVI%" echo No video was written for %1\nexit /b 0\n\n` +
+      `:mp4\nrem %1 the view, %2 how many zoomed films; I0 its film, I1 I2 the zoomed ones\nset "MP4=mods\\bf2\\Demos\\%KIT%_%1.mp4"\nif not exist "%I0%" exit /b 1\nif not defined FF exit /b 0\nset "N=%2"\nif "%N%"=="2" if not exist "%I2%" set "N=1"\nif "%N%"=="1" if not exist "%I1%" set "N=0"\necho Making %1 into an MP4 ...\n` +
+      `if "%N%"=="0" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" -filter_complex "%FG0%" -map "[o]" %X264% "%MP4%"\n` +
+      `if "%N%"=="1" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" %CUT% -i "%I1%" -filter_complex "%FG1%" -map "[o]" %X264% "%MP4%"\n` +
+      `if "%N%"=="2" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" %CUT% -i "%I1%" %CUT% -i "%I2%" -filter_complex "%FG2%" -map "[o]" %X264% "%MP4%"\n` +
+      `if not exist "%MP4%" echo What goes over the film did not work (an ffmpeg without libass?) - %1 is made without it\nif not exist "%MP4%" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" %X264% "%MP4%"\nif not exist "%MP4%" goto keep\nfor %%F in ("%MP4%") do if %%~zF LSS 100000 goto keep\ndel "%I0%"\nif defined I1 if exist "%I1%" del "%I1%"\nif defined I2 if exist "%I2%" del "%I2%"\nexit /b 0\n:keep\necho The MP4 did not come out - the AVI is kept: %I0%\nexit /b 0\n` + nobf2) });
+    const zr = made.reduce((x, o) => x + (o.zp ? o.zp.Z.length : 0), 0), mins = Math.ceil((P.TB + P.shift - first) / 30 / 0.4 / 60);
     files.push({ name: `${KIT}/README.txt`, data: crlf(`BF2 Round Replay - game video kit
 ${lbl}
 
-What it is: the round's demo from this moment on, for Battlefield 2 to play and film itself${made.length ? `, and a camera for each view: ${made.map(v => VN[v]).join(', ')}` : ''}.
+What it is: the round's demo from this moment on, for Battlefield 2 to play and film itself${made.length ? `, and a camera for each view: ${made.map(o => VN[o.v]).join(', ')}` : ''}.
 The first ${fmtDur(P.leadIn + 3)} of it are the round before the clip, packed (the game plays a demo only from its start); the videos leave them out.
 
 1. Unpack this zip into the Battlefield 2 folder, next to BF2.exe (the folder ${KIT} goes there).
 ${made.length ? `2. Run ${KIT}\\make-videos.bat. For each view BF2 opens in a 1280x720 window, plays the clip and closes by itself
-   (about 1.5 min to load, then ~${Math.ceil((P.TB + P.shift - first) / 30 / 0.4 / 60)} min of rendering a view). Don't use the PC for games meanwhile.
+   (about 1.5 min to load, then ~${mins} min of rendering a view)${zr ? `; his eyes are rendered ${zr} more time${zr > 1 ? 's' : ''}, zoomed in as through his sights` : ''}. Don't use the PC for games meanwhile.
 3. With ffmpeg (https://ffmpeg.org - Download, a Windows build; put ffmpeg.exe into this folder or anywhere in PATH) each
-   view becomes mods\\bf2\\Demos\\${KIT}_<view>.mp4 (${fmtDur(dur)}), and the big AVI (~2.8 MB a frame) is deleted.
+   view becomes mods\\bf2\\Demos\\${KIT}_<view>.mp4 (${fmtDur(dur)}), and the big AVIs (~2.8 MB a frame) are deleted.
    Without ffmpeg the AVIs stay: uncompressed 1280x720, ~83 MB a second - most players can't play them smoothly.
 ` : ''}Or run watch-in-game.bat to watch it in the game with your own camera (keys 1-9 set the speed: 1 pause, 2 normal,
 3 = 5%, 4 = 25%, 5 = 50%, 6 = 75%, 7 = 150%, 8 = 300%, 9 = 1000%).
 
-There is no HUD or crosshair in the videos: the game shows none when it plays a demo.
-`) });
+${over ? `The game shows no HUD in a demo; ffmpeg draws over the films (the .ass files here, from the site's data):
+- His eyes: the crosshair, with how far it meets something (and whom); through his sights or scope the picture
+  zoomed in, a scope black round its round sight.
+- Every view: over the soldiers and vehicles in the picture their name (in their side's colour; his own yellow),
+  health and distance from him - faded where he couldn't see them (walls, hills, smoke, trees); a ring round the one
+  he aims at; in the views from outside his aim line.
+  The picture is the game's and the drawing the site's: a few pixels apart now and then is the demo's own aim.
+` : `There is no HUD or crosshair in the videos: the game shows none when it plays a demo.
+`}`) });
     if (job.cancelled) { clipMsg(job.why + '.'); return; }
     step(0.97, 'Zip');
     const blob = zipStore(files);
-    const o = { blob, ext: 'zip', mime: 'application/zip', url: URL.createObjectURL(blob), name: KIT + '.zip', plan: `${made.length ? made.map(v => VN[v]).join(', ') : 'the demo only'} · the round before the clip packed into ${fmtDur(P.leadIn + 3)}`, secs: dur };
+    const o = { blob, ext: 'zip', mime: 'application/zip', url: URL.createObjectURL(blob), name: KIT + '.zip', plan: `${made.length ? made.map(x => VN[x.v]).join(', ') + (over ? ' with names & crosshair' : '') : 'the demo only'} · the round before the clip packed into ${fmtDur(P.leadIn + 3)}`, secs: dur };
     o.share = false;
     dropClipOut(); clip.out = o; toast('Game video kit ready · ' + kbOf(blob.size));
   } catch (e) {
@@ -10852,7 +11224,7 @@ if ($('#admDlg')) {
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
-const ADM_CSS = `.hk-wall, .hk-snap, .hk-speed, .hk-track, .hk-wallfire, .hk-smoke, .hk-fog, .hk-reach, .hk-rate, .hk-ammo, .hk-react, .hk-stam, .hk-tele, .hk-clip, .hk-fly, .hk-spawn, .hk-vspeed, .hk-dmg, .hk-guided, .hk-arty, .hk-fastcap, .hk-trigger, .hk-smooth, .hk-switch, .hk-preaim, .hk-spread, .hk-blindspot, .hk-under, .hk-clicker, .hk-brate, .hk-spotbot, .hk-lagsw, .hk-onehit, .hk-silent, .hk-vlock, .hk-spin { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }\n.hk-hs, .hk-hssn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }\n.hk-tk, .hk-farm, .hk-fov, .hk-claycap, .hk-teamsw, .hk-tkrev, .hk-prone, .hk-bhop, .hk-afkbot { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }\n.admwarn { font-size: 12px; color: var(--muted); margin: 0 0 8px; }\n.admtop { font-size: 12px; margin: 0 0 8px; }
+const ADM_CSS = `.hk-wall, .hk-snap, .hk-speed, .hk-track, .hk-wallfire, .hk-smoke, .hk-fog, .hk-reach, .hk-rate, .hk-ammo, .hk-react, .hk-stam, .hk-tele, .hk-clip, .hk-fly, .hk-spawn, .hk-vspeed, .hk-dmg, .hk-guided, .hk-arty, .hk-fastcap, .hk-trigger, .hk-smooth, .hk-switch, .hk-preaim, .hk-spread, .hk-blindspot, .hk-under, .hk-clicker, .hk-brate, .hk-spotbot, .hk-lagsw, .hk-onehit, .hk-silent, .hk-vlock, .hk-spin, .hk-sidesprint, .hk-airspeed, .hk-jumpfire { color: var(--hp-low); border-color: color-mix(in srgb, var(--hp-low) 55%, transparent); }\n.hk-hs, .hk-hssn { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }\n.hk-tk, .hk-farm, .hk-fov, .hk-claycap, .hk-teamsw, .hk-tkrev, .hk-prone, .hk-bhop, .hk-afkbot { color: var(--blast); border-color: color-mix(in srgb, var(--blast) 55%, transparent); }\n.admwarn { font-size: 12px; color: var(--muted); margin: 0 0 8px; }\n.admtop { font-size: 12px; margin: 0 0 8px; }
 .admhead { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline; justify-content: space-between; margin-bottom: 8px; } .admhead h2 { margin: 0; }
 .admfil { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 0 0 8px; font-size: 12.5px; } .admfil label { display: inline-flex; gap: 5px; align-items: center; color: var(--muted); }
 .admfil select, .admfil input { font: 12.5px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; } .admfil input { width: 5.5em; }
@@ -12059,7 +12431,11 @@ function scanEvents(B, players, out, t, onlySpawns, exact) {
       // misreads)
       const fits = s + 104 <= B.n && B.u(s + 53, 19) === 0 && B.u(s + 85, 19) === 0;
       const hiObj = (w & 1) && w > 1023 && w !== 131071 && WEAPONS[wid];
-      if (fits && players.has(k) && players.has(v) && (w === 131071 || (w >= 1 && w <= 1023) || hiObj) && !(k === v && w !== 131071)) out.push({ t, kind: 'kill', killer: k, victim: v, w, wid, vt: T(B.u(s + 72, 13)) });   // (vt: the killer's vehicle - or soldier - template)
+      // (v235, todo 286 a) the killing hit's direction after the hit part (dmg, 8 bits): a compressed vector, in demos always
+      // mode 0 - three floats, a unit vector (1062 kills of 39 demos; bullets 0.5-5 deg off killer -> victim, a blast's
+      // its own way) - kept as dir [x, height, z], nothing shown from it yet
+      let dir; if (s + 210 <= B.n && B.u(s + 112, 2) === 0) { const d = [B.f(s + 114), B.f(s + 146), B.f(s + 178)], L = Math.hypot(d[0], d[1], d[2]); if (L > 0.98 && L < 1.02) dir = d.map(x => +x.toFixed(3)); }
+      if (fits && players.has(k) && players.has(v) && (w === 131071 || (w >= 1 && w <= 1023) || hiObj) && !(k === v && w !== 131071)) out.push({ t, kind: 'kill', killer: k, victim: v, w, wid, vt: T(B.u(s + 72, 13)), ...(dir ? { dir } : {}) });   // (vt: the killer's vehicle - or soldier - template)
     } else if (t7 === 11) {    // death (also suicides and other deaths without a killer): subtype 166, 63 zero bits, '10000', player index
       if (s + 91 > B.n) continue;
       if (B.u(s + 7, 8) === 166 && B.u(s + 15, 31) === 0 && B.u(s + 46, 32) === 0 && B.u(s + 78, 5) === 1) { const pl = B.u(s + 83, 8); if (players.has(pl)) out.push({ t, kind: 'death', player: pl }); }
@@ -12391,10 +12767,11 @@ function solExact(B, p, L) {
     if (mask & 0x20) sk(6);
     // (v225, the game's RagDoll::writeCurrentState) the ragdoll: 9 bits (the length of what follows), then its four
     // network-driven points - the hips (bones 1 and 6) and the shoulders (15 and 31): the first as 3 floats, the others
-    // relative to it (a compressed vector, 1 cm steps; 7 = the same point, 0 = 3 floats of its own)
+    // relative to it (a compressed vector, 1 cm steps; 7 = the same point, 0 = 3 floats of its own) - (v235) read up to
+    // the 9-bit length (the server's ragdoll_net_boneEnable makes the count: 4 in every demo so far)
     if (mask & 0x8000) {
       const L9 = rd(9), q0 = q, p0 = [fl(), fl(), fl()], pts = [p0];
-      for (let k = 0; k < 3; k++) { const m = rd(3); if (m === 7) pts.push(p0.slice()); else if (m === 0) pts.push([fl(), fl(), fl()]); else { const b = SV2[m] - 1, d = [sg(b), sg(b), sg(b)]; pts.push([p0[0] + d[0] * 0.01, p0[1] + d[1] * 0.01, p0[2] + d[2] * 0.01]); } }
+      while (q - q0 < L9 && pts.length < 32) { const m = rd(3); if (m === 7) pts.push(p0.slice()); else if (m === 0) pts.push([fl(), fl(), fl()]); else { const b = SV2[m] - 1, d = [sg(b), sg(b), sg(b)]; pts.push([p0[0] + d[0] * 0.01, p0[1] + d[1] * 0.01, p0[2] + d[2] * 0.01]); } }
       return q === e && q - q0 === L9 ? { sky: 0, swim: 0, ladder: 0, zoom: 0, rag: 1, h8, pts } : null;
     }
     if (mask & 0x1) vec();
@@ -12462,7 +12839,10 @@ function solRecord(B, rc, t, st, sx) {
   // wounded (flag 15) down. Flag 14 (v105): on the =FL= server it is in four records of five, and the health in those
   // was dropped - test 9: 95.3% of the logger's health samples within 5 points before, 99.9% after, no missed damage
   const f = B.u(P, 21);
-  if ((f & 0x20) && st.stance) { const v = B.u(P + 21, 2); if (v < 3) st.stance.push([t, rc.id, v]); }   // stance changed (2 bits after the flags)
+  // stance changed: the pose, 3 bits (0 standing, 1 crouching, 2 lying, 3 swimming, 4), then the pose asked for - after
+  // flag 6's 9 bits (the health) when that is there too (v235: read at the flags' end before, so a pose that came with
+  // the health - a spawn, a man hit as he went down - was lost or misread: 21:14 ~700 of ~3900; OpenBattlefield2's layout)
+  if ((f & 0x20) && st.stance) { const v = B.u(P + 21 + (f & 0x40 ? 9 : 0), 3); if (v < 3) st.stance.push([t, rc.id, v]); }
   if ((f & 0x1000) && st.item) { const v = B.u(P + rc.L - 7 - ((f >> 16) & 1) * 21 - ((f >> 19) & 1) * 5 - ((f >> 20) & 1) * 4, 7) >> 3; if (v >= 2 && v <= 7) st.item.push([t, rc.id, v - 1]); }   // the item in his hands
   // (v170) a record read exactly (sx, solExact): its health in full - 8 bits, in every record that carries it
   if (sx) { if (sx.rag) st.hp.push([t, rc.id, -1]); else if (sx.h8 !== undefined) st.hp.push([t, rc.id, +(sx.h8 * 100 / 255).toFixed(1)]); }
@@ -13878,7 +14258,7 @@ async function buildTimeline(r) {
     if (e.wid >= 4223 && e.wid < 5290 && ty && !w.startsWith(ty.split(' ')[0])) return null;   // another vehicle's cannon
     return kr;
   };
-  const events = kills.map(e => { const pv = posAt(e.victim, e.t + 0.1), hit = hitOf(e.w), kr = kvOf(e); return { t: +e.t.toFixed(2), type: 'kill', killer: 'p' + e.killer, victim: 'p' + e.victim, weapon: weaponName(e.wid), wid: e.wid, ...(kr ? { kv: 'v' + kr[1], seat: kr[3] } : {}), ...(hit ? { hit } : {}), ...(e.revived ? { revived: +e.revived.toFixed(2) } : {}), ...(e.downTo ? { down: +e.downTo.toFixed(2) } : {}), ...(e.outright ? { outright: true } : {}), ...(pv ? { x: pv[1], y: pv[3] } : {}), ...(e.charge ? { cx: +e.charge.b[1].toFixed(1), cy: +e.charge.b[3].toFixed(1) } : {}), ...(e.wNamed ? { wnamed: weaponName(e.wNamed) } : {}) }; });
+  const events = kills.map(e => { const pv = posAt(e.victim, e.t + 0.1), hit = hitOf(e.w), kr = kvOf(e); return { t: +e.t.toFixed(2), type: 'kill', killer: 'p' + e.killer, victim: 'p' + e.victim, weapon: weaponName(e.wid), wid: e.wid, ...(kr ? { kv: 'v' + kr[1], seat: kr[3] } : {}), ...(hit ? { hit } : {}), ...(e.revived ? { revived: +e.revived.toFixed(2) } : {}), ...(e.downTo ? { down: +e.downTo.toFixed(2) } : {}), ...(e.outright ? { outright: true } : {}), ...(pv ? { x: pv[1], y: pv[3] } : {}), ...(e.charge ? { cx: +e.charge.b[1].toFixed(1), cy: +e.charge.b[3].toFixed(1) } : {}), ...(e.wNamed ? { wnamed: weaponName(e.wNamed) } : {}), ...(e.dir ? { dir: e.dir } : {}) }; });   // (v235: dir - the game's x, height, z: the map's x, h, y)
   for (const rv of revives) events.push({ t: +rv.t.toFixed(2), type: 'revive', player: 'p' + rv.pl, medic: rv.medic === null ? null : 'p' + rv.medic, x: +rv.x.toFixed(1), y: +rv.z.toFixed(1) });
   for (const h of heals) events.push({ t: +h.t0.toFixed(2), type: 'heal', player: 'p' + h.pl, medic: h.medic === null ? null : 'p' + h.medic, gain: Math.round(h.gain), until: +h.t1.toFixed(2), ...(h.x !== null ? { x: +h.x.toFixed(1), y: +h.z.toFixed(1) } : {}) });
   for (const b of bags) events.push({ t: +b.t.toFixed(2), type: 'bag', kind: b.kind, by: b.by === null ? null : 'p' + b.by, x: +b.x.toFixed(1), y: +b.z.toFixed(1), x0: +b.x0.toFixed(1), y0: +b.z0.toFixed(1), tl: +b.tl.toFixed(2), ...(b.gone !== null ? { gone: +b.gone.toFixed(2) } : {}), ...(b.path ? { path: b.path } : {}) });
@@ -14292,7 +14672,9 @@ async function packDemo(u8, a, b, progress) {
     }
     for (const r of P.recs) {
       if (!r.keep) continue; const bits = r.end - r.s;
-      if (run.ids.has(r.id) || run.recs.length >= 511 || size() + bits > PACK_MAX * 8) flush();
+      // (v235) at most 255 records a packet: the game reads the count in 8 bits and the 9th as "a controlled object's
+      // state follows" (OpenBattlefield2, read for knowledge) - 256 or more would break the packet in the game
+      if (run.ids.has(r.id) || run.recs.length >= 255 || size() + bits > PACK_MAX * 8) flush();
       run.recs.push(r); run.recBits += bits; run.ids.add(r.id); if (r.act !== 1 || r.isNew) run.struct = true;
     }
   }
