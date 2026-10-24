@@ -958,6 +958,11 @@ decoding again happens as described above.
 (v237) The hint rules become version 11 (a new hint, Speed by stance): the background analysis goes over every round
 again by itself. The decoder (`18e8999d15`) and the round summaries (18) stay: nothing decoded or summed up again,
 nothing to do.
+(v238) Only the page changes (a Names button on the map): nothing to do.
+(v239) Map ▾ and signing up: visitors may make their own accounts at once (Log in → Sign up, `/login`) - each opens
+what guests may, and keeps his map settings in `data/.prefs/<name>.json` (made by admin.mjs, never served: Caddy and the
+nginx example close all of `data/.*`; in the weekly backup). Nothing to do after the update; to stop new accounts: the
+admin page, Users and access → untick Sign-up → Save. admin.mjs restarts by itself on the new version, as always.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 

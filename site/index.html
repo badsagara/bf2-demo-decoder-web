@@ -297,9 +297,9 @@ input[type=file] { display: none; }
 .qseg .sg:last-child { border-radius: 0 4px 4px 0; }
 .qseg .sg[aria-checked="true"] { background: var(--accent); border-color: var(--accent); color: #17130a; }
 .qseg .sg:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.mapctl :is(.qwall, .qrel, .qahd, .qahdme) { gap: 6px; }
-.mapctl :is(.qwall, .qrel, .qahd) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mapctl :is(.qwall, .qrel, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapctl :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme) { gap: 6px; }
+.mapctl :is(.qwall, .qrel, .qnam, .qpin, .qahd) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mapctl :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapctl .vside svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
 .mapctl .vlock { gap: 6px; }
 .mapctl .vlock svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; }
@@ -333,10 +333,10 @@ input[type=file] { display: none; }
 .mapbox.side .mapplay { flex-wrap: nowrap; }
 .mapbox.side:not(.fs) .mapplay .seekw { order: 0; flex-basis: auto; }
 .mapbox.side .maptoast, .mapbox.side:not(.fs) .maptoast { bottom: 64px; }
-.mapctl :is(.qwall, .qrel, .qahd)[aria-pressed="false"], .mapplay :is(.qwall, .qrel, .qahd)[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.mapctl :is(.qwall, .qrel, .qnam, .qpin, .qahd)[aria-pressed="false"], .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd)[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
 .mapplay .qlay { display: none; }   /* (a phone: under the map, in its play bar - below) */
-.mapplay :is(.qwall, .qrel, .qahd, .qahdme) { gap: 6px; } .mapplay :is(.qwall, .qrel, .qahd) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
-.mapplay :is(.qwall, .qrel, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme) { gap: 6px; } .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
+.mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapbox canvas { touch-action: none; }
 /* the ground's height under the pointer (relief layer) */
 .htip.zt { white-space: normal; width: max-content; max-width: min(470px, calc(100% - 8px)); background: color-mix(in srgb, var(--bg) 95%, transparent); padding: 4px 8px; }
@@ -615,8 +615,8 @@ details.schema p { max-width: 70ch; }
   .mapbox:not(.fs) .mapctl .qlay { display: none; }
   .mapbox:not(.fs) .mapplay .qlay { display: flex; flex: 1 1 100%; margin: 0; flex-wrap: wrap; height: auto; } .mapbox:not(.fs) .mapplay .qbr { display: block; flex-basis: 100%; height: 0; } .mapbox:not(.fs) .mapplay .qlay > :not(.qbr) { min-height: 40px; }
   .mapbox:not(.fs) .mapplay .qseg { flex: 1; } .mapbox:not(.fs) .mapplay .qseg .sg { flex: 1; padding: 9px 8px; }
-  .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd, .qahdme) { flex: 1; justify-content: center; font-size: 13px; } .mapbox:not(.fs) .mapplay .qahdg { flex: 1; } .mapbox:not(.fs) .mapplay .qahdg .qahdst { flex: none; }
-  @media (max-width: 440px) { .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd, .qahdme) { padding-left: 6px; padding-right: 6px; } .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qahd) svg { display: none; } }
+  .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme) { flex: 1; justify-content: center; font-size: 13px; } .mapbox:not(.fs) .mapplay .qahdg { flex: 1; } .mapbox:not(.fs) .mapplay .qahdg .qahdst { flex: none; }
+  @media (max-width: 440px) { .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme) { padding-left: 6px; padding-right: 6px; } .mapbox:not(.fs) .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd) svg { display: none; } }
   .mapbox:not(.fs) .mapplay .qseg .sg { font-size: 13px; }
 }
 /* views under the map: one at a time */
@@ -800,13 +800,47 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .timeline, bo
 .lmenu .btn:hover { background: var(--panel-2); }
 .lmenu .btn.sub { padding: 5px 10px 5px 33px; font-size: 12.5px; }   /* (v155: a part of the layer above) */
 .lmenu .btn.sub.dim { opacity: .55; }
-#namBtn b { font: 600 12px var(--font-data); color: var(--accent); }
+.btn.danger { border-color: var(--hp-low); color: var(--hp-low); }   /* (v239: Delete my account) */
 #namList { display: grid; gap: 2px; }
 .lmenu .lall { display: flex; gap: 4px; padding: 0 2px 4px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
 .lmenu .lall .btn { width: auto; flex: 1; justify-content: center; padding: 6px 8px; color: var(--muted); }
 .lmenu .lall .btn::before { display: none; }
 .lmenu .lall .btn:hover { color: var(--fg); }
 .lmenu .lnote { padding: 6px 10px 2px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 2px; }
+/* (v239) Map ▾: every element by group, a pin by each, presets on top */
+.lmenu.mcfg { display: block; width: min(780px, calc(100vw - 24px)); padding: 8px 10px 10px; }
+.lmenu.mcfg[hidden], .mcfg [hidden] { display: none !important; }
+.mcfg .mchead { display: grid; gap: 6px; padding: 2px 2px 8px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
+.mcfg .mcrow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mcfg .mcrow label { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; color: var(--muted); }
+.mcfg select, .qpre { font: 500 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 6px; max-width: 13em; }
+.qpre { background: color-mix(in srgb, var(--bg) 82%, transparent); padding: 6px 6px; cursor: pointer; }
+.mcfg .mcrow .btn, .mcfg .mcrow .btn.on { width: auto; padding: 5px 10px; font-size: 12.5px; border-color: var(--line); justify-content: center; }
+.mcfg .mcrow .btn.primary { background: var(--accent); border-color: var(--accent); color: #17130a; }
+.mcfg .mcrow .btn::before { display: none; }
+.mcfg .mcnew input { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; width: 13em; }
+.mcfg .mcmsg { font-size: 12px; color: var(--hp-low); }
+.mcfg .mcwhere { font-size: 12px; color: var(--muted); } .mcfg .mcwhere .bad { color: var(--hp-low); }
+.lnk { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+.mcfg .mcgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 2px 14px; }
+.mcfg .mcg h4 { display: flex; align-items: center; gap: 2px; margin: 8px 0 1px; padding-left: 2px; font: 700 11px/1.2 var(--font-data); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.mcfg .mcg h4 span { flex: 1; }
+.mcfg .mcall { background: none; border: 0; padding: 3px 5px; font: 500 11.5px var(--font-body); color: var(--muted); cursor: pointer; } .mcfg .mcall:hover, .mcfg .mcall:focus-visible { color: var(--fg); }
+.mcfg .mci { display: flex; align-items: center; gap: 2px; }
+.mcfg .mci > .btn { flex: 1; min-width: 0; padding: 5px 8px; font-size: 13px; text-align: left; }
+.mcfg .mci.sub > .btn { padding-left: 30px; font-size: 12.5px; } .mcfg .mci.sub.dim { opacity: .55; }
+.mcfg .mch { padding: 3px 0 3px 8px; gap: 8px; } .mcfg .mch > span:first-child { flex: 1; font-size: 13px; }
+.mcfg .mch .qseg .sg { padding: 5px 7px; font-size: 12px; }
+.mcfg .lrange { padding: 0 32px 4px 31px; }
+.mcfg .mcnote { margin: 8px 2px 0; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.mpin { flex: none; width: 26px; height: 26px; display: inline-grid; place-items: center; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; opacity: .5; padding: 0; }
+.mpin svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.mpin:hover, .mpin:focus-visible { opacity: 1; color: var(--fg); }
+.mpin[aria-pressed="true"] { opacity: 1; color: var(--accent); } .mpin[aria-pressed="true"] svg { fill: currentColor; }
+.qlay[hidden] { display: none !important; }
+.mapctl .qlay { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; max-width: 100%; }   /* (v239: as many pins as he likes - wrapped) */
+.admhp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.admdlg .admswap { margin: 12px 0 0; font-size: 13px; }
 /* vehicles as the game's map icons or as its 3D models, seen from above */
 .vwseg { display: flex; align-items: center; gap: 0; padding: 4px 4px 8px 10px; margin-bottom: 4px; border-bottom: 1px solid var(--line); font: 500 12px/1 var(--font-body); color: var(--muted); }
 .vwseg > span { flex: 1; padding-right: 10px; }
@@ -893,15 +927,15 @@ body.mbar-on { padding-bottom: 72px; }
         <span class="tag sim" id="simTag">Simulated</span>
         <span class="tag pov" id="povTag" hidden></span>
         <div class="topbar" id="topBar" aria-label="Tickets and time left" hidden></div>
-        <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Filters ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
+        <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Map ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qbr" aria-hidden="true"></span><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span></div>
+      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Pinned buttons (Map ▾)"></span></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"><button type="button" class="fsfold" id="feedFold" aria-expanded="true" aria-controls="fsfeedIn" title="Fold the kill feed (J)">–</button><div id="fsfeedIn"></div></div>
       <div class="tabboard" id="tabBoard" role="dialog" aria-label="Scoreboard" hidden></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: all its layers (L)">Filters <b class="layN2"></b> ▾</button></span><button class="btn vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Quick layers"><span class="qseg" role="radiogroup" aria-label="Vehicles on the map"><button class="sg qI" id="qIcons" role="radio" aria-checked="false" title="Vehicles as the game's map icons (M)">Icons</button><button class="sg qM" id="qModels" role="radio" aria-checked="true" title="Vehicles as the game's 3D models seen from above (M)">Models</button></span><button class="btn qwall" id="qWalls" aria-pressed="true" title="Outlines of houses, walls, fences, containers and rocks; trees and bushes (B)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h7v4h5v5H2z"/></svg>Buildings</button><button class="btn qrel" id="qRelief" aria-pressed="false" title="The lie of the land: hill shading and contour lines with heights (H)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/></svg>Relief</button><span class="qahdg"><button class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Filters ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">20</span> s</button><button class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: every element, by group - presets, and a pin to put any on the map as a button (L)">Map <b class="layN2"></b> ▾</button></span><select class="qpre" id="mPre" aria-label="Preset: what the map shows"></select><button class="btn vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Pinned buttons (Map ▾)"></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
     </div>
     <div class="sideview svbox" id="sideView" aria-label="Side view of a kill" hidden>
@@ -980,37 +1014,8 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="tlctl">
       <button class="btn primary" id="play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button>
       <button class="btn" id="tClip" aria-pressed="false" title="Make a video of part of the round to share (I / O: clip starts / ends at the playhead)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg><span>Clip</span></button>
-      <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows">Filters <b id="layN"></b> ▾</button>
-      <span class="lmenu" id="layMenu" role="group" aria-label="Map layers" hidden>
-      <span class="vwseg" role="radiogroup" aria-label="Vehicles on the map"><span>Vehicles</span><button class="sg" id="vwIcons" role="radio" aria-checked="false" title="As on the game's map: its icons in the colour of the team in them">Icons</button><button class="sg" id="vwModels" role="radio" aria-checked="true" title="As in the game: its 3D models seen from above, to scale, the turret turning where the gun points (M)">Models</button></span>
-      <span class="vwseg" role="radiogroup" aria-label="Soldiers on the map"><span>Soldiers</span><button class="sg" id="swGame" role="radio" aria-checked="true" title="As on the game's minimap: its soldier mark in his side's colour pointing where he looks, a squad leader with his squad's number, the commander's star; the squad of the soldier you follow in green; a white dot at his nose while he aims down the sights">Game</button><button class="sg" id="swFig" role="radio" aria-checked="false" title="A disc pointing where he looks, with a figure for how he stands and moves (standing, crouched, prone; walking, running, sprinting; jumping, falling from a height, under a parachute, climbing a ladder). Either way a white dot at his nose while he aims down the sights">Figures</button></span>
-      <span class="vwseg" role="radiogroup" aria-label="Scoreboard, top bar and text"><span>HUD</span><button class="sg" id="hdGame" role="radio" aria-checked="true" title="As in the game: its scoreboard (Tab), its bar of time and tickets, its font for the kill feed and the names on the map">Game</button><button class="sg" id="hdPage" role="radio" aria-checked="false" title="The page's own: a list for the scoreboard, a plain bar, the page's font">Page</button></span>
-      <span class="vwseg cuseg" role="radiogroup" aria-label="What the pointer over the map shows"><span>Cursor</span><button class="sg" id="cuOff" role="radio" aria-checked="false" title="Nothing by the pointer (G)">Off</button><button class="sg" id="cuH" role="radio" aria-checked="false" title="The height of the ground under the pointer, and how much higher or lower it is than the soldier you follow (G)">Height</button><button class="sg" id="cuXY" role="radio" aria-checked="false" title="Where the pointer is: the map's grid square (as on the game's map), metres east and north of the middle, and how far and which way from the soldier you follow (G)">Grid</button></span>
-      <button class="btn on" id="tFeed" title="The last kills, revives and flag captures in the top right corner of the map">Kill feed</button>
-      <button class="btn on" id="tKills" title="Line from the killer to the victim, and +1 next to the killer">Kill lines</button>
-      <button class="btn on" id="tSpots">Spots</button>
-      <button class="btn on" id="tBlast" title="Grenades (with how far they were thrown) and rockets in flight; the blast where they go off, and where a tank's or APC's shell hit; placed C4 / claymores (with the way they face) / AT mines; smoke from vehicles' launchers and smoke grenades">Explosions</button>
-      <button class="btn on" id="tFire" title="A flash at the gun of everyone holding a fire button (the trigger, a second or third fire button), and at a vehicle when someone in it fires. The demo has when a button goes down and up, not each shot">Firing</button>
-      <button class="btn on" id="tStatic" title="Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map">Emplacements</button>
-      <button class="btn on" id="tOrders" title="Each squad's current order (attack, defend, move) where its leader put it, with the game's icon and the squad's name; an order shows for 3 minutes or until the next one">Squad orders</button>
-      <button class="btn" id="tSpawnG" title="Where each flag's soldiers spawn (the middle of its spawn points, as the demo has it), in the colour of the side that can spawn there - a dashed ring round a dot; grey while nobody can">Spawn points</button>
-      <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
-      <button class="btn on" id="tBodies" title="The bodies of those who died, as the game's ragdoll had them: how each fell, and where it lies, head this way - until the game uses his soldier again for a spawn (often minutes later) or a medic revives him">Bodies</button>
-      <button class="btn on" id="tView" title="What the soldier you follow sees (95° across - a 16:9 screen, narrower through his sights or scope - out to the fog limit, fading as the map's fog does - a dashed line where it leaves nothing of a man; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
-      <button class="btn" id="tAimLn" aria-pressed="false" title="The soldier you follow: a line from him (or his vehicle's guns) to where his crosshair meets something - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit. Also on the map (by His view), in his card (Aim line) and the X key">Aim line</button>
-      <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
-      <button class="btn on" id="tLift" title="Soldiers up on a roof, an upper floor, a tower, a bridge or a ship's deck - 2 m or more over the ground or the sea under them: lifted over a shadow where they are, with a thin line down to it (the higher, the longer); 12 m or more up, the height by the shadow">Heights</button>
-      <button class="btn on" id="tSound" aria-pressed="true" title="His view (a soldier's or a crew's): the shots and explosions he could hear - rings where they are, an arrow at the map's edge for those off it; how far each carries from the game's sound files. Also the speaker in the tag over the map">Sounds</button>
-      <button class="btn" id="tRelief" title="The lie of the land, as on a topographic map (from the map's heightmap, 2 m apart): hill shading - slopes away from a light in the north-west darker - and contour lines every 2 m zoomed in, 5 m or 10 m further out, every 5th bold with its height (Shading, below, turns the shading off). Following a soldier, with Higher than his eyes (below) on: the ground higher than his eyes filled and hatched, with a line where it rises past them (from there one looks down on him; roofs not counted). With Cursor: Height (below in this menu, or G) the pointer over the map shows the height there and how much higher or lower it is than him (H)">Relief</button>
-      <button class="btn sub" id="tRelShade" title="Relief: the slopes shaded, lit from the north-west (the contour lines and heights stay)">Shading</button>
-      <button class="btn sub" id="tRelAbove" title="Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched, with a line where it rises past them (off: only the contour lines and shading)">Higher than his eyes</button>
-      <button class="btn" id="tAhead" title="While paused: where the soldier you follow goes in the next seconds (as many as the slider under this says: 1-30 s) - a dashed path in his side's colour with a dot every 5 s, a ring where he is at the end, a cross where he dies (and how many seconds on, with a thin line from his killer), a ring where he comes back in; the vehicle he rides in too. Not while playing, not in clips (A)"><span>Next <span id="aheadN">20</span> s<span id="aheadWho"> · the one you follow</span></span></button>
-      <span class="lrange" id="aheadRow" title="How far ahead the paths go while paused: 1-30 s"><input type="range" id="aheadT" min="1" max="30" step="1" value="20" aria-label="Seconds ahead shown while paused"><output id="aheadV" for="aheadT">20 s</output></span>
-      <button class="btn" id="tFront" title="Which side holds which part of the map, from where its soldiers are and were over the last 30 s (aircraft left out) and the flags it owns: the ground tinted in its colour, and a dashed line where the two sides meet. A rough picture of who stands where, not the game's own control of ground">Front line</button>
-      <button class="btn on" id="tLegend" title="A box on the map under its top bar with what each mark means - only those of the layers switched on; its header folds it">Legend</button>
-      </span></span>
-      <span class="lwrap"><button class="btn" id="namBtn" aria-expanded="false" aria-controls="namMenu" title="Which names and labels the map shows">Names <b id="namN"></b> ▾</button>
-      <span class="lmenu" id="namMenu" role="group" aria-label="Names and labels on the map" hidden><span class="lall"><button class="btn" type="button" data-laball="1">All</button><button class="btn" type="button" data-laball="0">None</button></span><span id="namList"></span><span class="lnote">The soldier you follow: his name always</span></span></span>
+      <span class="lwrap"><button class="btn" id="layBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: every element, by group - presets, pins (L)">Map <b id="layN"></b> ▾</button>
+      <span class="lmenu mcfg" id="layMenu" role="group" aria-label="What the map shows" hidden></span></span>
       <span class="spacer"></span>
       <button class="btn" id="kbBtn" aria-expanded="false" aria-controls="kbHelp" title="Keys and mouse">?</button>
       <label class="mapsizel">Map size (m)
@@ -1020,7 +1025,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Filters ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Map ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>T</kbd> all players' names on the map on / off (Map ▾: each kind)</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -1086,7 +1091,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v237';
+const APP_VERSION = 'v239';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1544,7 +1549,7 @@ let animNow = null;   // clock of flickering effects (seconds): the clip's own t
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', ff: 30, sound: true, job: null, out: null, drag: null, sel: undefined };
 let demoSrc = null;   // (v137) the open round's demo, for a clip as a .bf2demo: { name, file } or { name, url } (the server's copy)
-// names and labels on the map (Names ▾): soldiers on foot (and their kit), crew by their vehicle, vehicles' own names
+// names and labels on the map (Map ▾): soldiers on foot (and their kit), crew by their vehicle, vehicles' own names
 // (empty ones; all of them when the crew's are off), the wounded waiting for a medic, who spotted, flags, distances and
 // weapons (kill lines, grenades, rockets), what broke an object. The soldier followed: his name always. Remembered in
 // this browser. (v117, Sagara: "a drop-down with filters for the names")
@@ -1553,6 +1558,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
 const opts = { feed:true, kills:true, spots:true, medic:true, bodies:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, aimLn:false, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
+Object.assign(opts, { kit: true, hp: true, zoomDot: true, moveMk: true, oob: true, emptyVeh: true, vhp: true, killTags: true, shotDir: true, deaths: true, smoke: true, down: true, uav: true, crates: true, cmdCam: true, fogLine: true, seen: true, cover: true, aimMark: true, hands: true, lastSeen: true, grid: true, flags: true, trees: true, mapName: true, topbar: true });   // (v239: Map ▾ switches every element)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -1562,7 +1568,7 @@ try { if (localStorage.getItem('bf2rr.legend') === '0') opts.legend = false; if 
 // the ground higher than the followed soldier's eyes (turquoise fill and hatching: off unless turned on)
 try { if (localStorage.getItem('bf2rr.relShade') === '0') opts.relShade = false; if (localStorage.getItem('bf2rr.relAbove') === '1') opts.relAbove = true; } catch (e) {}
 // (v158, Sagara: "перемикач курсору, який може показувати висоту або координати") what the pointer over the map shows:
-// 'off', 'height' or 'grid' (Filters ▾ Cursor, G); at first as before - the height while the relief layer is on
+// 'off', 'height' or 'grid' (Map ▾ Cursor, G); at first as before - the height while the relief layer is on
 try { const v = localStorage.getItem('bf2rr.cursor'); opts.cursor = v === 'off' || v === 'height' || v === 'grid' ? v : localStorage.getItem('bf2rr.relief') === '1' ? 'height' : 'off'; } catch (e) {}
 // a vehicle seat's view from its third-person camera instead of its own (the card's View row, the map's 1st / 3rd and the C key switch it)
 try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
@@ -2554,7 +2560,7 @@ function reliefWho(tt) {
   const onFoot = !p.vehicle && !q.veh;
   return { eye: V && V.eye != null ? V.eye : onFoot ? eyeOf(sel, q, tt) : q.h + 1.5, feet: onFoot ? q.h - 1.0 : g, name: p.vehicle ? p.name : p.name };
 }
-// a tag by the pointer over the map (a mouse), as Filters ▾ Cursor says (v158): the ground's height under it (and how much
+// a tag by the pointer over the map (a mouse), as Map ▾ Cursor says (v158): the ground's height under it (and how much
 // higher or lower than the soldier you follow) - where the map's heights are not known, the grid instead - or where it
 // is: the grid square of the game's map (A-H across, 1-8 down), metres east and north of the map's middle, and how far
 // and which way from the soldier you follow
@@ -3356,16 +3362,15 @@ function aheadVis(AP, ids) {
 }
 // for everyone: on / off (the chosen ones go)
 function aheadAll(on) {
-  opts.ahead = !!on; aheadOnly.clear(); try { localStorage.setItem('bf2rr.ahead', opts.ahead ? '1' : '0'); } catch (e) {}
-  aheadShow(); layCount(); refresh(true);
+  opts.ahead = !!on; aheadOnly.clear();
+  aheadShow(); mcChanged();
   if (!opts.ahead) toast(`Next ${aheadT} s: off`); else if (sel === null) toast(`Next ${aheadT} s: follow a soldier (click him) to see where he goes`); else if (playing) toast(`Next ${aheadT} s: shows while paused`);
 }
 // (v173) how far ahead: d seconds more or less, 1-30
 function aheadBy(d) {
   const v = Math.max(1, Math.min(30, aheadT + d)); if (v === aheadT) return; aheadT = v;
-  try { localStorage.setItem('bf2rr.aheadT', String(aheadT)); } catch (e) {}
-  if (!opts.ahead) { opts.ahead = true; try { localStorage.setItem('bf2rr.ahead', '1'); } catch (e) {} layCount(); }
-  aheadShow(); refresh(true);
+  if (!opts.ahead) opts.ahead = true;
+  aheadShow(); mcChanged();
 }
 // for soldier i alone: on / off
 function aheadFor(i) {
@@ -3386,8 +3391,8 @@ function aheadSync() {
   if (k === aheadKey) return; aheadKey = k;
   // Layers ▾ Next N s: on = for everyone; "· only X" while some are chosen
   const nm = me !== null ? round.players[me].name.trim() : '';
-  $('#aheadWho').textContent = me !== null ? ' · ' + (nm.length > 16 ? nm.slice(0, 15) + '…' : nm) : ' · the one you follow';
-  $('#tAhead').classList.toggle('on', !!opts.ahead); $('#aheadRow').classList.toggle('off', !opts.ahead);
+  const aw = $('#aheadWho'), ar = $('#aheadRow'); if (aw) aw.textContent = me !== null ? ' · ' + (nm.length > 16 ? nm.slice(0, 15) + '…' : nm) : ' · the one you follow';
+  if (ar) ar.classList.toggle('off', !opts.ahead);
   document.querySelectorAll('.qahd').forEach(b => { b.setAttribute('aria-pressed', String(!!opts.ahead)); b.querySelector('.qahdN').textContent = aheadT; });
   document.querySelectorAll('.qahdst').forEach(b => { b.disabled = +b.dataset.d < 0 ? aheadT <= 1 : aheadT >= 30; });
 }
@@ -4524,10 +4529,10 @@ function povTag() {
   if (el.dataset.who !== key) { el.dataset.who = key; el.innerHTML = `<span>${POV.veh ? 'Crew\'s view' : 'His view'} · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povSnd" class="snd" title="Sounds he could hear: shots and explosions as rings where they are, an arrow at the map's edge for those off it (how far each carries: the game's sound files; footsteps not yet)">${SND_SVG}</button><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); $('#povSnd').onclick = () => sndSet(!opts.sound); }
   const b = $('#povSnd'); if (b) { b.classList.toggle('on', !!opts.sound); b.setAttribute('aria-pressed', String(!!opts.sound)); b.setAttribute('aria-label', opts.sound ? 'Sounds on (click: off)' : 'Sounds off (click: on)'); }
 }
-// (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Filters ▾ Sounds
+// (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Map ▾ Sounds
 const SND_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor" stroke="none"/><path class="w1" d="M11 5.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w2" d="M12.8 3.5a6.3 6.3 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 // (v188, Sagara: "Kill Feed можна було згортати кнопкою") the kill feed over the map folded to its button and back
-// (remembered): the button on it, J. Filters ▾ Kill feed still takes it off the map altogether
+// (remembered): the button on it, J. Map ▾ Kill feed still takes it off the map altogether
 let feedMin = false; try { feedMin = localStorage.getItem('bf2rr.feedmin') === '1'; } catch (e) {}
 function feedFoldShow() { const fo = $('#fsfeed'), b = $('#feedFold'); if (!fo || !b) return; fo.classList.toggle('min', feedMin); b.textContent = feedMin ? 'Kill feed ▾' : 'Hide ▸'; b.title = feedMin ? 'Show the kill feed (J)' : 'Fold the kill feed (J)'; b.setAttribute('aria-expanded', String(!feedMin)); }
 // (v189, Sagara: "не бачу кнопки згортання кілфіду") the panel with the kill feed, highlights and hints (left of the map,
@@ -4539,17 +4544,16 @@ function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmi
 // (v185, Sagara: "додати кнопку вмикання прицільної лінії при виборі гравця") the followed soldier's aim line on / off
 // (remembered; off as v152 left it): the card's Aim line button, X
 function aimLnSet(on) {
-  opts.aimLn = !!on; try { localStorage.setItem('bf2rr.aimln', opts.aimLn ? '1' : '0'); } catch (e) {}
-  const tb = $('#tAimLn'); if (tb) { tb.classList.toggle('on', opts.aimLn); tb.setAttribute('aria-pressed', String(opts.aimLn)); }   // (v201: in Filters ▾ too)
+  opts.aimLn = !!on;
   aimSync();   // (v230: and on the map)
-  toast(opts.aimLn ? (sel !== null ? 'Aim line on (X)' : 'Aim line on (X): it shows for the soldier you follow - click one') : 'Aim line off (X)'); refresh(true);
+  toast(opts.aimLn ? (sel !== null ? 'Aim line on (X)' : 'Aim line on (X): it shows for the soldier you follow - click one') : 'Aim line off (X)'); mcChanged();   // (v239: Map ▾ keeps it)
 }
-function sndSet(on) { opts.sound = !!on; try { localStorage.setItem('bf2rr.sound', opts.sound ? '1' : '0'); } catch (e) {} const tb = $('#tSound'); if (tb) { tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); } refresh(true); }
+function sndSet(on) { mcSet('sound', !!on); }
 function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); povSync(); refresh(true); }
 // ---------- (v181) what he could hear (Sagara, todo 212: "Звуки в «His view» ... кнопку, щоб їх можна було вимикати ...
 // Постріли й вибухи з дальністю чутності з файлів гри показувати хвилями, а те, що поза екраном, — стрілкою на краю мапи.
 // Кроки ... поки без них") ----------
-// In his view (and a crew's), with the speaker on (the tag over the map, or Filters ▾ Sounds): shots - while somebody
+// In his view (and a crew's), with the speaker on (the tag over the map, or Map ▾ Sounds): shots - while somebody
 // holds a fire button, a ring every SND_PULSE s where he is (in a vehicle: where it is, its gun's sound) - and explosions
 // (grenades, rockets, missiles, C4, mines, claymores, shells; a vehicle blowing up), as rings spreading from where they
 // are, brighter and wider the louder they reached him; one off the screen: an arrow at the map's edge the way it came
@@ -4691,7 +4695,8 @@ function draw() {
   if (opts.relief) { const D = losData(); if (D) { drawRelief(D); const who = opts.relAbove ? reliefWho(t) : null; if (who) drawAbove(D, who.eye); } }
   if (cx === cvCtx) hTipShow();   // (the height under the pointer, as the round plays on)
   if (opts.front && !POV) drawFront();   // (Layers > Front line; v177: not in his view - it is everyone's places)
-  // grid A-H x 1-8
+  // grid A-H x 1-8 (v239: Map ▾ Grid)
+  if (opts.grid) {
   cx.strokeStyle = 'rgba(128,140,128,.28)'; cx.lineWidth = 1;
   cx.fillStyle = 'rgba(200,210,195,.55)'; cx.font = '500 10px ' + css('--font-data');
   for (let i=0;i<=8;i++){ const [gx] = toC(-W/2 + i*W/8, 0), [, gy] = toC(0, W/2 - i*W/8);
@@ -4700,6 +4705,7 @@ function draw() {
   for (let i=0;i<8;i++){ const [gx] = toC(-W/2 + (i+0.5)*W/8, 0), [, gy] = toC(0, W/2 - (i+0.5)*W/8);
     if (gx > 0 && gx < size) cx.fillText('ABCDEFGH'[i], gx-3, sizeH-5);
     if (gy > 0 && gy < sizeH) cx.fillText(String(i+1), 4, gy+4); }
+  }
 
   // houses and walls (wallsPath), in map metres
   if (opts.walls) { const B = wallsPath(); if (B) {
@@ -4718,7 +4724,7 @@ function draw() {
     }
   } }
   // trees and bushes (Buildings layer too): crowns as soft green discs (edged when zoomed in), trunks as dots
-  if (opts.walls) { const VP = vegPaths(); if (VP) {
+  if (opts.trees) { const VP = vegPaths(); if (VP) {   // (v239: their own switch)
     const k = size / view.span; cx.save(); cx.transform(k, 0, 0, -k, -view.x0 * k, view.y0 * k);
     cx.fillStyle = css('--veg-fill'); cx.fill(VP.crowns);
     if (k > 1.2) { cx.lineWidth = 1 / k; cx.strokeStyle = css('--veg-line'); cx.stroke(VP.crowns); }
@@ -4740,7 +4746,7 @@ function draw() {
   if (cx === cvCtx && round._zk != null) drawZone(round._zk);   // (v168) the flag under the pointer: its capture zone
   // flags
   const [fa] = frameAt(t);
-  round.flags.forEach((f,i) => {
+  if (opts.flags) round.flags.forEach((f,i) => {
     const owner = round.FO[fa*round.nf+i], ctrl = round.FC[fa*round.nf+i];
     const [px,py] = toC(f.x,f.y);
     // the game's minimap flag: the owner's faction flag (main bases crossed out), a white flag when neutral. In the 33 px
@@ -4799,9 +4805,9 @@ function draw() {
     if (vx===undefined) continue;
     const [px,py] = toC(vx,vy); const a = 1 - age/10;
     // (where he died: a black cross on a thin light edge, so it shows on dark ground too - v151, Sagara: "вбивство чорного")
-    cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(px-4.5,py-4.5); cx.lineTo(px+4.5,py+4.5); cx.moveTo(px+4.5,py-4.5); cx.lineTo(px-4.5,py+4.5);
+    if (opts.deaths) { cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(px-4.5,py-4.5); cx.lineTo(px+4.5,py+4.5); cx.moveTo(px+4.5,py-4.5); cx.lineTo(px-4.5,py+4.5);
     cx.strokeStyle = `rgba(235,235,225,${a*0.75})`; cx.lineWidth = 4; cx.stroke();
-    cx.strokeStyle = `rgba(0,0,0,${a*0.95})`; cx.lineWidth = 2; cx.stroke(); cx.lineCap = 'butt';
+    cx.strokeStyle = `rgba(0,0,0,${a*0.95})`; cx.lineWidth = 2; cx.stroke(); cx.lineCap = 'butt'; }
     // the line from the killer; for C4 / a claymore / an AT mine from where it lay (its owner can be anywhere by then),
     // none when the charge wasn't seen being laid
     const placedKill = PLACED_W.has(e.wid);
@@ -4812,7 +4818,7 @@ function draw() {
       // (v237, todo 286 a) where the killing shot really came from (the demo's own direction of the hit): dashed back from
       // the victim along it, as far as the killer - drawn when it is SHOT_OFF deg or more off the line from the killer
       // (not when his screen explains it: the victim a moment earlier, or he himself, on the shot's line - shotOff)
-      const so = shotOff(e, kp); if (so && so.off >= SHOT_OFF && so.lat >= SHOT_LAT && !so.when) { const L2 = Math.hypot(px - qx, py - qy) || 30, ux = -so.ux, uy = -so.uy;
+      const so = opts.shotDir ? shotOff(e, kp) : null; if (so && so.off >= SHOT_OFF && so.lat >= SHOT_LAT && !so.when) { const L2 = Math.hypot(px - qx, py - qy) || 30, ux = -so.ux, uy = -so.uy;
         cx.setLineDash([4, 3]); cx.lineWidth = 1.6; cx.beginPath(); cx.moveTo(px, py); cx.lineTo(px + ux * L2, py - uy * L2); cx.stroke(); cx.setLineDash([]); }
       // the distance at the middle of the line, when the line is long enough on screen to carry it
       if (opts.lab.dist && e.dist !== undefined && Math.hypot(px - qx, py - qy) > 46) {
@@ -4889,7 +4895,7 @@ function draw() {
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - hw, a0 + hw); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
       // (v236) the fog line: past it the map's fog leaves nothing of a man (fogGone) - dashed across the sector
-      { const fz = fogGone(); if (fz < Rv) { cx.beginPath(); cx.arc(px, py, fz * m2px, a0 - hw, a0 + hw); cx.setLineDash([5, 4]); cx.strokeStyle = col; cx.globalAlpha = 0.7 * (q.ahead ? 0.75 : 1); cx.lineWidth = 1.4; cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; } }
+      if (opts.fogLine) { const fz = fogGone(); if (fz < Rv) { cx.beginPath(); cx.arc(px, py, fz * m2px, a0 - hw, a0 + hw); cx.setLineDash([5, 4]); cx.strokeStyle = col; cx.globalAlpha = 0.7 * (q.ahead ? 0.75 : 1); cx.lineWidth = 1.4; cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; } }
       // (no edges: the shading alone - v147 for a soldier, v150 for a vehicle seat too; Sagara: "прибрати пунктирні лінії
       // при кути зору піхотинця", "Прибрати штрихові лінії по боках поля зору техніки")
       if (q.role && q.role !== 'foot') {
@@ -4911,7 +4917,7 @@ function draw() {
   }
   // smoke (Explosions layer): a launcher's or a soldier's smoke grenade in flight, then its cloud - soft grey puffs that
   // grow over 1.5 s and fade out over the last 4 s - under the soldiers and vehicles, which stay visible in it
-  if (opts.blasts) {
+  if (opts.smoke) {
     const SM = round._smoke || (round._smoke = round.events.filter(e => e.type === 'smoke')), m2px = size / view.span;
     const light = document.documentElement.dataset.theme === 'light', c0 = light ? '125,130,124' : '205,210,200', c1 = light ? '110,115,108' : '190,195,186';
     for (const e of SM) {
@@ -4972,7 +4978,7 @@ function draw() {
     }
     cx.lineCap = 'butt'; cx.lineJoin = 'miter';
   }
-  if (POV) povGhosts();   // (v177: where he last saw those he lost sight of)
+  if (POV && opts.lastSeen) povGhosts();   // (v177: where he last saw those he lost sight of)
   // players (vehicles first in the list, so riders' names draw on top)
   const occupied = new Set(), riders = new Map(), iconVeh = new Set(), seated = new Map(), vehRad = new Map();   // (vehRad: a model's radius on the canvas)
   round.players.forEach((p,i) => { if (!p.vehicle) { const q = playerAt(i,t); if (q.alive && q.veh) { occupied.add(q.veh); if (!riders.has(q.veh)) riders.set(q.veh, teamOf(i, t)); } } });
@@ -4999,7 +5005,7 @@ function draw() {
     if (!q.alive) {
       // wounded and waiting for a medic: a black disc with the game's revive bolt where he fell, in a ring of his team's
       // colour that runs down like a clock over the man-down time (15 s): when it is gone he can no longer be revived
-      if (q.down && opts.medic && !p.vehicle) {
+      if (q.down && opts.down && !p.vehicle) {
         const [px,py] = toC(q.x,q.y), col = teamColor(teamOf(i, t)), pulse = 0.6 + 0.4 * Math.abs(Math.sin(t * 3));
         const left = downLeft(p, t);
         cx.strokeStyle = col; cx.lineWidth = 2;
@@ -5034,6 +5040,7 @@ function draw() {
     // destroyed: a burning wreck for ~10 s, then gone from the map until it respawns at its spawn point
     const wk = p.vehicle ? (round.wreckOf.get(p.id) || []).find(w => w[0] <= t && t < w[1]) : null;
     if (wk && t >= wk[2]) return;
+    if (p.vehicle && !opts.emptyVeh && !riders.has(p.name) && sel !== i) return;   // (v239: Map ▾ Empty vehicles off)
     const wreck = p.vehicle && (!!wk || (!round.wreckOf.size && round.meta.source !== 'demo' && q.hp !== null && q.hp <= 0));
     // a vehicle is drawn in the colour of the team in it, pointing where it drives: a tank, APC or AA vehicle from shapes
     // with its turret where the gun points (drawArmor), a jeep as the game's minimap symbol with its roof gun while
@@ -5067,7 +5074,7 @@ function draw() {
     else if (!inIcon && !p.vehicle && opts.gameSol && gameSoldier(i, p, q, px, py, col)) {   // (v141) as on the game's minimap
       cx.globalAlpha = 1;
       if (firing.has(i)) { cx.save(); cx.translate(px, py); cx.rotate(q.yaw); muzzleFlash(-15); cx.restore(); }
-      if (q.alive && !q.veh) { if (onChute(p, t)) drawChute(px, py, col); else { const m = mvNow(p, t); if (m & 2) drawWaves(px, py, col); if (m & 4) drawLadder(px, py, col); if (m & 16) drawZoomDot(px, py, q.yaw); } }
+      if (q.alive && !q.veh) { if (onChute(p, t)) { if (opts.moveMk) drawChute(px, py, col); } else { const m = mvNow(p, t); if (opts.moveMk && (m & 2)) drawWaves(px, py, col); if (opts.moveMk && (m & 4)) drawLadder(px, py, col); if (opts.zoomDot && (m & 16)) drawZoomDot(px, py, q.yaw); } }
     }
     else if (!inIcon) {
       cx.globalAlpha = ca;
@@ -5084,12 +5091,12 @@ function draw() {
       // standing, walking, running, sprinting, crouching or prone: a figure inside the disc, facing his way on the map;
       // moving upright, also 1 / 2 / 3 speed streaks (walk / run / sprint) behind the disc, against the way he moves
       if (!p.vehicle) { const sn = stanceNow(p, t), k = figFor(i, p, q, sn); if (k !== null) { drawStance(k, px, py, 1.3, css('--stance-ink'), figFace(k, q.yaw)); if (MOVE_GROUND.has(k)) moveStreaks(i, q, px, py, k, col); } }
-      if (!p.vehicle && q.alive && !q.veh) { if (onChute(p, t)) drawChute(px, py, col); else { const m = mvNow(p, t); if (m & 2) drawWaves(px, py, col); if (m & 4) drawLadder(px, py, col); if (m & 16) drawZoomDot(px, py, q.yaw); } }
+      if (!p.vehicle && q.alive && !q.veh) { if (onChute(p, t)) { if (opts.moveMk) drawChute(px, py, col); } else { const m = mvNow(p, t); if (opts.moveMk && (m & 2)) drawWaves(px, py, col); if (opts.moveMk && (m & 4)) drawLadder(px, py, col); if (opts.zoomDot && (m & 16)) drawZoomDot(px, py, q.yaw); } }
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
       cx.globalAlpha = 1;
     }
     const vr = vehRad.get(p.name);
-    { const o = outside.get(p.vehicle ? p.name : i); if (o !== undefined && !(p.vehicle ? wreck : q.veh)) {
+    { const o = opts.oob ? outside.get(p.vehicle ? p.name : i) : undefined; if (o !== undefined && !(p.vehicle ? wreck : q.veh)) {
       const r = p.vehicle ? Math.max(18, (vr || 0) + 6) : 21, oc = css('--outside');
       cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
       cx.strokeStyle = oc; cx.globalAlpha = 1; cx.lineWidth = 2; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]);
@@ -5105,26 +5112,26 @@ function draw() {
     }
     else if (inView && inView.has(i) && !(selView && selView.who === i)) {
       const hid = inView.get(i) === false, r = Math.max(16, (vr || 0) + 3), bg = css('--bg');
-      if (hid) {   // in his field of view, behind cover
+      if (hid) { if (opts.cover) {   // in his field of view, behind cover
         cx.strokeStyle = bg; cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
-        cx.strokeStyle = css('--muted'); cx.globalAlpha = 0.95; cx.lineWidth = 1.8; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+        cx.strokeStyle = css('--muted'); cx.globalAlpha = 0.95; cx.lineWidth = 1.8; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; }
       } else {   // (v152) an enemy he sees - on foot, or a vehicle with enemies in it: an eye over him (drawn after all the markers)
         const en = p.vehicle ? riders.has(p.name) && riders.get(p.name) !== teamOf(selView?.who ?? sel, t) : seenEn;
         if (en && !wreck) eyeOn.set(i, [px, py - (p.vehicle ? Math.max(14, (vr || 12)) + 12 : 28)]);
       }
     }
     // health bar under a hurt soldier or a damaged vehicle
-    if (opts.medic && !q.veh && q.hp !== null && q.hp < 99.5 && !wreck) {
+    if ((p.vehicle ? opts.vhp : opts.hp) && !q.veh && q.hp !== null && q.hp < 99.5 && !wreck) {
       const w = p.vehicle ? 22 : 24, f = Math.max(0, Math.min(1, q.hp / 100)), yb = py + (p.vehicle ? Math.max(12, (vr || 0) * 0.75) : 13);
       cx.fillStyle = css('--bg'); cx.globalAlpha = 0.75 * ca; cx.fillRect(px - w/2 - 1, yb, w + 2, 5); cx.globalAlpha = ca;
       // (v152, Sagara: "низьке здоровʼя ... щоб health bar блимає"): a quarter or less - the amber bar blinks, not red
       const low = f <= 0.25, on = !low || hpBlink();
       cx.fillStyle = f > 0.5 ? css('--medic') : css('--accent'); cx.globalAlpha = ca * (on ? 1 : 0.18); cx.fillRect(px - w/2, yb + 1, Math.max(1, w * f), 3); cx.globalAlpha = 1;
     }
-    const lk = p.vehicle ? 'veh' : q.veh ? 'crew' : 'foot';   // (Names ▾: which kind of name this is)
+    const lk = p.vehicle ? 'veh' : q.veh ? 'crew' : 'foot';   // (Map ▾: which kind of name this is)
     if ((opts.lab[lk] || sel===i) && !(p.vehicle && occupied.has(p.name) && opts.lab.crew) && !(opts.lab.foot && inCrowd.has(i))) {   // (in a closed crowd: its names stacked beside it, below)
       // the kit's tool goes after the name at every zoom
-      const kit = !p.vehicle ? kitNow(p, t) : null;   // (also in a vehicle: after his line by it, smaller)
+      const kit = !p.vehicle && opts.kit ? kitNow(p, t) : null;   // (also in a vehicle: after his line by it, smaller)
       cx.font = '500 10px ' + css('--font-data'); cx.fillStyle = wreck ? css('--muted') : css('--fg'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
       const big = !p.vehicle && !inIcon, rv = (inIcon ? vehRad.get(q.veh) : vr) || 0; let lx = px + (big ? 14 : Math.max(11, rv * 0.85)), ly = py - (big ? 11 : 8);
       if (inIcon) { const k = seated.get(q.veh) || 0; seated.set(q.veh, k + 1); ly = py - 8 + k * 13; }
@@ -5144,7 +5151,7 @@ function draw() {
   // stacked discs, then a dot in each side's colour with its count. The pointer over a crowd fans it out
   for (const { m: G, box } of crowds) {
     if (opts.lab.foot) {
-      const L = G.map(i => { const q = playerAt(i, t), [, y] = toC(q.x, q.y); return { i, y, p: round.players[i], kit: kitNow(round.players[i], t) }; }).sort((a2, b2) => a2.y - b2.y || teamOf(a2.i, t) - teamOf(b2.i, t));
+      const L = G.map(i => { const q = playerAt(i, t), [, y] = toC(q.x, q.y); return { i, y, p: round.players[i], kit: opts.kit ? kitNow(round.players[i], t) : null }; }).sort((a2, b2) => a2.y - b2.y || teamOf(a2.i, t) - teamOf(b2.i, t));
       cx.font = '500 10px ' + css('--font-data'); const LH = 15, KB = 15;
       const ws = L.map(o => 9 + mlWidth(o.p.name) + (o.kit ? 3 + KB : 0)), Wm = Math.max(...ws);
       let x = box[2] + 13; if (x + Wm > size - 4 && box[0] - 13 - Wm >= 4) x = box[0] - 13 - Wm;
@@ -5198,6 +5205,7 @@ function draw() {
           cx.globalAlpha = 1; cx.setLineDash([]); cx.lineCap = 'butt';
         }
       }
+      if (!opts.aimMark) continue;   // (v239: Map ▾ Crosshair off - the line alone)
       if (hitP) {   // whom it is on: a crosshair ring round him (ticks up, down and to the sides), his side's colour inside it
         const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t));
         const [tx, ty0] = o.vehicle ? toC(playerAt(al.j, t).x, playerAt(al.j, t).y) : spread.get(al.j) || toC(playerAt(al.j, t).x, playerAt(al.j, t).y), ty = ty0 - (o.vehicle ? 0 : lifted.get(al.j) || 0);   // (v179: lifted - round his marker)
@@ -5219,10 +5227,10 @@ function draw() {
       }
     }
   }
-  for (const [, [ex, ey]] of eyeOn) drawEye(ex, ey, 1);   // (the eyes over the enemies he sees: over his crosshair's ticks)
+  if (opts.seen) for (const [, [ex, ey]] of eyeOn) drawEye(ex, ey, 1);   // (the eyes over the enemies he sees: over his crosshair's ticks)
   // what the followed soldier holds: its picture (the game's kill icon) and name on a dark plate under him, edged in the
   // accent colour - brighter for a second after he switches to it; over everything else, his aim line too
-  if (selHand) {
+  if (selHand && opts.hands) {
     const { px, py, w } = selHand;
     const key = w.wid && GAME.icons['w' + w.wid] ? 'w' + w.wid : null, H = 22, yb = py + 35, IH = 15;
     cx.font = '600 11px ' + css('--font-data'); const tw = cx.measureText(w.name).width;
@@ -5238,7 +5246,7 @@ function draw() {
   if (opts.blasts) {
     const pm = m => m / view.span * size, colOf = by => { const i = by == null ? undefined : round.pidx.get(by); return i === undefined ? css('--accent') : teamColor(teamOf(i, t)); };
     const tag = (txt, x, y, col) => { cx.font = '500 10px ' + css('--font-data'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(txt, x, y); cx.fillStyle = col; cx.fillText(txt, x, y); };
-    const labels = opts.lab.dist && (sel !== null || view.span <= 500);   // (distances and weapon names only zoomed in or following someone; Names ▾)
+    const labels = opts.lab.dist && (sel !== null || view.span <= 500);   // (distances and weapon names only zoomed in or following someone; Map ▾)
     // a blast where it went off, over dur s: a white-hot flash, a fire ball growing to the blast radius R and fading, and
     // (Rk) a deeper red core where it kills a soldier with full health; fan: [facing, half angle] (claymore). (v148,
     // Sagara: no dashed circles round explosions - grenades', artillery's, any: the explosion alone)
@@ -5344,7 +5352,7 @@ function draw() {
   }
   // +1 next to the killer for 3 s after a kill (+2, +3 ... when kills follow within 3 s of each other); TK for a team kill,
   // HS when one of them was a headshot
-  if (opts.kills) {
+  if (opts.killTags) {
     const recent = new Map();
     for (const e of round.events) {
       if (e.t > t) break; if (e.type !== 'kill' || e.killer === e.victim) continue;
@@ -5422,7 +5430,7 @@ function draw() {
   }
   // (v134) the commander's UAV while it is up: where it flies (its track every 0.5 s), its last 6 s as a trail, in its
   // team's colour - the enemies under it are on that team's minimap meanwhile
-  for (const u of round.raw?.uavs || []) {
+  if (opts.uav) for (const u of round.raw?.uavs || []) {
     if (t < u.t0 || t > u.t1 || !u.path.length || (POV && u.team !== POV.tm)) continue;
     const P = u.path; let k = 1; while (k < P.length - 1 && P[k][0] < t) k++;
     const a = P[k - 1] || P[0], b = P[k] || a, f = b[0] > a[0] ? Math.max(0, Math.min(1, (t - a[0]) / (b[0] - a[0]))) : 0;
@@ -5435,7 +5443,7 @@ function draw() {
   }
   // (v170) the commander's supply crates: from where it lands until it breaks or empties (its hit points: how much is
   // left), a box with the ammo sign and a ring of its 5 m reach
-  for (const c of round.raw?.crates || []) {
+  if (opts.crates) for (const c of round.raw?.crates || []) {
     if (t < c.t1 || t > c.until || (POV && !povSeesPoint(c.x, c.y, null, t, 15))) continue;
     const [px, py] = toC(c.x, c.y), rr = 5 * size / view.span, hp = c.hp ? seriesAt(c.hp, t)?.[1] ?? 100 : 100;
     cx.globalAlpha = 0.5; cx.strokeStyle = css('--accent'); cx.lineWidth = 1.2; cx.setLineDash([3, 3]); cx.beginPath(); cx.arc(px, py, Math.max(rr, 6), 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
@@ -5443,7 +5451,7 @@ function draw() {
     if (view.span < 400) { const lb = 'Supply crate' + (hp < 100 ? ' · ' + Math.max(0, Math.round(hp)) + '%' : ''); cx.font = '700 10px ' + css('--font-data'); cx.lineWidth = 3; cx.strokeStyle = css('--bg'); cx.strokeText(lb, px + 10, py + 4); cx.fillStyle = css('--accent'); cx.fillText(lb, px + 10, py + 4); }
   }
   // (v170) where each commander's overhead (satellite) camera looks - its middle, while it moved in the last 20 s
-  for (const c of round.raw?.cams || []) {
+  if (opts.cmdCam) for (const c of round.raw?.cams || []) {
     if (POV && c.team !== POV.tm) continue;
     const P = c.path; let k = -1; for (let j = 0; j < P.length && P[j][0] <= t; j++) k = j; if (k < 0 || t - P[k][0] > 20) continue;
     const [px, py] = toC(P[k][1], P[k][2]), col = teamColor(c.team);
@@ -5771,7 +5779,7 @@ $('#lb').addEventListener('click', e => { const tr = e.target.closest('tr[data-i
 [$('#feed'), $('#selInfo')].forEach(el => el.addEventListener('click', ev => { const b = ev.target.closest('.gvb'); if (!b || !round) return; const e = round.events[+b.dataset.g]; if (e) gameVideoFor(e.killer, e.t, e); }));   // (v229)
 // first or third person for the view from a vehicle seat: the card's View row, the 1st / 3rd switch on the map (shown
 // while the view of a seat with a third-person camera is drawn), the C key (the game's own camera key)
-function setCam3(v) { opts.cam3 = !!v; try { localStorage.setItem('bf2rr.vcam', opts.cam3 ? '3' : '1'); } catch (e) {} refresh(true); }
+function setCam3(v) { mcSet('cam3', v ? '3' : '1'); }
 $('#selInfo').addEventListener('click', ev => { const b = ev.target.closest('[data-cam]'); if (!b) return; setCam3(b.dataset.cam === '3'); });
 document.querySelectorAll('.qC1').forEach(b => b.onclick = () => setCam3(false)); document.querySelectorAll('.qC3').forEach(b => b.onclick = () => setCam3(true));
 let camOn = false;
@@ -5904,7 +5912,7 @@ for (const b of document.querySelectorAll('.vpov')) b.onclick = () => povSet(!po
 povSync();
 // (v230, Sagara: "Зроби на 2д мапі лінію прицілювання видимою жовтою лінією, кнопка якої буде доступна при виборі солдата і
 // знаходитися біля his view") the aim line's button on the map, next to His view: on / off as the card's Aim line, X and
-// Filters ▾ (one setting, remembered); usable while a soldier or a vehicle is followed - without, a click says so
+// Map ▾ (one setting, remembered); usable while a soldier or a vehicle is followed - without, a click says so
 function aimSync() {
   const veh = !!(sel !== null && round && round.players[sel]?.vehicle), k = opts.aimLn + '|' + (sel !== null) + '|' + veh; if (k === aimKey) return; aimKey = k;
   for (const b of document.querySelectorAll('.vaim')) {
@@ -7784,7 +7792,7 @@ function renderTab(force) {
 // flag in the ScoreManager), the time left by the server's time limit (else the time played)
 function renderTop() {
   const box = $('#topBar'); if (!box) return;
-  if (!round || round.meta.source !== 'demo' || !round.TK) { box.hidden = true; return; }
+  if (!round || round.meta.source !== 'demo' || !round.TK || !opts.topbar) { box.hidden = true; return; }   // (v239: Map ▾ Top bar)
   const [fa] = frameAt(t), tk = [round.TK[fa * 2], round.TK[fa * 2 + 1]], bl = round.raw?.bleed, lim = round.meta.settings?.timeLimit;
   if (!(tk[0] > 0 || tk[1] > 0)) { box.hidden = true; return; }
   if (opts.gameHud && hudReady()) { box.hidden = false; drawGameTop(box, tk, bl, lim); return; }   // (v142) as in the game
@@ -9070,37 +9078,18 @@ $('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 
 $('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-const toggles = { tFeed:'feed', tKills:'kills', tSpots:'spots', tMedic:'medic', tBodies:'bodies', tStatic:'statics', tBlast:'blasts', tFire:'fire', tSpawnG:'spawns', tOrders:'orders', tView:'view', tWalls:'walls', tLift:'lift', tRelief:'relief', tFront:'front', tAhead:'ahead', tLegend:'legend' };
-Object.entries(toggles).forEach(([id,k]) => $('#'+id).onclick = () => { opts[k] = !opts[k]; $('#'+id).classList.toggle('on', opts[k]); if (k === 'relief') { try { localStorage.setItem('bf2rr.relief', opts.relief ? '1' : '0'); } catch (e) {} hTipShow(); } if (k === 'front') { try { localStorage.setItem('bf2rr.front', opts.front ? '1' : '0'); } catch (e) {} } if (k === 'legend' || k === 'bodies') { try { localStorage.setItem('bf2rr.' + k, opts[k] ? '1' : '0'); } catch (e) {} } if (k === 'ahead') { if (aheadOnly.size) opts.ahead = true; aheadAll(opts.ahead); return; } refresh(true); });
-$('#tRelief').classList.toggle('on', opts.relief); $('#tFront').classList.toggle('on', opts.front);
-$('#tAimLn').onclick = () => aimLnSet(!opts.aimLn);   // (v201)
-// (v155) the relief's parts: turning one on turns the relief on too
-function relSub() { for (const [id, k] of [['tRelShade', 'relShade'], ['tRelAbove', 'relAbove']]) { const b = $('#' + id); b.classList.toggle('on', !!opts[k]); b.classList.toggle('dim', !opts.relief); b.setAttribute('aria-pressed', String(!!opts[k])); } }
-for (const [id, k, key] of [['tRelShade', 'relShade', 'bf2rr.relShade'], ['tRelAbove', 'relAbove', 'bf2rr.relAbove']]) $('#' + id).onclick = () => {
-  opts[k] = !opts[k]; try { localStorage.setItem(key, opts[k] ? '1' : '0'); } catch (e) {}
-  if (opts[k] && !opts.relief) $('#tRelief').click(); else { relSub(); refresh(true); }
-};
-relSub(); $('#tAhead').classList.toggle('on', opts.ahead); $('#tLegend').classList.toggle('on', opts.legend); $('#tBodies').classList.toggle('on', opts.bodies);
-// (v181) the sounds in his view: remembered
+// (v181) the sounds in his view, the aim line: as the earlier pages kept them (Map ▾ keeps everything since v239)
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
-$('#tAimLn').classList.toggle('on', !!opts.aimLn); $('#tAimLn').setAttribute('aria-pressed', String(!!opts.aimLn));
 $('#feedFold').onclick = e => { e.stopPropagation(); feedFold(!feedMin); }; feedFoldShow();   // (v188)
 $('#fcFold').onclick = () => fcFold(!fcMin); $('#fcStrip').onclick = () => fcFold(false); fcFoldShow();   // (v189; v191: the upright strip)
-{ const tb = $('#tSound'); tb.classList.toggle('on', opts.sound); tb.setAttribute('aria-pressed', String(opts.sound)); tb.onclick = () => sndSet(!opts.sound); }
-// how far ahead (the slider under "Next N s"): moving it turns the layer on
-const aheadShow = () => { $('#aheadT').value = aheadT; $('#aheadV').textContent = aheadT + ' s'; $('#aheadN').textContent = aheadT; aheadKey = ''; aheadSync(); };
-$('#aheadT').addEventListener('input', () => {
-  aheadT = Math.max(1, Math.min(30, Math.round(+$('#aheadT').value) || 20)); try { localStorage.setItem('bf2rr.aheadT', String(aheadT)); } catch (e) {}
-  if (!opts.ahead) { opts.ahead = true; $('#tAhead').classList.toggle('on', true); try { localStorage.setItem('bf2rr.ahead', '1'); } catch (e) {} layCount(); }
-  aheadShow(); refresh(true);
-});
-aheadShow();
+// how far ahead (the slider under "Next N s" in Map ▾): moving it turns the paths on
+const aheadShow = () => { const a = $('#aheadT'), v = $('#aheadV'), n = $('#aheadN'); if (a) a.value = aheadT; if (v) v.textContent = aheadT + ' s'; if (n) n.textContent = aheadT; aheadKey = ''; aheadSync(); };
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 // ---------- the legend (v152, Sagara: "додамо легенду і в фільтрах можливість її вимикати") ----------
 // A box on the map under its top bar (in full screen too): each mark the map draws and what it means, drawn by the same
 // code as on the map - on a small canvas each, cx swapped to it as for a clip - and only those of the layers switched
-// on. Filters ▾ Legend turns it off, its header folds it (both remembered in this browser; folded at first on a phone).
+// on. Map ▾ Legend turns it off, its header folds it (both remembered in this browser; folded at first on a phone).
 const LG_W = 32, LG_H = 22;
 // a soldier as the map draws him (the game's mark, or the disc with its figure), facing up, at (x, y) in the icon
 const lgSol = (x, y, col, k = 0.8) => {
@@ -9120,36 +9109,36 @@ const LEGEND = [
   [null, () => `${tmName(0)} · ${tmName(1)}`, 'The two sides, in their colours', () => { lgSol(-9, 1, teamColor(0)); lgSol(9, 1, teamColor(1)); }],
   ['gameSol', () => 'His squad', 'The squad of the soldier you follow, in green', () => lgSol(0, 1, SQUAD_GREEN)],
   [null, () => 'Followed', 'The soldier you follow (click one on the map or in the lists)', () => { lgSol(0, 1, teamColor(0), 0.55); cx.scale(0.62, 0.62); lgRing(17, '#000', 'rgba(255,255,255,.8)', 2.4); }],
-  [null, () => 'Aiming (sights)', 'A white dot at his nose: looking down the sights (zoomed in), not firing from the hip', () => { cx.translate(0, 5); lgSol(0, 0, teamColor(0), 0.55); cx.scale(0.62, 0.62); drawZoomDot(0, 0, 0); }],
-  [null, () => 'Crosshair on him', 'Where the followed soldier\'s crosshair is: on somebody or a vehicle (with how far)', () => {
+  ['zoomDot', () => 'Aiming (sights)', 'A white dot at his nose: looking down the sights (zoomed in), not firing from the hip', () => { cx.translate(0, 5); lgSol(0, 0, teamColor(0), 0.55); cx.scale(0.62, 0.62); drawZoomDot(0, 0, 0); }],
+  ['aimMark', () => 'Crosshair on him', 'Where the followed soldier\'s crosshair is: on somebody or a vehicle (with how far)', () => {
     cx.scale(0.5, 0.5); lgSol(0, 0, teamColor(1), 1); const r = 15, tk = 7, ac = css('--aim');
     cx.beginPath(); cx.arc(0, 0, r, 0, Math.PI * 2); for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2, c = Math.cos(a), n = Math.sin(a); cx.moveTo(c * (r - 3), n * (r - 3)); cx.lineTo(c * (r + tk), n * (r + tk)); }
     cx.lineCap = 'round'; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.lineWidth = 7; cx.stroke(); cx.strokeStyle = ac; cx.lineWidth = 3.4; cx.stroke(); cx.lineCap = 'butt';
     cx.beginPath(); cx.arc(0, 0, r - 3.2, 0, Math.PI * 2); cx.strokeStyle = teamColor(1); cx.lineWidth = 1.8; cx.stroke(); }],
-  [null, () => 'Crosshair: wall', 'Where the followed soldier\'s crosshair meets a wall, a roof, the ground or the sea (with how far)', () => {
+  ['aimMark', () => 'Crosshair: wall', 'Where the followed soldier\'s crosshair meets a wall, a roof, the ground or the sea (with how far)', () => {
     const k = 8; cx.beginPath(); cx.moveTo(-k, 0); cx.lineTo(k, 0); cx.moveTo(0, -k); cx.lineTo(0, k); cx.moveTo(k * 0.62, 0); cx.arc(0, 0, k * 0.62, 0, Math.PI * 2);
     cx.lineCap = 'round'; cx.lineWidth = 6; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 2.8; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
   ['aimLn', () => 'Aim line', 'From the followed soldier to where his crosshair meets something; dashed: into the sky, to the fog limit (Aim line on the map by His view, in his card, X)', () => {
     cx.beginPath(); cx.moveTo(-10, 5); cx.lineTo(10, -5); cx.lineCap = 'round'; cx.lineWidth = 6; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 3; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
-  [null, () => 'He sees him', 'Over an enemy the followed soldier sees: in his field of view with nothing in between', () => drawEye(0, 0, 1.1)],
-  [null, () => 'Behind cover', 'In the followed soldier\'s field of view, but hidden by a wall, a hill, smoke, bushes or the fog (past the fog line, with no sky behind him)', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--muted'); cx.lineWidth = 2.2; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); }],
-  ['view', () => 'Fog line', 'Across the followed soldier\'s field of view: past it the map\'s fog leaves nothing of a man - he shows only against the sky (Karkand 99.5 m, Mashtuur 155, Songhua 204 ...); the field of view fades as the fog does', () => {
+  ['seen', () => 'He sees him', 'Over an enemy the followed soldier sees: in his field of view with nothing in between', () => drawEye(0, 0, 1.1)],
+  ['cover', () => 'Behind cover', 'In the followed soldier\'s field of view, but hidden by a wall, a hill, smoke, bushes or the fog (past the fog line, with no sky behind him)', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--muted'); cx.lineWidth = 2.2; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); }],
+  ['fogLine', () => 'Fog line', 'Across the followed soldier\'s field of view: past it the map\'s fog leaves nothing of a man - he shows only against the sky (Karkand 99.5 m, Mashtuur 155, Songhua 204 ...); the field of view fades as the fog does', () => {
     cx.beginPath(); cx.arc(0, 14, 20, -Math.PI / 2 - 0.75, -Math.PI / 2 + 0.75); cx.setLineDash([4, 3]); cx.strokeStyle = teamColor(0); cx.lineWidth = 2; cx.stroke(); cx.setLineDash([]); }],
   ['spots', () => 'Spotted', 'Spotted by the other side (the game\'s Q): until the spot runs out; the tag over it says who spotted', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); spotCorners(0, 0, 17); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 5; cx.stroke(); cx.strokeStyle = css('--spot'); cx.lineWidth = 2.6; cx.stroke(); }],
   ['spots', () => 'Spotted place', 'A spot with nobody under the crosshair: the game\'s question mark on the place', () => {
     cx.scale(0.8, 0.8); spotCorners(0, 0, 12); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 5; cx.stroke(); cx.strokeStyle = css('--spot'); cx.lineWidth = 2.6; cx.stroke();
     cx.font = '800 18px ' + css('--font-body'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeStyle = 'rgba(0,0,0,.85)'; cx.lineWidth = 4; cx.lineJoin = 'round'; cx.strokeText('?', 0, 1); cx.fillStyle = css('--spot'); cx.fillText('?', 0, 1); }],
-  ['medic', () => 'Health', 'A health bar under a hurt soldier or a damaged vehicle: green, amber at half or less', () => { lgBar(-5, 0.8, css('--medic')); lgBar(3, 0.4, css('--accent')); }],
-  ['medic', () => 'Low health', 'The bar blinks at a quarter of his health or less', () => lgBar(-1, 0.2, css('--accent')), true],
-  ['medic', () => 'Down', 'Wounded: a medic can still revive him until the ring in his side\'s colour runs out', () => {
+  ['hp', () => 'Health', 'A health bar under a hurt soldier or a damaged vehicle: green, amber at half or less', () => { lgBar(-5, 0.8, css('--medic')); lgBar(3, 0.4, css('--accent')); }],
+  ['hp', () => 'Low health', 'The bar blinks at a quarter of his health or less', () => lgBar(-1, 0.2, css('--accent')), true],
+  ['down', () => 'Down', 'Wounded: a medic can still revive him until the ring in his side\'s colour runs out', () => {
     cx.scale(0.85, 0.85); cx.strokeStyle = teamColor(0); cx.lineWidth = 2; cx.globalAlpha = 0.3; cx.beginPath(); cx.arc(0, 0, 13, 0, Math.PI * 2); cx.stroke();
     cx.globalAlpha = 1; cx.lineWidth = 3; cx.beginPath(); cx.arc(0, 0, 13, -Math.PI / 2, Math.PI); cx.stroke(); downMark(0, 0, 8.5); }],
   ['bodies', () => 'Body', 'Where one who died lies, head this way, until the game uses his soldier again for a spawn or a medic revives him (Bodies)', () => drawBody(-2, 5, Math.PI / 4, 0.48, deadCol(teamColor(0)), 1, 24)],
-  [null, () => 'Killed', 'Where one died (for 10 s)', () => {
+  ['deaths', () => 'Killed', 'Where one died (for 10 s)', () => {
     cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(-4.5, -4.5); cx.lineTo(4.5, 4.5); cx.moveTo(4.5, -4.5); cx.lineTo(-4.5, 4.5);
     cx.strokeStyle = 'rgba(235,235,225,.75)'; cx.lineWidth = 4; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.95)'; cx.lineWidth = 2; cx.stroke(); cx.lineCap = 'butt'; }],
-  ['kills', () => 'Team kill', 'By a soldier who killed one of his own side', () => { cx.font = '700 11px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.lineJoin = 'round'; cx.strokeText('TK', 0, 0.5); cx.fillStyle = css('--tk'); cx.fillText('TK', 0, 0.5); }],
-  [null, () => 'Out of bounds', 'Outside the combat area: OUT and the seconds he has left to get back', () => { lgSol(0, 1, teamColor(0), 0.5); cx.scale(0.55, 0.55); cx.beginPath(); cx.arc(0, 0, 21, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--outside'); cx.lineWidth = 2.6; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]); }],
+  ['killTags', () => 'Team kill', 'By a soldier who killed one of his own side', () => { cx.font = '700 11px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.lineJoin = 'round'; cx.strokeText('TK', 0, 0.5); cx.fillStyle = css('--tk'); cx.fillText('TK', 0, 0.5); }],
+  ['oob', () => 'Out of bounds', 'Outside the combat area: OUT and the seconds he has left to get back', () => { lgSol(0, 1, teamColor(0), 0.5); cx.scale(0.55, 0.55); cx.beginPath(); cx.arc(0, 0, 21, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--outside'); cx.lineWidth = 2.6; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]); }],
   ['lift', () => 'Up high', 'On a roof, an upper floor, a tower, a bridge or a deck - 2 m or more over the ground: raised over his shadow, a line down to it (12 m or more: the height by the shadow)', () => {
     cx.fillStyle = 'rgba(0,0,0,.5)'; cx.beginPath(); cx.ellipse(0, 8, 5, 2.6, 0, 0, Math.PI * 2); cx.fill();
     cx.lineCap = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(0, 8); cx.lineTo(0, -2); cx.stroke(); cx.strokeStyle = teamColor(0); cx.lineWidth = 1.4; cx.stroke(); cx.lineCap = 'butt';
@@ -9171,8 +9160,8 @@ function legend() {
   const box = $('#mLegend'), on = !!(round && opts.legend);
   box.hidden = !on; if (!on) return;
   const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
-  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() : k === 'sound' ? povOn() && opts.sound : opts[k])), d = (window.devicePixelRatio || 1) * lk;
-  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), opts.gameSol, opts.models, opts.lift, opts.sound, opts.aimLn, opts.spots, opts.medic, opts.kills, opts.blasts, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
+  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() && opts.lastSeen : k === 'sound' ? povOn() && opts.sound : k === 'fogLine' ? opts.view && opts.fogLine : opts[k])), d = (window.devicePixelRatio || 1) * lk;
+  const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), L.map(x => x[1]()).join(','), opts.gameSol, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
     const cx0 = cx;
@@ -9206,13 +9195,7 @@ function lgFit() {
   h.onclick = () => { const o = h.getAttribute('aria-expanded') !== 'true'; h.setAttribute('aria-expanded', String(o)); try { localStorage.setItem('bf2rr.legendOpen', o ? '1' : '0'); } catch (e) {} lgFit(); };
   new ResizeObserver(() => requestAnimationFrame(() => { if (round) legend(); })).observe(mapbox);
 }
-function layCount() {
-  relSub();
-  let n = 0; for (const [id, k] of Object.entries(toggles)) { const b = $('#' + id); b.setAttribute('aria-pressed', String(!!opts[k])); if (opts[k]) n++; }
-  document.querySelectorAll('.qwall').forEach(b => b.setAttribute('aria-pressed', String(!!opts.walls)));
-  document.querySelectorAll('.qrel').forEach(b => b.setAttribute('aria-pressed', String(!!opts.relief)));
-  $('#layN').textContent = n + '/' + Object.keys(toggles).length; for (const b of document.querySelectorAll('.layN2')) b.textContent = $('#layN').textContent;
-}
+function layCount() { if (MC_READY) mcSync(); }
 const popToggle = (btn, box, on) => {
   box.hidden = !on; btn.setAttribute('aria-expanded', String(on));
   // (kept inside the screen: on a phone the menu opened past its right edge)
@@ -9226,9 +9209,11 @@ function layOpen(btn, on) {
   if (on && box.parentElement !== btn.parentElement) btn.parentElement.appendChild(box);
   for (const b of [$('#layBtn'), $('#mLayBtn')]) b.setAttribute('aria-expanded', String(on && b === btn));
   const inMap = btn.closest('#mapbox');
-  box.hidden = !on; box.classList.remove('up'); box.style.transform = ''; box.style.maxHeight = '';
+  box.hidden = !on; box.classList.remove('up'); box.style.transform = ''; box.style.maxHeight = ''; box.style.maxWidth = '';
   if (!on) return;
   const br = btn.getBoundingClientRect(), mr = inMap ? inMap.getBoundingClientRect() : null;
+  if (mr) box.style.maxWidth = Math.floor(mr.width - 16) + 'px';   // (v239: Map ▾ is wide - kept inside the map)
+  else box.style.maxHeight = Math.max(320, Math.floor(innerHeight - br.bottom - 20)) + 'px';   // (v239: under the map - within the window, scrolling)
   if (inMap) {   // (upwards unless there is more room below it - on a phone the map above the buttons is short)
     const above = br.top - mr.top - 12, below = mr.bottom - br.bottom - 12, up = above >= box.scrollHeight || above >= below;
     box.classList.toggle('up', up); box.style.maxHeight = Math.max(140, Math.floor(up ? above : below)) + 'px';
@@ -9237,68 +9222,17 @@ function layOpen(btn, on) {
   const dx = r.right > hi ? hi - r.right : r.left < lo ? lo - r.left : 0; if (dx) box.style.transform = `translateX(${Math.round(Math.max(dx, lo - r.left))}px)`;
 }
 const layWho = () => $('#mLayBtn').getAttribute('aria-expanded') === 'true' ? $('#mLayBtn') : $('#layBtn');
-for (const id of ['#layBtn', '#mLayBtn']) $(id).onclick = e => { e.stopPropagation(); popToggle($('#namBtn'), $('#namMenu'), false); const b = $(id); layOpen(b, $('#layMenu').hidden || layWho() !== b); };
-// Names ▾: a box per kind of name (LABELS), All / None; how many are on by the button
-$('#namList').innerHTML = LABELS.map(([k, nm, tip]) => `<button class="btn" type="button" data-lab="${k}" title="${esc(tip)}">${esc(nm)}</button>`).join('');
-function labSync() {
-  let n = 0; for (const b of document.querySelectorAll('#namList [data-lab]')) { const on = !!opts.lab[b.dataset.lab]; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); if (on) n++; }
-  $('#namN').textContent = n + '/' + LABELS.length;
-  try { localStorage.setItem('bf2rr.labels', JSON.stringify(opts.lab)); } catch (e) {}
-}
-$('#namMenu').addEventListener('click', e => {
-  const b = e.target.closest('[data-lab], [data-laball]'); if (!b) return;
-  if (b.dataset.lab) opts.lab[b.dataset.lab] = !opts.lab[b.dataset.lab]; else for (const [k] of LABELS) opts.lab[k] = b.dataset.laball === '1';
-  labSync(); if (round) refresh(true);
-});
-$('#namBtn').onclick = e => { e.stopPropagation(); layOpen(layWho(), false); popToggle($('#namBtn'), $('#namMenu'), $('#namMenu').hidden); };
-document.addEventListener('click', e => { if (!$('#namMenu').hidden && !e.target.closest('#namMenu, #namBtn')) popToggle($('#namBtn'), $('#namMenu'), false); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#namMenu').hidden) { popToggle($('#namBtn'), $('#namMenu'), false); $('#namBtn').focus(); } });
-labSync();
+for (const id of ['#layBtn', '#mLayBtn']) $(id).onclick = e => { e.stopPropagation(); const b = $(id); layOpen(b, $('#layMenu').hidden || layWho() !== b); };
 $('#kbBtn').onclick = () => popToggle($('#kbBtn'), $('#kbHelp'), $('#kbHelp').hidden);
 document.addEventListener('click', e => { if (!$('#layMenu').hidden && !e.target.closest('#layMenu, #layBtn, #mLayBtn')) layOpen(layWho(), false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layMenu').hidden) { const b = layWho(); layOpen(b, false); b.focus(); } });
-layCount();
 // vehicles as icons or as models (Layers menu, or M); remembered in this browser
-function setHudView(game) {
-  opts.gameHud = !!game;
-  $('#hdGame').setAttribute('aria-checked', String(opts.gameHud)); $('#hdPage').setAttribute('aria-checked', String(!opts.gameHud));
-  try { localStorage.setItem('bf2rr.hud', opts.gameHud ? 'game' : 'page'); } catch (e) {}
-  if (round) { tabT = -1; lastPanel = -1; refresh(true); }
-}
-function setSolView(game) {
-  opts.gameSol = !!game;
-  $('#swGame').setAttribute('aria-checked', String(opts.gameSol)); $('#swFig').setAttribute('aria-checked', String(!opts.gameSol));
-  try { localStorage.setItem('bf2rr.soldiers', opts.gameSol ? 'game' : 'figures'); } catch (e) {}
-  if (round) refresh(true);
-}
-function setVehView(models) {
-  opts.models = !!models;
-  $('#vwIcons').setAttribute('aria-checked', String(!opts.models)); $('#vwModels').setAttribute('aria-checked', String(opts.models));
-  document.querySelectorAll('.qI').forEach(b => b.setAttribute('aria-checked', String(!opts.models))); document.querySelectorAll('.qM').forEach(b => b.setAttribute('aria-checked', String(opts.models)));
-  try { localStorage.setItem('bf2rr.vehicles', opts.models ? 'models' : 'icons'); } catch (e) {}
-  if (round) refresh(true);
-}
-$('#vwIcons').onclick = () => setVehView(false); $('#vwModels').onclick = () => setVehView(true);
-$('#swGame').onclick = () => setSolView(true); $('#swFig').onclick = () => setSolView(false); setSolView(opts.gameSol);
-$('#hdGame').onclick = () => setHudView(true); $('#hdPage').onclick = () => setHudView(false); setHudView(opts.gameHud);
-// (v158) the pointer's tag: Off / Height / Grid (Filters ▾ Cursor, or G round them)
-function setCursor(v) {
-  opts.cursor = v === 'height' || v === 'grid' ? v : 'off';
-  for (const [id, k] of [['cuOff', 'off'], ['cuH', 'height'], ['cuXY', 'grid']]) $('#' + id).setAttribute('aria-checked', String(opts.cursor === k));
-  try { localStorage.setItem('bf2rr.cursor', opts.cursor); } catch (e) {}
-  hTipShow();
-}
-$('#cuOff').onclick = () => setCursor('off'); $('#cuH').onclick = () => setCursor('height'); $('#cuXY').onclick = () => setCursor('grid'); setCursor(opts.cursor);
-document.querySelectorAll('.qI').forEach(b => b.onclick = () => setVehView(false)); document.querySelectorAll('.qM').forEach(b => b.onclick = () => setVehView(true));
+// (v239) the scoreboard's and text's look, the soldiers' and vehicles' marks, the cursor: Map ▾'s choices (M, G)
+function setHudView(game) { mcSet('hud', game ? 'game' : 'page'); }
+function setSolView(game) { mcSet('solMark', game ? 'game' : 'fig'); }
+function setVehView(models) { mcSet('vehMark', models ? 'models' : 'icons'); }
+function setCursor(v) { mcSet('cursor', v === 'height' || v === 'grid' ? v : 'off'); }
 for (const seg of document.querySelectorAll('.qcam')) seg.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); setCam3(e.key === 'ArrowRight'); seg.querySelector('[aria-checked="true"]').focus(); } });
-// (arrows: the next choice in the row - v158: each row its own; before, every row's arrows switched the vehicles)
-for (const seg of document.querySelectorAll('.vwseg, .qseg:not(.qcam)')) seg.addEventListener('keydown', e => { if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; e.preventDefault(); e.stopPropagation(); const B = [...seg.querySelectorAll('[role=radio]')], k = B.findIndex(b => b.getAttribute('aria-checked') === 'true'), n = B[Math.max(0, Math.min(B.length - 1, k + (e.key === 'ArrowRight' ? 1 : -1)))]; if (n) { n.click(); n.focus(); } });
-// buildings' outlines from the map's own button (or B), the same as Layers ▾ > Buildings
-document.querySelectorAll('.qwall').forEach(b => b.onclick = () => $('#tWalls').click());
-document.querySelectorAll('.qrel').forEach(b => b.onclick = () => $('#tRelief').click());
-document.querySelectorAll('.qahd').forEach(b => { b.onclick = () => aheadAll(!opts.ahead); b.addEventListener('wheel', e => { e.preventDefault(); aheadBy(e.deltaY < 0 ? 1 : -1); }, { passive: false }); });
-document.querySelectorAll('.qahdst').forEach(b => b.onclick = e => aheadBy(+b.dataset.d * (e.shiftKey ? 5 : 1)));
-setVehView(opts.models);
 // Round stats / Weapons: the long lists show their top 8 until "Show all"
 const stMore = { wpn: false, hit: false };
 document.addEventListener('click', e => { const b = e.target.closest('[data-more]'); if (!b || !(b.dataset.more in stMore)) return; stMore[b.dataset.more] = !stMore[b.dataset.more]; renderStats(); });
@@ -9327,16 +9261,17 @@ document.addEventListener('keydown', e => {
   if ((e.code==='KeyN' || e.code==='KeyP') && !e.ctrlKey && !e.metaKey && !e.altKey) stepMoment(e.code==='KeyN' ? 1 : -1);
   if ((e.code==='KeyI' || e.code==='KeyO') && !e.ctrlKey && !e.metaKey && !e.altKey && round && can('clips')) clipMark(e.code==='KeyI' ? 'a' : 'b');
   if (e.code==='KeyM' && !e.ctrlKey && !e.metaKey && !e.altKey) setVehView(!opts.models);
-  if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tWalls').click();
+  if (e.code==='KeyB' && !e.ctrlKey && !e.metaKey && !e.altKey) mcToggle('walls', true);
   if (e.code==='KeyG' && !e.ctrlKey && !e.metaKey && !e.altKey) { setCursor({ off: 'height', height: 'grid', grid: 'off' }[opts.cursor]); toast('Cursor: ' + { off: 'nothing', height: 'height', grid: 'grid square and metres' }[opts.cursor]); }
   if (e.code==='KeyK' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); }
-  if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) $('#tRelief').click();
+  if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) mcToggle('relief', true);
+  if (e.code==='KeyT' && !e.ctrlKey && !e.metaKey && !e.altKey) mcToggle('nicks', true);   // (v238: players' names; v239: Map ▾ All players' names)
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
   if (e.code==='KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey && round) povSet(!pov);   // (v177: his view only)
   if (e.code==='KeyX' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aimLnSet(!opts.aimLn);   // (v185: the aim line)
   if (e.code==='KeyJ' && !e.ctrlKey && !e.metaKey && !e.altKey && round && opts.feed) feedFold(!feedMin);   // (v188: the kill feed folded)
-  if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; popToggle($('#namBtn'), $('#namMenu'), false); layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
+  if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
 // (v136) Tab held: the scoreboard (not while typing in a field)
 document.addEventListener('keydown', e => { if (e.key !== 'Tab' || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey || !round || e.target.closest('input, select, textarea, button, a, [role=radio], [role=tab]')) return; e.preventDefault(); if (!tabHold) { tabHold = true; renderTab(true); } });
@@ -9361,6 +9296,7 @@ function accApply() {
   const pa = $('#ptAdmin'); if (pa) pa.hidden = !!(acc && acc.in && !acc.admin);
   if (!can('players')) { const pp = $('#ptPlayers'); if (pp) pp.hidden = true; }
   admBtnSet();
+  if (MC_READY) mcProfile();   // (v239: Map ▾'s settings - his profile's, logged in)
 }
 // (v224) a round by its name from the admin server, for a visitor who may watch but not see the list: into the session
 async function refRound(want) {
@@ -9448,7 +9384,7 @@ function admLoginBind(f, done) {
       if (!j.ok) { m.textContent = j.error || 'Could not log in.'; P.focus(); return; }
       // (v224) the rights this login brings: the page again, at the same moment, when it may open more (or less) now
       const was = acc, me = await admApi('me').catch(() => null);
-      if (!me || !was || JSON.stringify(me.rights) !== JSON.stringify(was.rights) || me.admin !== was.admin) { m.textContent = 'Logged in.'; reloadHere(); return; }
+      if (!me || !was || JSON.stringify(me.rights) !== JSON.stringify(was.rights) || !!me.admin !== !!was.admin) { m.textContent = 'Logged in.'; reloadHere(); return; }   // (v239: !! - a guest's answer has no admin at all)
       acc = me; accApply(); m.textContent = '';
       if (me.admin) { await adminLoad(); if (!ADM.loaded) { m.textContent = 'Logged in, but the admins\' part did not come: try again in a moment.'; return; } }
       if (done) done();
@@ -9464,30 +9400,85 @@ function admBtnSet() {
   // (v224) one login for the site and the admins: "Log in"; logged in - his name (the owner: Admin)
   const on = !!(acc && acc.in), who = on ? (acc.owner ? "the site's owner" : acc.user) : '';
   b.textContent = on ? (acc.owner ? 'Admin ✓' : `${acc.user} ✓`) : 'Log in'; b.classList.toggle('on', on);
-  b.title = on ? `Logged in as ${who}` : 'Log in: the site\'s users and admins';
+  b.title = on ? `Logged in as ${who}` : `Log in: the site's users and admins${acc && acc.signup ? ' - or sign up: your map settings kept on any computer' : ''}`;
   if ($('#admDlg')?.open && !admLoading) admDlgDraw();
 }
+// (v239) the dialog's mode: '' (log in / who he is), 'signup', 'pw' (his password), 'del' (his account away)
+let admDlgMode = '';
+const admSignHtml = () => `<form class="admlogin" id="admSignForm" autocomplete="on">
+      <label>Name<input id="admSU" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="32" pattern="[A-Za-z0-9_.\\-]{2,32}" title="2-32 letters, digits, . _ -" required></label>
+      <label>Password<input id="admSP" name="new-password" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+      <label>Password again<input id="admSP2" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+      <label class="admhp" aria-hidden="true">Website<input id="admSW" name="website" tabindex="-1" autocomplete="off"></label>
+      <label class="admkeep"><input type="checkbox" name="keep"> Keep me logged in on this computer (30 days)</label>
+      <button class="btn primary" type="submit">Sign up</button><span class="admmsg" role="status" aria-live="polite"></span></form>`;
 function admDlgDraw() {
   const box = $('#admDlgBody'), on = !!(acc && acc.in), own = on && acc.owner, again = on && acc.admin && !acc.adm;
-  const roundOpen = !!round && round.meta?.source !== 'sim';
+  const roundOpen = !!round && round.meta?.source !== 'sim', mode = admDlgMode, signup = !on && !!(acc && acc.signup) && mode === 'signup';
   const RN = { view: 'rounds', list: 'the list', players: 'players and maps', records: 'records', stats: 'stats', demos: 'demos', clips: 'clips' };
   const may = on && !own ? Object.keys(RN).filter(k => acc.rights?.[k]).map(k => RN[k]) : [];
-  box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">${on ? 'Logged in' : 'Log in'}</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
+  const mine = on && !own && mode === 'pw' ? `<form class="admlogin" id="admPwForm" autocomplete="on"><input type="text" name="username" autocomplete="username" value="${esc(acc.user)}" hidden>
+      <label>The password now<input id="admPwOld" type="password" autocomplete="current-password" maxlength="200" required></label>
+      <label>A new password<input id="admPwNew" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+      <label>The new one again<input id="admPwNew2" type="password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+      <button class="btn primary" type="submit">Change the password</button><span class="admmsg" role="status" aria-live="polite"></span></form>`
+    : on && !own && mode === 'del' && acc.self ? `<p class="admwarnp">Your account goes for good, with your map settings and presets kept in it (this browser keeps its own copy).</p><form class="admlogin" id="admDelForm" autocomplete="off">
+      <label>Your password<input id="admDelPw" type="password" autocomplete="current-password" maxlength="200" required></label>
+      <button class="btn danger" type="submit">Delete my account</button><span class="admmsg" role="status" aria-live="polite"></span></form>` : '';
+  box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">${on ? 'Logged in' : signup ? 'Sign up' : 'Log in'}</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
     + (on ? `<p>Logged in as <b>${esc(own ? "the site's owner" : acc.user)}</b>${own ? '' : `${acc.admin ? ` <span class="w">· Admin tab: ${esc((acc.servers || []).join(', ') || 'no servers')}</span>` : ''}<br><span class="w">may open: ${esc(may.join(', ') || 'nothing more than guests')}</span>`}.</p>
+      <p class="w">What the map shows (Map ▾: its switches, pins and your presets) is kept in your profile - the same on any computer.</p>
       ${again ? `<p class="w">An admin's powers (the Admin tab${acc.pageCards ? ', the admin page' : ''}) last 12 hours from the login (2 without a step): the password again for them.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg', own ? '' : acc.user)}` : ''}
-      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${acc.admin && !again && ADM.htOpen ? '<button class="btn" type="button" id="admDlgHt">Hint thresholds</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
-      : `<p class="w">With the name and password you were given. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}`);
+      ${mine}
+      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${acc.admin && !again && ADM.htOpen ? '<button class="btn" type="button" id="admDlgHt">Hint thresholds</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}${!own && mode !== 'pw' ? '<button class="btn" type="button" data-dm="pw">Change password</button>' : ''}${!own && acc.self && mode !== 'del' ? '<button class="btn" type="button" data-dm="del">Delete my account</button>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
+      : signup ? `<p class="w">A new account may open what visitors may, and keeps what the map shows (Map ▾: its switches, pins, your presets) - the same on any computer. The site's owner can give it more.</p>${admSignHtml()}<p class="admswap w">Have an account? <button type="button" class="lnk" data-dm="">Log in</button></p>`
+      : `<p class="w">With the name and password you were given. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}${acc && acc.signup ? '<p class="admswap w">No account? <button type="button" class="lnk" data-dm="signup">Sign up</button> - it keeps what the map shows on any computer.</p>' : ''}`);
   $('#admDlgX').onclick = () => $('#admDlg').close();
+  for (const b of box.querySelectorAll('[data-dm]')) b.onclick = () => { admDlgMode = b.dataset.dm; admDlgDraw(); box.querySelector('input:not([hidden]):not([tabindex="-1"])')?.focus(); };
   const f = $('#admDlgForm');
   if (f) admLoginBind(f, () => { $('#admDlg').close(); toast(`Logged in as ${acc?.owner ? "the site's owner" : acc?.user || ''}`); });
+  const sf = $('#admSignForm'); if (sf) admSignBind(sf);
+  const pf = $('#admPwForm'); if (pf) pf.addEventListener('submit', async e => {
+    e.preventDefault(); const m = pf.querySelector('.admmsg'), o = $('#admPwOld').value, n1 = $('#admPwNew').value, n2 = $('#admPwNew2').value;
+    if (n1 !== n2) { m.textContent = 'The two new ones differ.'; $('#admPwNew2').focus(); return; }
+    m.textContent = 'Changing…'; let j = null; try { j = await admApi('my-password', { old: o, password: n1 }); } catch (err) { j = { error: err.message }; }
+    if (!j || !j.ok) { m.textContent = j?.msg || j?.error || 'Could not change it.'; return; }
+    admDlgMode = ''; admDlgDraw(); toast('Password changed' + (/ended/.test(j.msg || '') ? ': your other logins ended' : ''));
+  });
+  const df = $('#admDelForm'); if (df) df.addEventListener('submit', async e => {
+    e.preventDefault(); const m = df.querySelector('.admmsg'); m.textContent = 'Deleting…'; let j = null;
+    try { j = await admApi('my-delete', { password: $('#admDelPw').value }); } catch (err) { j = { error: err.message }; }
+    if (!j || !j.ok) { m.textContent = j?.msg || j?.error || 'Could not delete it.'; return; }
+    m.textContent = 'Deleted.'; reloadHere();
+  });
   if ($('#admDlgTab')) $('#admDlgTab').onclick = () => { $('#admDlg').close(); if (ppage.nick || ppage.map) closePlayerPage(); paneSet('admin', true); $('#pnAdmin')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
   if ($('#admDlgOut')) $('#admDlgOut').onclick = admLogout;
   if ($('#admDlgHt')) $('#admDlgHt').onclick = () => { $('#admDlg').close(); ADM.htOpen(); };   // (v227)
 }
-function admDlgOpen() {
+// (v239) signing up: the admin server makes the account and logs him in; then as after a login
+function admSignBind(f) {
+  const b = f.querySelector('button[type=submit]'), m = f.querySelector('.admmsg');
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const pw = $('#admSP').value; if (pw !== $('#admSP2').value) { m.textContent = 'The two passwords differ.'; $('#admSP2').focus(); return; }
+    b.disabled = true; m.textContent = 'Signing up…';
+    try {
+      const K = f.querySelector('input[name=keep]');
+      const j = await admApi('signup', { user: $('#admSU').value.trim(), password: pw, keep: !!(K && K.checked), website: $('#admSW').value });
+      if (!j.ok) { m.textContent = j.error || 'Could not sign up.'; return; }
+      $('#admSP').value = ''; $('#admSP2').value = '';
+      const was = acc, me = await admApi('me').catch(() => null);
+      if (!me || !was || JSON.stringify(me.rights) !== JSON.stringify(was.rights)) { m.textContent = 'Signed up.'; reloadHere(); return; }
+      acc = me; admDlgMode = ''; accApply(); $('#admDlg').close();
+      toast(`Signed up as ${me.user}: Map ▾ is kept in your profile`);
+    } catch (err) { m.textContent = err.message; } finally { b.disabled = false; }
+  });
+}
+function admDlgOpen(mode) {
   const d = $('#admDlg'); if (!d) return;
+  admDlgMode = typeof mode === 'string' && mode !== 'login' ? mode : '';   // (v239: 'signup' from Map ▾; the header's button: as it is)
   admDlgDraw(); if (!d.open) d.showModal();
-  const first = d.querySelector('#admDlgU') || d.querySelector('#admDlgTab') || d.querySelector('#admDlgOut'); if (first) first.focus();
+  const first = d.querySelector('#admSU') || d.querySelector('#admDlgU') || d.querySelector('#admDlgTab') || d.querySelector('#admDlgOut'); if (first) first.focus();
 }
 if ($('#admDlg')) {
   $('#admBtn').onclick = admDlgOpen;
@@ -9495,6 +9486,304 @@ if ($('#admDlg')) {
   d.addEventListener('click', e => { if (e.target === d) d.close(); });   // (a click outside the box)
   d.addEventListener('close', () => { d.querySelectorAll('input[type=password]').forEach(x => { x.value = ''; }); });   // (the browser gives the focus back to the button)
 }
+// ---------- (v239) Map ▾: every element the map draws, by what it shows; pins, presets, kept in his profile ----------
+// (Sagara: "another grouping, a way to set the display of every element, and people keep their filters - signing up on
+// the site, in their profile") MC: an entry an element - k (its name in the settings), g (its group: MC_G), d (as the
+// page starts), n, tip, and get / set over opts (opts.lab: the names); ch: a choice of a few [value, name]; key: its key
+// on the keyboard; sub: a part of another (dim while that one is off); derived: worked out of others, not kept (All
+// players' names). Any element - or a whole group - can be pinned: a button on the map itself (the quick buttons, in
+// the order pinned). The settings stay in this browser (bf2rr.mapcfg) and, logged in, in his profile on the site
+// (admin.mjs /admin/api/prefs: { map }), the same on any computer - the profile's win when he logs in. Presets: four
+// built in and his own, named.
+var MC_READY = false;   // (layCount, accApply: only once this is set up)
+const MC_G = [['sol', 'Soldiers'], ['veh', 'Vehicles'], ['fight', 'Combat'], ['team', 'Teamwork'], ['his', 'The soldier you follow'], ['map', 'The map'], ['scr', 'Screen']];
+const NICK = ['foot', 'crew', 'down', 'spots'];   // (All players' names: on foot, crew, the wounded, who spotted)
+let nickMem = null;
+const MC = [];
+{
+  const B = (k, g, d, n, tip, x = {}) => MC.push({ k, g, d, n, tip, get: () => !!opts[x.o || k], set: v => { opts[x.o || k] = !!v; }, ...x });
+  const N = (k, g, lab, n, tip, x = {}) => MC.push({ k, g, d: true, n, tip, get: () => !!opts.lab[lab], set: v => { opts.lab[lab] = !!v; }, ...x });
+  const C = (k, g, d, n, tip, ch, get, set, x = {}) => MC.push({ k, g, d, n, tip, ch, get, set, ...x });
+  MC.push({ k: 'nicks', g: 'sol', n: "All players' names", short: 'Names', tip: "Every player's name on the map - on foot, by his vehicle, the wounded, who spotted - in one switch (T); each kind on its own here, in its group. The soldier you follow keeps his", key: 'T', derived: true,
+    get: () => NICK.some(l => opts.lab[l]), set: v => { if (!v) { nickMem = NICK.filter(l => opts.lab[l]); for (const l of NICK) opts.lab[l] = false; } else for (const l of nickMem && nickMem.length ? nickMem : NICK) opts.lab[l] = true; } });
+  C('solMark', 'sol', 'game', 'Marks', "As on the game's minimap (its soldier mark pointing where he looks, a squad leader's number, the commander's star, your squad green), or a disc with a figure for how he stands and moves", [['game', 'Game'], ['fig', 'Figures']], () => opts.gameSol ? 'game' : 'fig', v => { opts.gameSol = v !== 'fig'; });
+  N('names', 'sol', 'foot', 'Names', "Soldiers' names on foot (the one you follow always has his)");
+  B('kit', 'sol', true, 'Kit', "The tool of his kit after his name (medic's bag, sniper rifle, …)");
+  B('hp', 'sol', true, 'Health bars', 'Under a hurt soldier: green, amber at half or less, blinking at a quarter');
+  B('lift', 'sol', true, 'Up high', 'On a roof, an upper floor, a tower, a bridge or a deck - 2 m or more up: raised over his shadow, a line down to it (12 m or more: the height by it)');
+  B('fire', 'sol', true, 'Firing', 'A flash at the gun of everyone holding a fire button, and at a vehicle when someone in it fires (the demo has a button going down and up, not each shot)');
+  B('zoomDot', 'sol', true, 'Aiming down the sights', 'A white dot at his nose while he looks through his sights or scope');
+  B('moveMk', 'sol', true, 'Parachute, ladder, water', "A parachute's canopy over him, a ladder by him, waves under a swimmer");
+  B('oob', 'sol', true, 'Out of bounds', 'A dashed ring and OUT with the seconds he has left, outside the combat area');
+  C('vehMark', 'veh', 'models', 'Look', "As the game's map icons, or its 3D models seen from above, to scale, the turret turning where the gun points (M)", [['icons', 'Icons'], ['models', 'Models']], () => opts.models ? 'models' : 'icons', v => { opts.models = v !== 'icons'; }, { key: 'M' });
+  B('emptyVeh', 'veh', true, 'Empty vehicles', 'Vehicles nobody sits in, grey (off: only those with somebody in them, and the one you follow)');
+  N('crew', 'veh', 'crew', 'Crew names', 'Who sits in a vehicle, by it - a line a seat');
+  N('vehNames', 'veh', 'veh', 'Vehicle names', "Empty vehicles' names (Vodnik 3, T-90); all of them while the crew names are off");
+  B('vhp', 'veh', true, 'Health bars', 'Under a damaged vehicle: green, amber at half or less');
+  B('statics', 'veh', true, 'Emplacements', 'Machine guns, TOW / HJ-8, Igla / Stinger and artillery placed on the map, in the colour of their gunner (grey: nobody), the gun turned as it points');
+  B('kills', 'fight', true, 'Kill lines', 'A line from the killer to the victim for 3 s');
+  B('killTags', 'fight', true, '+1 · TK · HS', 'By the killer for 3 s: +1 (+2, +3 … for kills in a row), TK for a team kill, HS for a headshot');
+  B('shotDir', 'fight', true, 'Shot direction', "Dashed back from the victim, the way the killing bullet came - when it was 6° or more off the line from the killer and his screen doesn't explain it");
+  B('deaths', 'fight', true, 'Where one died', 'A black cross where he died, for 10 s');
+  B('bodies', 'fight', true, 'Bodies', "How each one who died fell, and where he lies, head this way - until the game uses his soldier again or a medic revives him");
+  B('blasts', 'fight', true, 'Explosions', "Grenades (how far they were thrown) and rockets in flight, the blast where they go off, a tank's or APC's shell hit, placed C4 / claymores (the way they face) / AT mines");
+  B('smoke', 'fight', true, 'Smoke', "Smoke grenades and vehicles' smoke: in flight, then the cloud");
+  N('dist', 'fight', 'dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired');
+  B('spots', 'team', true, 'Spots', "Enemies spotted by each side (the game's Q): yellow corners round him, the game's ? on a place, until the spot runs out");
+  N('spotter', 'team', 'spots', 'Who spotted', "The spotter's name in the tag over a spotted enemy (the magnifying glass stays)");
+  B('orders', 'team', true, 'Squad orders', "Each squad's order (attack, defend, move) where its leader put it, with the game's icon and the squad's name; 3 minutes or until the next");
+  B('medic', 'team', true, 'Medic', 'Revives, heals, repairs, dropped ammo / medic bags, calls for a medic, ammo, a repair or a revive');
+  B('down', 'team', true, 'Wounded', 'A man down: the black disc with the revive bolt, in a ring of his side\'s colour that runs down while a medic can still revive him');
+  N('downNames', 'team', 'down', 'Wounded names', 'The name by a wounded soldier waiting for a medic');
+  B('uav', 'team', true, 'UAV', "The commander's UAV while it is up: where it flies, its last 6 s as a trail");
+  B('crates', 'team', true, 'Supply crates', "The commander's supply crates where they land, with their 5 m reach and how much is left");
+  B('cmdCam', 'team', true, "Commander's camera", "Where each commander's overhead camera looks, while it moved in the last 20 s");
+  B('view', 'his', true, 'Field of view', "What he sees: 95° across (a 16:9 screen; narrower through his sights or scope), out to the fog - the ground he sees strong, where only a standing man would be seen light, fading as the map's fog does");
+  B('fogLine', 'his', true, 'Fog line', "Dashed across his field of view where the map's fog leaves nothing of a man (Karkand 99.5 m)", { sub: 'view' });
+  B('seen', 'his', true, 'He sees him', 'An eye over each enemy he sees: in his field of view, nothing in between');
+  B('cover', 'his', true, 'Behind cover', 'A dotted ring round those in his field of view hidden by a wall, a hill, smoke, bushes or the fog');
+  B('aimMark', 'his', true, 'Crosshair', 'Where his crosshair meets somebody (a ring round him), a vehicle, a wall or the ground (a cross), with how far');
+  B('aimLn', 'his', false, 'Aim line', 'A yellow line from him to where his crosshair meets something; dashed into the sky (X)', { key: 'X' });
+  B('hands', 'his', true, 'In his hands', 'What he holds, on a plate under him (brighter for a second after he switches)');
+  B('sound', 'his', true, 'Sounds', 'His view: the shots and explosions he could hear - rings where they are, an arrow at the edge for those off the map');
+  B('lastSeen', 'his', true, 'Last seen', 'His view: an enemy he lost sight of, where he last saw him');
+  B('ahead', 'his', true, 'Next N s', 'While paused: where he goes in the next 1-30 s (the slider), and if he dies - the vehicle he rides in too (A)', { key: 'A' });
+  C('cam3', 'his', '1', 'Vehicle seat camera', "From a vehicle seat: its own camera, or the one behind and above it (C) - which one he played with is not in the demo", [['1', '1st person'], ['3', '3rd person']], () => opts.cam3 ? '3' : '1', v => { opts.cam3 = v === '3'; }, { key: 'C' });
+  B('grid', 'map', true, 'Grid', "The map's grid squares, A-H and 1-8");
+  B('flags', 'map', true, 'Flags', "The control points as on the game's map: the owner's flag, a bar while one is taken");
+  N('flagNames', 'map', 'flags', 'Flag names', "The control points' names");
+  B('walls', 'map', true, 'Buildings', "Houses, walls, fences, containers and rocks a soldier can't walk through, outlined (B)", { key: 'B' });
+  B('trees', 'map', true, 'Trees and bushes', 'Their crowns as green discs, trunks as dots zoomed in');
+  N('brk', 'map', 'brk', 'What broke', 'What broke a sign, a fence or a barrel (and who), zoomed in');
+  B('relief', 'map', false, 'Relief', 'The lie of the land: hill shading and contour lines with heights (H)', { key: 'H' });
+  B('relShade', 'map', true, 'Shading', 'Relief: the slopes shaded, lit from the north-west', { sub: 'relief' });
+  B('relAbove', 'map', false, 'Higher than his eyes', 'Relief, following a soldier: the ground higher than his eyes filled turquoise and hatched', { sub: 'relief' });
+  B('spawns', 'map', false, 'Spawn points', "Where each flag's soldiers spawn, in the colour of the side that can (grey: nobody)");
+  B('front', 'map', false, 'Front line', 'Which side holds which part of the map: the ground tinted in its colour, a dashed line where the two meet (a rough picture)');
+  B('mapName', 'scr', true, 'Map name', "The map's name in the top left corner");
+  B('topbar', 'scr', true, 'Top bar', 'Tickets and the time left, as in the game');
+  B('feed', 'scr', true, 'Kill feed', 'The last kills, revives and flag captures in the top right corner (J folds it)');
+  B('legend', 'scr', true, 'Legend', 'A box saying what each mark means - only those switched on');
+  C('hud', 'scr', 'game', 'Scoreboard and text', "As in the game - its scoreboard (Tab), top bar and font - or the page's own", [['game', 'Game'], ['page', 'Page']], () => opts.gameHud ? 'game' : 'page', v => { opts.gameHud = v !== 'page'; });
+  C('cursor', 'scr', 'off', 'Cursor', 'By the pointer: nothing, the height of the ground, or the grid square and metres (G)', [['off', 'Off'], ['height', 'Height'], ['grid', 'Grid']], () => opts.cursor, v => { opts.cursor = v; }, { key: 'G' });
+}
+const mcEl = k => MC.find(e => e.k === k);
+const MC_KEPT = MC.filter(e => !e.derived);
+const mcDefaults = () => Object.fromEntries(MC_KEPT.map(e => [e.k, e.d]));
+const mcNow = () => Object.fromEntries(MC_KEPT.map(e => [e.k, e.get()]));
+const mcOk = (e, v) => e.ch ? e.ch.some(c => c[0] === v) : typeof v === 'boolean';
+function mcPut(S) { for (const e of MC_KEPT) if (S && mcOk(e, S[e.k])) e.set(S[e.k]); aheadOnly.clear(); }
+// built-in presets: [name, what it is, its changes from the start (null: everything on)]
+const MC_BUILT = [
+  ['Standard', 'As the page starts', {}],
+  ['Clean', 'Soldiers, vehicles, flags and kills - few names, no extras', { names: false, crew: false, downNames: false, spotter: false, kit: false, hp: false, vhp: false, fire: false, zoomDot: false, killTags: false, shotDir: false, bodies: false, dist: false, spots: false, orders: false, medic: false, uav: false, crates: false, cmdCam: false, cover: false, hands: false, sound: false, ahead: false, grid: false, brk: false, legend: false }],
+  ['Kill check', 'For looking into a kill: his aim line, the relief and the ground over his eyes, heights by the pointer', { aimLn: true, relief: true, relAbove: true, cursor: 'height', spawns: false, front: false }],
+  ['Everything', 'Every element on', null],
+];
+function mcBuilt(name) {
+  const b = MC_BUILT.find(p => p[0] === name); if (!b) return null; const S = mcDefaults();
+  if (b[2] === null) { for (const e of MC_KEPT) if (!e.ch) S[e.k] = true; S.cursor = 'height'; } else Object.assign(S, b[2]);
+  return S;
+}
+let mcPins = ['vehMark', 'walls', 'relief', 'nicks', 'ahead'], mcUser = [], mcCur = 'Standard';
+const MC_PINS_MAX = 12, MC_USER_MAX = 30, MC_KEY = 'bf2rr.mapcfg';
+const mcPinOk = p => p.startsWith('g:') ? MC_G.some(g => g[0] === p.slice(2)) : !!mcEl(p);
+const mcCfg = () => ({ v: 1, set: mcNow(), pins: mcPins.slice(), presets: mcUser.map(p => ({ n: p.n, set: p.set })), cur: mcCur, aheadT, nick: nickMem, at: new Date().toISOString() });
+function mcLoadCfg(c) {
+  if (!c || typeof c !== 'object') return;
+  if (c.set && typeof c.set === 'object') mcPut(c.set);
+  if (Array.isArray(c.pins)) mcPins = [...new Set(c.pins.filter(p => typeof p === 'string' && mcPinOk(p)))].slice(0, MC_PINS_MAX);
+  if (Array.isArray(c.presets)) mcUser = c.presets.filter(p => p && typeof p.n === 'string' && p.n.trim() && p.set && typeof p.set === 'object').slice(0, MC_USER_MAX).map(p => ({ n: p.n.trim().slice(0, 32), set: p.set }));
+  mcCur = typeof c.cur === 'string' ? c.cur : null;
+  if (Number.isFinite(c.aheadT) && c.aheadT >= 1 && c.aheadT <= 30) aheadT = Math.round(c.aheadT);
+  if (Array.isArray(c.nick)) nickMem = c.nick.filter(l => NICK.includes(l));
+}
+// where they are kept: this browser always; logged in, his profile too (a second after the last change)
+let mcProf = null, mcPulled, mcPushT = 0, mcState = '', mcRemote = {};
+function mcSave() {
+  try { localStorage.setItem(MC_KEY, JSON.stringify(mcCfg())); } catch (e) {}
+  if (mcProf) { clearTimeout(mcPushT); mcState = 'saving'; mcWhere(); mcPushT = setTimeout(mcPush, 1000); }
+}
+async function mcPush() {
+  if (!mcProf) return; let j = null;
+  try { j = await admApi('prefs', { data: { ...mcRemote, map: mcCfg() } }); } catch (e) {}
+  mcState = j && j.ok ? 'saved' : 'failed:' + (j && (j.msg || j.error) || 'no answer'); mcWhere();
+}
+async function mcProfile() {
+  const who = acc && acc.in ? (acc.owner ? '@owner' : acc.user) : null;
+  if (who === mcPulled) { mcWhere(); return; }
+  mcPulled = who; mcProf = null; mcState = ''; mcRemote = {};
+  if (!who) { mcWhere(); return; }
+  let j = null; try { j = await admApi('prefs'); } catch (e) {}
+  if (mcPulled !== who) return;
+  if (!j || !j.ok) { mcState = 'failed:could not read your profile'; mcWhere(); return; }
+  mcProf = who; mcRemote = j.data && typeof j.data === 'object' ? { ...j.data } : {}; delete mcRemote.map;
+  if (j.data && j.data.map && typeof j.data.map === 'object') { mcLoadCfg(j.data.map); mcPinsRender(); mcPresetsRender(); mcChanged(true); try { localStorage.setItem(MC_KEY, JSON.stringify(mcCfg())); } catch (e) {} mcState = 'loaded'; }
+  else { mcState = 'saving'; mcPush(); }   // (his first time logged in here: this browser's settings go to his profile)
+  mcWhere();
+}
+// the line under the presets: where the settings are kept
+function mcWhere() {
+  const el = $('#mcWhere'); if (!el) return;
+  const site = admSrv || !!acc, on = !!(acc && acc.in), who = on ? (acc.owner ? "the site's owner" : acc.user) : '';
+  const st = mcState === 'saving' ? ' · saving…' : mcState === 'saved' ? ' · saved' : mcState.startsWith('failed:') ? ` · <span class="bad">not saved: ${esc(mcState.slice(7))}</span>` : '';
+  el.innerHTML = on && mcProf ? `Kept in your profile (<b>${esc(who)}</b>) - the same on any computer${st}`
+    : on ? `Kept in this browser${st}`
+    : site ? `Kept in this browser · <button type="button" class="lnk" data-mc="login">Log in</button>${acc && acc.signup ? ' or <button type="button" class="lnk" data-mc="signup">sign up</button>' : ''} to keep them in your profile, on any computer`
+    : 'Kept in this browser';
+}
+// the menu: presets, then a block a group - a switch an element, a pin by each
+const MC_PIN_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.6h4l-.55 4.1 2.6 2.4v1.3H3.95V8.1l2.6-2.4z"/><path d="M8 9.4V15"/></svg>';
+function mcItemHtml(e) {
+  const pin = `<button type="button" class="mpin" data-pin="${e.k}" aria-pressed="false" aria-label="Pin ${esc(e.n)} to the map" title="Pin it to the map: a button there for it">${MC_PIN_SVG}</button>`;
+  const tip = esc(e.tip + (e.key && !/\([A-Z]\)$/.test(e.tip) ? ` (${e.key})` : ''));
+  if (e.ch) return `<div class="mci mch" title="${tip}"><span>${esc(e.n)}</span><span class="qseg" role="radiogroup" aria-label="${esc(e.n)}">${e.ch.map(([v, nm]) => `<button type="button" class="sg" data-k="${e.k}" data-v="${v}" role="radio" aria-checked="false">${esc(nm)}</button>`).join('')}</span>${pin}</div>`;
+  const lab = e.k === 'ahead' ? 'Next <span id="aheadN">20</span> s<span class="w" id="aheadWho"></span>' : esc(e.n);
+  return `<div class="mci${e.sub ? ' sub' : ''}" data-sub="${e.sub || ''}"><button type="button" class="btn" data-k="${e.k}" aria-pressed="false" title="${tip}">${lab}</button>${pin}</div>`
+    + (e.k === 'ahead' ? '<span class="lrange" id="aheadRow" title="How far ahead the paths go while paused: 1-30 s"><input type="range" id="aheadT" min="1" max="30" step="1" value="20" aria-label="Seconds ahead shown while paused"><output id="aheadV" for="aheadT">20 s</output></span>' : '');
+}
+function mcRender() {
+  const box = $('#layMenu');
+  box.innerHTML = `<div class="mchead"><div class="mcrow"><label>Preset <select id="mcPre" aria-label="Preset"></select></label><button type="button" class="btn" id="mcSaveAs" title="Keep what the map shows now as a preset of yours, named">Save as…</button><button type="button" class="btn" id="mcDel" hidden>Delete</button><button type="button" class="btn" id="mcReset" title="Everything as the page starts (the pins stay)">Defaults</button></div>
+    <form class="mcrow mcnew" id="mcNew" hidden><input id="mcName" maxlength="32" placeholder="Its name" aria-label="The preset's name" autocomplete="off"><button type="submit" class="btn primary">Save</button><button type="button" class="btn" id="mcNewX">Cancel</button><span class="mcmsg" id="mcMsg" role="status"></span></form>
+    <div class="mcwhere" id="mcWhere"></div></div>
+    <div class="mcgrid">${MC_G.map(([g, gn]) => `<section class="mcg" data-g="${g}"><h4><span>${esc(gn)}</span><button type="button" class="mcall" data-gall="${g}" data-v="1" title="All of ${esc(gn)} on">all</button><button type="button" class="mcall" data-gall="${g}" data-v="0" title="All of ${esc(gn)} off">none</button><button type="button" class="mpin" data-pin="g:${g}" aria-pressed="false" aria-label="Pin ${esc(gn)} to the map" title="Pin this group to the map: one button for all of it (off, and back as it was)">${MC_PIN_SVG}</button></h4>${MC.filter(e => e.g === g).map(mcItemHtml).join('')}</section>`).join('')}</div>
+    <p class="mcnote">A pin puts its element (or group) on the map as a button. The soldier you follow always has his name.</p>`;
+  mcPresetsRender(); mcWhere(); aheadShow();
+}
+function mcPresetsRender() {
+  const opt = (v, n, t) => `<option value="${esc(v)}" title="${esc(t || '')}">${esc(n)}</option>`;
+  const html = `<option value="" disabled>—</option><optgroup label="Built in">${MC_BUILT.map(([n, t]) => opt('b:' + n, n, t)).join('')}</optgroup>${mcUser.length ? `<optgroup label="Yours">${mcUser.map(p => opt('u:' + p.n, p.n)).join('')}</optgroup>` : ''}`;
+  for (const s of document.querySelectorAll('#mcPre, #mPre')) s.innerHTML = html;
+  mcPresetSync();
+}
+const mcSame = (S, T) => MC_KEPT.every(e => (S[e.k] ?? e.d) === (T[e.k] ?? e.d));
+function mcPresetOf(v) { if (!v) return null; if (v.startsWith('b:')) return mcBuilt(v.slice(2)); const p = mcUser.find(q => q.n === v.slice(2)); return p ? { ...mcDefaults(), ...p.set } : null; }
+// the presets' boxes: the one applied (its name as it is, "· changed" since), else "Custom"
+function mcPresetSync() {
+  const now = mcNow(), cur = mcCur ? (mcUser.some(p => p.n === mcCur) ? 'u:' : 'b:') + mcCur : '', P = mcPresetOf(cur), same = P && mcSame(P, now);
+  const match = same ? cur : ['b:Standard', ...mcUser.map(p => 'u:' + p.n), ...MC_BUILT.map(b => 'b:' + b[0])].find(v => { const S = mcPresetOf(v); return S && mcSame(S, now); }) || '';
+  for (const s of document.querySelectorAll('#mcPre, #mPre')) {
+    const o0 = s.querySelector('option[value=""]'); if (o0) o0.textContent = P && !same ? mcCur + ' · changed' : 'Custom';
+    s.value = match; if (s.value !== match) s.value = '';
+    s.title = 'Preset: ' + (match ? match.slice(2) : o0?.textContent || '');
+  }
+  const d = $('#mcDel'); if (d) { const u = match.startsWith('u:') ? match.slice(2) : P && cur.startsWith('u:') ? mcCur : null; d.hidden = !u; d.dataset.n = u || ''; d.textContent = 'Delete'; d.dataset.sure = ''; }
+}
+function mcApply(v) {
+  const S = mcPresetOf(v); if (!S) return;
+  mcPut(S); mcCur = v.slice(2); nickMem = null; mcChanged(); toast('Preset: ' + mcCur);
+}
+// pinned elements: buttons on the map (both rows: over the map, and under it on a phone)
+const MC_ICON = { walls: '<path d="M2 3.5h7v4h5v5H2z"/>', relief: '<path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/>', nicks: '<path d="M1.5 4.5h9.2l3.8 3.5-3.8 3.5H1.5z"/><path d="M4 8h4.5"/>', names: '<path d="M1.5 4.5h9.2l3.8 3.5-3.8 3.5H1.5z"/><path d="M4 8h4.5"/>', aimLn: '<path d="M2 14L12.5 3.5"/><circle cx="12.5" cy="3.5" r="2"/>', view: '<path d="M8 13L2.5 4a8 8 0 0 1 11 0z"/>', spots: '<path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/>' };
+function mcPinHtml(p, play) {
+  if (p.startsWith('g:')) { const g = MC_G.find(x => x[0] === p.slice(2)); return g ? `<button type="button" class="btn qpin" data-gp="${g[0]}" aria-pressed="false" title="${esc(g[1])} on the map: all off, and back as it was (pinned in Map ▾)">${esc(g[1])}</button>` : ''; }
+  const e = mcEl(p); if (!e) return '';
+  if (p === 'ahead') return `${play ? '<span class="qbr" aria-hidden="true"></span>' : ''}<span class="qahdg"><button type="button" class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button type="button" class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Map ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">${aheadT}</span> s</button><button type="button" class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span>`;
+  const tip = esc(e.n + ': ' + e.tip + (e.key && !/\([A-Z]\)$/.test(e.tip) ? ` (${e.key})` : ''));
+  if (e.ch) return `<span class="qseg" role="radiogroup" aria-label="${esc(e.n)}" title="${tip}">${e.ch.map(([v, nm]) => `<button type="button" class="sg" data-qk="${e.k}" data-v="${v}" role="radio" aria-checked="false">${esc(nm)}</button>`).join('')}</span>`;
+  return `<button type="button" class="btn qpin" data-qk="${e.k}" aria-pressed="false" title="${tip}">${MC_ICON[e.k] ? `<svg viewBox="0 0 16 16" aria-hidden="true">${MC_ICON[e.k]}</svg>` : ''}${esc(e.short || e.n)}</button>`;
+}
+function mcPinsRender() {
+  for (const box of document.querySelectorAll('.qlay')) { const play = !!box.closest('.mapplay'); box.innerHTML = mcPins.map(p => mcPinHtml(p, play)).join(''); box.hidden = !mcPins.length; }
+  aheadKey = ''; mcSync(); if (typeof lgFit === 'function') lgFit();
+}
+// a group as one switch: on while any of it is; off keeps what was on, to bring it back
+const mcGroupMem = {};
+const mcGroupOn = g => MC_KEPT.some(e => e.g === g && !e.ch && e.get());
+function mcGroupSet(g, on) {
+  const L = MC_KEPT.filter(e => e.g === g && !e.ch);
+  if (!on) { mcGroupMem[g] = L.filter(e => e.get()).map(e => e.k); for (const e of L) e.set(false); }
+  else { const M = mcGroupMem[g] && mcGroupMem[g].length ? mcGroupMem[g] : L.filter(e => e.d).map(e => e.k); for (const e of L) if (M.includes(e.k)) e.set(true); }
+  aheadOnly.clear(); mcChanged();
+}
+// the states of every switch and pin: the menu's, the map's buttons, the counts
+function mcSync() {
+  const box = $('#layMenu');
+  for (const b of box.querySelectorAll('.btn[data-k]')) { const e = mcEl(b.dataset.k), on = !!e?.get(); b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }
+  for (const b of box.querySelectorAll('.sg[data-k]')) b.setAttribute('aria-checked', String(mcEl(b.dataset.k)?.get() === b.dataset.v));
+  for (const r of box.querySelectorAll('.mci.sub')) r.classList.toggle('dim', !mcEl(r.dataset.sub)?.get());
+  for (const b of box.querySelectorAll('.mpin')) b.setAttribute('aria-pressed', String(mcPins.includes(b.dataset.pin)));
+  for (const b of document.querySelectorAll('.qlay .qpin[data-qk]')) b.setAttribute('aria-pressed', String(!!mcEl(b.dataset.qk)?.get()));
+  for (const b of document.querySelectorAll('.qlay .qpin[data-gp]')) b.setAttribute('aria-pressed', String(mcGroupOn(b.dataset.gp)));
+  for (const b of document.querySelectorAll('.qlay .sg[data-qk]')) b.setAttribute('aria-checked', String(mcEl(b.dataset.qk)?.get() === b.dataset.v));
+  const B = MC_KEPT.filter(e => !e.ch), n = B.filter(e => e.get()).length;
+  $('#layN').textContent = n + '/' + B.length; for (const b of document.querySelectorAll('.layN2')) b.textContent = n + '/' + B.length;
+  const mt = $('#mapTag'); if (mt) mt.hidden = !opts.mapName;
+  aheadKey = ''; aheadSync(); if (typeof aimSync === 'function') aimSync();
+  mcPresetSync();
+}
+function mcChanged(noSave) {
+  mcSync(); if (!noSave) mcSave();
+  hTipShow(); if (round) { tabT = -1; lastPanel = -1; lgKey = ''; refresh(true); }
+}
+// one element: set, or switched (a choice: its next); the key's own says so on the map
+function mcSet(k, v) { const e = mcEl(k); if (!e || (!e.derived && !mcOk(e, v)) || e.get() === v) { mcSync(); return; } e.set(v); if (v && e.sub && !mcEl(e.sub).get()) mcEl(e.sub).set(true); if (k === 'ahead') aheadOnly.clear(); mcChanged(); }
+function mcToggle(k, say) {
+  const e = mcEl(k); if (!e) return;
+  if (e.ch) { const i = e.ch.findIndex(c => c[0] === e.get()); mcSet(k, e.ch[(i + 1) % e.ch.length][0]); }
+  else mcSet(k, !e.get());
+  if (say) toast(`${e.short || e.n}: ${e.ch ? e.ch.find(c => c[0] === e.get())[1] : e.get() ? 'on' : 'off'}${e.key ? ` (${e.key})` : ''}`);
+}
+// pin / unpin (at most MC_PINS_MAX on the map)
+function mcPin(p) {
+  const i = mcPins.indexOf(p);
+  if (i >= 0) mcPins.splice(i, 1); else { if (mcPins.length >= MC_PINS_MAX) { toast(`${MC_PINS_MAX} pins at the most: unpin one first`); return; } mcPins.push(p); }
+  mcPinsRender(); mcSave();
+}
+// (the menu's clicks, its presets' form; the map's pinned buttons and its preset box)
+$('#layMenu').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.pin) return mcPin(b.dataset.pin);
+  if (b.dataset.gall) return mcGroupSet(b.dataset.gall, b.dataset.v === '1');
+  if (b.dataset.k && b.dataset.v !== undefined) return mcSet(b.dataset.k, b.dataset.v);
+  if (b.dataset.k) return mcSet(b.dataset.k, !mcEl(b.dataset.k).get());
+  if (b.dataset.mc) { layOpen(layWho(), false); return admDlgOpen(b.dataset.mc); }
+  if (b.id === 'mcReset') { mcPut(mcDefaults()); mcCur = 'Standard'; nickMem = null; mcChanged(); toast('What the map shows: as the page starts'); return; }
+  if (b.id === 'mcSaveAs') { const f = $('#mcNew'); f.hidden = !f.hidden; if (!f.hidden) { $('#mcName').value = mcCur && mcUser.some(p => p.n === mcCur) ? mcCur : ''; $('#mcMsg').textContent = ''; $('#mcName').focus(); } return; }
+  if (b.id === 'mcNewX') { $('#mcNew').hidden = true; return; }
+  if (b.id === 'mcDel') {
+    const n = b.dataset.n; if (!n) return;
+    if (b.dataset.sure !== '1') { b.dataset.sure = '1'; b.textContent = `Delete «${n}»?`; return; }
+    mcUser = mcUser.filter(p => p.n !== n); if (mcCur === n) mcCur = null; mcPresetsRender(); mcSave(); toast(`Preset ${n}: deleted`);
+  }
+});
+$('#layMenu').addEventListener('submit', e => {
+  if (e.target.id !== 'mcNew') return; e.preventDefault();
+  const n = $('#mcName').value.trim().replace(/\s+/g, ' '), m = $('#mcMsg');
+  if (!n) { m.textContent = 'a name, please'; return; }
+  if (MC_BUILT.some(b => b[0].toLowerCase() === n.toLowerCase())) { m.textContent = 'that is a built-in one: another name'; return; }
+  const old = mcUser.findIndex(p => p.n === n);
+  if (old < 0 && mcUser.length >= MC_USER_MAX) { m.textContent = `${MC_USER_MAX} presets at the most`; return; }
+  const p = { n, set: mcNow() }; if (old >= 0) mcUser[old] = p; else mcUser.push(p);
+  mcCur = n; $('#mcNew').hidden = true; mcPresetsRender(); mcSave(); toast(`Preset ${n}: ${old >= 0 ? 'saved over' : 'saved'}`);
+});
+$('#layMenu').addEventListener('change', e => { if (e.target.id === 'mcPre' && e.target.value) mcApply(e.target.value); });
+$('#layMenu').addEventListener('input', e => {
+  if (e.target.id !== 'aheadT') return;
+  aheadT = Math.max(1, Math.min(30, Math.round(+e.target.value) || 20));
+  if (!opts.ahead) { opts.ahead = true; aheadOnly.clear(); }
+  aheadShow(); mcChanged();
+});
+document.addEventListener('click', e => {
+  const b = e.target.closest('.qlay button'); if (!b) return;
+  if (b.dataset.gp) return mcGroupSet(b.dataset.gp, !mcGroupOn(b.dataset.gp));
+  if (b.dataset.qk && b.dataset.v !== undefined) return mcSet(b.dataset.qk, b.dataset.v);
+  if (b.dataset.qk) return mcSet(b.dataset.qk, !mcEl(b.dataset.qk).get());
+  if (b.classList.contains('qahd')) return aheadAll(!opts.ahead);
+  if (b.classList.contains('qahdst')) return aheadBy(+b.dataset.d * (e.shiftKey ? 5 : 1));
+});
+document.addEventListener('wheel', e => { const b = e.target.closest('.qlay .qahd'); if (!b) return; e.preventDefault(); aheadBy(e.deltaY < 0 ? 1 : -1); }, { passive: false });
+$('#mPre').addEventListener('change', e => { if (e.target.value) mcApply(e.target.value); });
+// (arrows: the next choice in a row of the menu or of the map)
+document.addEventListener('keydown', e => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return; const seg = e.target.closest?.('#layMenu .qseg, .qlay .qseg'); if (!seg) return;
+  e.preventDefault(); e.stopPropagation(); const B = [...seg.querySelectorAll('[role=radio]')], k = B.findIndex(b => b.getAttribute('aria-checked') === 'true'), n = B[Math.max(0, Math.min(B.length - 1, k + (e.key === 'ArrowRight' ? 1 : -1)))]; if (n) { n.click(); n.focus(); }
+}, true);
+// at the start: this browser's settings (the earlier pages' separate keys stay as they were read above, the first time)
+{ let c = null; try { c = JSON.parse(localStorage.getItem(MC_KEY) || 'null'); } catch (e) {} if (c) mcLoadCfg(c); else { const now = mcNow(); mcCur = (MC_BUILT.find(b => mcSame(mcBuilt(b[0]), now)) || [null])[0]; } }
+mcRender(); mcPinsRender();
+MC_READY = true;
 // ---------- loading ----------
 let simSeed = 1942;
 function setRound(data, src) {

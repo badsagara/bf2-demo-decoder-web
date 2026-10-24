@@ -78,8 +78,11 @@ const userOf = name => { readUsers(); return name && usersCache.v ? usersCache.v
 const writeUsers = j => { const tmp = USERS_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(j, null, 1) + '\n', { mode: 0o600 }); fs.renameSync(tmp, USERS_FILE); usersCache.mt = -1; };
 // (v224) the guests' rights (data/.access.json) and the gate's flag for the web server (data/.access-gate)
 const ACC_F = path.join(DATA, ACCESS_FILE), GATE_F = path.join(DATA, GATE_FILE);
-let accCache = { mt: -1, v: null };
-function guests() { let mt = 0; try { mt = fs.statSync(ACC_F).mtimeMs; } catch (e) { mt = 0; } if (mt !== accCache.mt) accCache = { mt, v: guestsOf(mt ? readJson(ACC_F, {}) : {}) }; return accCache.v; }
+let accCache = { mt: -1, v: null, signup: true };
+function guests() { let mt = 0; try { mt = fs.statSync(ACC_F).mtimeMs; } catch (e) { mt = 0; } if (mt !== accCache.mt) { const J = mt ? readJson(ACC_F, {}) || {} : {}; accCache = { mt, v: guestsOf(J), signup: J.signup !== false }; } return accCache.v; }
+// (v239, Sagara: "let people sign up on the site and keep their settings in their profile") may visitors make an
+// account themselves - data/.access.json { signup } (the admin page, "Users and access"); open unless closed there
+const signupOpen = () => { guests(); return accCache.signup !== false; };
 function syncGate() {
   const on = gateNeeded(guests());
   try { if (on) { if (!fs.existsSync(GATE_F)) { fs.writeFileSync(GATE_F, 'closed: the web server asks admin.mjs about each request (written by admin.mjs)\n'); log('access: the site is closed to guests in part - the web server asks about each request'); } } else if (fs.existsSync(GATE_F)) { fs.unlinkSync(GATE_F); log('access: the site is open to guests'); } } catch (e) { log('access: could not write', GATE_F + ':', e.message); }
@@ -164,6 +167,71 @@ const secure = req => String(req.headers['x-forwarded-proto'] || '').split(',')[
 const cookieStr = (req, tok, maxAge) => `${COOKIE}=${tok}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure(req) ? '; Secure' : ''}`;
 // (the cookie of before v224, Path=/admin, cleared too)
 const setCookie = (req, res, tok, maxAge) => res.setHeader('Set-Cookie', [cookieStr(req, tok, maxAge), `bf2r_admin=x; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0${secure(req) ? '; Secure' : ''}`]);
+
+// (v224) a login: a random token in the cookie, its hash in the sessions (v239: the login's and the sign-up's)
+function startSession(req, res, user, keep, ip) {
+  const old = cookieOf(req); if (old) sessions.delete(tokHash(old));   // (a login again: the old one goes)
+  const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now(), life = keep ? KEEP_D * 86400e3 : SESSION_H * 3600e3;
+  sessions.set(tokHash(tok), { exp: now + life, seen: now, ip, user: user || null, role: user ? 'user' : 'owner', keep: !!keep, at: now, admSeen: now, ...(user ? {} : { pw: readPass()?.set || null }) });
+  sessSave();
+  if (user) { try { const j = readUsers(); if (j.users[user]) { j.users[user].last = new Date().toISOString(); writeUsers(j); } } catch (e) {} }
+  setCookie(req, res, tok, Math.round(life / 1000));
+}
+// ---------- (v239) sign-up, the profile's settings, his own password and account ----------
+// Sign-up: a name (2-32 letters, digits, . _ -; none taken, whatever its case), a password of 8 or more; at most
+// SIGNUP_IP from an address an hour and SIGNUP_ALL from everywhere, SIGNUP_MAX accounts in all; a form field only robots
+// fill (website) refuses it quietly. The account: self, no rights of its own - it opens what guests may.
+const SIGNUP_IP = 3, SIGNUP_ALL = 30, SIGNUP_MAX = 5000, SIGNUP_WIN = 3600e3;
+const signups = new Map(); let allSignups = [];
+function signup(b, ip) {
+  if (!signupOpen()) return { ok: false, code: 403, msg: 'signing up is closed on this site: ask its owner for an account' };
+  const now = Date.now(); allSignups = allSignups.filter(x => now - x < SIGNUP_WIN);
+  const mine = (signups.get(ip) || []).filter(x => now - x < SIGNUP_WIN); signups.set(ip, mine);
+  if (mine.length >= SIGNUP_IP || allSignups.length >= SIGNUP_ALL) return { ok: false, code: 429, msg: 'too many new accounts lately: try again in an hour' };
+  if (b.website) return { ok: false, code: 400, msg: 'could not sign up', wait: true };   // (robots)
+  const name = String(b.user || '').trim(), pw = typeof b.password === 'string' ? b.password : '';
+  if (!USER_RE.test(name) || /^owner$/i.test(name)) return { ok: false, msg: 'a name: 2-32 letters, digits, . _ - (not "owner")' };
+  if (pw.length < 8 || pw.length > 200) return { ok: false, msg: 'the password: at least 8 characters' };
+  if (pw.toLowerCase() === name.toLowerCase()) return { ok: false, msg: 'the password: not the name' };
+  const j = readUsers();
+  if (Object.keys(j.users).some(n => n.toLowerCase() === name.toLowerCase())) return { ok: false, code: 409, msg: 'this name is taken: another one, please' };
+  if (Object.keys(j.users).length >= SIGNUP_MAX) return { ok: false, code: 503, msg: 'no new accounts for now: the site has as many as it keeps' };
+  const salt = crypto.randomBytes(16).toString('base64');
+  j.users[name] = { salt, hash: kdf(pw, salt).toString('base64'), N: KDF.N, r: KDF.r, p: KDF.p, pwSet: new Date().toISOString(), created: new Date().toISOString(), by: 'self', self: true, servers: [], rights: normRights({ site: {} }) };
+  writeUsers(j); mine.push(now); allSignups.push(now);
+  return { ok: true, name };
+}
+// his settings (the map's, for now: { map: {…} }), data/.prefs/<name>.json - the owner's @owner.json (no account has @)
+const PREFS = path.join(DATA, '.prefs'), PREFS_MAX = 32768;
+const prefsF = s => path.join(PREFS, (isOwnerS(s) ? '@owner' : s.user) + '.json');
+function prefsGet(s) { const j = readJson(prefsF(s), null); return { ok: true, data: j && j.data && typeof j.data === 'object' ? j.data : null, at: j?.at || null }; }
+function prefsSet(b, s) {
+  const d = b && b.data; if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok: false, msg: 'no settings' };
+  const txt = JSON.stringify(d); if (txt.length > PREFS_MAX) return { ok: false, msg: `too much: ${Math.round(PREFS_MAX / 1024)} KB at the most` };
+  fs.mkdirSync(PREFS, { recursive: true, mode: 0o700 });
+  const f = prefsF(s), tmp = f + '.tmp', at = new Date().toISOString(); fs.writeFileSync(tmp, JSON.stringify({ at, data: d }) + '\n', { mode: 0o600 }); fs.renameSync(tmp, f);
+  return { ok: true, at };
+}
+const prefsDrop = name => { try { fs.unlinkSync(path.join(PREFS, name + '.json')); } catch (e) {} };
+// his own password (an account's - the owner's is set on the VPS): the old one first; his other logins end
+function myPassword(b, s, req) {
+  if (isOwnerS(s)) return { ok: false, msg: "the owner's password is set on the VPS (admin.mjs --set-password)" };
+  if (!checkUser(s.user, b.old)) return { ok: false, code: 401, msg: 'the old password is wrong' };
+  const pw = typeof b.password === 'string' ? b.password : ''; if (pw.length < 8 || pw.length > 200) return { ok: false, msg: 'the new password: at least 8 characters' };
+  const j = readUsers(), u = j.users[s.user]; if (!u) return { ok: false, msg: 'no such account' };
+  const salt = crypto.randomBytes(16).toString('base64'); Object.assign(u, { salt, hash: kdf(pw, salt).toString('base64'), N: KDF.N, r: KDF.r, p: KDF.p, pwSet: new Date().toISOString() }); writeUsers(j);
+  let n = 0; for (const [k, x] of sessions) if (x.user === s.user && x.role !== 'owner' && k !== s.h) { sessions.delete(k); n++; } sessSave();
+  log(`account ${s.user}: password changed by himself`); return { ok: true, msg: 'password changed' + (n ? ` (${n} other login${n === 1 ? '' : 's'} ended)` : '') };
+}
+// his own account away (one he made himself; those the owner made, the owner removes): with its settings, logged out
+function myDelete(b, s) {
+  if (isOwnerS(s)) return { ok: false, msg: 'not the owner' };
+  const u = readUsers().users[s.user]; if (!u) return { ok: false, msg: 'no such account' };
+  if (!u.self) return { ok: false, msg: "an account the site's owner made: he removes it" };
+  if (!checkUser(s.user, b.password)) return { ok: false, code: 401, msg: 'wrong password' };
+  const j = readUsers(); delete j.users[s.user]; writeUsers(j); logoutUser(s.user); prefsDrop(s.user);
+  log(`account ${s.user}: removed by himself`); return { ok: true };
+}
 
 // ---------- helpers ----------
 function run(cmd, args, { timeout = 20e3, cwd } = {}) {
@@ -789,9 +857,9 @@ function revTrusted(b, s) {
 // guests' (data/.access.json) - which closes the site, or parts of it, to whoever is not logged in
 function usersState() {
   const U = readUsers().users, now = Date.now();
-  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], rights: userRights(u), created: u.created || null, last: u.last || null, by: u.by || null, in: [...sessions.values()].some(x => x.user === name && x.role !== 'owner' && now < x.exp) })).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], rights: userRights(u), created: u.created || null, last: u.last || null, by: u.by || null, self: !!u.self, in: [...sessions.values()].some(x => x.user === name && x.role !== 'owner' && now < x.exp) })).sort((a, b) => a.name.localeCompare(b.name));
 }
-function accessState() { return { guests: guests(), gate: fs.existsSync(GATE_F), site: ACC_SITE, guestExtra: ACC_GUEST, cards: ACC_CARDS, open: openPlaces(guests()) }; }
+function accessState() { return { guests: guests(), gate: fs.existsSync(GATE_F), site: ACC_SITE, guestExtra: ACC_GUEST, cards: ACC_CARDS, open: openPlaces(guests()), signup: signupOpen() }; }
 function knownServers() { const S = new Set(); for (const r of index().rounds || []) if (r.sum && !r.sum.empty && r.sum.server) S.add(r.sum.server); return [...S].sort(); }
 const logoutUser = name => { let n = 0; for (const [k, x] of sessions) if (x.user === name && x.role !== 'owner') { sessions.delete(k); n++; } if (n) sessSave(); return n; };
 function userSet(b) {
@@ -813,17 +881,17 @@ function userSet(b) {
 }
 function userRemove(b) {
   const name = String(b.name || ''), j = readUsers(); if (!j.users[name]) return { ok: false, msg: 'no such account' };
-  delete j.users[name]; writeUsers(j); logoutUser(name);
+  delete j.users[name]; writeUsers(j); logoutUser(name); prefsDrop(name);   // (v239: his settings too)
   { const all = readJson(htMineF(), null); if (all && all[name]) { delete all[name]; writeJson(htMineF(), all); } }   // (v227: his own hint thresholds go too)
   log(`account ${name}: removed`); return { ok: true, msg: `${name}: removed (logged out)` };
 }
 function accessSet(b) {
-  const G = normGuests(b.guests), J = readJson(ACC_F, {}) || {};
-  writeJson(ACC_F, { ...J, guests: G, set: new Date().toISOString() }); try { fs.chmodSync(ACC_F, 0o600); } catch (e) {}
+  const G = normGuests(b.guests), J = readJson(ACC_F, {}) || {}, su = typeof b.signup === 'boolean' ? b.signup : J.signup !== false;   // (v239: sign-ups)
+  writeJson(ACC_F, { ...J, guests: G, signup: su, set: new Date().toISOString() }); try { fs.chmodSync(ACC_F, 0o600); } catch (e) {}
   accCache.mt = -1; const on = syncGate();
   const open = [...ACC_SITE, ...ACC_GUEST].filter(([k]) => G[k]).map(([, n]) => n);
   log('access for guests:', open.length ? open.join(', ') : 'nothing');
-  return { ok: true, msg: on ? (open.length ? `guests may open: ${open.join(', ')} - the rest needs a login` : 'the site is closed: everything needs a login') : 'the site is open to everyone' };
+  return { ok: true, msg: (on ? (open.length ? `guests may open: ${open.join(', ')} - the rest needs a login` : 'the site is closed: everything needs a login') : 'the site is open to everyone') + (su ? ' · visitors may sign up' : ' · signing up closed') };
 }
 // the demos that could not be decoded (data/bad) back into the queue: the ingest service's path unit sees them at once
 function retryBad() {
@@ -920,21 +988,24 @@ const server = http.createServer(async (req, res) => {
       const u = user ? (USER_RE.test(user) ? checkUser(user, b.password) : null) : null;
       if (user ? !u : !checkPass(b.password)) { const now = Date.now(); fails.set(ip, [...(fails.get(ip) || []), now]); allFails.push(now); log('wrong password from', ip, user ? `(${user})` : '(owner)'); await new Promise(r => setTimeout(r, 600)); return send(res, 401, { error: user ? 'wrong name or password' : 'wrong password' }); }
       fails.delete(ip);
-      const old = cookieOf(req); if (old) sessions.delete(tokHash(old));   // (a login again: the old one goes)
-      const tok = crypto.randomBytes(32).toString('base64url'), now = Date.now(), keep = !!b.keep, life = keep ? KEEP_D * 86400e3 : SESSION_H * 3600e3;
-      sessions.set(tokHash(tok), { exp: now + life, seen: now, ip, user: user || null, role: user ? 'user' : 'owner', keep, at: now, admSeen: now, ...(user ? {} : { pw: readPass()?.set || null }) });
-      sessSave();
-      if (user) { try { const j = readUsers(); if (j.users[user]) { j.users[user].last = new Date().toISOString(); writeUsers(j); } } catch (e) {} }
-      setCookie(req, res, tok, Math.round(life / 1000)); log(user ? `${user} logged in from` : 'the owner logged in from', ip, keep ? '(kept)' : '');
+      startSession(req, res, user, !!b.keep, ip); log(user ? `${user} logged in from` : 'the owner logged in from', ip, b.keep ? '(kept)' : '');
       return send(res, 200, { ok: true, role: user ? 'admin' : 'owner', user: user || 'owner' });
+    }
+    // (v239) a visitor makes his own account: watching as guests may (the owner gives more on the admin page), his map
+    // settings kept in it; logged in at once
+    if (what === 'signup' && req.method === 'POST') {
+      const b = await bodyOf(req), r = signup(b, ip);
+      if (!r.ok) { if (r.wait) await new Promise(ok => setTimeout(ok, 400)); return send(res, r.code || 400, { error: r.msg }); }
+      startSession(req, res, r.name, !!b.keep, ip); log(`${r.name} signed up from`, ip);
+      return send(res, 200, { ok: true, role: 'admin', user: r.name });
     }
     const s = sessionOf(req);
     if (what === 'me') {
       const G = guests();
-      if (!s) return send(res, 200, { in: false, password: !!readPass(), round: false, rights: G, gated: gateNeeded(G), open: openPlaces(G) });
+      if (!s) return send(res, 200, { in: false, password: !!readPass(), round: false, rights: G, gated: gateNeeded(G), open: openPlaces(G), signup: signupOpen() });
       const R = rightsOfS(s), adm = admOk(s), cards = Object.keys(R.cards);
       return send(res, 200, { in: true, password: !!readPass(), user: R.owner ? 'owner' : s.user, role: R.owner ? 'owner' : 'admin', owner: R.owner, keep: !!s.keep, adm,
-        rights: R.site, admin: R.admin, round: R.admin && adm, servers: R.servers, cards, page: adm && (R.owner || cards.length > 0), pageCards: R.owner || cards.length > 0, gated: gateNeeded(G), open: openPlaces(R.site) });
+        rights: R.site, admin: R.admin, round: R.admin && adm, servers: R.servers, cards, page: adm && (R.owner || cards.length > 0), pageCards: R.owner || cards.length > 0, gated: gateNeeded(G), open: openPlaces(R.site), signup: signupOpen(), self: !R.owner && !!userOf(s.user)?.self });
     }
     if (what === 'round-ref' && req.method === 'GET') {   // (v224: a round from a link, without the list)
       const R = s ? rightsOfS(s).site : guests(); if (!R.view) return send(res, s ? 403 : 401, { error: 'may not watch rounds' });
@@ -942,6 +1013,11 @@ const server = http.createServer(async (req, res) => {
     }
     if (!s) return send(res, 401, { error: 'log in first' });
     if (what === 'logout' && req.method === 'POST') { sessions.delete(s.h); sessSave(); setCookie(req, res, 'x'.repeat(20), 0); return send(res, 200, { ok: true }); }
+    // (v239) his own: settings, password, account - any login, no admin powers needed
+    if (what === 'prefs' && req.method === 'GET') return send(res, 200, prefsGet(s));
+    if (what === 'prefs' && req.method === 'POST') { const r = prefsSet(await bodyOf(req), s); return send(res, r.ok ? 200 : 400, r); }
+    if (what === 'my-password' && req.method === 'POST') { const r = myPassword(await bodyOf(req), s, req); return send(res, r.ok ? 200 : r.code || 400, r); }
+    if (what === 'my-delete' && req.method === 'POST') { const r = myDelete(await bodyOf(req), s); if (r.ok) setCookie(req, res, 'x'.repeat(20), 0); return send(res, r.ok ? 200 : r.code || 400, r); }
     const R = rightsOfS(s), own = R.owner;
     // (v196) the Admin tab: the admins' part of the page, the analysis's private files, a round's server side, the review
     // (v224: the accounts with the Admin tab among their rights, while their admin powers last)

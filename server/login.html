@@ -29,11 +29,14 @@ button:disabled { opacity: .6; cursor: default; }
 .open { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 13.5px; }
 a { color: var(--accent); }
 .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.swap { margin-top: 12px; font-size: 13.5px; } .swap button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
+[hidden] { display: none !important; }
+.hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 </style>
 </head>
 <body>
 <main>
-  <h1>BF2 Round Replay · <b>Log in</b></h1>
+  <h1>BF2 Round Replay · <b id="h1w">Log in</b></h1>
   <p class="muted" id="why">This site is open to its users: log in with the name and password you were given.</p>
   <div id="who" hidden></div>
   <p class="warn" id="insecure" hidden>This page is not on https: the password would cross the network unencrypted.</p>
@@ -44,6 +47,18 @@ a { color: var(--accent); }
     <div class="row"><button class="primary" type="submit" id="go">Log in</button></div>
     <div class="msg" id="m" role="status" aria-live="polite"></div>
   </form>
+  <p class="swap" id="toSign" hidden>No account? <button type="button" id="goSign">Sign up</button></p>
+  <form id="sf" hidden autocomplete="on">
+    <p class="muted">A new account may open what visitors may; it keeps your map settings (what the map shows, your presets) on any computer. The site's owner can give it more.</p>
+    <label>Name <input type="text" id="su" name="username" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" maxlength="32" pattern="[A-Za-z0-9_.\-]{2,32}" title="2-32 letters, digits, . _ -" required></label>
+    <label>Password <input type="password" id="sp" name="new-password" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+    <label>Password again <input type="password" id="sp2" autocomplete="new-password" minlength="8" maxlength="200" required></label>
+    <label class="hp" aria-hidden="true">Website <input type="text" id="sw" name="website" tabindex="-1" autocomplete="off"></label>
+    <label class="ck"><input type="checkbox" id="sk"> Keep me logged in on this computer (30 days)</label>
+    <div class="row"><button class="primary" type="submit" id="sgo">Sign up</button></div>
+    <div class="msg" id="sm" role="status" aria-live="polite"></div>
+  </form>
+  <p class="swap" id="toLog" hidden>Have an account? <button type="button" id="goLog">Log in</button></p>
   <div class="open" id="open" hidden></div>
 </main>
 <script>
@@ -70,8 +85,12 @@ function openList(L) {
   const box = $('#open'); if (!L || !L.length) { box.hidden = true; return; }
   box.hidden = false; box.innerHTML = 'Open to everyone: ' + L.map(([h, n]) => `<a href="${esc(h)}">${esc(n)}</a>`).join(' · ');
 }
+// (v239) signing up, when the site lets visitors make their own accounts
+const mode = sign => { $('#h1w').textContent = sign ? 'Sign up' : 'Log in'; $('#why').hidden = sign; $('#f').hidden = sign; $('#sf').hidden = !sign; $('#toSign').hidden = sign; $('#toLog').hidden = !sign; (sign ? $('#su') : $('#u')).focus(); };
+$('#goSign').onclick = () => mode(true); $('#goLog').onclick = () => mode(false);
 api('me').then(j => {
   openList(j.open);
+  if (j.signup && !j.in) { $('#toSign').hidden = false; if (/(^|[?&])signup=1/.test(location.search)) mode(true); }
   if (j.in) {
     const who = j.owner ? "the site's owner" : j.user;
     $('#who').hidden = false;
@@ -89,6 +108,17 @@ $('#f').addEventListener('submit', async e => {
     if (!j.ok) { m.className = 'msg bad'; m.textContent = j.error || 'Could not log in.'; $('#p').focus(); return; }
     m.className = 'msg ok'; m.textContent = 'Logged in.'; location.replace(next);
   } catch (err) { m.className = 'msg bad'; m.textContent = err.message; } finally { $('#go').disabled = false; }
+});
+$('#sf').addEventListener('submit', async e => {
+  e.preventDefault();
+  const m = $('#sm'), pw = $('#sp').value;
+  if (pw !== $('#sp2').value) { m.className = 'msg bad'; m.textContent = 'The two passwords differ.'; $('#sp2').focus(); return; }
+  $('#sgo').disabled = true; m.className = 'msg'; m.textContent = 'Signing up…';
+  try {
+    const j = await api('signup', { user: $('#su').value.trim(), password: pw, keep: $('#sk').checked, website: $('#sw').value });
+    if (!j.ok) { m.className = 'msg bad'; m.textContent = j.error || 'Could not sign up.'; return; }
+    $('#sp').value = ''; $('#sp2').value = ''; m.className = 'msg ok'; m.textContent = 'Signed up and logged in.'; location.replace(next);
+  } catch (err) { m.className = 'msg bad'; m.textContent = err.message; } finally { $('#sgo').disabled = false; }
 });
 $('#u').focus();
 })();

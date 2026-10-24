@@ -536,6 +536,7 @@ function renderAccess() {
   const st = all ? '<b class="open">Open to everyone</b> <span class="muted">- nobody needs to log in</span>' : !open.length ? '<b class="shut">Closed</b> <span class="muted">- every page needs a login (it goes to /login); link previews and the posts\' map pictures too</span>' : `<b class="shut">Closed in part</b> <span class="muted">- guests may open: ${open.map(([, n]) => esc(n)).join(', ')}; the rest needs a login</span>`;
   box.innerHTML = `<div class="accst">${st}${A.gate ? '' : all ? '' : ' <span class="warn">(the web server\'s flag is missing: Save again)</span>'}</div>`
     + `<div class="ugrp"><b>Guests</b>${A.site.map(([k, n, w]) => ckBox('data-g', k, n, w, G[k])).join('')}${A.guestExtra.map(([k, n, w]) => ckBox('data-g', k, n, w, G[k])).join('')}</div>`
+    + `<div class="ugrp"><b>Sign-up</b>${ckBox('data-su', 'signup', 'visitors may make their own account', "Log in → Sign up (and /login): a name and a password make an account that opens what guests may, and keeps that visitor's map settings (what the map shows, his presets) on any computer. You give it more in its row below; untick to stop new ones (those made stay)", A.signup !== false)}</div>`
     + `<div class="row"><button type="button" class="primary" id="accSave">Save</button><button type="button" id="accAll">Tick all (open)</button><button type="button" id="accNone">Untick all (closed)</button><span class="muted">a part unticked: its pages go to the login, its files answer 401</span></div>`;
   box.oninput = () => { accDirty = true; };
   $('#accAll').onclick = () => { for (const c of box.querySelectorAll('input[data-g]')) c.checked = true; accDirty = true; };
@@ -544,7 +545,7 @@ function renderAccess() {
     const g = {}; for (const c of box.querySelectorAll('input[data-g]')) g[c.dataset.g] = c.checked;
     const shut = Object.values(g).some(v => !v);
     if (shut && !confirm(`Close ${Object.values(g).some(v => v) ? 'these parts of' : ''} the site to visitors who are not logged in? Their pages go to the login page.${!g.share ? ' Link previews in chats and the map pictures of the posts stop showing.' : ''} Accounts: below.`)) return;
-    act('access-set', { guests: g }, $('#accSave')).then(j => { if (j && j.ok) accDirty = false; });
+    act('access-set', { guests: g, signup: !!box.querySelector('input[data-su]')?.checked }, $('#accSave')).then(j => { if (j && j.ok) accDirty = false; });
   };
 }
 function rightsBoxes(u) {
@@ -558,7 +559,7 @@ function renderUsers() {
   const U = S.users || [], box = $('#uList');
   if (uDirty || box.contains(document.activeElement) || box.querySelector('details.urights[open]')) return;   // (being changed: drawn again after Save)
   box.innerHTML = U.length ? U.map(u => { const R = u.rights || { site: {}, cards: {} }, site = S.access.site.filter(([k]) => R.site[k]).map(([, n]) => n), cards = S.access.cards.filter(([k]) => R.cards[k]).map(([, n]) => n);
-    return `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.in ? '<span class="tag ok">logged in now</span>' : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
+    return `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.self ? '<span class="tag" title="Made by himself (Sign up): what guests may, until you tick more">signed up</span>' : ''}${u.in ? '<span class="tag ok">logged in now</span>' : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
     + `<input type="password" data-f="pw" placeholder="new password" aria-label="New password for ${esc(u.name)}" autocomplete="new-password" style="width:11em"><button type="button" data-a="pw">Set</button><button type="button" class="danger" data-a="rm">Remove</button></div>`
     + `<details class="urights"><summary><span class="muted">${site.length ? esc(site.join(', ')) : 'nothing of the site but what guests may'}${R.admin ? ` · <b>Admin tab</b> (${u.servers.length ? esc(u.servers.join(', ')) : '<span class="warn">no server: no rounds</span>'})` : ''}${cards.length ? ` · this page: ${esc(cards.join(', '))}` : ''}</span></summary>${rightsBoxes(u)}`
     + `<div class="row"><button type="button" class="primary" data-a="rights">Save his rights</button></div></details></div>`; }).join('') : '<div class="muted">no accounts yet</div>';

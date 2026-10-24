@@ -5,6 +5,41 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v239
+
+**What the map shows: every element, by group, kept in your profile** (Sagara: "another grouping, a way to set the
+display of every element, and people keep their filters - signing up on the site, in their profile"):
+
+- **Map ▾** (`L`; on the map and under it) replaces Filters ▾ and Names ▾: everything the map draws, in seven groups -
+  Soldiers, Vehicles, Combat, Teamwork, The soldier you follow, The map, Screen - each element its own switch, **all /
+  none** by each group. New switches for what was always drawn: the grid, flags, where one died, +1 / TK / HS, the shot
+  direction, smoke, health bars (soldiers' and vehicles' apart), the wounded, kit icons, the sights' dot, parachute /
+  ladder / water, out of bounds, empty vehicles, trees, the fog line, the eye and the behind-cover ring, the crosshair,
+  what he holds, last seen, the UAV, supply crates, the commander's camera, the map's name, the top bar.
+- **Pins**: a pin by any element (or group) puts it on the map as a button, in the order pinned (12 at most); a group's
+  button turns it all off and back as it was. At first as before: Icons / Models, Buildings, Relief, Names (all the
+  players' names, `T`), Next 20 s.
+- **Presets**: Standard, Clean, Kill check, Everything, and your own (Save as… / Delete; 30 at most); a box by Map ▾ on
+  the map switches them.
+- **Kept**: in the browser always (all of it now - before, part of it reset at a reload); logged in, also in your
+  profile on the site, the same on any computer.
+- **Sign up** (Log in → Sign up, and on `/login`): a name and a password make an account that may open what guests may
+  and keeps your map settings. From the Log in window: change your password, delete your own account. The site's owner
+  closes sign-ups on the admin page (Users and access → Sign-up) and gives an account more in its row (tagged "signed
+  up"). Limits: 3 new accounts an hour from an address, 30 in all, 5000 accounts.
+- The admin server: `/admin/api/signup`, `/prefs`, `/my-password`, `/my-delete`; the settings in `data/.prefs/` (never
+  served; in the weekly backup). The decoder (`18e8999d15`), the round summaries (18) and the hint rules (11) are as in
+  v237.
+
+## v238
+
+**A Names button on the map** (Sagara: "a button on the map that turns the nicknames on and off"): next to Buildings and
+Relief, and the `T` key. Off hides the players' names on the map - soldiers on foot, crew by their vehicles, the wounded,
+who spotted; on brings back the ones that were on. The soldier you follow keeps his name, the kill feed keeps them all,
+and **Names ▾** still sets each kind on its own (vehicles, flags, distances stay as set there). Remembered in the
+browser. Only the page changed: the decoder (`18e8999d15`), the round summaries (18) and the hint rules (11) are as in
+v237.
+
 ## v237
 
 **Where the page's picture and the real data still differed - six places** (Sagara: "where else do our visuals and the

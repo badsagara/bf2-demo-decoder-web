@@ -343,6 +343,14 @@ Set on the admin page, card **Users and access** ([admin-guide.md](admin-guide.m
   (`auto_2026_10_18_20_28_05`), so this hides the list, not the rounds themselves.
 - **Video clips** is the only part checked by the page alone: a clip is drawn in the browser from what the page shows, so
   there is no file to refuse. (A game video needs the demo, and so Download demos too.)
+- **Signing up** (v239; the owner may stop it): a visitor makes his own account (`/admin/api/signup`) — it opens what
+  guests may and nothing more until the owner ticks it. What it is for: **his map settings in his profile**. Map ▾ (every
+  element the map draws, in seven groups: Soldiers, Vehicles, Combat, Teamwork, The soldier you follow, The map, Screen;
+  pins — any element or group as a button on the map; presets — four built in and his own) is kept in the browser
+  (`bf2rr.mapcfg`) and, logged in, in `data/.prefs/<name>.json` (`/admin/api/prefs`, 32 KB at most, written a second
+  after the last change): the profile's win at a login, a first login sends the browser's there. He changes his password
+  (his other logins end) and deletes his own account with its settings from the Log in window. An account the owner made
+  has its profile too, and can't delete itself.
 - **Closed link previews**: Discord, Telegram and the others never log in, so with Link previews unticked (and Watch
   rounds closed to guests) a link shows no card and the round posts show no map picture.
 - **If `admin.mjs` is down** while the site is closed, Caddy can't ask, and the closed parts answer with an error until

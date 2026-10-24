@@ -269,6 +269,15 @@ All ticked: the site is **open** (as before v224; the web server asks nothing). 
 those parts need a login. None ticked: **closed** — every page goes to the login page `/login`. **Tick all** / **Untick
 all**, then **Save** (it asks before closing).
 
+**Sign-up** (v239) — *visitors may make their own account* (on at first): **Log in → Sign up** on the site and on
+`/login` make an account with a name and a password. It may open what guests may — nothing more until you tick it in its
+row (tagged **signed up**) — and keeps that visitor's map settings (Map ▾: switches, pins, presets) in his profile
+(`data/.prefs/<name>.json`, 32 KB at most), so they are the same on any computer he logs in on. He can change his
+password and delete his own account (with its settings). Limits: 3 new accounts an hour from an address, 30 an hour in
+all, 5000 accounts at most; a name is taken whatever its case. Untick and **Save** to stop new ones (those made stay;
+**Remove** takes one away with its settings). On a site closed to guests a signed-up account opens nothing until you
+tick parts for it.
+
 **Accounts** — **Add** (a name: 2–32 letters, digits, `. _ -`; a password: 8+ characters). A new account may watch
 everything but the demos (Watch rounds, All rounds, Players and maps, Records, Stats, Video clips); open its row to change
 that:
@@ -284,7 +293,7 @@ that:
   are always the owner's.
 - **Save his rights**; **Set** a new password (logs him out everywhere); **Remove** (logs him out).
 
-The row shows when he last logged in and whether he is logged in now. Accounts made before v224 (server admins) keep what
+The row shows when he last logged in, whether he is logged in now, and **signed up** for an account he made himself. Accounts made before v224 (server admins) keep what
 they had: they may watch everything and have the Admin tab of their servers.
 
 **Logins.** One login for everything — the site, the Admin tab and this page — at `/login`, the site's **Log in** button,
@@ -501,7 +510,9 @@ shapes, the hint also says where he was (chest in an object, under the ground, i
   powers last.
 - Passwords: only scrypt hashes on the VPS (`/etc/bf2replay-admin.json`, `data/.admin-users.json`); never in the
   repository. Logins are rate-limited: 5 wrong from one address → 15 minutes; 30 an hour from all → a pause for the
-  addresses that got one wrong (someone with no mistake still gets in).
+  addresses that got one wrong (someone with no mistake still gets in). (v239) Sign-ups: 3 an hour from an address, 30
+  an hour in all, 5000 accounts at most, a field only robots fill refused; a signed-up account gets no more than guests.
+  The accounts' map settings (`data/.prefs/`) are never served by the web server (all of `data/.*` is closed).
 - A closed site: every request (but the login's and the admin page's) is checked by `admin.mjs` before the web server
   answers; a page goes to `/login`, a file gets 401 / 403.
 - Webhooks and the bot token stay on the VPS (`data/.notify.json`); the page shows only their last 4 characters.

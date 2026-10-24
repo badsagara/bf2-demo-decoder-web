@@ -5,7 +5,7 @@ records, and make a clip to share. Everything here works in any modern browser, 
 numbers are worked out (and what a demo can't tell) is in [features.md](features.md).
 
 Contents: [The site at a glance](#the-site-at-a-glance) · [Logging in](#logging-in) · [Watching a round](#watching-a-round) ·
-[Following a soldier](#following-a-soldier) · [What the map shows (Filters)](#what-the-map-shows-filters) ·
+[Following a soldier](#following-a-soldier) · [What the map shows (Map ▾)](#what-the-map-shows-map-) ·
 [The panels and tabs](#the-panels-and-tabs) · [Clips](#clips-video-gif-or-a-game-video) ·
 [All rounds](#all-rounds) · [A player's page](#a-players-page) · [A map's page](#a-maps-page) · [Records](#records) ·
 [Stats](#stats) · [Links, previews, RSS](#links-previews-rss) · [On your own computer](#on-your-own-computer) ·
@@ -37,10 +37,15 @@ A site can be open to everyone, or closed — as a whole or in parts — to visi
 site any page you may not open sends you to the login page (`/login`), and after the login you are back where you
 were going (the same round and moment). On an open site the **Log in** button at the top right does the same.
 
-- **Name and password**: as the site's owner gave them to you.
+- **Name and password**: as the site's owner gave them to you — or your own: **Sign up** (v239, under the login form,
+  when the site lets visitors make accounts) takes a name (2–32 letters, digits, `. _ -`) and a password of 8 or more. A
+  new account may open what visitors may (the owner can give it more), and keeps what the map shows — Map ▾'s switches,
+  pins and your presets — in your profile, the same on any computer you log in on.
 - **Keep me logged in on this computer**: 30 days (14 without a visit) instead of 12 hours (2 without a visit). Don't
   tick it on a shared computer.
-- Logged in, the button shows your name; its window says what your account may open, and has **Log out**.
+- Logged in, the button shows your name; its window says what your account may open, and has **Log out**,
+  **Change password** (the one you have first; your other logins end) and, for an account you made yourself, **Delete my
+  account** (with its settings; the browser keeps its own copy of them).
 - What your account may not open is not shown: for example without "All rounds" there is no Rounds button and no
   ‹ Newer / Older › — a round opens from its link; without "Download demos" there is no ⬇ Demo.
 - "This account may not open that page" on the login page: ask the site's owner, or log in with another account.
@@ -60,7 +65,10 @@ were going (the same round and moment). On an open site the **Log in** button at
 - **The bar at the top of the map**: tickets and time left, as in the game. **Legend ▾** says what each mark means (only
   for the layers switched on).
 - **Quick buttons**: Icons / Models (`M`, vehicles as map icons or 3D models seen from above), Buildings (`B`), Relief
-  (`H`), **Next 20 s** (`A`, see below), 1st / 3rd person for a vehicle seat (`C`).
+  (`H`), **Names** (`T`: all the players' names on the map off and on again — the soldier you follow keeps his, the kill
+  feed keeps them), **Next 20 s** (`A`, see below), 1st / 3rd person for a vehicle seat (`C`). (v239) These are the
+  pinned elements of **Map ▾**: pin any other there (Spots, the Aim line, a whole group…), unpin these. The box by
+  **Map ▾** switches presets.
 
 On a phone the page is laid out for the narrow screen: the map first, with **Play**, **−10 s** and a seek bar under it;
 **Map ↑** brings you back to the map from the tables.
@@ -77,7 +85,7 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   ✕ deaths (faint: revived), click to go there; **Killed with**, **Killed most**, **Killed by**; **All his rounds ›**
   opens his page.
 - `N` / `P` — his next / previous moment (a kill, a death, a revive…).
-- **His view** (`V`; the **His view** button with an eye on the map, next to Filters, or the one in his card) — only what he knew
+- **His view** (`V`; the **His view** button with an eye on the map, next to Map ▾, or the one in his card) — only what he knew
   in the game: his side, the enemies he had in sight (faded for a few seconds where he last saw one), his side's spots,
   and every empty vehicle (v228; a burning wreck only where he could see it). The map's button is filled while it is on;
   pressed with nobody followed, it waits (dashed) for the next soldier you click. For a vehicle, **Crew's view**: what
@@ -101,38 +109,33 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   from by the demo's own direction of the hit — straight from him, at where the victim was a moment before (what his
   screen showed), or from neither (lag, or not his shot).
 
-## What the map shows (Filters)
+## What the map shows (Map ▾)
 
-**Filters ▾** (`L`) lists every layer; the number on the button is how many are on.
+**Map ▾** (`L`; on the map and under it) lists everything the map draws, by what it shows — every element its own
+switch (v239). The number on the button is how many are on.
 
-| Layer | |
+| Group | Elements |
 |---|---|
-| **Vehicles: Icons / Models** | the game's map icons in the colour of the team in them, or the 3D models from above, to scale, the turret turning where the gun points |
-| **Soldiers: Game / Figures** | the game's minimap mark (squad leader with his squad's number, the commander's star, your squad in green), or a figure showing stance and movement (standing, crouched, prone; walking, running, sprinting; jumping, falling, parachute, ladder). A white dot at the nose while aiming down the sights |
-| **Scoreboard & text: Game / Page** | the game's own scoreboard, bar and font, or the page's plain ones |
-| **Cursor: Off / Height / Grid** (`G`) | the ground's height under the pointer (and how much above or below the soldier you follow), or the grid square, metres from the middle and the distance and direction from the soldier you follow |
-| **Kill feed** | the last kills, revives and flag captures in the top right corner |
-| **Kill lines** | a line from killer to victim, and +1 by the killer; (v237) dashed back from the victim, the way the killing bullet came when it was 6°+ off that line and his screen doesn't explain it |
-| **Spots** | enemies spotted by each side |
-| **Explosions** | grenades (with how far they were thrown) and rockets in flight, blasts, tank and APC shell hits, placed C4, claymores (and the way they face), AT mines, smoke |
-| **Firing** | a flash at the gun of everyone holding a fire button (the demo has the button going down and up, not each shot) |
-| **Emplacements** | machine guns, TOW / HJ-8, Igla / Stinger and artillery on the map |
-| **Squad orders** | each squad's order (attack, defend, move) where its leader put it, for 3 minutes or until the next |
-| **Spawn points** | where each flag's soldiers spawn, in the colour of the side that can spawn there |
-| **Medic** | revives, heals, repairs, health bars, dropped ammo and medic bags, and calls for a medic, ammo, a repair or a revive |
-| **Bodies** | the bodies of those who died, as the game's ragdoll had them: how each fell and where it lies, head this way — until the game uses that soldier again for a spawn (often minutes later; the game keeps a fixed set of soldiers) or a medic revives him |
-| **View** | the field of view of the soldier you follow and who is in it |
-| **Aim line** | as above (`X`) |
-| **Buildings** (`B`) | houses, walls, fences, containers and rocks a soldier can't walk through, from the game's files; trees and bushes as green discs |
-| **Heights** | soldiers on a roof, upper floor, tower, bridge or deck lifted over a shadow, with the height when 12 m or more |
-| **Sounds** | in His view: the shots and explosions he could hear |
-| **Relief** (`H`) | hill shading and contour lines with heights; **Shading**; **Higher than his eyes** — ground above the eyes of the soldier you follow, hatched |
-| **Next N s** | the paths ahead while paused, for the soldier you follow or for everyone |
-| **Front line** | which side holds which part of the map, from where its soldiers were over the last 30 s and its flags — a rough picture, not the game's own |
-| **Legend** | the box that explains the marks |
+| **Soldiers** | **All players' names** (one switch for every name below: on foot, crew, the wounded, who spotted — `T`) · **Marks**: Game (the minimap's mark, the squad leader's number, the commander's star, your squad green) / Figures (stance and movement) · Names · Kit (the tool after the name) · Health bars · Up high (on a roof, a tower, a deck: lifted over his shadow) · Firing (a flash at the gun) · Aiming down the sights (a white dot) · Parachute, ladder, water · Out of bounds |
+| **Vehicles** | **Look**: Icons / Models (`M`) · Empty vehicles (off: only manned ones) · Crew names · Vehicle names · Health bars · Emplacements |
+| **Combat** | Kill lines · +1 · TK · HS · Shot direction (dashed, the way the killing bullet came when it was 6°+ off the kill line and his screen doesn't explain it) · Where one died (a cross, 10 s) · Bodies · Explosions (grenades, rockets, blasts, shell hits, C4, claymores, AT mines) · Smoke · Distances and weapons |
+| **Teamwork** | Spots · Who spotted · Squad orders · Medic (revives, heals, repairs, bags, calls) · Wounded (the ring a medic has to revive him) · Wounded names · UAV · Supply crates · Commander's camera |
+| **The soldier you follow** | Field of view · Fog line · He sees him (an eye) · Behind cover · Crosshair (where it meets someone, a wall, the ground) · Aim line (`X`) · In his hands · Sounds · Last seen (His view) · Next N s (`A`, with how many seconds) · Vehicle seat camera: 1st / 3rd person (`C`) |
+| **The map** | Grid · Flags · Flag names · Buildings (`B`) · Trees and bushes · What broke · Relief (`H`), its Shading and Higher than his eyes · Spawn points · Front line |
+| **Screen** | Map name · Top bar (tickets, time) · Kill feed · Legend · Scoreboard and text: Game / Page · Cursor: Off / Height / Grid (`G`) |
 
-**Names ▾** chooses which names and labels the map shows (the soldier you follow always has his). **Map size (m)** is for
-maps the site doesn't know. `?` lists the keys.
+- **all / none** by a group switches the whole group.
+- **Pins**: the pin by an element (or by a group) puts it on the map as a button, in the order pinned (12 at most);
+  a group's button turns it all off and back as it was. At first: Icons / Models, Buildings, Relief, Names, Next 20 s.
+- **Presets**: Standard (as the page starts), Clean (soldiers, vehicles, flags and kills — few names, no extras), Kill
+  check (the aim line, relief, the ground over his eyes, heights by the pointer), Everything — and your own: **Save as…**
+  keeps what the map shows now under a name (30 at most), **Delete** removes one, **Defaults** puts everything back as
+  the page starts. The box by Map ▾ on the map switches them; "· changed" after a name: changed since.
+- **Where it is kept**: in this browser always; logged in, also in your profile on the site — the same on any computer
+  (your profile's settings win when you log in; your first login sends this browser's there). The line under the
+  presets says which.
+
+**Map size (m)** is for maps the site doesn't know. `?` lists the keys.
 
 ## The panels and tabs
 
@@ -298,9 +301,10 @@ The same `index.html` works without a server (open it from a local web server su
 | `I` `O` | clip start / end |
 | `Tab` (hold) | scoreboard |
 | `F` | full screen |
-| `L` | what the map shows (Filters ▾) |
+| `L` | what the map shows (Map ▾) |
 | `M` | vehicles: icons / models |
 | `B` | buildings' outlines |
+| `T` | all players' names on the map on / off |
 | `K` | lock the camera on the soldier you follow |
 | `V` | his view (a vehicle: its crew's) |
 | `X` | his aim line |
