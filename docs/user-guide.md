@@ -92,9 +92,14 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   he is at the end, a cross where he dies (and how many seconds on). `−` / `+` by the button (or the mouse wheel over it)
   change the seconds; **For him** / everyone.
 - **The view** layer shows his field of view (95° across, as a 16:9 screen; narrower through sights or a scope; out to the
-  fog limit).
+  fog limit). (v236) It fades as the map's fog does, and a dashed **fog line** across it marks where the fog leaves
+  nothing of a man (Karkand 99.5 m): past it only a faint tail - a man there shows only against the sky.
 - **Side view ⟂** of a kill (from the kill feed, Highlights or his card): the ground, walls and the line of sight between
-  killer and victim, and who saw whom first. **Go to the kill** brings you back to that moment.
+  killer and victim, and who saw whom first. **Go to the kill** brings you back to that moment. (v237) **On his screen**:
+  how long it was on the killer's own screen — the server's time less ~0.1 s and his ping (others reach a player's
+  screen that late, his shot the server half his ping after): an estimate. **The shot**: where the killing bullet came
+  from by the demo's own direction of the hit — straight from him, at where the victim was a moment before (what his
+  screen showed), or from neither (lag, or not his shot).
 
 ## What the map shows (Filters)
 
@@ -107,7 +112,7 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
 | **Scoreboard & text: Game / Page** | the game's own scoreboard, bar and font, or the page's plain ones |
 | **Cursor: Off / Height / Grid** (`G`) | the ground's height under the pointer (and how much above or below the soldier you follow), or the grid square, metres from the middle and the distance and direction from the soldier you follow |
 | **Kill feed** | the last kills, revives and flag captures in the top right corner |
-| **Kill lines** | a line from killer to victim, and +1 by the killer |
+| **Kill lines** | a line from killer to victim, and +1 by the killer; (v237) dashed back from the victim, the way the killing bullet came when it was 6°+ off that line and his screen doesn't explain it |
 | **Spots** | enemies spotted by each side |
 | **Explosions** | grenades (with how far they were thrown) and rockets in flight, blasts, tank and APC shell hits, placed C4, claymores (and the way they face), AT mines, smoke |
 | **Firing** | a flash at the gun of everyone holding a fire button (the demo has the button going down and up, not each shot) |
@@ -186,6 +191,8 @@ real game picture, not the map. Follow a soldier first; tick the views you want:
   black round its round sight — his eyes are filmed once more for each zoom); over the soldiers and vehicles in the
   picture their name (in their side's colour, his own yellow), health and distance from him, faded where he couldn't
   see them (walls, hills, smoke, trees); a ring round the one he aims at; in the other views his yellow aim line.
+- **Every name** (v237) — off: names in his eyes as the game showed them to him (an enemy's only while he is under the
+  crosshair, 300 m at most; a team mate's within 120 m); on: a name over every soldier and manned vehicle in the picture.
 
 **Make the kit** packs a `.zip` (a few hundred KB): the round's demo, with the part of the round before the clip packed
 into a short stretch so the game gets there fast; a camera for each view; and `make-videos.bat`. Unpack the zip into the

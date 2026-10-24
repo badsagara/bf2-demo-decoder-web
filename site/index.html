@@ -996,7 +996,7 @@ body.mbar-on { padding-bottom: 72px; }
       <button class="btn" id="tSpawnG" title="Where each flag's soldiers spawn (the middle of its spawn points, as the demo has it), in the colour of the side that can spawn there - a dashed ring round a dot; grey while nobody can">Spawn points</button>
       <button class="btn on" id="tMedic" title="Revives, heals, repairs, health bars, dropped ammo / medic bags and the calls for a medic, ammo, a repair or a revive">Medic</button>
       <button class="btn on" id="tBodies" title="The bodies of those who died, as the game's ragdoll had them: how each fell, and where it lies, head this way - until the game uses his soldier again for a spawn (often minutes later) or a medic revives him">Bodies</button>
-      <button class="btn on" id="tView" title="What the soldier you follow sees (95° across - a 16:9 screen, narrower through his sights or scope - out to the fog limit; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
+      <button class="btn on" id="tView" title="What the soldier you follow sees (95° across - a 16:9 screen, narrower through his sights or scope - out to the fog limit, fading as the map's fog does - a dashed line where it leaves nothing of a man; strong: the ground, light: only a standing soldier) and who is in it; at a vehicle's gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a passenger at a firing port) along the gun, with a cross where it points. On maps whose walls and hills are known (from the game's files) only what he can see is filled in">View</button>
       <button class="btn" id="tAimLn" aria-pressed="false" title="The soldier you follow: a line from him (or his vehicle's guns) to where his crosshair meets something - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit. Also on the map (by His view), in his card (Aim line) and the X key">Aim line</button>
       <button class="btn on" id="tWalls" title="Houses, walls, fences, containers and rocks a soldier can't walk through (from the game's files: what stands between knee and head height), outlined on the map; open where you can pass, also under bridges and roofs. Trees and bushes as green discs (their crowns; trunks as dots when zoomed in): they hide like smoke in who sees whom. What breaks (signs, traffic lights, trestles, barrels, carts, wooden fences, fuel tank wagons, bridges): once the demo says it broke, a dashed outline with a cross - and what broke it, zoomed in - and out of who sees whom from then on">Buildings</button>
       <button class="btn on" id="tLift" title="Soldiers up on a roof, an upper floor, a tower, a bridge or a ship's deck - 2 m or more over the ground or the sea under them: lifted over a shadow where they are, with a thin line down to it (the higher, the longer); 12 m or more up, the height by the shadow">Heights</button>
@@ -1086,7 +1086,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v235';
+const APP_VERSION = 'v237';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1830,7 +1830,7 @@ function figFor(i, p, q, st, tt = t) {
   if (onChute(p, tt)) return 'chute';
   const m = mvNow(p, tt);
   if (m & 4) return 'ladder';
-  if (m & 2) return st ?? 0;   // (swimming: the waves under him say it)
+  if (m & 2) return 0;   // (swimming: upright, the waves under him say it - v237: not the stance he had before the water)
   if (m & 1) return 'fall';
   return airNow(i, tt) || (st === null ? null : figKey(st, q));
 }
@@ -1938,6 +1938,30 @@ function drawStance(k, x, y, scale, col, face = 1) {
 const SB_ZERO = [0, 0, 0, 0, 0, 0];
 const sbNow = (p, tt) => { const L = p.sb; if (!L) return null; let r = L[0][0] <= 15 ? L[0] : SB_ZERO; for (const x of L) { if (x[0] > tt) break; r = x; } return r; };
 const seriesAt = (L, tt, dflt = null) => { let r = dflt; for (const x of L || []) { if (x[0] > tt) break; r = x; } return r; };
+// (v237, todo 286 a) a kill's own shot direction (the decoder's dir since v235: the game's x, height, z) against the line
+// from where the killer stood (k: { x, y }): { off (deg, across the ground), ux, uy (its way on the map), down (deg the shot
+// came down; negative: up) } - bullets only (small arms, vehicles' and emplacements' guns): for a blast it is the blast's
+// way. 39 demos: bullets 0.5-5 deg off in the middle; more is lag (he was not where the demo has him when he shot) or a
+// shot that did not come from him
+const SHOT_OFF = 6, SHOT_LAT = 1.5;   // (drawn when this far off: deg, and m across at the killer's distance)
+function shotOff(e, k) {
+  if (!e || !e.dir || !k || !Number.isFinite(k.x) || e.x == null) return null;
+  const c = killCause(e, false); if (c !== 'small' && c !== 'veh' && c !== 'emp') return null;
+  if (/grenade|launcher|GP-|M203|RPG|SRAW|Eryx|C4|Claymore|mine|knife|defib|missile|rocket|bomb|Hellfire|Sidewinder|Sea Sparrow|TOW|HJ-8|Igla|Stinger|QW-2|artillery|cannon/i.test(e.weapon || '')) return null;   // (explosive: the blast's way)
+  const [dx, dh, dz] = e.dir, hl = Math.hypot(dx, dz); if (hl < 0.2) return null;
+  const ux = dx / hl, uy = dz / hl, kx = e.x - k.x, ky = e.y - k.y, kl = Math.hypot(kx, ky); if (kl < 3) return null;
+  const off = Math.acos(Math.max(-1, Math.min(1, (ux * kx + uy * ky) / kl))) * 180 / Math.PI;
+  // what his screen showed: the shot fired from where he stood up to 0.6 s before passing within 0.8 m of where the victim
+  // was up to 0.6 s before (others reach a player's screen ~0.1 s and half his ping late; a man running across the line
+  // is 1-2 m back there - 21:03: Vo1k's PKM 7° off, =FL= smidsyonfire sprinting across it 0.2 s before). when:
+  // { k, v } (s back for the killer - the least that fits - then for the victim), null when none fits (from elsewhere)
+  let when = null; const ki = round.pidx.get(e.killer), vi = round.pidx.get(e.victim);
+  if (off >= 3 && ki !== undefined && vi !== undefined) for (let a = 0; a <= 6 && !when; a++) for (let b = 0; b <= 6; b++) {
+    const K = playerAt(ki, e.t - 0.05 - a / 10), V = playerAt(vi, e.t - 0.05 - b / 10); if (!Number.isFinite(K.x) || !Number.isFinite(V.x)) continue;
+    const wx = V.x - K.x, wy = V.y - K.y; if (wx * ux + wy * uy > 0 && Math.abs(wx * uy - wy * ux) <= 0.8) { when = { k: a / 10, v: b / 10 }; break; }
+  }
+  return { off, lat: kl * Math.sin(Math.min(Math.PI / 2, off * Math.PI / 180)), ux, uy, down: -Math.asin(Math.max(-1, Math.min(1, dh))) * 180 / Math.PI, when };
+}
 // BF2's ranks (the Player ghost's rank)
 const RANKS = ['Private', 'Private First Class', 'Lance Corporal', 'Corporal', 'Sergeant', 'Staff Sergeant', 'Gunnery Sergeant', 'Master Sergeant', 'First Sergeant', 'Master Gunnery Sergeant', 'Sergeant Major', 'Sergeant Major of the Corps', '2nd Lieutenant', '1st Lieutenant', 'Captain', 'Major', 'Lieutenant Colonel', 'Colonel', 'Brigadier General', 'Major General', 'Lieutenant General', 'General'];
 // (v133) the game's awards by id (the Medal event; names from the game's English localization)
@@ -2059,9 +2083,28 @@ const ZOOM_F = {"5369":0.85,"5370":0.6,"5372":0.8,"5374":0.8,"5376":0.8,"5378":0
 const ZOOM_SCOPE = 0.4;
 // the field of view up and down (rad) at zoom z (viewZoom's: 1 not zoomed - the camera's 1.1; else the weapon's factor)
 const fovV = z => z >= 1 ? 2 * VIEW_VHALF : z;
+// (v237) a TOW's or HJ-8's gunner sees through its sight: the game's ats_tow_Camera / ats_hj8_Camera are 0.6 rad high in
+// first person (insideFOV; 34 deg high, 58 across on 16:9), not a man's 1.1. Its gunner: the soldier within 2.5 m of a
+// manned one, of its crew's side, the nearest such (the demo turns his own view with the launcher's - 21:14: HJ-8,
+// AstraalTM and cubanro: his yaw turns with it)
+const EMP_SIGHT = new Set([5503, 5510]), EMP_SIGHT_FOV = 0.6;
+function empSight(i, tt) {
+  const E = round._empS || (round._empS = (round.emplacements || []).filter(e => EMP_SIGHT.has(e.tpl) && e.crew && e.crew.length));
+  if (!E.length) return false;
+  const q = playerAt(i, tt); if (!q.alive || q.veh || !Number.isFinite(q.x)) return false;
+  const tm = teamOf(i, tt);
+  return E.some(e => {
+    const c = e.crew.find(c => c[0] <= tt && tt < c[1]); if (!c || c[2] !== tm) return false;
+    const d = Math.hypot(e.x - q.x, e.y - q.y); if (d >= 2.5) return false;
+    // nobody else of his side nearer to it
+    return !round.players.some((o, j) => { if (j === i || o.vehicle) return false; const w = playerAt(j, tt); return w.alive && !w.veh && Number.isFinite(w.x) && teamOf(j, tt) === tm && Math.hypot(e.x - w.x, e.y - w.y) < d; });
+  });
+}
 // how far soldier i's view is closed at tt: 1 not aiming (or in a vehicle), else his weapon's factor (kept per 0.1 s)
 function viewZoom(i, tt) {
-  const p = round.players[i]; if (!p || p.vehicle || !zoomNow(p, tt)) return 1;
+  const p = round.players[i]; if (!p || p.vehicle) return 1;
+  if (empSight(i, tt)) return EMP_SIGHT_FOV;
+  if (!zoomNow(p, tt)) return 1;
   const C = round._vz || (round._vz = new Map()), key = i * 1e6 + Math.round(tt * 10); let z = C.get(key);
   if (z === undefined) { const h = inHands(i, tt); z = (h && ZOOM_F[h.wid]) || (h && h.slot === 2 ? 0.8 : 0.7); if (C.size > 50000) C.clear(); C.set(key, z); }
   return z;
@@ -2113,7 +2156,7 @@ function inCam(C, dx, dy, zlo, zhi, wide = 0) {
   return zlo == null || (zhi / d >= B[0] && zlo / d <= B[1]);
 }
 // a soldier's body as such a column: from his feet (1.0 m under his position) to the top of his head
-const bodyCol = (j, o, tt) => [o.h - 1.0, o.h + (o.veh ? 1.0 : AIM_H[stanceNow(round.players[j], tt) ?? 0][0] + 0.2)];
+const bodyCol = (j, o, tt) => [o.h - 1.0, o.h + (o.veh ? 1.0 : AIM_H[poseNow(round.players[j], tt)][0] + 0.2)];
 const pitchText = pt => { const g = Math.round(pt * 180 / Math.PI); return Math.abs(g) < 3 ? 'level' : Math.abs(g) + '° ' + (g > 0 ? 'up' : 'down'); };
 const viewRange = () => fogRange();
 const fogRange = () => GAME.maps[mapKey()]?.view || 150;
@@ -2137,6 +2180,9 @@ function skyBehind(D, ax, ay, ah, bx, by, bh, tt) {
   const u = far / L; return !losBlocked(D, bx, by, bh, ax + dx * u, ay + dy * u, ah + dh * u, tt);
 }
 // lost in the fog: farther than fogGone, with no sky behind (b: the point of him that would show, e.g. the top of his head)
+// (v236) how much of the field of view's shading is left past the fog line (on the map: a man against the sky still
+// shows), and at least how much before it (so the sector stays readable in a thick fog)
+const FOG_TAIL = 0.15, FOG_NEAR = 0.45;
 const fogHides = (D, ax, ay, ah, bx, by, bh, tt) => { const fz = fogGone(); return fz < Infinity && Math.hypot(bx - ax, by - ay, bh - ah) > fz && !skyBehind(D, ax, ay, ah, bx, by, bh, tt); };
 const angOff = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; if (d < -Math.PI) d += 2 * Math.PI; return Math.abs(d); };
 // where soldier i looks: on foot his view; in a seat with a gun (a tank's, APC's or AA vehicle's driver, a roof gunner, a
@@ -2947,7 +2993,13 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot) {
 // point; before: 0.65 / 0.05 / -0.55). Checked on 918 small-arms kills of 9 rounds: where the killer's view passes the
 // victim does not change with the distance (no angle error) and from a crouching / prone killer it comes 0.38 / 1.02 m
 // lower than from a standing one at the same kind of target (the game's 0.52 / 1.10 fit better than 0.60 / 1.20)
-const EYE_H = [0.47, -0.05, -0.63], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75]];
+const EYE_H = [0.47, -0.05, -0.63, 0.3], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75], [0.4, 0.05]];
+// (v237) and swimming, the game's fourth pose (Soldier: pose 3): its camera 0.3 m over his position (the soldier
+// template's own default - no soldier's .tweak sets it), and only his head and shoulders out of the water. The demo
+// says he swims in his soldier's own records (players[].mv & 2) - before, a swimmer kept the stance he had before the
+// water (a man shown lying in the sea, his eyes 0.63 m under his position)
+const POSE_SWIM = 3;
+const poseNow = (p, tt) => p && (mvNow(p, tt) & 2) ? POSE_SWIM : (stanceNow(p, tt) ?? 0);
 // (v233) the eye 0.1 m in front of his position (the .tweak's poseCameraPosition 0/0.47/0.1, 0/-0.05/0.1, 0/-0.63/0.1 -
 // across / up / ahead). (v234) Not so in the game: SoldierTemplate::poseCameraPosition keeps the height alone, x and z
 // set back to 0 (OpenBF2, read for knowledge: "0/0.47/0.1 yields (0, 0.47, 0)") - the camera is straight over his
@@ -2958,7 +3010,7 @@ const EYE_H = [0.47, -0.05, -0.63], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0
 const EYE_FWD = 0;
 const eyeXY = q => EYE_FWD && q && !q.veh && Number.isFinite(q.x) && Number.isFinite(q.yaw) ? { ...q, x: q.x + EYE_FWD * Math.sin(q.yaw), y: q.y + EYE_FWD * Math.cos(q.yaw) } : q;
 // (in a vehicle: his seat's camera, seatView; 1.5 m over the vehicle's position where that is not known)
-const eyeOf = (i, q, tt) => q.eye != null ? q.eye : q.veh ? (seatView(i, tt)?.eye ?? q.h + 1.5) : q.h + EYE_H[stanceNow(round.players[i], tt) ?? 0];
+const eyeOf = (i, q, tt) => q.eye != null ? q.eye : q.veh ? (seatView(i, tt)?.eye ?? q.h + 1.5) : q.h + EYE_H[poseNow(round.players[i], tt)];
 // ---------- smoke (sight lines) ----------
 // A smoke cloud (the decoded smoke events) hides what is in it or behind it: from 0.5 s after it forms until 2 s before it
 // is gone (it thins out at the end), a sight line that passes through the dense middle of it (85% of its radius, as it
@@ -3009,7 +3061,7 @@ function canSee(i, j, tt, V) {
   if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return false;
   const D = losData(); if (!D) return null;
   if (q.h == null || o.h == null) return null;
-  const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[st];
+  const st = o.veh ? 0 : poseNow(round.players[j], tt), eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[st];
   if (eye == null) return null;
   if (fogHides(D, q.x, q.y, eye, o.x, o.y, o.h + Math.max(...pts), tt)) return false;   // (v235: lost in the fog)
   const G = geoData(true);
@@ -3553,7 +3605,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
       if (!flat && o.h != null && q.pitch != null) { const [z0, z1] = bodyCol(j, o, ot), a0 = Math.atan2(z0 - e0, dd), a1 = Math.atan2(z1 - e0, dd); offV = (pt < a0 ? a0 - pt : pt > a1 ? pt - a1 : 0) * 180 / Math.PI; zt = Math.min(z1, Math.max(z0, e0 + Math.tan(pt) * dd)); }
       const off = Math.hypot(offH, offV); if (off > tol || (pick && off >= pick.off)) return;
       if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return;
-      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[stanceNow(pl, ot) ?? 0].map(v => o.h + v))]; if (!pts.some(z => !(losBlocked(D, q.x, q.y, e0, o.x, o.y, z, tt) && !(G && !exactHit(D, G, q.x, q.y, e0, o.x, o.y, z, true, tt))) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
+      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[poseNow(pl, ot)].map(v => o.h + v))]; if (!pts.some(z => !(losBlocked(D, q.x, q.y, e0, o.x, o.y, z, tt) && !(G && !exactHit(D, G, q.x, q.y, e0, o.x, o.y, z, true, tt))) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
       const dn = Math.hypot(n.x - q.x, n.y - q.y); pick = { j, off, l: Math.hypot(dn, (zt - e0)), x: n.x, y: n.y, h: zt, d: dn };
     });
     if (pick) return { x: pick.x, y: pick.y, h: pick.h, l: pick.l, d: pick.d, kind: 'soldier', j: pick.j, off: pick.off, from: q };
@@ -3912,7 +3964,7 @@ function spotterOf(e) {
 }
 // is any of the 9 lines (as bodyLines) clear with the map's exact shapes (G)? shoot (v180): for a bullet (exactHit)
 function bodyClearExact(D, G, q, eye, j, o, tt, shoot) {
-  const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
+  const st = o.veh ? 0 : poseNow(round.players[j], tt), hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
   for (const th of hs) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true, tt, shoot)) return true;
   return false;
@@ -3920,7 +3972,7 @@ function bodyClearExact(D, G, q, eye, j, o, tt, shoot) {
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
 // i at q, eye height eye, has a clear line to: [clear, of how many]
 function bodyLines(D, q, eye, j, o, tt, G) {
-  const st = o.veh ? 0 : stanceNow(round.players[j], tt) ?? 0, hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
+  const st = o.veh ? 0 : poseNow(round.players[j], tt), hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
   let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) {
     const bx = o.x + px * s, by = o.y + py * s, bh = o.h + th;
@@ -4757,6 +4809,11 @@ function draw() {
       const kp = placedKill ? { x: e.cx, y: e.cy } : playerAt(ki, e.t); const [qx,qy] = toC(kp.x,kp.y);
       cx.strokeStyle = teamColor(teamOf(ki, e.t)); cx.globalAlpha = 1-age/3; cx.lineWidth = 2;
       cx.beginPath(); cx.moveTo(qx,qy); cx.lineTo(px,py); cx.stroke();
+      // (v237, todo 286 a) where the killing shot really came from (the demo's own direction of the hit): dashed back from
+      // the victim along it, as far as the killer - drawn when it is SHOT_OFF deg or more off the line from the killer
+      // (not when his screen explains it: the victim a moment earlier, or he himself, on the shot's line - shotOff)
+      const so = shotOff(e, kp); if (so && so.off >= SHOT_OFF && so.lat >= SHOT_LAT && !so.when) { const L2 = Math.hypot(px - qx, py - qy) || 30, ux = -so.ux, uy = -so.uy;
+        cx.setLineDash([4, 3]); cx.lineWidth = 1.6; cx.beginPath(); cx.moveTo(px, py); cx.lineTo(px + ux * L2, py - uy * L2); cx.stroke(); cx.setLineDash([]); }
       // the distance at the middle of the line, when the line is long enough on screen to carry it
       if (opts.lab.dist && e.dist !== undefined && Math.hypot(px - qx, py - qy) > 46) {
         const lb = e.dist + ' m', mx = (px + qx) / 2, my = (py + qy) / 2;
@@ -4805,7 +4862,15 @@ function draw() {
       const key = t + '|' + (q.third ? 3 : 1) + '|' + view.x0 + '|' + view.y0 + '|' + view.span + '|' + size + '|' + sizeH + '|' + !!losData();
       let vs = vsCache.get(who)?.key === key ? vsCache.get(who).vs : undefined;
       if (vs === undefined) { vs = viewShed(who, q, t, Rv, nr, Math.max(0.25, 2 / m2px)); vsCache.set(who, { key, vs }); if (vsCache.size > 12) vsCache.delete(vsCache.keys().next().value); }
-      const grad = (al0, al1) => { const g = cx.createRadialGradient(px, py, 0, px, py, Math.max(1, fogRange() * m2px)), c0 = rgbaOf(col, al0), c1 = rgbaOf(col, al1); if (!c0) return col; g.addColorStop(0, c0); g.addColorStop(1, c1); return g; };
+      // (v236, Sagara: "the sector drawn by the map's fog") the shading fades with distance as before and, on top of it, as
+      // the map's fog does (fogVis: Karkand 35% at 50 m, nothing past 99.5 m) - kept readable up to the fog line (at least
+      // FOG_NEAR of it there), then only a faint tail (FOG_TAIL: a man against the sky still shows); a map without its fog
+      // known as before
+      const FR = fogRange(), FZ = fogGone(), fogK = d => d > FZ ? FOG_TAIL : FOG_NEAR + (1 - FOG_NEAR) * Math.max(0, Math.min(1, fogVis(d)));
+      const grad = (al0, al1) => { const g = cx.createRadialGradient(px, py, 0, px, py, Math.max(1, FR * m2px)); if (!rgbaOf(col, al0)) return col;
+        const U = []; for (let s = 0; s <= 16; s++) U.push(s / 16); if (FZ < FR) U.push(FZ / FR - 0.001, FZ / FR + 0.001); U.sort((x, y) => x - y);
+        for (const u of U) { if (u < 0 || u > 1) continue; const a = (al0 + (al1 - al0) * u) * fogK(u * FR); g.addColorStop(u, rgbaOf(col, +a.toFixed(4))); }
+        return g; };
       if (vs) {
         const P = [null, new Path2D(), new Path2D()];
         vs.runs.forEach((rn, k) => {
@@ -4823,6 +4888,8 @@ function draw() {
       const hw = Math.atan(camOf(q, who, t).tw);   // (no walls: the frame's width at his eye's height; through his sights narrower)
       cx.beginPath(); cx.moveTo(px, py); cx.arc(px, py, R, a0 - hw, a0 + hw); cx.closePath();
       if (!vs) { const c0 = rgbaOf(col, 0.25); cx.fillStyle = c0 ? grad(0.25, 0.03) : col; cx.globalAlpha = c0 ? 1 : 0.15; cx.fill(); }
+      // (v236) the fog line: past it the map's fog leaves nothing of a man (fogGone) - dashed across the sector
+      { const fz = fogGone(); if (fz < Rv) { cx.beginPath(); cx.arc(px, py, fz * m2px, a0 - hw, a0 + hw); cx.setLineDash([5, 4]); cx.strokeStyle = col; cx.globalAlpha = 0.7 * (q.ahead ? 0.75 : 1); cx.lineWidth = 1.4; cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1; } }
       // (no edges: the shading alone - v147 for a soldier, v150 for a vehicle seat too; Sagara: "прибрати пунктирні лінії
       // при кути зору піхотинця", "Прибрати штрихові лінії по боках поля зору техніки")
       if (q.role && q.role !== 'foot') {
@@ -7497,7 +7564,7 @@ function drawSide() {
   const tt = e.t - 0.05, q = (k => !k.veh && !round.players[ki].vehicle ? eyeXY(k) : k)(playerAt(ki, tt)), o = playerAt(vi, tt), D = losData();
   if (q.h == null || o.h == null) { info.textContent = 'No heights for this kill.'; return; }
   const kp = round.players[ki], vp = round.players[vi], kFoot = !q.veh && !kp.vehicle, vFoot = !o.veh;
-  const kSt = kFoot ? stanceNow(kp, tt) ?? 0 : 0, vSt = vFoot ? stanceNow(vp, tt) ?? 0 : 0;
+  const kSt = kFoot ? poseNow(kp, tt) : 0, vSt = vFoot ? poseNow(vp, tt) : 0;
   const kEye = kFoot ? q.h + EYE_H[kSt] : q.h + 1.2, kFeet = q.h - 1.0, vFeet = o.h - 1.0, vEye = vFoot ? o.h + EYE_H[vSt] : o.h + 1.2;
   const vHead = o.h + (vFoot ? AIM_H[vSt][0] : 1.4), vChest = o.h + (vFoot ? AIM_H[vSt][1] : 0.6);
   const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy) || 0.01, ux = dx / hd, uy = dy / hd;
@@ -7597,6 +7664,13 @@ function drawSide() {
     const vTxt = g.v === null ? `${pn(vi)} never had him in view in the 6 s before` : g.v === undefined ? '' : `${pn(vi)} had him in view ${sec(e.t - g.v)} before he died`;
     L.push(`<span class="w">First sight:</span> <b>${ENG_TEXT[g.kind]}</b> <span class="w">·</span> ${g.k != null ? `${pn(ki)} had him in sight ${sec(e.t - g.k)} before the kill` : `${pn(ki)} had no clear sight of him`}${vTxt ? '; ' + vTxt : ''}${g.walls ? '' : ' <span class="w">(walls not known: field of view only)</span>'}`);
   } else if (g && g.k != null) L.push(`<span class="w">First sight:</span> ${pn(ki)} had him in sight ${sec(e.t - g.k)} before the kill; ${pn(vi)} was in a vehicle`);
+  // (v237) what the server saw is not what was on the killer's screen: others reach it ~0.1 s late (the game draws them
+  // 100 ms behind its clock) plus half his ping, and his shot takes the other half back - so his own time is about the
+  // server's less 0.1 s and his ping (from the demo's scoreboard; an estimate: the game also moves others on ahead)
+  { const pg = seriesAt(kp.ping, e.t); if (g && g.k != null && pg && pg[1] > 0) { const r = e.t - g.k, own = r - 0.1 - pg[1] / 1000;
+    L.push(`<span class="w">On his screen:</span> ${own > 0.05 ? `about ${sec(own)}` : 'hardly any time'} <span class="w">from seeing him to the kill - the server's ${sec(r)} less ~0.1 s and his ping (${pg[1]} ms): others reach a player's screen 0.1 s and half his ping late, and his shot takes the other half to the server</span>`); } }
+  // (v237, todo 286 a) where the killing shot came from, by the demo's own direction of the hit
+  { const so = shotOff(e, q); if (so) L.push(`<span class="w">The shot:</span> ${so.off < 3 ? 'straight from him' : `${Math.round(so.off)}° off the line from him (${(Math.round(so.lat * 10) / 10)} m to the side at his distance)`}${Math.abs(so.down) >= 3 ? `, coming ${Math.round(Math.abs(so.down))}° ${so.down > 0 ? 'down' : 'up'}` : ''}<span class="w">${so.off < 3 ? '' : so.when ? ` - to ${so.when.v ? `where ${esc(vp.name)} was ${sec(so.when.v)} before` : 'him'}${so.when.k ? `, from where ${esc(kp.name)} stood ${sec(so.when.k)} before` : ''}: what his screen showed (it runs behind the server)` : so.off >= SHOT_OFF && so.lat >= SHOT_LAT ? ' - from neither where he stood nor where his screen had the victim: the game had him elsewhere (lag), or the shot was not his' : ''}</span>`); }
   if (vFoot) L.push(`<span class="w">${esc(vp.name)} faced ${Math.round(vFace * 180 / Math.PI)}° away from him${o.pitch != null ? ', looking ' + pitchText(o.pitch) : ''}.</span>`);
   { const km = kFoot ? moveText(q, kSt, mvNow(kp, tt), ki, tt) : null, vm = vFoot ? moveText(o, vSt, mvNow(vp, tt), vi, tt) : null; if (km || vm) L.push(`<span class="w">Moving:</span> ${km ? `${pn(ki)} <span class="w">${moveIcon(kSt, q, ki, tt)}${km}</span>` : ''}${km && vm ? ' <span class="w">·</span> ' : ''}${vm ? `${pn(vi)} <span class="w">${moveIcon(vSt, o, vi, tt)}${vm}</span>` : ''}`); }
   info.innerHTML = L.map(x => `<div>${x}</div>`).join('');
@@ -7759,9 +7833,12 @@ const GV_VIEWS = [['eyes', 'His eyes', 'What he saw: the camera at his eyes (in 
   ['side', 'From the side', 'A camera 5 m to his right, turning with him'],
   ['still', 'Still', 'A camera that stays put over the moment, behind him and above']];
 // (v232) and over the films (gvOverlay): the crosshair, the zoom of his sights, names, health and distance, his aim line
-const GV_OVER = ['over', 'Names & crosshair', 'Drawn over the films by ffmpeg (the game shows no HUD in a demo): in his eyes the crosshair with how far it meets something, and through his sights or scope the picture zoomed in (one more render of his eyes for each zoom); over the soldiers and vehicles in the picture their name, health and distance from him - faded where he can\'t see them; in the other views his aim line'];
-clip.views = { eyes: true, behind: true, side: false, still: false, over: true };
-try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of [...GV_VIEWS, GV_OVER]) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
+const GV_OVER = ['over', 'Names & crosshair', 'Drawn over the films by ffmpeg (the game shows no HUD in a demo): in his eyes the crosshair with how far it meets something, and through his sights or scope the picture zoomed in (one more render of his eyes for each zoom); over the soldiers and vehicles in the picture their name, health and distance from him - faded where he can\'t see them (in his eyes only the names the game showed him, unless Every name is ticked); in the other views his aim line'];
+// (v237) in his eyes, names as the game shows them (NametagManager, OpenBF2 - read for knowledge): an enemy only while he
+// is the one under the crosshair, up to 300 m and in clear sight; his own side within 120 m - or, ticked, every name
+const GV_ALLN = ['allnames', 'Every name', 'In his eyes a name over every soldier and manned vehicle in the picture. Off: as the game showed them to him - an enemy only while he is the one under his crosshair (up to 300 m, in clear sight), his own side within 120 m'];
+clip.views = { eyes: true, behind: true, side: false, still: false, over: true, allnames: false };
+try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of [...GV_VIEWS, GV_OVER, GV_ALLN]) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
 const gvSave = () => { try { localStorage.setItem('bf2rr.gviews', JSON.stringify(clip.views)); } catch (e) {} };
 const clipForceRec = /[?&]cliprec\b/.test(location.search);   // (testing: film in real time even with WebCodecs)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.clip') || '{}'); if (CLIP_SIZES[o.size]) clip.size = o.size; if (CLIP_SPEEDS.includes(o.speed)) clip.speed = o.speed; if (o.fmt === 'gif' || o.fmt === 'demo') clip.fmt = o.fmt; if (DEMO_FFS.includes(o.ff)) clip.ff = o.ff; } catch (e) {}
@@ -7850,7 +7927,7 @@ function renderClipBar() {
     { const sl = $('#cSndL'), fast = clip.speed > SND_MAX_SPEED; sl.hidden = dem || gif; $('#cSnd').checked = clip.sound && !fast; $('#cSnd').disabled = fast; sl.classList.toggle('off', fast); sl.title = fast ? `No sound faster than ${SND_MAX_SPEED}× (it would be a din)` : 'Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)'; }
     $('#cFFl').hidden = true; $('#cHint').textContent = dem ? DEMO_HINT : CLIP_HINT;
     { const gv = $('#cViews'); gv.hidden = !dem;
-      if (!gv.childElementCount) { gv.innerHTML = [...GV_VIEWS, GV_OVER].map(([k, n, tip]) => `<label${k === 'over' ? ' class="gvover"' : ''} title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
+      if (!gv.childElementCount) { gv.innerHTML = [...GV_VIEWS, GV_OVER, GV_ALLN].map(([k, n, tip]) => `<label${k === 'over' || k === 'allnames' ? ' class="gvover"' : ''} title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
       gv.querySelectorAll('[data-gv]').forEach(c => { c.checked = !!clip.views[c.dataset.gv]; }); }
     // camera: follow the soldier you follow (if you follow one), else the map as it is on screen
     const p = sel !== null ? round.players[sel] : null, fo = $('#cCam').options[0];
@@ -8580,7 +8657,7 @@ const mmss = s => { const r = Math.max(0, Math.round(s)); return String(Math.flo
 // - still: a free camera over the moment, behind the one it is about and above.
 // No HUD or crosshair in any view: the game turns the HUD off when it plays a demo - v232 draws its own over the films
 // (gvOverlay below).
-const GV_EYE_FWD = [0.45, 0.5, 0.8], GV_RAMP = 0.8, GV_EYE_H = [0.47, -0.05, -0.63];
+const GV_EYE_FWD = [0.45, 0.5, 0.8, 0.5], GV_RAMP = 0.8, GV_EYE_H = [0.47, -0.05, -0.63, 0.3];
 // the camera file's records (zlib-packed by the caller): mode 0 a free camera, mode 1 the game's camera on a player
 function camRecs(R) {
   const out = new Uint8Array(R.reduce((x, r) => x + (r.slot != null ? 28 : 36), 0)), v = new DataView(out.buffer); let o = 0;
@@ -8602,7 +8679,7 @@ function camEyes(i, P) {
     for (let k = P.TA; k <= P.TB; k++) {
       const tt = (k - P.T0) / 30, V = viewOf(i, tt);
       if (V && V.eye != null && Number.isFinite(V.x)) {
-        const foot = V.role === 'foot', st = foot ? (stanceNow(round.players[i], tt) ?? 0) : 0, base = foot ? V.eye - GV_EYE_H[st] : V.eye;
+        const foot = V.role === 'foot', st = foot ? (poseNow(round.players[i], tt)) : 0, base = foot ? V.eye - GV_EYE_H[st] : V.eye;
         const th = foot ? GV_EYE_H[st] : 0, tf = foot ? GV_EYE_FWD[st] : 0, u = 1 / (GV_RAMP * 30);
         if (ch === null) { ch = th; cf = tf; }
         ch += Math.max(-1.1 * u, Math.min(1.1 * u, th - ch)); cf += Math.max(-1.2 * u, Math.min(1.2 * u, tf - cf));
@@ -8709,7 +8786,7 @@ const GV_CROSS = (() => { const cx = GV_W / 2, cy = GV_H / 2; return [gvRect(cx 
 function gvOverlay(view, i, P, R, zp) {
   const n = P.TB - P.TA + 1, by = new Map(R.map(r => [r.tick, r])), pose = []; let cur = R[0];
   for (let m = 0; m < n; m++) { const r = by.get(P.TA + m + P.shift); if (r) cur = r; pose.push(cur); }
-  const fog = fogRange(), me = round.players[i], eyes = view === 'eyes', ev = [], open = new Map(), C = GV_C, col = h => '&H' + gvBGR(h) + '&';
+  const fog = fogRange(), me = round.players[i], eyes = view === 'eyes', ev = [], open = new Map(), C = GV_C, col = h => '&H' + gvBGR(h) + '&', allN = !!clip.views.allnames;
   // an event a frame; the same text on the next frame makes it longer
   const put = (key, m, layer, style, text) => { const o = open.get(key); if (o && o.text === text && o.e === m) { o.e = m + 1; return; } if (o) ev.push(o); open.set(key, { layer, style, text, s: m, e: m + 1 }); };
   const draw = (body, tags) => `{\\an7\\pos(0,0)\\p1${tags}}${body}{\\p0}`;
@@ -8717,7 +8794,9 @@ function gvOverlay(view, i, P, R, zp) {
   for (let m = 0; m < n; m++) {
     const tt = (P.TA + m - P.T0) / 30, c = pose[m], z = eyes && zp && zp.at[m] >= 0 ? zp.Z[zp.at[m]] : 1, cam = gvCam(c), tw = gvTw(view, z), pix = v => gvPix(v, tw);
     const qi = playerAt(i, tt), alive = qi.alive && Number.isFinite(qi.x), myVeh = alive ? qi.veh : null, scope = z <= ZOOM_SCOPE;
-    // who is in the picture: soldiers on foot, and the manned vehicles (with their crew)
+    const al = alive ? aimLine(i, tt) : null, myTm = teamOf(i, tt), gameNames = eyes && !allN && alive;
+    // who is in the picture: soldiers on foot, and the manned vehicles (with their crew) - in his eyes as the game names
+    // them unless every name is asked for (v237): an enemy only the one under his crosshair (300 m), his side within 120 m
     const crew = new Map(), L = [];
     round.players.forEach((pl, j) => { if (pl.vehicle) return; const o = playerAt(j, tt); if (o.alive && o.veh) { if (!crew.has(o.veh)) crew.set(o.veh, []); crew.get(o.veh).push(j); } });
     round.players.forEach((pl, j) => {
@@ -8735,11 +8814,14 @@ function gvOverlay(view, i, P, R, zp) {
       const v = cam(o.x, o.y, top); if (v[2] < 0.5 || Math.hypot(v[0], v[1], v[2]) > fog + 10) return;   // (past the fog the game shows nothing)
       const p = pix(v); if (!p || p[0] < -40 || p[0] > GV_W + 40 || p[1] < 0 || p[1] > GV_H + 20) return;
       const mine = j === i || (pl.vehicle && pl.name === myVeh);   // (his own vehicle too: yellow, no distance)
-      L.push({ j, p, d: v[2], tm, nm, hp, mine, dist: alive && !mine ? Math.hypot(o.x - qi.x, o.y - qi.y, o.h - qi.h) : null, seeJ });
+      const dist = alive && !mine ? Math.hypot(o.x - qi.x, o.y - qi.y, o.h - qi.h) : null, foe = tm !== myTm;
+      if (gameNames && !mine) { if (foe) { if (!(al && (al.kind === 'soldier' || al.kind === 'vehicle') && al.j === j) || dist > 300) return; } else if (dist > 120) return; }
+      L.push({ j, p, d: v[2], tm, nm, hp, mine, dist, seeJ, foe: gameNames && foe });
     });
     L.sort((a, b) => a.d - b.d);
     for (const l of L.slice(0, 14)) {
       const sn = l.mine || l.seeJ === i || !alive ? true : seeOf(l.seeJ, m, tt), dim = sn === false ? '\\alpha&H70&' : '', [x, y] = l.p;
+      if (l.foe && sn === false) continue;   // (the game names an enemy only along one clear ray to him)
       const nc = l.mine ? C.me : C.team[l.tm] || '#cfcfcf';
       put('n' + l.j, m, 1, 'T', `{\\an2\\pos(${gvN(x)},${gvN(y - 9)})${dim}\\c${col(nc)}}${gvEsc(l.nm)}${l.dist != null ? `{\\c&HE6E6E6&\\fs12} ${Math.round(l.dist)} m` : ''}`);
       if (l.hp != null) {
@@ -8749,7 +8831,7 @@ function gvOverlay(view, i, P, R, zp) {
       }
     }
     // where he aims
-    const al = alive ? aimLine(i, tt) : null; let ringLow = GV_H / 2;
+    let ringLow = GV_H / 2;
     if (al && (al.kind === 'soldier' || al.kind === 'vehicle') && al.j != null) {
       const o = playerAt(al.j, tt), mid = al.kind === 'vehicle' ? o.h + 1.2 : o.h, v = Number.isFinite(o.x) && o.h != null ? cam(o.x, o.y, mid) : null, p = pix(v);
       if (p) { const r = Math.max(10, Math.min(70, GV_W / 2 / tw * (al.kind === 'vehicle' ? 2.2 : 0.8) / v[2]));
@@ -9050,7 +9132,9 @@ const LEGEND = [
   ['aimLn', () => 'Aim line', 'From the followed soldier to where his crosshair meets something; dashed: into the sky, to the fog limit (Aim line on the map by His view, in his card, X)', () => {
     cx.beginPath(); cx.moveTo(-10, 5); cx.lineTo(10, -5); cx.lineCap = 'round'; cx.lineWidth = 6; cx.strokeStyle = 'rgba(6,8,6,.82)'; cx.stroke(); cx.lineWidth = 3; cx.strokeStyle = css('--aim'); cx.stroke(); cx.lineCap = 'butt'; }],
   [null, () => 'He sees him', 'Over an enemy the followed soldier sees: in his field of view with nothing in between', () => drawEye(0, 0, 1.1)],
-  [null, () => 'Behind cover', 'In the followed soldier\'s field of view, but hidden by a wall, a hill, smoke or bushes', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--muted'); cx.lineWidth = 2.2; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); }],
+  [null, () => 'Behind cover', 'In the followed soldier\'s field of view, but hidden by a wall, a hill, smoke, bushes or the fog (past the fog line, with no sky behind him)', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); cx.beginPath(); cx.arc(0, 0, 16, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.6; cx.lineWidth = 3.5; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--muted'); cx.lineWidth = 2.2; cx.setLineDash([1.5, 3]); cx.stroke(); cx.setLineDash([]); }],
+  ['view', () => 'Fog line', 'Across the followed soldier\'s field of view: past it the map\'s fog leaves nothing of a man - he shows only against the sky (Karkand 99.5 m, Mashtuur 155, Songhua 204 ...); the field of view fades as the fog does', () => {
+    cx.beginPath(); cx.arc(0, 14, 20, -Math.PI / 2 - 0.75, -Math.PI / 2 + 0.75); cx.setLineDash([4, 3]); cx.strokeStyle = teamColor(0); cx.lineWidth = 2; cx.stroke(); cx.setLineDash([]); }],
   ['spots', () => 'Spotted', 'Spotted by the other side (the game\'s Q): until the spot runs out; the tag over it says who spotted', () => { lgSol(0, 1, teamColor(1), 0.55); cx.scale(0.62, 0.62); spotCorners(0, 0, 17); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 5; cx.stroke(); cx.strokeStyle = css('--spot'); cx.lineWidth = 2.6; cx.stroke(); }],
   ['spots', () => 'Spotted place', 'A spot with nobody under the crosshair: the game\'s question mark on the place', () => {
     cx.scale(0.8, 0.8); spotCorners(0, 0, 12); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 5; cx.stroke(); cx.strokeStyle = css('--spot'); cx.lineWidth = 2.6; cx.stroke();

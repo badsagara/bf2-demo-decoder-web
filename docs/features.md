@@ -97,14 +97,19 @@ ambushes, Highlights, and many admin hints.
   each side because the demo's view is sometimes slightly off. The narrow view counts for those he could miss, never for
   the man he is shooting at. (The server's summaries, which don't know the weapon in his hands at every moment, use the
   kit: a sniper with his rifle — the scope, a pistol 0.8, the rest 0.65.)
+- (v237) **A TOW or HJ-8 gunner looks through its sight**: 34° high (58° across on 16:9 — the launcher's own camera),
+  not a man's 63°. The demo turns his view with the launcher's; the gunner is the nearest soldier of its crew's side
+  within 2.5 m. (An attack helicopter's gunner switches between two cameras the demo doesn't record: his view stays a
+  man's.)
 - **Line of sight**: lines from the eyes (where the game's camera is: straight over his position, 0.47 / −0.05 / −0.63 m
-  standing / crouching / lying — v233 put it 0.1 m in front, v234 back: the game drops that part) to the target's head, chest, shoulders
+  standing / crouching / lying, 0.3 swimming (v237: the game's swimming pose, not the stance he had on land) — v233 put it 0.1 m in front, v234 back: the game drops that part) to the target's head, chest, shoulders
   and hips; blocked by the map's shapes, the relief and tree trunks. **Thin walls** (wooden boards, thin metal, plastic,
   cloth) don't stop bullets: a kill only through such things is "through thin walls", not "no line of sight".
 - **Fog**: nothing is seen beyond the map's view distance (Karkand 140 m, Blue Pearl 90, Sharqi 195, Mashtuur 200,
   Songhua 250, Jalalabad 270, Fushe Pass and Gulf of Oman 400, Wake and Kubra 600, …). (v235) Inside it the map's
   fog, worked out as the game draws it, hides a man sooner: on Karkand nothing of him is left past 99.5 m, on Mashtuur
-  past 155 m, on Songhua 204 m, Highway Tampa 305 m — unless he stands against the sky, which has no fog.
+  past 155 m, on Songhua 204 m, Highway Tampa 305 m — unless he stands against the sky, which has no fog. (v236) On the
+  map his field of view fades the same way, with a dashed fog line where nothing of a man is left.
 - **Ticket bleed** (v235): a side loses tickets while the other side's flags weigh 100 or more (each flag's weight comes
   from the level's files) and more than its own — 10 a minute for each 100 of difference. On Karkand the 8 flags weigh
   104 and on Wake the 6 weigh 100, so there a side bleeds only while the other holds every flag. Round stats count the
@@ -246,6 +251,9 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   - **`make-videos.bat`**: the game films each view at 1280×720, 30 frames a second, and quits at the track's end; ffmpeg,
     when found, cuts the film to the clip and makes it an MP4 (H.264, the AVI deleted).
   The kit is made in the browser in seconds; it needs the round's demo (the server's, or your own copy).
+- **Names as the game shows them** (v237, OpenBF2's name tags, read for knowledge): in his eyes an enemy's name only
+  while he is the one under the crosshair (300 m at most, a clear line), a team mate's within 120 m; **Every name** puts
+  one over everyone in the picture, as before.
 - **Over the game videos** (v232, the idea from DemoAnalyzer, 2008, which draws in the game itself): an `.ass` file a
   view (shapes and text at each frame's time) that ffmpeg burns in. Every camera is one the page made — its place, yaw
   and pitch at every tick, 95° across — so each point of the round lands on the picture where it is: labels over the

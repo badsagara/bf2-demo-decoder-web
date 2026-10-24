@@ -5,6 +5,46 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v237
+
+**Where the page's picture and the real data still differed - six places** (Sagara: "where else do our visuals and the
+real data part ways?"):
+
+- **Speed by stance** - a new admin hint (`stancespeed`, 59): 2 s or more crouching at 3 m/s or more, or lying at 1.6 m/s
+  or more. The game moves a crouching man at 2.0 m/s at the most and a lying one at 0.8; v233 could set no limits by
+  stance because the decoder lost the stance after a health change (fixed in v235). Measured on 43 demos with every
+  thing that can carry a man left out (vehicles, another soldier carrying him, water, ladders, falls, blasts, spawns,
+  slopes) and each second's speed taken so that one lagging step doesn't count: crouching 2.01 m/s at the 99.9th
+  percentile, lying 0.82 - and never above 2.83 / 3.21, for 0.2 s at the most. No honest round in the 43 shows it.
+- **A TOW or HJ-8 gunner looks through its sight**: 34 deg high (the launcher's own camera), not a man's 63 - in His view,
+  who saw whom and the hints. (An attack helicopter's gunner switches between two cameras the demo doesn't record: his
+  view stays a man's.)
+- **A swimmer's eye at his swimming height** (the game's swimming pose, 0.3 m over his position), not the stance he had
+  on land - sight lines, His view, the game video kit; the map draws him upright.
+- **Names as the game shows them** in the game video kit's His eyes: an enemy's name only while he is under the
+  crosshair (300 m at most, a clear line), a team mate's within 120 m (OpenBF2's name tags, read for knowledge). The new
+  **Every name** option puts a name over everyone in the picture, as before.
+- **His own screen's time**: the Side view card says how long the victim was on the killer's screen before the kill -
+  the server's time less ~0.1 s and his ping (others reach a player's screen that late, his shot the server half his
+  ping after); an estimate. The Reaction hint gives his ping too.
+- **The shot's own direction** (the decoder keeps it since v235): the Side view card says whether the killing bullet
+  came straight from him, to where the victim was a moment before (what his screen showed - a man running across the
+  line), or from neither (lag, or not his shot); on the map a dashed line from the victim shows the way it came when it
+  was 6 deg or more off the line from the killer and his screen doesn't explain it.
+- The hint rules become version 11 (the background analysis goes over every round again by itself); the decoder
+  (`18e8999d15`) and the round summaries (18) are as in v236.
+
+## v236
+
+**The field of view on the map follows the map's fog** (Sagara: "the view sector drawn by the fog of the map"):
+
+- The followed soldier's field of view fades with distance as before and now also as the map's fog does (the same curve
+  the sight lines use since v235): on Karkand it is clearly weaker by 50 m, and a dashed **fog line** across the sector
+  marks 99.5 m, past which the fog leaves nothing of a man - beyond it only a faint tail (a man against the sky still
+  shows). Maps with a light fog (Dalian, Kubra, Wake) look as before. Up to the fog line the shading stays readable.
+- The map's legend has the fog line, and "Behind cover" says a man past it with no sky behind him is hidden too.
+- Only the page changed: the decoder (`18e8999d15`), the round summaries and the hint rules (10) are as in v235.
+
 ## v235
 
 **What OpenBattlefield2 and two other projects showed about the game, checked on our demos** (Sagara: "take from them

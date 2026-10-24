@@ -953,6 +953,11 @@ does it by itself after the update, as for earlier decoders; `sudo bf2replay-sta
 how many are left, `journalctl -u bf2replay-reprocess -f` the progress live (about an hour for the earlier full re-decodes). Rounds whose demos are gone
 stay as they were. The hint rules become version 10 (the fog in the sight lines, Fast flag's men counted as the game
 counts them, Bunny hop 15, Stamina, three new physics hints): the background analysis goes over every round again too.
+(v236) Only the page changes (the field of view on the map follows the fog): nothing to do; if v235 was skipped, its
+decoding again happens as described above.
+(v237) The hint rules become version 11 (a new hint, Speed by stance): the background analysis goes over every round
+again by itself. The decoder (`18e8999d15`) and the round summaries (18) stay: nothing decoded or summed up again,
+nothing to do.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 
