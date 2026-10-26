@@ -37,6 +37,7 @@ import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf, TLABEL } from './notify.mjs';
 import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
 import { expandIndex } from './roundsidx.mjs';
+import { statqKeeper, statqMeta, statqNicks, statqAsk } from './statq.mjs';   // (v244: the admins' statistics)
 import { SITE_FILE as HT_SITE_FILE, MINE_FILE as HT_MINE_FILE, siteSet as htSiteSet, pageSpec as htPageSpec, checkSet as htCheckSet, siteHv as htSiteHv } from './hintcfg.mjs';   // (v227)
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, oldRounds, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 import { ACCESS_FILE, GATE_FILE, SITE as ACC_SITE, GUEST_EXTRA as ACC_GUEST, CARDS as ACC_CARDS, guestsOf, userRights, normRights, normGuests, gateNeeded, siteRights, needOf, allowed, openPlaces } from './access.mjs';   // (v224)
@@ -816,6 +817,18 @@ function revRound(s, name) {
   return { r };
 }
 function trustedFor(server) { const T = readJson(path.join(REV, 'trusted.json'), {})?.nicks || {}, out = {}; for (const [n, e] of Object.entries(T)) if (!e.servers || !server || e.servers.includes(server)) out[n] = e; return out; }
+// ---------- (v244) the admins' statistics: the analysed rounds in memory (statq.mjs), made at the first question ----------
+// (the players' nicks as the site's statistics merge them: the page's nickOf - its "@agg" part, as analyze.mjs takes it)
+let SQ = null;
+// (as code: the store is made in a worker thread, which makes its own nickOf of it)
+function pageNickSrc() {
+  try {
+    const L = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8').split('\n'), a = L.findIndex(l => l.startsWith('// @agg-begin')), b = L.findIndex(l => l.startsWith('// @agg-end')), g = L.find(l => l.startsWith('const GAME = '));
+    if (g && a >= 0 && b > a) { const src = g + '\n' + L.slice(a, b).join('\n') + '\nreturn nickOf;'; new Function(src)(); return src; }
+  } catch (e) { log('statq: the page\'s nickOf did not load:', e.message); }
+  return '';   // (statq.mjs: the simple rule - the last word of the name)
+}
+const statq = () => SQ || (SQ = statqKeeper({ dir: path.join(ROOT, 'analysis', 'rounds'), nickSrc: pageNickSrc(), log }));
 function revGet(b, s) {
   const { r, err } = revRound(s, b.round); if (err) return { ok: false, msg: err };
   const R = readJson(revRoundFile(r.name), {}) || {}, P = {};
@@ -1022,7 +1035,8 @@ const server = http.createServer(async (req, res) => {
     // (v196) the Admin tab: the admins' part of the page, the analysis's private files, a round's server side, the review
     // (v224: the accounts with the Admin tab among their rights, while their admin powers last)
     const tab = (what === 'admin.js' || what === 'round') && req.method === 'GET' || what.startsWith('data/') && req.method === 'GET' || req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what)
-      || what === 'hints-mine' || what === 'hints-site' && req.method === 'POST';   // (v227: the hints' thresholds)
+      || what === 'hints-mine' || what === 'hints-site' && req.method === 'POST'   // (v227: the hints' thresholds)
+      || (what === 'statq-meta' || what === 'statq-nicks') && req.method === 'GET' || what === 'statq' && req.method === 'POST';   // (v244)
     if (tab) {
       if (!R.admin) return send(res, 403, { error: 'this account has no Admin tab' });
       if (!admOk(s)) return send(res, 401, AGAIN);
@@ -1030,6 +1044,14 @@ const server = http.createServer(async (req, res) => {
       if (what === 'admin.js') return sendFile(res, path.join(HERE, 'admin-round.js'), 'text/javascript; charset=utf-8');
       if (what.startsWith('data/')) { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..') || rel === HT_MINE_FILE) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
       if (what === 'round') return send(res, 200, roundInfo(url.searchParams.get('name'), s));   // (v197)
+      if (what.startsWith('statq')) {   // (v244) the statistics: a server's admin sees his servers' rounds only
+        const okSrv = n => own || srvOk(s, n), S = await statq().get();
+        if (what === 'statq-meta') return send(res, 200, { ok: true, ...statqMeta(S, okSrv), state: statq().state() });
+        if (what === 'statq-nicks') return send(res, 200, { ok: true, nicks: statqNicks(S, url.searchParams.get('q'), okSrv) });
+        const b = await bodyOf(req); let r;
+        try { r = statqAsk(S, b || {}, okSrv); } catch (e) { log('statq:', e.message); r = { ok: false, msg: 'that question went wrong: ' + e.message }; }
+        return send(res, 200, r);
+      }
       if (what === 'hints-mine' && req.method === 'GET') return send(res, 200, htMineGet(s));   // (v227)
       if (what === 'hints-mine' && req.method !== 'POST') return send(res, 405, { error: 'method' });
       const b = await bodyOf(req);   // (v198)

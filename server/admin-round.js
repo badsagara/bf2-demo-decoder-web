@@ -1,7 +1,7 @@
-// BF2 Round Replay v243 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v244 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v243';
-// ---- part 1 (page line 6939) ----
+const ADM_V = 'v244';
+// ---- part 1 (page line 6975) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
 // Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
@@ -84,7 +84,7 @@ function kitSpots(R) {
 // most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
 // ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
 // (v170: the commander's supply crates are counted too - crateVisits)
-// ---- part 2 (page line 7024) ----
+// ---- part 2 (page line 7060) ----
 function ammoBags(R, i, t0, t1) {
   let n = 0;
   for (const b of R.events) {
@@ -94,7 +94,7 @@ function ammoBags(R, i, t0, t1) {
   }
   return n;
 }
-// ---- part 3 (page line 7071) ----
+// ---- part 3 (page line 7107) ----
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
 // i spent within CRATE_R of one (the crate's radius 5 m, Weapons/Handheld/supply_crate: it refills ammo and heals,
@@ -934,7 +934,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 let CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 7916) ----
+// ---- part 4 (page line 7952) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -1031,7 +1031,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 let SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 8171) ----
+// ---- part 5 (page line 8207) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1321,7 +1321,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 8463) ----
+// ---- part 6 (page line 8499) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1854,7 +1854,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
   box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 11878) ----
+// ---- part 7 (page line 11914) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -1997,8 +1997,9 @@ function htDraw() {
 function admRenderPane(box) {
   box.classList.add('admpane');
   const who = admMe && admMe.user ? `<b>${esc(admMe.user === 'owner' ? 'the site\'s owner' : admMe.user)}</b>${admMe.role === 'owner' ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}` : '';
-  const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button> <button class="btn sm" id="admOut">Log out</button></span></div>`;
-  const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen; };
+  const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button>${session?.server ? ' <button class="btn sm" id="admAsk" title="Any parameter of a player\'s kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone (the followed soldier, if any)">Ask the statistics</button>' : ''} <button class="btn sm" id="admOut">Log out</button></span></div>`;
+  const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen;
+    const a = $('#admAsk'); if (a) a.onclick = () => { const p = round && sel != null && sel >= 0 ? round.players[sel] : null; openStatsPage('astats', p && !p.vehicle ? { n: nickOf(p.name) } : {}); }; };   // (v244)
   if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
   if (!round || round.meta?.source === 'sim') { box.innerHTML = head + '<p class="empty">Open a round.</p>'; bind(); return; }
   if (!admCan()) { box.innerHTML = head + `<p class="empty">${esc(admOutOfScope())}</p>`; bind(); return; }
@@ -2326,7 +2327,7 @@ function admRevPanel() {
     ${on ? `<div class="rvverdict" role="group" aria-label="Your verdict">${['sus', 'false', 'ok'].map(s => `<button type="button" class="btn m-${s}${mk?.state === s ? ' on' : ''}" data-rst="${s}" aria-pressed="${mk?.state === s}" title="${mk?.state === s ? 'Again: clear the mark' : esc(ADM_MARK[s][1])}">${ADM_MARK[s][0]} ${s === 'sus' ? 'Suspicious' : s === 'false' ? 'A false alarm' : 'Checked: nothing there'}</button>`).join('')}</div>
       <label class="rvnote">A note for the other admins (it goes with the mark, and in the report when suspicious)<input id="rvNote" maxlength="300" placeholder="What you saw…" value="${esc(mk?.note || '')}"></label>`
       : `<p class="w">${V === null ? 'Loading the marks…' : V && V.local ? 'Marks and notes are kept on the site: open the round there.' : 'The marks: ' + esc(V?.msg || V?.error || 'no answer')}</p>`}
-    <div class="rvnav"><button type="button" class="btn sm" id="rvPrev"${k > 0 ? '' : ' disabled'}>‹ Previous hint</button><span class="w">${k >= 0 ? `${k + 1} of ${admRevList.length}` : ''}</span><button type="button" class="btn sm" id="rvNext"${k >= 0 && k < admRevList.length - 1 ? '' : ' disabled'}>Next hint ›</button>${p && !p.vehicle && session?.server ? `<button type="button" class="linkb" id="rvHis">${esc(p.name.trim())} over all rounds →</button>` : ''}</div>`;
+    <div class="rvnav"><button type="button" class="btn sm" id="rvPrev"${k > 0 ? '' : ' disabled'}>‹ Previous hint</button><span class="w">${k >= 0 ? `${k + 1} of ${admRevList.length}` : ''}</span><button type="button" class="btn sm" id="rvNext"${k >= 0 && k < admRevList.length - 1 ? '' : ' disabled'}>Next hint ›</button>${p && !p.vehicle && session?.server ? `<button type="button" class="linkb" id="rvHis">${esc(p.name.trim())} over all rounds →</button><button type="button" class="linkb" id="rvAsk" title="The statistics constructor: him${h.kill?.weapon ? ' with the ' + esc(h.kill.weapon) : ''} against everyone">Ask about him →</button>` : ''}</div>`;
   const re = () => { admRevPanel(); renderAdmPane(); };
   const stop = $('#rvStop'); if (stop) stop.onclick = () => { revLoopOff(); setPlaying(false); };
   const again = $('#rvAgain'); if (again) again.onclick = () => { revLoopSet(h.t); admRevPanel(); };
@@ -2337,6 +2338,7 @@ function admRevPanel() {
   const go = d => { const x = admRevList[k + d]; if (x) admRevPick(x); };
   $('#rvPrev').onclick = () => go(-1); $('#rvNext').onclick = () => go(1);
   const his = $('#rvHis'); if (his) his.onclick = () => openPlayerPage(nickOf(p.name));
+  const ask = $('#rvAsk'); if (ask) ask.onclick = () => openStatsPage('astats', { n: nickOf(p.name), ...(h.kill?.weapon ? { w: h.kill.weapon } : {}) });   // (v244)
 }
 const admMarkBadge = mk => `<span class="admmk m-${mk.state}" title="${esc(`${ADM_MARK[mk.state][1]} · ${mk.by} · ${admAt(mk.at)}${mk.note ? ' · ' + mk.note : ''}`)}">${ADM_MARK[mk.state][0]} ${esc(ADM_MARK[mk.state][1])} <span class="w">· ${esc(mk.by)}</span></span>`;
 const admStarBtn = (V, nick) => { const tr = V.trusted?.[nick]; return ` <button class="admstar${tr ? ' on' : ''}" data-trust="${esc(nick)}" aria-pressed="${!!tr}" title="${esc(tr ? `Trusted (by ${tr.by}${tr.why ? ': ' + tr.why : ''}${tr.servers ? ', on ' + tr.servers.join(', ') : ''}): his hints are not highlighted. A click: no more` : 'Trust him: his hints stay, not highlighted, and "not reviewed, not trusted" leaves them out')}">★</button>`; };
@@ -2477,7 +2479,229 @@ function admPlayerTiles(nick, AG, tiles, hs, redraw) {
       tiles[ti] = `<div class="kpi${odd ? ' kodd' : ''}" data-wrap title="${esc(tip)}"><span class="kl">Headshots</span><span class="kv">${hs}</span><span class="ks">${pc(x.head / x.n)} of kills · his weapons give ${pc(x.exp / x.n)}${odd ? ' - far above' : ''}</span></div>`;
     } }
 }
-Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick) });
+// ---------- (v244) the statistics constructor (Sagara: "the admin himself picks the person, the parameter, how to judge
+// it and what he needs - and over which days"): asked of the admin server (server/statq.mjs keeps the analysed rounds
+// in memory) - his value against everyone else's with the same weapon, his place among the players with enough of
+// them, the odds of his share, the spread, week by week, and his events (each opens its round there, in Review) ----------
+const aq = { meta: null, metaAt: 0, metaWait: null, res: null, resKey: null, wait: null, draft: null, draftOf: null, nicks: new Map(), nickT: 0, evAll: false, err: '' };
+const AQ_DEF = { s: 'kills', m: 'hit', a: 'share', o: '=', v: 'head', min: '30' };
+const AQ_NUM_OPS = ['≥', '>', '≤', '<', '=', '≠'], AQ_CAT_OPS = ['=', '≠'];
+function aqMetaGet(redraw) {
+  if (aq.meta && Date.now() - aq.metaAt < 5 * 60e3) return aq.meta;
+  const first = !aq.meta;   // (later: in the background, the form left as it is)
+  if (!aq.metaWait) aq.metaWait = admApi('statq-meta').then(j => { if (j && j.ok) { aq.meta = j; aq.metaAt = Date.now(); aq.err = ''; } else aq.err = j?.msg || j?.error || 'no answer'; })
+    .catch(e => { aq.err = e.message; }).finally(() => { aq.metaWait = null; if (first) redraw(); });
+  return aq.meta;   // (the old one meanwhile - none the first time)
+}
+// how a parameter may be judged
+function aqAggs(side, md) {
+  const K = side.k === 'kills' || side.k === 'deaths';
+  if (md.k === 'all') return K ? ['count', 'perRound'] : ['count'];
+  if (md.t !== 'num') return K ? ['share', 'count', 'perRound'] : ['share', 'count'];
+  return ['mean', 'median', 'p10', 'p90', 'min', 'max', 'share', 'sum', 'count', ...(K ? ['perRound'] : [])];
+}
+const aqCats = md => md.cats || ['no', 'yes'];
+const aqConds = c => String(c || '').split(',').filter(Boolean).slice(0, 4).map(x => { const [m, op, ...v] = x.split(':'); return { m, op, v: v.join(':') }; });
+// the question as the form and the link have it: { n, s, m, a, o, v, w, f, t, sv, mp, c, min, ord } - made whole
+function aqNorm(q0, M) {
+  const given = Object.fromEntries(Object.entries(q0 || {}).filter(([, v]) => v != null && v !== '')), q = given.m || given.s ? { min: AQ_DEF.min, ...given } : { ...AQ_DEF, ...given };
+  const side = M.sides.find(x => x.k === q.s) || M.sides[0]; q.s = side.k;
+  let md = side.M.find(x => x.k === q.m); if (!md) { md = side.M.find(x => x.k !== 'all') || side.M[0]; q.m = md.k; }
+  const A = aqAggs(side, md); if (!A.includes(q.a)) q.a = A[0];
+  if (q.a === 'share') {
+    if (md.t === 'num') { if (!AQ_NUM_OPS.includes(q.o) || q.o === '=' && !Number.isFinite(parseFloat(q.v))) q.o = '≥'; if (!Number.isFinite(parseFloat(q.v))) q.v = ''; }
+    else { if (!AQ_CAT_OPS.includes(q.o)) q.o = '='; if (!aqCats(md).includes(q.v)) q.v = md.t === 'bool' ? 'yes' : aqCats(md)[0]; }
+  } else { delete q.o; delete q.v; }
+  if (!side.weapon) delete q.w;
+  const C = aqConds(q.c).filter(c => { const d = side.M.find(x => x.k === c.m); return d && d.k !== 'all' && (d.t === 'num' ? AQ_NUM_OPS.includes(c.op) && Number.isFinite(parseFloat(c.v)) : AQ_CAT_OPS.includes(c.op) && aqCats(d).includes(c.v)); });
+  if (C.length) q.c = C.map(c => `${c.m}:${c.op}:${c.v}`).join(','); else delete q.c;
+  if (!(+q.min >= 1)) q.min = '30';
+  if (q.ord !== 'low') delete q.ord;
+  return q;
+}
+const aqAsk = q => ({ nick: q.n, side: q.s, m: q.m, agg: q.a, op: q.o, v: q.v, weapon: q.w || '', from: q.f || '', to: q.t || '', server: q.sv || '', map: q.mp || '', c: aqConds(q.c), min: +q.min || 30, order: q.ord || 'high' });
+// a value as a word: shares in %, counts whole, the rest with the parameter's unit
+function aqFmt(v, agg, unit) {
+  if (v == null || !Number.isFinite(v)) return '–';
+  if (agg === 'share') return (v * 100).toFixed(v < 0.1 && v > 0 ? 1 : 0) + '%';
+  if (agg === 'count') return Math.round(v).toLocaleString('en');
+  if (agg === 'perRound') return v.toFixed(2);
+  const a = Math.abs(v), s = a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
+  return s + (unit ? (unit === '×' || unit === '%' || unit === '°' ? '' : ' ') + unit : '');
+}
+const aqOdds = t => { const x = 1 / t; return x < 1e4 ? Math.round(x).toLocaleString('en') : x < 1e9 ? (Math.round(x / 1000) * 1000).toLocaleString('en') : '10^' + Math.floor(Math.log10(x)); };
+// what was asked, in words
+function aqWords(q, M) {
+  const side = M.sides.find(x => x.k === q.s), md = side.M.find(x => x.k === q.m), aggN = (M.aggs.find(x => x.k === q.a) || {}).n || q.a;
+  const unit = md.u ? ` (${md.u})` : '', low = d => d.n.toLowerCase().replace(/^where /, '');
+  const what = q.a === 'share' ? `the share where ${low(md)} ${q.o} ${q.v}${md.t === 'num' && md.u ? ' ' + md.u : ''} - ${side.n}`
+    : md.k === 'all' ? `${aggN} - ${side.n}` : `${aggN} of ${low(md)}${unit} - ${side.n}`;
+  const where = aqConds(q.c).map(c => { const d = side.M.find(x => x.k === c.m); return `${d ? low(d) : c.m} ${c.op} ${c.v}${d && d.t === 'num' && d.u ? ' ' + d.u : ''}`; });
+  const more = [q.w ? `with the ${q.w}` : '', q.mp ? `on ${mapName(q.mp)}` : '', q.sv ? `on ${q.sv}` : '', q.f || q.t ? `${q.f ? 'from ' + q.f : ''}${q.f && q.t ? ' ' : ''}${q.t ? 'to ' + q.t : ''}` : '', where.length ? 'where ' + where.join(' and ') : ''].filter(Boolean);
+  return what + (more.length ? ' · ' + more.join(' · ') : '');
+}
+function aqRender(box, arg) {
+  const redraw = () => { if (ppage.page === 'astats') renderStatsPage(); };
+  const M = aqMetaGet(redraw);
+  if (!M) { box.innerHTML = statsHead('Ask the statistics', "for the site's admins") + `<p class="empty">${aq.err ? 'The admin server: ' + esc(aq.err) : 'Reading the analysed rounds (the first question after a while takes some seconds)…'}</p></section>`; statsWire(box); return; }
+  const asked = aqNorm(arg, M), aKey = JSON.stringify(asked);
+  if (aq.draftOf !== aKey) { aq.draft = { ...asked }; aq.draftOf = aKey; }
+  const st = M.state || {}, sub = `${M.rounds.toLocaleString('en')} analysed rounds${M.from ? ` · ${esc(M.from)} – ${esc(M.to)}` : ''} · ${M.kills.toLocaleString('en')} kills${M.pressRounds ? ` · trigger presses: ${M.pressRounds.toLocaleString('en')} rounds` : ''}${st.busy ? ' · reading new ones…' : ''}`;
+  box.innerHTML = statsHead('Ask the statistics', sub) + `<div id="aqFormBox"></div></section><div id="aqOut"></div>`;
+  statsWire(box);
+  aqForm(box.querySelector('#aqFormBox'), M);
+  // the answer: asked once per question (kept while the page is open)
+  const out = box.querySelector('#aqOut');
+  if (!asked.n) { out.innerHTML = '<section class="card"><p class="empty">Pick a player, what of him, the parameter and how to judge it - then Show.</p></section>'; return; }
+  const key = JSON.stringify(aqAsk(asked));
+  if (aq.resKey !== key) {
+    out.innerHTML = '<section class="card"><p class="empty">Asking…</p></section>';
+    if (!aq.wait || aq.wait.key !== key) {
+      const w = aq.wait = { key };
+      admApi('statq', aqAsk(asked)).catch(e => ({ ok: false, msg: e.message })).then(j => { if (aq.wait !== w) return; aq.wait = null; aq.res = j; aq.resKey = key; aq.evAll = false; if (out.isConnected && ppage.page === 'astats') aqResult(out, j, asked, M); else redraw(); });
+    }
+    return;
+  }
+  aqResult(out, aq.res, asked, M);
+}
+// ---- the form ----
+function aqForm(el, M) {
+  const q = aq.draft, side = M.sides.find(x => x.k === q.s), md = side.M.find(x => x.k === q.m), A = aqAggs(side, md);
+  const opt = (L, v) => L.map(([k, l]) => `<option value="${esc(k)}"${String(v ?? '') === String(k) ? ' selected' : ''}>${esc(l)}</option>`).join('');
+  const aggN = k => (M.aggs.find(x => x.k === k) || {}).n || k;
+  const valCtl = (d, op, v, nm) => d.t === 'num'
+    ? `<select class="op" name="${nm}o" aria-label="Test">${opt(AQ_NUM_OPS.map(o => [o, o]), op)}</select><input name="${nm}v" type="number" step="any" inputmode="decimal" value="${esc(v ?? '')}" placeholder="${esc(d.u || 'value')}" aria-label="Value${d.u ? ' (' + d.u + ')' : ''}">`
+    : `<select class="op" name="${nm}o" aria-label="Test">${opt(AQ_CAT_OPS.map(o => [o, o]), op)}</select><select name="${nm}v" aria-label="Value">${opt(aqCats(d).map(c => [c, c]), v)}</select>`;
+  const minOf = q.a === 'perRound' || q.s === 'rounds' ? 'rounds' : q.s === 'presses' ? 'rounds with the weapon' : q.s === 'deaths' ? 'deaths' : 'kills';
+  const today = new Date(), ago = d => new Date(today.getTime() - d * 864e5).toISOString().slice(0, 10), C = aqConds(q.c);
+  const CM = side.M.filter(x => x.k !== 'all');
+  el.innerHTML = `<form class="aqf" id="aqF" autocomplete="off"><div class="aqgrid">
+    <fieldset><legend>Who and what</legend>
+      <label>Player <input name="n" list="aqNl" value="${esc(q.n || '')}" placeholder="a nick (2 letters or more)" spellcheck="false" required></label><datalist id="aqNl"></datalist>
+      <label>Of him <select name="s">${opt(M.sides.map(x => [x.k, x.n]), q.s)}</select></label>
+      <label>Weapon <input name="w" list="aqWl" value="${esc(q.w || '')}" placeholder="${side.weapon ? 'any' : '(not for rounds)'}"${side.weapon ? '' : ' disabled'} spellcheck="false"></label>
+      <datalist id="aqWl">${(M.weapons || []).map(([w, n]) => `<option value="${esc(w)}" label="${n.toLocaleString('en')} kills">`).join('')}</datalist></fieldset>
+    <fieldset><legend>Parameter, judged by</legend>
+      <label>Parameter <select name="m">${opt(side.M.map(x => [x.k, x.n + (x.u ? ` (${x.u})` : '')]), q.m)}</select></label>
+      <p class="w aqtip">${esc(md.tip || '')}</p>
+      <label>Judge it by <select name="a">${opt(A.map(k => [k, aggN(k)]), q.a)}</select></label>
+      ${q.a === 'share' ? `<div class="row" role="group" aria-label="The share that">${valCtl(md, q.o, q.v, '')}</div>` : ''}</fieldset>
+    <fieldset><legend>When and where</legend>
+      <div class="row"><label>From <input name="f" type="date" value="${esc(q.f || '')}" min="${esc(M.from || '')}" max="${esc(M.to || '')}"></label><label>To <input name="t" type="date" value="${esc(q.t || '')}" min="${esc(M.from || '')}" max="${esc(M.to || '')}"></label></div>
+      <div class="quick">${[[7, '7 days'], [30, '30 days'], [90, '90 days'], [0, 'All']].map(([d, l]) => `<button type="button" class="btn sm${(d ? q.f === ago(d) && !q.t : !q.f && !q.t) ? ' on' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
+      <label>Server <select name="sv">${opt([['', 'all' + (M.servers.length === 1 ? '' : ` (${M.servers.length})`)], ...M.servers.map(x => [x, x])], q.sv)}</select></label>
+      <label>Map <select name="mp">${opt([['', 'all'], ...M.maps.map(([m, n]) => [m, `${mapName(m)} · ${n}`])], q.mp)}</select></label></fieldset>
+    <fieldset><legend>Only where…</legend>
+      ${C.map((c, i) => { const d = side.M.find(x => x.k === c.m); return `<div class="row aqc" data-ci="${i}"><select name="c${i}m" aria-label="Parameter">${opt(CM.map(x => [x.k, x.n]), c.m)}</select>${valCtl(d, c.op, c.v, 'c' + i)}<button type="button" class="ibtn sm" data-cdel="${i}" aria-label="Without this">×</button></div>`; }).join('')}
+      ${C.length < 4 ? `<button type="button" class="btn sm" id="aqCAdd">+ a condition</button>` : ''}
+      <label>Rank him among players with at least <span class="row"><input name="min" type="number" min="1" step="1" value="${esc(q.min)}" aria-label="At least"><span class="w">${esc(minOf)}</span></span></label>
+      <label>Their list <select name="ord">${opt([['', 'the highest first'], ['low', 'the lowest first']], q.ord || '')}</select></label></fieldset></div>
+    <div class="aqgo"><button class="btn primary" type="submit">Show</button><span class="w">${esc(aqWords(q, M))}</span></div></form>`;
+  const f = el.querySelector('#aqF');
+  // the form as a question (the conditions: their rows)
+  const read = () => {
+    const v = n => f.elements[n] ? String(f.elements[n].value).trim() : '';
+    const nk = v('n'), o = { n: nk ? (aq.nicks.get(nk.toLowerCase()) || nickOf(nk)) : '', s: v('s'), m: v('m'), a: v('a'), o: v('o'), v: v('v'), w: v('w'), f: v('f'), t: v('t'), sv: v('sv'), mp: v('mp'), min: v('min'), ord: v('ord') };
+    o.c = [...f.querySelectorAll('.aqc')].map(r => { const i = r.dataset.ci; return `${v('c' + i + 'm')}:${v('c' + i + 'o')}:${v('c' + i + 'v')}`; }).join(',');
+    return o;
+  };
+  // a change of what is asked: the form again (its choices follow), not the answer
+  const again = (patch, focus) => { aq.draft = aqNorm({ ...read(), ...patch }, M); aqForm(el, M); const x = focus && el.querySelector(`[name="${focus}"]`); if (x) x.focus(); };
+  f.elements.a.onchange = () => again({}, 'a');
+  for (const n of ['s', 'm']) f.elements[n].onchange = () => {
+    const o = read(), s2 = M.sides.find(x => x.k === o.s) || side, m2 = s2.M.find(x => x.k === o.m) || s2.M.find(x => x.k !== 'all') || s2.M[0];
+    again(m2.t !== md.t || m2.k === 'all' || md.k === 'all' || s2.k !== side.k && !aqAggs(s2, m2).includes(q.a) ? { m: m2.k, a: aqAggs(s2, m2)[0], o: '', v: '' } : { m: m2.k }, n);
+  };
+  f.querySelectorAll('.aqc select[name$="m"]').forEach(s => s.onchange = () => { const i = s.closest('.aqc').dataset.ci, d = side.M.find(x => x.k === s.value); const C2 = aqConds(read().c); C2[i] = { m: s.value, op: d.t === 'num' ? '≥' : '=', v: d.t === 'num' ? '0' : aqCats(d)[d.t === 'bool' ? 1 : 0] }; again({ c: C2.map(c => `${c.m}:${c.op}:${c.v}`).join(',') }); });
+  f.querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => { const C2 = aqConds(read().c); C2.splice(+b.dataset.cdel, 1); again({ c: C2.map(c => `${c.m}:${c.op}:${c.v}`).join(',') }); });
+  const add = f.querySelector('#aqCAdd'); if (add) add.onclick = () => { const d = CM.find(x => x.k === 'd') || CM[0], o = read(); again({ c: (o.c ? o.c + ',' : '') + `${d.k}:${d.t === 'num' ? '≥' : '='}:${d.t === 'num' ? '0' : aqCats(d)[0]}` }); };
+  f.querySelectorAll('[data-days]').forEach(b => b.onclick = () => { const d = +b.dataset.days; again({ f: d ? ago(d) : '', t: '' }); });
+  // the players' nicks as he types (the admin server's: the analysed rounds he may see)
+  const ni = f.elements.n, dl = el.querySelector('#aqNl');
+  ni.oninput = () => {
+    clearTimeout(aq.nickT); const s = ni.value.trim(); if (s.length < 2) return;
+    aq.nickT = setTimeout(async () => {
+      const j = await admApi('statq-nicks?q=' + encodeURIComponent(s)).catch(() => null); if (!j || !j.ok || ni.value.trim() !== s) return;
+      for (const [k, nm] of j.nicks) { aq.nicks.set(k.toLowerCase(), k); aq.nicks.set(nm.toLowerCase(), k); }
+      dl.innerHTML = j.nicks.map(([k, nm, n]) => `<option value="${esc(k)}" label="${esc(nm)} · ${n} rounds">`).join('');
+    }, 200);
+  };
+  f.onsubmit = e => {
+    e.preventDefault(); const o = aqNorm(read(), M);
+    if (!o.n) { toast('Whose? A player first'); ni.focus(); return; }
+    ppage.arg = o; hashSet({ ...aqHash(o), astats: '1' }); renderStatsPage();
+  };
+}
+// ---- the answer ----
+function aqResult(out, r, q, M) {
+  if (!r || !r.ok) { out.innerHTML = `<section class="card"><p class="empty">${esc(r?.msg || r?.error || 'No answer.')}</p></section>`; return; }
+  const side = M.sides.find(x => x.k === q.s), md = side.M.find(x => x.k === q.m), F = v => aqFmt(v, q.a, md.u);
+  const cw = Math.round(Math.max(300, Math.min(1400, (out.clientWidth || 640) - 26)));   // (the charts' width: the card's)
+  const nOf = q.a === 'perRound' || q.s === 'rounds' ? 'rounds' : q.s === 'presses' ? 'rounds with a weapon' : q.s === 'deaths' ? 'deaths' : 'kills';
+  const tile = (l, v, sub, cls) => `<div class="kpi aqk${cls ? ' ' + cls : ''}"><span class="kl">${l}</span><span class="kv">${v}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
+  const tiles = [tile('Him', F(r.his), `${r.hisN.toLocaleString('en')} ${nOf}${q.a !== 'perRound' && q.s !== 'rounds' ? ` · ${r.rounds} rounds` : ''}`, 'kme'), tile('Everyone else', F(r.oth), `${r.othN.toLocaleString('en')} ${nOf}`)];
+  const few = r.hisN < r.minN;
+  if (r.rank != null) tiles.push(tile('His place', few ? `(${r.rank})` : `${r.rank} of ${r.of + 1}`, few ? `he has under ${r.minN} ${nOf}: not in their list` : r.pct != null ? `${q.ord === 'low' ? 'below' : 'above'} ${Math.round((q.ord === 'low' ? 1 - r.pct : r.pct) * 100)}% of the ${r.of} others with ${r.minN}+` : ''));
+  if (r.chance) {
+    const c = r.chance, odd = c.tail < 1e-3;
+    tiles.push(tile('By chance', c.tail > 0.05 ? 'within chance' : `once in ${aqOdds(c.tail)}`, `${c.k} of ${c.n} at everyone's ${(c.p * 100).toFixed(1)}%: ${c.up ? 'so many or more' : 'so few or fewer'}${odd ? ' - far off' : ''}`, odd ? 'kodd' : ''));
+  }
+  const pc = (a, all) => all ? a / all : 0, sum = L => L.reduce((x, y) => x + y, 0);
+  let spread = '';
+  if (r.hist && r.hist.cats) {
+    const H = r.hist, hs = sum(H.his), os = sum(H.oth), mx = Math.max(1e-9, ...H.his.map(x => pc(x, hs)), ...H.oth.map(x => pc(x, os)));
+    spread = `<section class="card"><h2>${esc(md.n)} <span class="w">his ${nOf} and everyone else's, each as a share of its own</span></h2>${aqLegend()}<ul class="plist aqcats">${H.cats.map((c, k) => `<li><span class="nmc">${esc(c)}</span><span class="aqbars"><span class="aqb me" style="width:${Math.round(pc(H.his[k], hs) / mx * 100)}%"></span><span class="aqb ot" style="width:${Math.round(pc(H.oth[k], os) / mx * 100)}%"></span></span><span class="n">${(pc(H.his[k], hs) * 100).toFixed(0)}% <span class="w">${H.his[k]}</span> · ${(pc(H.oth[k], os) * 100).toFixed(0)}% <span class="w">${H.oth[k].toLocaleString('en')}</span></span></li>`).join('')}</ul></section>`;
+  } else if (r.hist) spread = `<section class="card"><h2>The spread <span class="w">${esc(md.n.toLowerCase())}${md.u ? ' (' + esc(md.u) + ')' : ''}: his ${nOf} and everyone else's, each as a share of its own · the ends: the lowest and highest 1% together</span></h2>${aqLegend()}${aqHist(r.hist, md, cw)}</section>`;
+  const W = r.weeks || [];
+  const trend = W.length >= 2 ? `<section class="card"><h2>Week by week <span class="w">${esc(F(r.his))} over the whole · weeks from Monday · a hollow dot: under 5 of his</span></h2>${aqLegend()}${aqTrend(W, q, md, cw)}
+    <details><summary class="w">As a table</summary><div class="stscroll"><table class="sttab"><thead><tr><th>Week of</th><th class="n">Him</th><th class="n">${nOf}</th><th class="n">Everyone else</th><th class="n">${nOf}</th></tr></thead><tbody>${W.slice().reverse().map(w => `<tr><td>${esc(w.from)}</td><td class="n">${F(w.his)}</td><td class="n">${w.n}</td><td class="n">${F(w.oth)}</td><td class="n">${w.on.toLocaleString('en')}</td></tr>`).join('')}</tbody></table></div></details></section>` : '';
+  const top = `<div><h3>${q.ord === 'low' ? 'The lowest' : 'The highest'} <span class="w">players with ${r.minN}+ ${nOf} · a name: the same of him</span></h3>${r.top.length ? `<table class="sttab"><thead><tr><th class="n">#</th><th>Player</th><th class="n">Value</th><th class="n">${nOf}</th></tr></thead><tbody>${r.top.map((t, i) => `<tr${t.me ? ' class="aqme"' : ''}><td class="n">${i + 1}</td><td><button class="plink" data-aqn="${esc(t.nick)}" title="The same question about him">${esc(t.who)}</button> <button class="linkb w" data-nick="${esc(t.nick)}" title="His page">page</button></td><td class="n">${F(t.v)}</td><td class="n">${t.n.toLocaleString('en')}</td></tr>`).join('')}</tbody></table>` : `<p class="empty">Nobody with ${r.minN}+ ${nOf}.</p>`}</div>`;
+  const E = r.events || [], shownE = aq.evAll ? E : E.slice(0, 30), withN = q.s === 'kills' ? 'Victim' : q.s === 'deaths' ? 'Killer' : '';
+  const href = e => '#' + new URLSearchParams({ round: linkId(e.round), ...(e.t != null ? { t: String(Math.max(0, Math.round(e.t - 2))) } : {}), p: e.pn || '', review: '1' }).toString();
+  const evN = { kills: 'His kills', deaths: 'His deaths', rounds: 'His rounds', presses: 'His rounds with the weapon' }[q.s];
+  const evs = `<div><h3>${evN} <span class="w">the newest first${E.length >= 300 ? ' · the newest 300' : ''} · a row: the round there, in Review, following him</span></h3>${E.length ? `<div class="stscroll"><table class="sttab aqev"><thead><tr><th>When</th><th>Map</th>${q.s === 'kills' || q.s === 'deaths' ? '<th class="n">At</th>' : ''}${withN ? `<th>${withN}</th>` : ''}${side.weapon ? '<th>Weapon</th>' : ''}<th class="n">${esc(md.k === 'all' ? '' : md.n)}</th></tr></thead><tbody>
+    ${shownE.map(e => { const here = serverData?.linkOnly || !!findSrv(e.round), when = `${esc(dayName(dayKey(e.date)))} · ${esc(clockHM(e.date))}`; const cls = [here ? '' : 'aqgone', e.that ? 'aqthat' : ''].filter(Boolean).join(' '); return `<tr${here ? ` data-href="${esc(href(e))}" tabindex="0"` : ' title="This round is no longer on the site"'}${cls ? ` class="${cls}"` : ''}><td>${here ? `<a href="${esc(href(e))}">${when}</a>` : `${when} <span class="w">gone</span>`}</td><td>${esc(mapName(e.map))}</td>${q.s === 'kills' || q.s === 'deaths' ? `<td class="n">${e.t != null ? fmt(e.t) : '–'}</td>` : ''}${withN ? `<td>${esc(e.with || '–')}</td>` : ''}${side.weapon ? `<td>${esc(e.w || '–')}</td>` : ''}<td class="n">${md.k === 'all' ? '' : esc(typeof e.v === 'number' ? aqFmt(e.v, 'mean', md.u) : e.v)}${e.that ? ' ✓' : ''}</td></tr>`; }).join('')}</tbody></table></div>${E.length > 30 ? `<button class="btn sm rmore" id="aqEvAll">${aq.evAll ? 'Show 30' : `Show all ${E.length}`}</button>` : ''}` : '<p class="empty">None.</p>'}</div>`;
+  out.innerHTML = `<section class="card"><h2>${esc(r.who)} <span class="w">${esc(aqWords(q, M))}</span></h2><div class="kpis">${tiles.join('')}</div>
+    <p class="stnote">Everyone else: all the other players' ${nOf} asked about together${q.w ? `, all with the ${esc(q.w)}` : ''}. ${q.a === 'share' ? 'By chance: how often a player who does as everyone else would reach his count of so many - one look at one player; among hundreds of players some get far off by luck, so it is a hint to look, not proof. ' : ''}Bots are left out. The analysed rounds as of ${esc(new Date(r.built).toLocaleString('en-GB'))}.</p></section>
+    ${spread}${trend}<section class="card"><div class="pcols aqcols">${top}${evs}</div></section>`;
+  statsWire(out);
+  out.querySelectorAll('[data-aqn]').forEach(b => b.onclick = () => { const o = { ...q, n: b.dataset.aqn }; ppage.arg = o; hashSet({ ...aqHash(o), astats: '1' }); renderStatsPage(); window.scrollTo({ top: 0 }); });
+  out.querySelectorAll('.aqev tbody tr[data-href]').forEach(tr => { tr.onclick = e => { if (e.target.closest('a')) return; location.hash = tr.dataset.href; }; tr.onkeydown = e => { if (e.key === 'Enter') location.hash = tr.dataset.href; }; });
+  const ea = out.querySelector('#aqEvAll'); if (ea) ea.onclick = () => { aq.evAll = !aq.evAll; aqResult(out, r, q, M); };
+}
+const aqLegend = () => '<p class="aqleg"><span><i class="me"></i>him</span><span><i class="ot"></i>everyone else</span></p>';
+// the spread: 20 bins between the 1st and 99th percentile of all the values (the ends take the rest), his and
+// everyone else's, each a share of its own
+function aqHist(H, md, W) {
+  const B = H.his.length, hs = H.his.reduce((a, b) => a + b, 0), os = H.oth.reduce((a, b) => a + b, 0), sh = (a, n) => n ? a / n : 0;
+  const mx = Math.max(1e-9, ...H.his.map(x => sh(x, hs)), ...H.oth.map(x => sh(x, os))), Ht = 200, L = 40, R = 8, T = 10, Bt = 26, cw = (W - L - R) / B, y = v => T + (Ht - T - Bt) * (1 - v / mx);
+  const lab = v => aqFmt(v, 'mean', md.u), step = mx > 0.4 ? 0.2 : mx > 0.2 ? 0.1 : mx > 0.08 ? 0.05 : mx > 0.04 ? 0.02 : 0.01;
+  let g = ''; for (let v = 0; v <= mx + 1e-9; v += step) g += `<line class="gr" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${L - 4}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  let bars = '';
+  for (let k = 0; k < B; k++) {
+    const a = H.lo + k * H.w, b = a + H.w, x = L + k * cw, bw = Math.max(1, cw / 2 - 2), ph = sh(H.his[k], hs), po = sh(H.oth[k], os);
+    const range = k === 0 ? `up to ${lab(b)}` : k === B - 1 ? `${lab(a)} and over` : `${lab(a)} – ${lab(b)}`;
+    bars += `<g><title>${esc(range)}: him ${(ph * 100).toFixed(1)}% (${H.his[k]}) · everyone else ${(po * 100).toFixed(1)}% (${H.oth[k].toLocaleString('en')})</title><rect class="hit" x="${x.toFixed(1)}" y="${T}" width="${cw.toFixed(1)}" height="${Ht - T - Bt}"/>`
+      + (ph > 0 ? `<rect class="me" x="${(x + 1).toFixed(1)}" y="${y(ph).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0) - y(ph)).toFixed(1)}" rx="2"/>` : '')
+      + (po > 0 ? `<rect class="ot" x="${(x + 1 + bw + 2).toFixed(1)}" y="${y(po).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0) - y(po)).toFixed(1)}" rx="2"/>` : '') + '</g>';
+  }
+  const TK = W >= 600 ? [0, B / 4, B / 2, B * 3 / 4, B] : [0, B / 2, B];
+  const xl = TK.map((k, i) => `<text x="${(L + k * cw).toFixed(1)}" y="${Ht - 8}" text-anchor="${i === 0 ? 'start' : i === TK.length - 1 ? 'end' : 'middle'}">${esc(lab(H.lo + k * H.w))}</text>`).join('');
+  return `<svg class="aqsvg" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="${esc(md.n)}: how his values spread against everyone else's">${g}${bars}<line class="ax" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>${xl}</svg>`;
+}
+// week by week: his line and everyone else's (a week without his: a gap)
+function aqTrend(Wk, q, md, W) {
+  const vals = Wk.flatMap(w => [w.his, w.oth]).filter(Number.isFinite), lo0 = Math.min(0, ...vals), hi0 = Math.max(...vals, lo0 + 1e-9), Ht = 200, L = 52, R = 10, T = 10, Bt = 26;
+  const n = Wk.length, x = i => L + (W - L - R) * (n === 1 ? 0.5 : i / (n - 1)), y = v => T + (Ht - T - Bt) * (1 - (v - lo0) / (hi0 - lo0)), F = v => aqFmt(v, q.a, md.u);
+  let g = ''; for (let k = 0; k <= 3; k++) { const v = lo0 + (hi0 - lo0) * k / 3; g += `<line class="gr" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${L - 4}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(F(v))}</text>`; }
+  const path = key => { let d = '', on = false; Wk.forEach((w, i) => { const v = w[key], ok = Number.isFinite(v) && (key === 'oth' ? w.on : w.n) > 0; if (!ok) { on = false; return; } d += `${on ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; on = true; }); return d; };
+  const dots = Wk.map((w, i) => `<g><title>Week of ${esc(w.from)}: him ${esc(F(w.his))} (${w.n}) · everyone else ${esc(F(w.oth))} (${w.on.toLocaleString('en')})</title><rect class="hit" x="${(x(i) - 8).toFixed(1)}" y="${T}" width="16" height="${Ht - T - Bt}"/>`
+    + (Number.isFinite(w.oth) && w.on ? `<circle class="ot" cx="${x(i).toFixed(1)}" cy="${y(w.oth).toFixed(1)}" r="3"/>` : '') + (Number.isFinite(w.his) && w.n ? `<circle class="me${w.n < 5 ? ' few' : ''}" cx="${x(i).toFixed(1)}" cy="${y(w.his).toFixed(1)}" r="4"/>` : '') + '</g>').join('');
+  const nl = Math.max(2, Math.min(n, Math.floor(W / 130)));
+  const xl = Array.from({ length: nl }, (_, k) => Math.round(k * (n - 1) / (nl - 1))).filter((v, i, a) => a.indexOf(v) === i).map((i, k, a) => `<text x="${x(i).toFixed(1)}" y="${Ht - 8}" text-anchor="${a.length > 1 && k === 0 ? 'start' : a.length > 1 && k === a.length - 1 ? 'end' : 'middle'}">${esc(Wk[i].from)}</text>`).join('');
+  return `<svg class="aqsvg" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Week by week: his value and everyone else's">${g}<path class="lot" d="${path('oth')}"/><path class="lme" d="${path('his')}"/>${dots}${xl}</svg>`;
+}
+Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick), statsRender: aqRender });
 // @agg-admin-begin
 // (v183, todo 221) his headshots against what his weapons give everyone: the share of small-arms kills to the head is
 // each weapon's own (HS_W, 145 thousand kills of the analysis of 1619 rounds of 8 servers, todo 146: sniper rifles ~0.47,
@@ -2499,7 +2723,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 16262) ----
+// ---- part 8 (page line 16522) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2517,7 +2741,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 16298) ----
+// ---- part 9 (page line 16558) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

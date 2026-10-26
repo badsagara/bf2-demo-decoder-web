@@ -9,6 +9,9 @@ Group=bf2replay
 # (the logs of the bf2replay services, for the page's Log)
 SupplementaryGroups=systemd-journal
 EnvironmentFile=/etc/bf2replay.conf
+# (v244) big blocks of memory - the admins' statistics: the analysed rounds' columns, a question's arrays - taken from
+# the system and given back to it when let go (else the process keeps ~150 MB more after a few questions)
+Environment=MALLOC_MMAP_THRESHOLD_=131072
 ExecStart=/usr/bin/node /srv/bf2replay/repo/server/admin.mjs
 # (it exits when admin.mjs changes after an update: started again at once with the new one)
 Restart=always

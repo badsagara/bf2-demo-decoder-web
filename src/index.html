@@ -827,6 +827,42 @@ button.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px
 .findf { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: 10px 0 4px; font-size: 13px; }
 .findf input { font: 500 13px var(--font-data); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; max-width: 160px; }
 .findf input[type=number] { width: 70px; } .findf select { padding: 5px 6px; }
+/* (v244) the admins' statistics constructor: the form, the answer's bars and charts (him: the accent; everyone else: muted) */
+.aqf { margin: 10px 0 2px; } .aqgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 14px; }
+.aqf fieldset { border: 1px solid var(--line); border-radius: 4px; padding: 6px 10px 10px; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.aqf legend { font: 500 11px var(--font-data); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 0 4px; }
+.aqf label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); min-width: 0; }
+.aqf input, .aqf select { font: 500 13px var(--font-data); background: var(--panel-2); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; min-height: 34px; width: 100%; min-width: 0; }
+.aqf input:disabled { opacity: .5; }
+.aqf .row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.aqf .row > * { flex: 1 1 0; min-width: 0; }
+.aqf .aqc { flex-wrap: wrap; } .aqf .aqc > select:first-child { flex: 1 1 100%; }
+.aqf .row > .op { flex: 0 0 58px; } .aqf .row > .ibtn { flex: none; } .aqf .row > .w { flex: 2 1 0; }
+.aqf .quick { display: flex; flex-wrap: wrap; gap: 4px; } .aqf .quick .btn.on { border-color: var(--accent); color: var(--accent); }
+.aqf .aqtip { margin: -3px 0 0; font-size: 12px; min-height: 1em; }
+.aqf fieldset > .btn { align-self: flex-start; }
+.aqgo { margin-top: 10px; display: flex; gap: 10px 14px; align-items: center; flex-wrap: wrap; }
+.aqgo .w { font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+.kpi.kme .kv { color: var(--accent); }
+.kpi.aqk .kv { white-space: normal; } .kpi.aqk .ks { white-space: normal; overflow-wrap: anywhere; }
+.aqleg { display: flex; gap: 16px; margin: 4px 0 6px; font-size: 12px; color: var(--muted); }
+.aqleg i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.aqleg i.me, .aqb.me { background: var(--accent); } .aqleg i.ot, .aqb.ot { background: var(--muted); }
+.plist.aqcats li { flex-wrap: wrap; } .plist.aqcats .nmc { flex: 0 1 190px; }
+@media (max-width: 560px) { .plist.aqcats .nmc { flex: 1 1 100%; } }
+.aqbars { flex: 1 1 160px; display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.aqb { display: block; height: 6px; border-radius: 0 3px 3px 0; min-width: 2px; }
+.aqsvg { width: 100%; height: auto; display: block; }
+.aqsvg text { fill: var(--muted); font: 11px var(--font-data); }
+.aqsvg .gr { stroke: var(--line); stroke-width: 1; } .aqsvg .ax { stroke: var(--muted); stroke-width: 1; }
+.aqsvg .hit { fill: transparent; } .aqsvg g:hover .hit { fill: color-mix(in srgb, var(--fg) 6%, transparent); }
+.aqsvg rect.me, .aqsvg circle.me { fill: var(--accent); } .aqsvg rect.ot, .aqsvg circle.ot { fill: var(--muted); }
+.aqsvg circle { stroke: var(--panel); stroke-width: 2; } .aqsvg circle.me.few { fill: var(--panel); stroke: var(--accent); }
+.aqsvg .lme, .aqsvg .lot { fill: none; stroke-width: 2; stroke-linejoin: round; } .aqsvg .lme { stroke: var(--accent); } .aqsvg .lot { stroke: var(--muted); stroke-dasharray: 5 3; }
+.aqcols { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+@media (max-width: 1100px) { .aqcols { grid-template-columns: minmax(0, 1fr); } }
+.sttab tr.aqme td { color: var(--accent); font-weight: 600; }
+.aqev td:first-child, .aqev td.n { white-space: nowrap; } .aqev tbody tr[data-href] { cursor: pointer; } .aqev tr.aqgone td { color: var(--muted); } .aqev tbody tr:hover td { background: var(--panel-2); } .aqev tr.aqthat td:last-child { color: var(--accent); }
 .findtab tbody tr { cursor: pointer; } .findtab tbody tr:hover { background: var(--panel-2); }
 .clantab details summary { cursor: pointer; font-size: 12px; } .clantab td { vertical-align: top; }
 .kpi[data-sp], .kpi[data-srvp] { cursor: pointer; color: inherit; font: inherit; } .kpi[data-sp]:hover, .kpi[data-srvp]:hover { border-color: var(--accent); }
@@ -1215,7 +1251,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v243';
+const APP_VERSION = 'v244';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -11431,7 +11467,7 @@ function adminLoad(analyze) {
       adminEval(await r.text());
       if (ADM.init) ADM.init(admMe);
       if (round) { round._adm = null; admRender(); }
-      if (ppage.nick || ppage.map) renderPlayerPage();
+      if (ppage.nick || ppage.map || ppage.page) renderPlayerPage();   // (v244: and the statistics pages - the hub's tile for admins, theirs)
       return admMe;
     } catch (e) { console.error('the admins\' part:', e); return null; }
     finally { admLoading = null; renderAdmPane(); admBtnSet(); }
@@ -12017,8 +12053,9 @@ function htDraw() {
 function admRenderPane(box) {
   box.classList.add('admpane');
   const who = admMe && admMe.user ? `<b>${esc(admMe.user === 'owner' ? 'the site\'s owner' : admMe.user)}</b>${admMe.role === 'owner' ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}` : '';
-  const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button> <button class="btn sm" id="admOut">Log out</button></span></div>`;
-  const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen; };
+  const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button>${session?.server ? ' <button class="btn sm" id="admAsk" title="Any parameter of a player\'s kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone (the followed soldier, if any)">Ask the statistics</button>' : ''} <button class="btn sm" id="admOut">Log out</button></span></div>`;
+  const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen;
+    const a = $('#admAsk'); if (a) a.onclick = () => { const p = round && sel != null && sel >= 0 ? round.players[sel] : null; openStatsPage('astats', p && !p.vehicle ? { n: nickOf(p.name) } : {}); }; };   // (v244)
   if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
   if (!round || round.meta?.source === 'sim') { box.innerHTML = head + '<p class="empty">Open a round.</p>'; bind(); return; }
   if (!admCan()) { box.innerHTML = head + `<p class="empty">${esc(admOutOfScope())}</p>`; bind(); return; }
@@ -12346,7 +12383,7 @@ function admRevPanel() {
     ${on ? `<div class="rvverdict" role="group" aria-label="Your verdict">${['sus', 'false', 'ok'].map(s => `<button type="button" class="btn m-${s}${mk?.state === s ? ' on' : ''}" data-rst="${s}" aria-pressed="${mk?.state === s}" title="${mk?.state === s ? 'Again: clear the mark' : esc(ADM_MARK[s][1])}">${ADM_MARK[s][0]} ${s === 'sus' ? 'Suspicious' : s === 'false' ? 'A false alarm' : 'Checked: nothing there'}</button>`).join('')}</div>
       <label class="rvnote">A note for the other admins (it goes with the mark, and in the report when suspicious)<input id="rvNote" maxlength="300" placeholder="What you saw…" value="${esc(mk?.note || '')}"></label>`
       : `<p class="w">${V === null ? 'Loading the marks…' : V && V.local ? 'Marks and notes are kept on the site: open the round there.' : 'The marks: ' + esc(V?.msg || V?.error || 'no answer')}</p>`}
-    <div class="rvnav"><button type="button" class="btn sm" id="rvPrev"${k > 0 ? '' : ' disabled'}>‹ Previous hint</button><span class="w">${k >= 0 ? `${k + 1} of ${admRevList.length}` : ''}</span><button type="button" class="btn sm" id="rvNext"${k >= 0 && k < admRevList.length - 1 ? '' : ' disabled'}>Next hint ›</button>${p && !p.vehicle && session?.server ? `<button type="button" class="linkb" id="rvHis">${esc(p.name.trim())} over all rounds →</button>` : ''}</div>`;
+    <div class="rvnav"><button type="button" class="btn sm" id="rvPrev"${k > 0 ? '' : ' disabled'}>‹ Previous hint</button><span class="w">${k >= 0 ? `${k + 1} of ${admRevList.length}` : ''}</span><button type="button" class="btn sm" id="rvNext"${k >= 0 && k < admRevList.length - 1 ? '' : ' disabled'}>Next hint ›</button>${p && !p.vehicle && session?.server ? `<button type="button" class="linkb" id="rvHis">${esc(p.name.trim())} over all rounds →</button><button type="button" class="linkb" id="rvAsk" title="The statistics constructor: him${h.kill?.weapon ? ' with the ' + esc(h.kill.weapon) : ''} against everyone">Ask about him →</button>` : ''}</div>`;
   const re = () => { admRevPanel(); renderAdmPane(); };
   const stop = $('#rvStop'); if (stop) stop.onclick = () => { revLoopOff(); setPlaying(false); };
   const again = $('#rvAgain'); if (again) again.onclick = () => { revLoopSet(h.t); admRevPanel(); };
@@ -12357,6 +12394,7 @@ function admRevPanel() {
   const go = d => { const x = admRevList[k + d]; if (x) admRevPick(x); };
   $('#rvPrev').onclick = () => go(-1); $('#rvNext').onclick = () => go(1);
   const his = $('#rvHis'); if (his) his.onclick = () => openPlayerPage(nickOf(p.name));
+  const ask = $('#rvAsk'); if (ask) ask.onclick = () => openStatsPage('astats', { n: nickOf(p.name), ...(h.kill?.weapon ? { w: h.kill.weapon } : {}) });   // (v244)
 }
 const admMarkBadge = mk => `<span class="admmk m-${mk.state}" title="${esc(`${ADM_MARK[mk.state][1]} · ${mk.by} · ${admAt(mk.at)}${mk.note ? ' · ' + mk.note : ''}`)}">${ADM_MARK[mk.state][0]} ${esc(ADM_MARK[mk.state][1])} <span class="w">· ${esc(mk.by)}</span></span>`;
 const admStarBtn = (V, nick) => { const tr = V.trusted?.[nick]; return ` <button class="admstar${tr ? ' on' : ''}" data-trust="${esc(nick)}" aria-pressed="${!!tr}" title="${esc(tr ? `Trusted (by ${tr.by}${tr.why ? ': ' + tr.why : ''}${tr.servers ? ', on ' + tr.servers.join(', ') : ''}): his hints are not highlighted. A click: no more` : 'Trust him: his hints stay, not highlighted, and "not reviewed, not trusted" leaves them out')}">★</button>`; };
@@ -12497,7 +12535,229 @@ function admPlayerTiles(nick, AG, tiles, hs, redraw) {
       tiles[ti] = `<div class="kpi${odd ? ' kodd' : ''}" data-wrap title="${esc(tip)}"><span class="kl">Headshots</span><span class="kv">${hs}</span><span class="ks">${pc(x.head / x.n)} of kills · his weapons give ${pc(x.exp / x.n)}${odd ? ' - far above' : ''}</span></div>`;
     } }
 }
-Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick) });
+// ---------- (v244) the statistics constructor (Sagara: "the admin himself picks the person, the parameter, how to judge
+// it and what he needs - and over which days"): asked of the admin server (server/statq.mjs keeps the analysed rounds
+// in memory) - his value against everyone else's with the same weapon, his place among the players with enough of
+// them, the odds of his share, the spread, week by week, and his events (each opens its round there, in Review) ----------
+const aq = { meta: null, metaAt: 0, metaWait: null, res: null, resKey: null, wait: null, draft: null, draftOf: null, nicks: new Map(), nickT: 0, evAll: false, err: '' };
+const AQ_DEF = { s: 'kills', m: 'hit', a: 'share', o: '=', v: 'head', min: '30' };
+const AQ_NUM_OPS = ['≥', '>', '≤', '<', '=', '≠'], AQ_CAT_OPS = ['=', '≠'];
+function aqMetaGet(redraw) {
+  if (aq.meta && Date.now() - aq.metaAt < 5 * 60e3) return aq.meta;
+  const first = !aq.meta;   // (later: in the background, the form left as it is)
+  if (!aq.metaWait) aq.metaWait = admApi('statq-meta').then(j => { if (j && j.ok) { aq.meta = j; aq.metaAt = Date.now(); aq.err = ''; } else aq.err = j?.msg || j?.error || 'no answer'; })
+    .catch(e => { aq.err = e.message; }).finally(() => { aq.metaWait = null; if (first) redraw(); });
+  return aq.meta;   // (the old one meanwhile - none the first time)
+}
+// how a parameter may be judged
+function aqAggs(side, md) {
+  const K = side.k === 'kills' || side.k === 'deaths';
+  if (md.k === 'all') return K ? ['count', 'perRound'] : ['count'];
+  if (md.t !== 'num') return K ? ['share', 'count', 'perRound'] : ['share', 'count'];
+  return ['mean', 'median', 'p10', 'p90', 'min', 'max', 'share', 'sum', 'count', ...(K ? ['perRound'] : [])];
+}
+const aqCats = md => md.cats || ['no', 'yes'];
+const aqConds = c => String(c || '').split(',').filter(Boolean).slice(0, 4).map(x => { const [m, op, ...v] = x.split(':'); return { m, op, v: v.join(':') }; });
+// the question as the form and the link have it: { n, s, m, a, o, v, w, f, t, sv, mp, c, min, ord } - made whole
+function aqNorm(q0, M) {
+  const given = Object.fromEntries(Object.entries(q0 || {}).filter(([, v]) => v != null && v !== '')), q = given.m || given.s ? { min: AQ_DEF.min, ...given } : { ...AQ_DEF, ...given };
+  const side = M.sides.find(x => x.k === q.s) || M.sides[0]; q.s = side.k;
+  let md = side.M.find(x => x.k === q.m); if (!md) { md = side.M.find(x => x.k !== 'all') || side.M[0]; q.m = md.k; }
+  const A = aqAggs(side, md); if (!A.includes(q.a)) q.a = A[0];
+  if (q.a === 'share') {
+    if (md.t === 'num') { if (!AQ_NUM_OPS.includes(q.o) || q.o === '=' && !Number.isFinite(parseFloat(q.v))) q.o = '≥'; if (!Number.isFinite(parseFloat(q.v))) q.v = ''; }
+    else { if (!AQ_CAT_OPS.includes(q.o)) q.o = '='; if (!aqCats(md).includes(q.v)) q.v = md.t === 'bool' ? 'yes' : aqCats(md)[0]; }
+  } else { delete q.o; delete q.v; }
+  if (!side.weapon) delete q.w;
+  const C = aqConds(q.c).filter(c => { const d = side.M.find(x => x.k === c.m); return d && d.k !== 'all' && (d.t === 'num' ? AQ_NUM_OPS.includes(c.op) && Number.isFinite(parseFloat(c.v)) : AQ_CAT_OPS.includes(c.op) && aqCats(d).includes(c.v)); });
+  if (C.length) q.c = C.map(c => `${c.m}:${c.op}:${c.v}`).join(','); else delete q.c;
+  if (!(+q.min >= 1)) q.min = '30';
+  if (q.ord !== 'low') delete q.ord;
+  return q;
+}
+const aqAsk = q => ({ nick: q.n, side: q.s, m: q.m, agg: q.a, op: q.o, v: q.v, weapon: q.w || '', from: q.f || '', to: q.t || '', server: q.sv || '', map: q.mp || '', c: aqConds(q.c), min: +q.min || 30, order: q.ord || 'high' });
+// a value as a word: shares in %, counts whole, the rest with the parameter's unit
+function aqFmt(v, agg, unit) {
+  if (v == null || !Number.isFinite(v)) return '–';
+  if (agg === 'share') return (v * 100).toFixed(v < 0.1 && v > 0 ? 1 : 0) + '%';
+  if (agg === 'count') return Math.round(v).toLocaleString('en');
+  if (agg === 'perRound') return v.toFixed(2);
+  const a = Math.abs(v), s = a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2);
+  return s + (unit ? (unit === '×' || unit === '%' || unit === '°' ? '' : ' ') + unit : '');
+}
+const aqOdds = t => { const x = 1 / t; return x < 1e4 ? Math.round(x).toLocaleString('en') : x < 1e9 ? (Math.round(x / 1000) * 1000).toLocaleString('en') : '10^' + Math.floor(Math.log10(x)); };
+// what was asked, in words
+function aqWords(q, M) {
+  const side = M.sides.find(x => x.k === q.s), md = side.M.find(x => x.k === q.m), aggN = (M.aggs.find(x => x.k === q.a) || {}).n || q.a;
+  const unit = md.u ? ` (${md.u})` : '', low = d => d.n.toLowerCase().replace(/^where /, '');
+  const what = q.a === 'share' ? `the share where ${low(md)} ${q.o} ${q.v}${md.t === 'num' && md.u ? ' ' + md.u : ''} - ${side.n}`
+    : md.k === 'all' ? `${aggN} - ${side.n}` : `${aggN} of ${low(md)}${unit} - ${side.n}`;
+  const where = aqConds(q.c).map(c => { const d = side.M.find(x => x.k === c.m); return `${d ? low(d) : c.m} ${c.op} ${c.v}${d && d.t === 'num' && d.u ? ' ' + d.u : ''}`; });
+  const more = [q.w ? `with the ${q.w}` : '', q.mp ? `on ${mapName(q.mp)}` : '', q.sv ? `on ${q.sv}` : '', q.f || q.t ? `${q.f ? 'from ' + q.f : ''}${q.f && q.t ? ' ' : ''}${q.t ? 'to ' + q.t : ''}` : '', where.length ? 'where ' + where.join(' and ') : ''].filter(Boolean);
+  return what + (more.length ? ' · ' + more.join(' · ') : '');
+}
+function aqRender(box, arg) {
+  const redraw = () => { if (ppage.page === 'astats') renderStatsPage(); };
+  const M = aqMetaGet(redraw);
+  if (!M) { box.innerHTML = statsHead('Ask the statistics', "for the site's admins") + `<p class="empty">${aq.err ? 'The admin server: ' + esc(aq.err) : 'Reading the analysed rounds (the first question after a while takes some seconds)…'}</p></section>`; statsWire(box); return; }
+  const asked = aqNorm(arg, M), aKey = JSON.stringify(asked);
+  if (aq.draftOf !== aKey) { aq.draft = { ...asked }; aq.draftOf = aKey; }
+  const st = M.state || {}, sub = `${M.rounds.toLocaleString('en')} analysed rounds${M.from ? ` · ${esc(M.from)} – ${esc(M.to)}` : ''} · ${M.kills.toLocaleString('en')} kills${M.pressRounds ? ` · trigger presses: ${M.pressRounds.toLocaleString('en')} rounds` : ''}${st.busy ? ' · reading new ones…' : ''}`;
+  box.innerHTML = statsHead('Ask the statistics', sub) + `<div id="aqFormBox"></div></section><div id="aqOut"></div>`;
+  statsWire(box);
+  aqForm(box.querySelector('#aqFormBox'), M);
+  // the answer: asked once per question (kept while the page is open)
+  const out = box.querySelector('#aqOut');
+  if (!asked.n) { out.innerHTML = '<section class="card"><p class="empty">Pick a player, what of him, the parameter and how to judge it - then Show.</p></section>'; return; }
+  const key = JSON.stringify(aqAsk(asked));
+  if (aq.resKey !== key) {
+    out.innerHTML = '<section class="card"><p class="empty">Asking…</p></section>';
+    if (!aq.wait || aq.wait.key !== key) {
+      const w = aq.wait = { key };
+      admApi('statq', aqAsk(asked)).catch(e => ({ ok: false, msg: e.message })).then(j => { if (aq.wait !== w) return; aq.wait = null; aq.res = j; aq.resKey = key; aq.evAll = false; if (out.isConnected && ppage.page === 'astats') aqResult(out, j, asked, M); else redraw(); });
+    }
+    return;
+  }
+  aqResult(out, aq.res, asked, M);
+}
+// ---- the form ----
+function aqForm(el, M) {
+  const q = aq.draft, side = M.sides.find(x => x.k === q.s), md = side.M.find(x => x.k === q.m), A = aqAggs(side, md);
+  const opt = (L, v) => L.map(([k, l]) => `<option value="${esc(k)}"${String(v ?? '') === String(k) ? ' selected' : ''}>${esc(l)}</option>`).join('');
+  const aggN = k => (M.aggs.find(x => x.k === k) || {}).n || k;
+  const valCtl = (d, op, v, nm) => d.t === 'num'
+    ? `<select class="op" name="${nm}o" aria-label="Test">${opt(AQ_NUM_OPS.map(o => [o, o]), op)}</select><input name="${nm}v" type="number" step="any" inputmode="decimal" value="${esc(v ?? '')}" placeholder="${esc(d.u || 'value')}" aria-label="Value${d.u ? ' (' + d.u + ')' : ''}">`
+    : `<select class="op" name="${nm}o" aria-label="Test">${opt(AQ_CAT_OPS.map(o => [o, o]), op)}</select><select name="${nm}v" aria-label="Value">${opt(aqCats(d).map(c => [c, c]), v)}</select>`;
+  const minOf = q.a === 'perRound' || q.s === 'rounds' ? 'rounds' : q.s === 'presses' ? 'rounds with the weapon' : q.s === 'deaths' ? 'deaths' : 'kills';
+  const today = new Date(), ago = d => new Date(today.getTime() - d * 864e5).toISOString().slice(0, 10), C = aqConds(q.c);
+  const CM = side.M.filter(x => x.k !== 'all');
+  el.innerHTML = `<form class="aqf" id="aqF" autocomplete="off"><div class="aqgrid">
+    <fieldset><legend>Who and what</legend>
+      <label>Player <input name="n" list="aqNl" value="${esc(q.n || '')}" placeholder="a nick (2 letters or more)" spellcheck="false" required></label><datalist id="aqNl"></datalist>
+      <label>Of him <select name="s">${opt(M.sides.map(x => [x.k, x.n]), q.s)}</select></label>
+      <label>Weapon <input name="w" list="aqWl" value="${esc(q.w || '')}" placeholder="${side.weapon ? 'any' : '(not for rounds)'}"${side.weapon ? '' : ' disabled'} spellcheck="false"></label>
+      <datalist id="aqWl">${(M.weapons || []).map(([w, n]) => `<option value="${esc(w)}" label="${n.toLocaleString('en')} kills">`).join('')}</datalist></fieldset>
+    <fieldset><legend>Parameter, judged by</legend>
+      <label>Parameter <select name="m">${opt(side.M.map(x => [x.k, x.n + (x.u ? ` (${x.u})` : '')]), q.m)}</select></label>
+      <p class="w aqtip">${esc(md.tip || '')}</p>
+      <label>Judge it by <select name="a">${opt(A.map(k => [k, aggN(k)]), q.a)}</select></label>
+      ${q.a === 'share' ? `<div class="row" role="group" aria-label="The share that">${valCtl(md, q.o, q.v, '')}</div>` : ''}</fieldset>
+    <fieldset><legend>When and where</legend>
+      <div class="row"><label>From <input name="f" type="date" value="${esc(q.f || '')}" min="${esc(M.from || '')}" max="${esc(M.to || '')}"></label><label>To <input name="t" type="date" value="${esc(q.t || '')}" min="${esc(M.from || '')}" max="${esc(M.to || '')}"></label></div>
+      <div class="quick">${[[7, '7 days'], [30, '30 days'], [90, '90 days'], [0, 'All']].map(([d, l]) => `<button type="button" class="btn sm${(d ? q.f === ago(d) && !q.t : !q.f && !q.t) ? ' on' : ''}" data-days="${d}">${l}</button>`).join('')}</div>
+      <label>Server <select name="sv">${opt([['', 'all' + (M.servers.length === 1 ? '' : ` (${M.servers.length})`)], ...M.servers.map(x => [x, x])], q.sv)}</select></label>
+      <label>Map <select name="mp">${opt([['', 'all'], ...M.maps.map(([m, n]) => [m, `${mapName(m)} · ${n}`])], q.mp)}</select></label></fieldset>
+    <fieldset><legend>Only where…</legend>
+      ${C.map((c, i) => { const d = side.M.find(x => x.k === c.m); return `<div class="row aqc" data-ci="${i}"><select name="c${i}m" aria-label="Parameter">${opt(CM.map(x => [x.k, x.n]), c.m)}</select>${valCtl(d, c.op, c.v, 'c' + i)}<button type="button" class="ibtn sm" data-cdel="${i}" aria-label="Without this">×</button></div>`; }).join('')}
+      ${C.length < 4 ? `<button type="button" class="btn sm" id="aqCAdd">+ a condition</button>` : ''}
+      <label>Rank him among players with at least <span class="row"><input name="min" type="number" min="1" step="1" value="${esc(q.min)}" aria-label="At least"><span class="w">${esc(minOf)}</span></span></label>
+      <label>Their list <select name="ord">${opt([['', 'the highest first'], ['low', 'the lowest first']], q.ord || '')}</select></label></fieldset></div>
+    <div class="aqgo"><button class="btn primary" type="submit">Show</button><span class="w">${esc(aqWords(q, M))}</span></div></form>`;
+  const f = el.querySelector('#aqF');
+  // the form as a question (the conditions: their rows)
+  const read = () => {
+    const v = n => f.elements[n] ? String(f.elements[n].value).trim() : '';
+    const nk = v('n'), o = { n: nk ? (aq.nicks.get(nk.toLowerCase()) || nickOf(nk)) : '', s: v('s'), m: v('m'), a: v('a'), o: v('o'), v: v('v'), w: v('w'), f: v('f'), t: v('t'), sv: v('sv'), mp: v('mp'), min: v('min'), ord: v('ord') };
+    o.c = [...f.querySelectorAll('.aqc')].map(r => { const i = r.dataset.ci; return `${v('c' + i + 'm')}:${v('c' + i + 'o')}:${v('c' + i + 'v')}`; }).join(',');
+    return o;
+  };
+  // a change of what is asked: the form again (its choices follow), not the answer
+  const again = (patch, focus) => { aq.draft = aqNorm({ ...read(), ...patch }, M); aqForm(el, M); const x = focus && el.querySelector(`[name="${focus}"]`); if (x) x.focus(); };
+  f.elements.a.onchange = () => again({}, 'a');
+  for (const n of ['s', 'm']) f.elements[n].onchange = () => {
+    const o = read(), s2 = M.sides.find(x => x.k === o.s) || side, m2 = s2.M.find(x => x.k === o.m) || s2.M.find(x => x.k !== 'all') || s2.M[0];
+    again(m2.t !== md.t || m2.k === 'all' || md.k === 'all' || s2.k !== side.k && !aqAggs(s2, m2).includes(q.a) ? { m: m2.k, a: aqAggs(s2, m2)[0], o: '', v: '' } : { m: m2.k }, n);
+  };
+  f.querySelectorAll('.aqc select[name$="m"]').forEach(s => s.onchange = () => { const i = s.closest('.aqc').dataset.ci, d = side.M.find(x => x.k === s.value); const C2 = aqConds(read().c); C2[i] = { m: s.value, op: d.t === 'num' ? '≥' : '=', v: d.t === 'num' ? '0' : aqCats(d)[d.t === 'bool' ? 1 : 0] }; again({ c: C2.map(c => `${c.m}:${c.op}:${c.v}`).join(',') }); });
+  f.querySelectorAll('[data-cdel]').forEach(b => b.onclick = () => { const C2 = aqConds(read().c); C2.splice(+b.dataset.cdel, 1); again({ c: C2.map(c => `${c.m}:${c.op}:${c.v}`).join(',') }); });
+  const add = f.querySelector('#aqCAdd'); if (add) add.onclick = () => { const d = CM.find(x => x.k === 'd') || CM[0], o = read(); again({ c: (o.c ? o.c + ',' : '') + `${d.k}:${d.t === 'num' ? '≥' : '='}:${d.t === 'num' ? '0' : aqCats(d)[0]}` }); };
+  f.querySelectorAll('[data-days]').forEach(b => b.onclick = () => { const d = +b.dataset.days; again({ f: d ? ago(d) : '', t: '' }); });
+  // the players' nicks as he types (the admin server's: the analysed rounds he may see)
+  const ni = f.elements.n, dl = el.querySelector('#aqNl');
+  ni.oninput = () => {
+    clearTimeout(aq.nickT); const s = ni.value.trim(); if (s.length < 2) return;
+    aq.nickT = setTimeout(async () => {
+      const j = await admApi('statq-nicks?q=' + encodeURIComponent(s)).catch(() => null); if (!j || !j.ok || ni.value.trim() !== s) return;
+      for (const [k, nm] of j.nicks) { aq.nicks.set(k.toLowerCase(), k); aq.nicks.set(nm.toLowerCase(), k); }
+      dl.innerHTML = j.nicks.map(([k, nm, n]) => `<option value="${esc(k)}" label="${esc(nm)} · ${n} rounds">`).join('');
+    }, 200);
+  };
+  f.onsubmit = e => {
+    e.preventDefault(); const o = aqNorm(read(), M);
+    if (!o.n) { toast('Whose? A player first'); ni.focus(); return; }
+    ppage.arg = o; hashSet({ ...aqHash(o), astats: '1' }); renderStatsPage();
+  };
+}
+// ---- the answer ----
+function aqResult(out, r, q, M) {
+  if (!r || !r.ok) { out.innerHTML = `<section class="card"><p class="empty">${esc(r?.msg || r?.error || 'No answer.')}</p></section>`; return; }
+  const side = M.sides.find(x => x.k === q.s), md = side.M.find(x => x.k === q.m), F = v => aqFmt(v, q.a, md.u);
+  const cw = Math.round(Math.max(300, Math.min(1400, (out.clientWidth || 640) - 26)));   // (the charts' width: the card's)
+  const nOf = q.a === 'perRound' || q.s === 'rounds' ? 'rounds' : q.s === 'presses' ? 'rounds with a weapon' : q.s === 'deaths' ? 'deaths' : 'kills';
+  const tile = (l, v, sub, cls) => `<div class="kpi aqk${cls ? ' ' + cls : ''}"><span class="kl">${l}</span><span class="kv">${v}</span>${sub ? `<span class="ks">${sub}</span>` : ''}</div>`;
+  const tiles = [tile('Him', F(r.his), `${r.hisN.toLocaleString('en')} ${nOf}${q.a !== 'perRound' && q.s !== 'rounds' ? ` · ${r.rounds} rounds` : ''}`, 'kme'), tile('Everyone else', F(r.oth), `${r.othN.toLocaleString('en')} ${nOf}`)];
+  const few = r.hisN < r.minN;
+  if (r.rank != null) tiles.push(tile('His place', few ? `(${r.rank})` : `${r.rank} of ${r.of + 1}`, few ? `he has under ${r.minN} ${nOf}: not in their list` : r.pct != null ? `${q.ord === 'low' ? 'below' : 'above'} ${Math.round((q.ord === 'low' ? 1 - r.pct : r.pct) * 100)}% of the ${r.of} others with ${r.minN}+` : ''));
+  if (r.chance) {
+    const c = r.chance, odd = c.tail < 1e-3;
+    tiles.push(tile('By chance', c.tail > 0.05 ? 'within chance' : `once in ${aqOdds(c.tail)}`, `${c.k} of ${c.n} at everyone's ${(c.p * 100).toFixed(1)}%: ${c.up ? 'so many or more' : 'so few or fewer'}${odd ? ' - far off' : ''}`, odd ? 'kodd' : ''));
+  }
+  const pc = (a, all) => all ? a / all : 0, sum = L => L.reduce((x, y) => x + y, 0);
+  let spread = '';
+  if (r.hist && r.hist.cats) {
+    const H = r.hist, hs = sum(H.his), os = sum(H.oth), mx = Math.max(1e-9, ...H.his.map(x => pc(x, hs)), ...H.oth.map(x => pc(x, os)));
+    spread = `<section class="card"><h2>${esc(md.n)} <span class="w">his ${nOf} and everyone else's, each as a share of its own</span></h2>${aqLegend()}<ul class="plist aqcats">${H.cats.map((c, k) => `<li><span class="nmc">${esc(c)}</span><span class="aqbars"><span class="aqb me" style="width:${Math.round(pc(H.his[k], hs) / mx * 100)}%"></span><span class="aqb ot" style="width:${Math.round(pc(H.oth[k], os) / mx * 100)}%"></span></span><span class="n">${(pc(H.his[k], hs) * 100).toFixed(0)}% <span class="w">${H.his[k]}</span> · ${(pc(H.oth[k], os) * 100).toFixed(0)}% <span class="w">${H.oth[k].toLocaleString('en')}</span></span></li>`).join('')}</ul></section>`;
+  } else if (r.hist) spread = `<section class="card"><h2>The spread <span class="w">${esc(md.n.toLowerCase())}${md.u ? ' (' + esc(md.u) + ')' : ''}: his ${nOf} and everyone else's, each as a share of its own · the ends: the lowest and highest 1% together</span></h2>${aqLegend()}${aqHist(r.hist, md, cw)}</section>`;
+  const W = r.weeks || [];
+  const trend = W.length >= 2 ? `<section class="card"><h2>Week by week <span class="w">${esc(F(r.his))} over the whole · weeks from Monday · a hollow dot: under 5 of his</span></h2>${aqLegend()}${aqTrend(W, q, md, cw)}
+    <details><summary class="w">As a table</summary><div class="stscroll"><table class="sttab"><thead><tr><th>Week of</th><th class="n">Him</th><th class="n">${nOf}</th><th class="n">Everyone else</th><th class="n">${nOf}</th></tr></thead><tbody>${W.slice().reverse().map(w => `<tr><td>${esc(w.from)}</td><td class="n">${F(w.his)}</td><td class="n">${w.n}</td><td class="n">${F(w.oth)}</td><td class="n">${w.on.toLocaleString('en')}</td></tr>`).join('')}</tbody></table></div></details></section>` : '';
+  const top = `<div><h3>${q.ord === 'low' ? 'The lowest' : 'The highest'} <span class="w">players with ${r.minN}+ ${nOf} · a name: the same of him</span></h3>${r.top.length ? `<table class="sttab"><thead><tr><th class="n">#</th><th>Player</th><th class="n">Value</th><th class="n">${nOf}</th></tr></thead><tbody>${r.top.map((t, i) => `<tr${t.me ? ' class="aqme"' : ''}><td class="n">${i + 1}</td><td><button class="plink" data-aqn="${esc(t.nick)}" title="The same question about him">${esc(t.who)}</button> <button class="linkb w" data-nick="${esc(t.nick)}" title="His page">page</button></td><td class="n">${F(t.v)}</td><td class="n">${t.n.toLocaleString('en')}</td></tr>`).join('')}</tbody></table>` : `<p class="empty">Nobody with ${r.minN}+ ${nOf}.</p>`}</div>`;
+  const E = r.events || [], shownE = aq.evAll ? E : E.slice(0, 30), withN = q.s === 'kills' ? 'Victim' : q.s === 'deaths' ? 'Killer' : '';
+  const href = e => '#' + new URLSearchParams({ round: linkId(e.round), ...(e.t != null ? { t: String(Math.max(0, Math.round(e.t - 2))) } : {}), p: e.pn || '', review: '1' }).toString();
+  const evN = { kills: 'His kills', deaths: 'His deaths', rounds: 'His rounds', presses: 'His rounds with the weapon' }[q.s];
+  const evs = `<div><h3>${evN} <span class="w">the newest first${E.length >= 300 ? ' · the newest 300' : ''} · a row: the round there, in Review, following him</span></h3>${E.length ? `<div class="stscroll"><table class="sttab aqev"><thead><tr><th>When</th><th>Map</th>${q.s === 'kills' || q.s === 'deaths' ? '<th class="n">At</th>' : ''}${withN ? `<th>${withN}</th>` : ''}${side.weapon ? '<th>Weapon</th>' : ''}<th class="n">${esc(md.k === 'all' ? '' : md.n)}</th></tr></thead><tbody>
+    ${shownE.map(e => { const here = serverData?.linkOnly || !!findSrv(e.round), when = `${esc(dayName(dayKey(e.date)))} · ${esc(clockHM(e.date))}`; const cls = [here ? '' : 'aqgone', e.that ? 'aqthat' : ''].filter(Boolean).join(' '); return `<tr${here ? ` data-href="${esc(href(e))}" tabindex="0"` : ' title="This round is no longer on the site"'}${cls ? ` class="${cls}"` : ''}><td>${here ? `<a href="${esc(href(e))}">${when}</a>` : `${when} <span class="w">gone</span>`}</td><td>${esc(mapName(e.map))}</td>${q.s === 'kills' || q.s === 'deaths' ? `<td class="n">${e.t != null ? fmt(e.t) : '–'}</td>` : ''}${withN ? `<td>${esc(e.with || '–')}</td>` : ''}${side.weapon ? `<td>${esc(e.w || '–')}</td>` : ''}<td class="n">${md.k === 'all' ? '' : esc(typeof e.v === 'number' ? aqFmt(e.v, 'mean', md.u) : e.v)}${e.that ? ' ✓' : ''}</td></tr>`; }).join('')}</tbody></table></div>${E.length > 30 ? `<button class="btn sm rmore" id="aqEvAll">${aq.evAll ? 'Show 30' : `Show all ${E.length}`}</button>` : ''}` : '<p class="empty">None.</p>'}</div>`;
+  out.innerHTML = `<section class="card"><h2>${esc(r.who)} <span class="w">${esc(aqWords(q, M))}</span></h2><div class="kpis">${tiles.join('')}</div>
+    <p class="stnote">Everyone else: all the other players' ${nOf} asked about together${q.w ? `, all with the ${esc(q.w)}` : ''}. ${q.a === 'share' ? 'By chance: how often a player who does as everyone else would reach his count of so many - one look at one player; among hundreds of players some get far off by luck, so it is a hint to look, not proof. ' : ''}Bots are left out. The analysed rounds as of ${esc(new Date(r.built).toLocaleString('en-GB'))}.</p></section>
+    ${spread}${trend}<section class="card"><div class="pcols aqcols">${top}${evs}</div></section>`;
+  statsWire(out);
+  out.querySelectorAll('[data-aqn]').forEach(b => b.onclick = () => { const o = { ...q, n: b.dataset.aqn }; ppage.arg = o; hashSet({ ...aqHash(o), astats: '1' }); renderStatsPage(); window.scrollTo({ top: 0 }); });
+  out.querySelectorAll('.aqev tbody tr[data-href]').forEach(tr => { tr.onclick = e => { if (e.target.closest('a')) return; location.hash = tr.dataset.href; }; tr.onkeydown = e => { if (e.key === 'Enter') location.hash = tr.dataset.href; }; });
+  const ea = out.querySelector('#aqEvAll'); if (ea) ea.onclick = () => { aq.evAll = !aq.evAll; aqResult(out, r, q, M); };
+}
+const aqLegend = () => '<p class="aqleg"><span><i class="me"></i>him</span><span><i class="ot"></i>everyone else</span></p>';
+// the spread: 20 bins between the 1st and 99th percentile of all the values (the ends take the rest), his and
+// everyone else's, each a share of its own
+function aqHist(H, md, W) {
+  const B = H.his.length, hs = H.his.reduce((a, b) => a + b, 0), os = H.oth.reduce((a, b) => a + b, 0), sh = (a, n) => n ? a / n : 0;
+  const mx = Math.max(1e-9, ...H.his.map(x => sh(x, hs)), ...H.oth.map(x => sh(x, os))), Ht = 200, L = 40, R = 8, T = 10, Bt = 26, cw = (W - L - R) / B, y = v => T + (Ht - T - Bt) * (1 - v / mx);
+  const lab = v => aqFmt(v, 'mean', md.u), step = mx > 0.4 ? 0.2 : mx > 0.2 ? 0.1 : mx > 0.08 ? 0.05 : mx > 0.04 ? 0.02 : 0.01;
+  let g = ''; for (let v = 0; v <= mx + 1e-9; v += step) g += `<line class="gr" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${L - 4}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${Math.round(v * 100)}%</text>`;
+  let bars = '';
+  for (let k = 0; k < B; k++) {
+    const a = H.lo + k * H.w, b = a + H.w, x = L + k * cw, bw = Math.max(1, cw / 2 - 2), ph = sh(H.his[k], hs), po = sh(H.oth[k], os);
+    const range = k === 0 ? `up to ${lab(b)}` : k === B - 1 ? `${lab(a)} and over` : `${lab(a)} – ${lab(b)}`;
+    bars += `<g><title>${esc(range)}: him ${(ph * 100).toFixed(1)}% (${H.his[k]}) · everyone else ${(po * 100).toFixed(1)}% (${H.oth[k].toLocaleString('en')})</title><rect class="hit" x="${x.toFixed(1)}" y="${T}" width="${cw.toFixed(1)}" height="${Ht - T - Bt}"/>`
+      + (ph > 0 ? `<rect class="me" x="${(x + 1).toFixed(1)}" y="${y(ph).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0) - y(ph)).toFixed(1)}" rx="2"/>` : '')
+      + (po > 0 ? `<rect class="ot" x="${(x + 1 + bw + 2).toFixed(1)}" y="${y(po).toFixed(1)}" width="${bw.toFixed(1)}" height="${(y(0) - y(po)).toFixed(1)}" rx="2"/>` : '') + '</g>';
+  }
+  const TK = W >= 600 ? [0, B / 4, B / 2, B * 3 / 4, B] : [0, B / 2, B];
+  const xl = TK.map((k, i) => `<text x="${(L + k * cw).toFixed(1)}" y="${Ht - 8}" text-anchor="${i === 0 ? 'start' : i === TK.length - 1 ? 'end' : 'middle'}">${esc(lab(H.lo + k * H.w))}</text>`).join('');
+  return `<svg class="aqsvg" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="${esc(md.n)}: how his values spread against everyone else's">${g}${bars}<line class="ax" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}"/>${xl}</svg>`;
+}
+// week by week: his line and everyone else's (a week without his: a gap)
+function aqTrend(Wk, q, md, W) {
+  const vals = Wk.flatMap(w => [w.his, w.oth]).filter(Number.isFinite), lo0 = Math.min(0, ...vals), hi0 = Math.max(...vals, lo0 + 1e-9), Ht = 200, L = 52, R = 10, T = 10, Bt = 26;
+  const n = Wk.length, x = i => L + (W - L - R) * (n === 1 ? 0.5 : i / (n - 1)), y = v => T + (Ht - T - Bt) * (1 - (v - lo0) / (hi0 - lo0)), F = v => aqFmt(v, q.a, md.u);
+  let g = ''; for (let k = 0; k <= 3; k++) { const v = lo0 + (hi0 - lo0) * k / 3; g += `<line class="gr" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/><text x="${L - 4}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end">${esc(F(v))}</text>`; }
+  const path = key => { let d = '', on = false; Wk.forEach((w, i) => { const v = w[key], ok = Number.isFinite(v) && (key === 'oth' ? w.on : w.n) > 0; if (!ok) { on = false; return; } d += `${on ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`; on = true; }); return d; };
+  const dots = Wk.map((w, i) => `<g><title>Week of ${esc(w.from)}: him ${esc(F(w.his))} (${w.n}) · everyone else ${esc(F(w.oth))} (${w.on.toLocaleString('en')})</title><rect class="hit" x="${(x(i) - 8).toFixed(1)}" y="${T}" width="16" height="${Ht - T - Bt}"/>`
+    + (Number.isFinite(w.oth) && w.on ? `<circle class="ot" cx="${x(i).toFixed(1)}" cy="${y(w.oth).toFixed(1)}" r="3"/>` : '') + (Number.isFinite(w.his) && w.n ? `<circle class="me${w.n < 5 ? ' few' : ''}" cx="${x(i).toFixed(1)}" cy="${y(w.his).toFixed(1)}" r="4"/>` : '') + '</g>').join('');
+  const nl = Math.max(2, Math.min(n, Math.floor(W / 130)));
+  const xl = Array.from({ length: nl }, (_, k) => Math.round(k * (n - 1) / (nl - 1))).filter((v, i, a) => a.indexOf(v) === i).map((i, k, a) => `<text x="${x(i).toFixed(1)}" y="${Ht - 8}" text-anchor="${a.length > 1 && k === 0 ? 'start' : a.length > 1 && k === a.length - 1 ? 'end' : 'middle'}">${esc(Wk[i].from)}</text>`).join('');
+  return `<svg class="aqsvg" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Week by week: his value and everyone else's">${g}<path class="lot" d="${path('oth')}"/><path class="lme" d="${path('his')}"/>${dots}${xl}</svg>`;
+}
+Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick), statsRender: aqRender });
 // @admin-end
 // ---------- loading ----------
 let simSeed = 1942;
@@ -16410,7 +16670,7 @@ function renderPlayerPage() {
   const KN = Object.fromEntries(HEAT_CAUSE);
   const shown = ppage.all ? R : R.slice(0, 15);
   box.innerHTML = `<section class="card"><div class="pphead"><div><h2 class="ppname">${esc(name)}</h2><span class="aka">${aka.length ? `also as ${aka.map(esc).join(', ')} · ` : ''}${n} round${n === 1 ? '' : 's'}${span ? ', ' + esc(span) : ''} · ${[...maps].map(([m, c]) => esc(mapName(m)) + (maps.size > 1 ? ' ' + c : '')).join(' · ')}</span></div>
-      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}<button class="btn sm" id="ppCmp" aria-expanded="false" title="Him and another player side by side">Compare with…</button>${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
+      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}<button class="btn sm" id="ppCmp" aria-expanded="false" title="Him and another player side by side">Compare with…</button>${session.server && ADM.statsRender ? '<button class="btn sm" id="ppAst" title="Admins: any parameter of his kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone">Ask about him…</button>' : ''}${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
       <div class="cmpask" id="ppCmpBox" hidden><label>Compare ${esc(name)} with <input type="search" class="rfind" id="ppCmpIn" list="ppCmpList" placeholder="A player's name" autocomplete="off" spellcheck="false"></label><datalist id="ppCmpList">${[...names].filter(([kk]) => kk !== nick && !/^Player \d+$/.test(kk)).map(([kk, nm]) => `<option value="${esc(nm)}">`).join('')}</datalist><span class="w" id="ppCmpMsg"></span></div>
       <div class="kpis">${tiles.join('')}</div></section>
     <section class="card"><h2>Rounds <span class="w">newest first · a row opens the round following him</span></h2>
@@ -16448,6 +16708,7 @@ function renderPlayerPage() {
     if (hit) openPlayerPage(nick, false, hit[0]); else $('#ppCmpMsg').textContent = 'No player like that';
   };
   ci.onchange = pick; ci.onkeydown = e => { if (e.key === 'Enter') pick(); };
+  const ast = $('#ppAst'); if (ast) ast.onclick = () => openStatsPage('astats', { n: nick });   // (v244)
   const lk = $('#ppLink'); if (lk) lk.onclick = async () => { const u = playerLink(nick); try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to his page:', u); } };
 }
 // ---------- two players side by side (#player=<nick>&vs=<nick>) ----------
@@ -16663,18 +16924,25 @@ function vehCard(vt, title) {
     ${L.map(([v, a]) => `<tr><td>${esc(v)} <span class="w">${esc(vkindClass(v))}</span></td><td class="n">${hm(a[0])}</td><td class="n">${a[1]}</td><td class="n">${a[2]}</td><td class="n">${a[0] >= 300 ? (a[1] / a[0] * 3600).toFixed(1) : '–'}</td></tr>`).join('')}</tbody></table></div></section>`;
 }
 // ---- the pages ----
-const STATS_PAGES = ['hub', 'clans', 'vehicles', 'server', 'find'];
+const STATS_PAGES = ['hub', 'clans', 'vehicles', 'server', 'find', 'astats'];
+// (v244) the admins' statistics: #astats=1 and the question in q* keys (their part of the page asks and draws it -
+// ADM.statsRender; the arg: { n: nick, s: side, m: parameter, a: how, o, v: the share's test, w: weapon, f, t: days,
+// sv: server, mp: map, c: "m:op:v,…" conditions, min, ord })
+const AQ_KEYS = ['n', 's', 'm', 'a', 'o', 'v', 'w', 'f', 't', 'sv', 'mp', 'c', 'min', 'ord'];
+const aqHash = q => Object.fromEntries(AQ_KEYS.map(k => ['q' + k, q && q[k] != null && q[k] !== '' ? String(q[k]) : null]));
+const aqFromHash = h => Object.fromEntries(AQ_KEYS.filter(k => h.get('q' + k) != null).map(k => [k, h.get('q' + k)]));
+const aqHashOf = q => Object.fromEntries(AQ_KEYS.filter(k => q && q[k] != null && q[k] !== '').map(k => [k, String(q[k])]));   // (the same keys in the same order: a question against the hash's)
 function openStatsPage(page, arg, fromLink) {
-  if (!can('stats')) { if (!fromLink) toast('This account may not open the statistics'); return false; }   // (v224)
+  if (page !== 'astats' && !can('stats')) { if (!fromLink) toast('This account may not open the statistics'); return false; }   // (v224)
   if (!session || !STATS_PAGES.includes(page)) return false;
   if (rpage.on) closeRoundsPage(!!fromLink);
-  ppage.nick = null; ppage.vs = null; ppage.map = null; ppage.page = page; ppage.arg = arg ?? null; ppage.all = false;
+  ppage.nick = null; ppage.vs = null; ppage.map = null; ppage.page = page; ppage.arg = arg ?? null; ppage.all = false; ppage.admTried = false;
   document.body.classList.add('pview'); $('#pPage').hidden = false;
-  if (session.server && !fromLink) hashSet({ player: null, vs: null, map: null, stats: page === 'hub' ? '1' : null, clans: page === 'clans' ? '1' : null, vehicles: page === 'vehicles' ? '1' : null, server: page === 'server' ? (arg || '_all') : null, find: page === 'find' ? '1' : null });
+  if (session.server && !fromLink) hashSet({ player: null, vs: null, map: null, stats: page === 'hub' ? '1' : null, clans: page === 'clans' ? '1' : null, vehicles: page === 'vehicles' ? '1' : null, server: page === 'server' ? (arg || '_all') : null, find: page === 'find' ? '1' : null, astats: page === 'astats' ? '1' : null, ...aqHash(page === 'astats' ? arg : null) });
   renderStatsPage(); window.scrollTo({ top: 0 });
   return true;
 }
-const statsPageKeys = { stats: null, clans: null, vehicles: null, server: null, find: null };
+const statsPageKeys = { stats: null, clans: null, vehicles: null, server: null, find: null, astats: null, ...aqHash(null) };
 function statsData(file, compute, redraw) {
   if (statsOn()) { const o = statsGet(file); if (o.wait) { statsThen(o, redraw); return null; } return o.data || undefined; }
   return compute();
@@ -16704,7 +16972,7 @@ function renderStatsPage() {
       <button class="kpi" data-sp="clans"><span class="kl">Clans</span><span class="kv">Clans</span><span class="ks">by tag · clan against clan</span></button>
       <button class="kpi" data-sp="vehicles"><span class="kl">Vehicles</span><span class="kv">Vehicles</span><span class="ks">time, kills · the best in each</span></button>
       <button class="kpi" data-sp="find"><span class="kl">Search</span><span class="kv">Moments</span><span class="ks">kills by player, weapon, range…</span></button>
-      <button class="kpi" data-srvp="_all"><span class="kl">All servers</span><span class="kv">${RS.length}</span><span class="ks">rounds · when, maps, flags</span></button></div></section>
+      <button class="kpi" data-srvp="_all"><span class="kl">All servers</span><span class="kv">${RS.length}</span><span class="ks">rounds · when, maps, flags</span></button>${ADM.statsRender ? '<button class="kpi" data-sp="astats"><span class="kl">Admins</span><span class="kv">Ask</span><span class="ks">a player, a parameter, a weapon, days</span></button>' : ''}</div></section>
       <section class="card"><h2>Servers <span class="w">when they play, their maps and flags</span></h2><ul class="plist">${S.map(([nm, , n]) => `<li><span class="nmc"><button class="plink" data-srvp="${esc(nm)}">${esc(nm)}</button></span><span class="n">${n} rounds</span></li>`).join('') || '<li class="empty">None.</li>'}</ul></section>`;
     statsWire(box); return;
   }
@@ -16744,6 +17012,12 @@ function renderStatsPage() {
     statsWire(box); return;
   }
   if (ppage.page === 'find') return renderFindPage(box, RS, redraw);
+  if (ppage.page === 'astats') {   // (v244: the admins' part draws it; till it is here - or for a visitor - a word)
+    if (ADM.statsRender) { try { ADM.statsRender(box, ppage.arg || {}); } catch (e) { console.error(e); box.innerHTML = statsHead('Ask the statistics') + '<p class="empty">Something went wrong here (the console says what).</p></section>'; statsWire(box); } return; }
+    const wait = !ppage.admTried || admLoading;
+    box.innerHTML = statsHead('Ask the statistics', "for the site's admins") + `<p class="empty">${wait ? "Loading the admins' part…" : !acc || !acc.in ? 'For the admins of the site and of its servers: Log in (at the top of the page) - this page opens then.' : !acc.admin ? 'This account has no Admin tab: asking the statistics is for admins.' : "An admin's powers last 12 hours from the login: Log in again (at the top of the page)."}</p></section>`; statsWire(box);
+    if (!ppage.admTried) { ppage.admTried = true; adminLoad().then(() => { if (ppage.page === 'astats') renderStatsPage(); }); }
+  }
 }
 // the moments search: a map's kills (data/stats/find/<map>.json - aggFind), filtered here
 const findSt = { map: '', who: '', role: 'any', weapon: '', dmin: '', dmax: '', hit: 'any', kind: 'any', veh: 'any', tk: false, res: null, msg: '' };
@@ -17028,8 +17302,9 @@ async function serverBoot() {
   else if (h.get('map')) openMapPage(h.get('map'), true);
   else statsFromHash(h);   // (v215)
 }
-// (v215) #stats=1, #clans=1, #vehicles=1, #server=<name>, #find=1
+// (v215) #stats=1, #clans=1, #vehicles=1, #server=<name>, #find=1; (v244) #astats=1&qn=…
 function statsFromHash(h) {
+  if (h.has('astats')) return openStatsPage('astats', aqFromHash(h), true);
   if (h.has('stats')) return openStatsPage('hub', null, true); if (h.has('clans')) return openStatsPage('clans', null, true); if (h.has('vehicles')) return openStatsPage('vehicles', null, true);
   if (h.has('server')) return openStatsPage('server', h.get('server'), true); if (h.has('find')) return openStatsPage('find', null, true); return false;
 }
@@ -17042,7 +17317,8 @@ window.addEventListener('hashchange', async () => { if (!session || !session.ser
   closeRoundsPage(true);
   if (h.get('player')) { if (ppage.nick !== h.get('player') || ppage.vs !== (h.get('vs') || null)) openPlayerPage(h.get('player'), true, h.get('vs')); return; }
   if (h.get('map')) { if (ppage.map !== h.get('map').toLowerCase()) openMapPage(h.get('map'), true); return; }
-  if (['stats', 'clans', 'vehicles', 'server', 'find'].some(k => h.has(k))) { const pg = h.has('stats') ? 'hub' : ['clans', 'vehicles', 'server', 'find'].find(k => h.has(k)); if (ppage.page !== pg || (pg === 'server' && ppage.arg !== h.get('server'))) statsFromHash(h); return; }
+  if (['stats', 'clans', 'vehicles', 'server', 'find', 'astats'].some(k => h.has(k))) { const pg = h.has('astats') ? 'astats' : h.has('stats') ? 'hub' : ['clans', 'vehicles', 'server', 'find'].find(k => h.has(k));
+    if (ppage.page !== pg || (pg === 'server' && ppage.arg !== h.get('server')) || (pg === 'astats' && JSON.stringify(aqFromHash(h)) !== JSON.stringify(aqHashOf(ppage.arg)))) statsFromHash(h); return; }
   if (ppage.nick || ppage.map || ppage.page) closePlayerPage(true);
   if (h.has('review') || h.get('tab') === 'admin') { revWant = true; revKick(); } else if (revOn) revSet(false);   // (v243)
   if (!revOn && !revWant && (h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });

@@ -5,6 +5,32 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v244
+
+**Asking the statistics: a constructor for admins** (Sagara: the admin picks the person, the parameter, how to judge it
+and what he needs — and over which days):
+
+- **A page of its own** (`#astats=1&qn=<nick>&…`): **Player** (suggested as you type) · **Of him**: his kills, the kills
+  of him, his rounds, his presses of the trigger · **Weapon** (one; everyone else is then on the same weapon) ·
+  **Parameter** (24 of a kill, 13 of a round, 6 of the presses — distance, where the shot hit, reaction, who saw whom
+  first, the aim off the victim, no clear sight, fog, speeds, stances, ping, K/D, headshot share, kills per minute,
+  bullets per press …) · **Judge it by**: how many, per round, the share that …, the average, the median, 10th / 90th
+  percentile, min, max, sum · **From / To** (7 / 30 / 90 days, All) · **Server**, **Map** · **Only where…** (up to 4
+  conditions) · the least kills (rounds) to be ranked · the list highest or lowest first.
+- **The answer**: him, everyone else, his place among the players with enough (and above what share of them), for a
+  share the odds of his count at everyone else's (*once in N*), the spread of his values against everyone's, week by
+  week, the top 10 (a name: the same question about him) and his events — a row opens the round **in Review at that
+  moment, following him**. Every question is a link (**Copy link**).
+- **Opened from** a player's page (**Ask about him…**), the Review panel under a hint (**Ask about him →**, with the
+  hint's weapon), the admins' pane head (**Ask the statistics**), the Statistics page's **Ask** tile.
+- **The admin server answers it** (`server/statq.mjs`): the background analysis's files (`analysis/rounds/`) read into
+  columns at the first question — some seconds, in a worker thread (the server keeps answering); ~90 bytes a kill
+  (~80 MB for 900 000 kills); new and rewritten files added as the analysis writes them; let go after 30 minutes
+  unused. Endpoints `statq-meta`, `statq-nicks`, `statq` (POST), for accounts with the Admin tab; a server's admin sees
+  only his servers' rounds and players. Bots are left out.
+- The admin page's unit: `MALLOC_MMAP_THRESHOLD_=131072` (big blocks of memory given back to the system when let go).
+- Nothing else to do: the decoder (`18e8999d15`), the round summaries (18) and the hint rules (13) are as in v243.
+
 ## v243
 
 **The admins' own page for a round: Review** (Sagara's two pages — the players' page was v242; the mock-up "BF2 Round

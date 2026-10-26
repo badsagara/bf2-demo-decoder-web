@@ -10,7 +10,7 @@ holds what were the Admin tab and the For admins tab next to the map), and the h
 > page at all. Keep this guide and `admin-hints.md` among admins.
 
 Contents: [Part 1 — the admin page](#part-1--the-admin-page-admin) · [Users and access](#users-and-access) · [Part 2 — admins on the site](#part-2--admins-on-the-site) ·
-[Part 3 — working with hints](#part-3--working-with-hints) · [Security](#security)
+[Asking the statistics](#asking-the-statistics-v244) · [Part 3 — working with hints](#part-3--working-with-hints) · [Security](#security)
 
 ---
 
@@ -432,6 +432,45 @@ Logged-in admins also see:
 
 Only rounds analysed with the current hint rules count, so after an update that changes the rules these cards start
 smaller and fill up as the background analysis goes on.
+
+### Asking the statistics (v244)
+
+A page where **you put the question**: which player, what of him, which parameter, how to judge it, with which weapon,
+over which days — and get his number against everyone else's. Open it from:
+
+- **Ask about him…** on a player's page, or **Ask about him →** in the Review panel under a hint (with the hint's weapon);
+- **Ask the statistics** in the head of the admins' pane (the soldier you follow, if any);
+- the **Ask** tile on the Statistics page; a link `#astats=1&qn=<nick>&…` (every question has one: **Copy link**).
+
+The form:
+
+| Field | What it does |
+|---|---|
+| **Player** | a nick as the site's statistics merge names (the clan tag dropped); suggestions as you type |
+| **Of him** | *his kills*, *the kills of him* (his deaths), *his rounds*, *his presses of the trigger* (per round and weapon; rounds analysed by v214 or later) |
+| **Weapon** | one weapon, or empty for all; for kills, deaths and presses. **Everyone else is then on the same weapon** |
+| **Parameter** | of a kill: distance, height over the victim, where the shot hit, reaction, who saw whom first, the aim off the victim at the kill and 0.5 s before, aim height, press-to-kill, no clear sight before the kill, fog, the victim crossing his view, speeds, stances, ping, the victim's health, smoke, team kill, vehicles, the kind of weapon; of a round: kills, deaths, K/D, team kills, small-arms kills, headshots and their share, spots, time alive, kills per minute, distance on foot, ping; of presses: presses, seconds held, held per press, bullets (an estimate from the magazine's count), bullets per press, presses per minute |
+| **Judge it by** | how many, how many per round, the share that … (a value: *= head*, *≥ 100 m* …), the average, the median, the 10th / 90th percentile, the smallest, the largest, the sum — what fits the parameter |
+| **From / To** | the days (or 7 / 30 / 90 days, All) |
+| **Server, Map** | one of them, or all |
+| **Only where…** | up to 4 conditions on other parameters (e.g. *killer in a vehicle = no*, *distance ≥ 50 m*) |
+| **Rank him among players with at least** | how many kills (deaths, rounds) a player needs to be in the comparison list |
+| **Their list** | the highest first, or the lowest |
+
+**Show** answers with:
+
+- **Him** and **Everyone else** (all the other players' values together, under the same filters), **His place** among
+  the players with enough of them (and above what share of them), and for a share **By chance** — how often a player
+  who does as everyone else would reach his count (*once in N*; red when under 1 in 1000). One look at one player:
+  among hundreds of players a few get far off by luck — a reason to watch, not proof.
+- **The spread** of his values against everyone else's (each as a share of its own; the categories as bars), **week by
+  week** (a hollow dot: a week with under 5 of his), **the highest** (or lowest) players — a name asks the same about
+  him — and **his events**, the newest first: a row opens the round **in Review at that moment, following him**
+  (rounds gone from the site are greyed).
+
+Where the numbers come from: the background analysis's files (`analysis/rounds/`), read by the admin server into memory
+at the first question (some seconds; then kept, new files added as they come, let go after 30 minutes unused). Only
+analysed rounds count; bots are left out. A server's admin sees only his servers' rounds and their players.
 
 ---
 

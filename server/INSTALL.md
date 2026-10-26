@@ -970,6 +970,11 @@ line): the background analysis goes over every round again by itself. Nothing de
 (v242) Only the page changes (the round page's buttons: one bar under the map, Camera ▾, Show ▾, Share ▾): nothing to do.
 (v243) Only the page and the admins' part change (Review ↗: a round's admins' page): nothing to do; admin.mjs restarts
 by itself on the new version, as always.
+(v244) Asking the statistics (the admins' constructor): admin.mjs reads the background analysis's files
+(`analysis/rounds/*.json.gz`) into memory at the first question - some seconds, in a worker thread - and keeps them
+~80-150 MB more while admins use it (let go after 30 minutes unused). Its unit gets `MALLOC_MMAP_THRESHOLD_=131072`
+(that memory given back to the system): the update puts the unit in place and restarts the admin page by itself.
+Nothing to do; on a VPS with little memory, watch `systemctl status bf2replay-admin` (Memory:) after a few questions.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 

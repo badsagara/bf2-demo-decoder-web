@@ -300,7 +300,7 @@ it, publishes `site/` and updates the services. Don't want to wait: `sudo system
 A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v243   # the version in the archive's name
+V=v244   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

@@ -297,6 +297,13 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   a prone shooter need care.
 - **Strength**: minor / hint / strong; a "chance" compares him with everyone in the same round (how often luck would give
   it). **Suspicion score** adds up how unlikely his hint rates are over his analysed rounds (players with 10+ rounds).
+- (v244) **Asking the statistics**: the admins' constructor puts any of 43 parameters of a player's kills, deaths, rounds
+  or trigger presses — with one weapon, over chosen days, a server, a map and up to 4 conditions — against everyone
+  else's under the same filters (the same weapon), with his place, the binomial odds of a share, the spread, week by
+  week and his events. The admin server reads the analysis's files (`analysis/rounds/`) into columns at the first
+  question; only analysed rounds count, bots are left out, a server's admin sees his servers only. Bullets are an
+  estimate from the magazine's count between two presses of the same weapon less than 20 s apart (none where the demo
+  has no count).
 - **Glitch spot** uses a grid (2 × 2 m, 2.5 m high) of where living soldiers stood on foot in all rounds of a map; it
   needs 30+ rounds of the map.
 - A hint is a reason to watch, never proof; see [admin-hints.md](admin-hints.md) for each one.
