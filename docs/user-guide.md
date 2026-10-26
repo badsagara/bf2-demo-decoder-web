@@ -107,7 +107,9 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   how long it was on the killer's own screen — the server's time less ~0.1 s and his ping (others reach a player's
   screen that late, his shot the server half his ping after): an estimate. **The shot**: where the killing bullet came
   from by the demo's own direction of the hit — straight from him, at where the victim was a moment before (what his
-  screen showed), or from neither (lag, or not his shot).
+  screen showed), or from neither (lag, or not his shot). (v241) That shot is drawn too: a **yellow dashed line** from the killer's eye
+  along the hit's direction — how high the bullet went over the victim (over a roof's edge, say). A man lying down is
+  drawn with his head the way he faces.
 
 ## What the map shows (Map ▾)
 

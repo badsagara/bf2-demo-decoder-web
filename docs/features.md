@@ -103,7 +103,10 @@ ambushes, Highlights, and many admin hints.
   man's.)
 - **Line of sight**: lines from the eyes (where the game's camera is: straight over his position, 0.47 / −0.05 / −0.63 m
   standing / crouching / lying, 0.3 swimming (v237: the game's swimming pose, not the stance he had on land) — v233 put it 0.1 m in front, v234 back: the game drops that part) to the target's head, chest, shoulders
-  and hips; blocked by the map's shapes, the relief and tree trunks. **Thin walls** (wooden boards, thin metal, plastic,
+  and hips (v241: a man lying down along his body — the head 0.45 m over his feet and 0.4 m ahead of his position the
+  way he faces, the chest 0.25 m, the hips 0.2 m and 0.6 m back: where the shots that killed men lying down passed; for 0.6 s after
+  a change of stance the points of both stances, as the body is still going down or getting up);
+  blocked by the map's shapes, the relief and tree trunks. **Thin walls** (wooden boards, thin metal, plastic,
   cloth) don't stop bullets: a kill only through such things is "through thin walls", not "no line of sight".
 - **Fog**: nothing is seen beyond the map's view distance (Karkand 140 m, Blue Pearl 90, Sharqi 195, Mashtuur 200,
   Songhua 250, Jalalabad 270, Fushe Pass and Gulf of Oman 400, Wake and Kubra 600, …). (v235) Inside it the map's

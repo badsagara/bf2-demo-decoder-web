@@ -1091,7 +1091,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v239';
+const APP_VERSION = 'v241';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -2999,7 +2999,36 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot) {
 // point; before: 0.65 / 0.05 / -0.55). Checked on 918 small-arms kills of 9 rounds: where the killer's view passes the
 // victim does not change with the distance (no angle error) and from a crouching / prone killer it comes 0.38 / 1.02 m
 // lower than from a standing one at the same kind of target (the game's 0.52 / 1.10 fit better than 0.60 / 1.20)
-const EYE_H = [0.47, -0.05, -0.63, 0.3], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.65, -0.75], [0.4, 0.05]];
+const EYE_H = [0.47, -0.05, -0.63, 0.3], AIM_H = [[0.6, 0.1], [0.0, -0.3], [-0.55, -0.75], [0.4, 0.05]];
+// (v241, Sagara: men lying on roofs "out of sight") a man lying down is not a post over his position: the shots that
+// killed men lying down (987 small-arms kills with the hit's direction, 44 demos) passed their heads 0.34 m over their
+// feet (median; p90 0.59) and 0.39 m ahead of the position along the way they faced, their bodies 0.18 m over the feet,
+// 0.1 m ahead (from -0.8 to +0.3). Before: head and chest straight over his position, 0.35 / 0.25 m, the hips 0.2 m
+// under his feet (in the ground). Now the head 0.45 m high, 0.4 m ahead; the chest 0.25 m, 0.1 m ahead; the hips
+// 0.2 m, 0.6 m back - [ahead along his facing, over his feet]. Of 537 kills of men lying down whose shot had its way
+// (16 demos, 9 maps) none of his 9 points was clear in 13 before, 10 now (the best of five sets tried; never worse in
+// a demo). Crouching and standing as before (the shots agree: crouching heads 1.0 m, bodies 0.65 m over the feet)
+const PRONE_PTS = [[0.4, 0.45], [0.1, 0.25], [-0.6, 0.2]];
+// the point k of a soldier's body at o (stance st): 0 head, 1 chest, 2 hips - [x, y, h]
+const aimAt = (o, st, k) => {
+  if (st === 2 && Number.isFinite(o.yaw)) { const [a, h] = PRONE_PTS[k]; return [o.x + Math.sin(o.yaw) * a, o.y + Math.cos(o.yaw) * a, o.h - 1 + h]; }
+  return [o.x, o.y, o.h + (k < 2 ? AIM_H[st][k] : AIM_H[st][1] - 0.45)];
+};
+// (v241) going down or getting up takes the game a moment: the demo's stance turns at once, the body follows. Where
+// the shots that killed men passed them, over their feet (median; 1398 small-arms kills with the hit's direction,
+// 4 demos): standing 1.08 m, crouching 0.70, lying 0.25 - and in the first 0.2 / 0.4 / 0.6 s after a change, from
+// standing to lying 0.90 / 0.72 / 0.63 m (0.26 after that), from crouching to standing 0.44 / 0.60 / 0.80 m, from
+// standing to crouching 0.98 / 0.85 / 0.95 (0.72 after). So for POSE_MOVE s both stances count: poseFrom is the one he is
+// leaving (null: none, or swimming)
+const POSE_MOVE = 0.6;
+const poseFrom = (p, tt) => {
+  const L = p && p.stance; if (!L || !L.length || L[0][0] > tt || (mvNow(p, tt) & 2)) return null;
+  let lo = 0, hi = L.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (L[m][0] <= tt) lo = m; else hi = m - 1; }
+  const cur = L[lo][1]; while (lo > 0 && L[lo - 1][1] === cur) lo--;
+  return lo > 0 && tt - L[lo][0] < POSE_MOVE ? L[lo - 1][1] : null;
+};
+// the stances whose points count now: his own, and the one he is leaving
+const poseSets = (p, tt) => { const st = poseNow(p, tt), a = st === POSE_SWIM ? null : poseFrom(p, tt); return a == null || a === st ? [st] : [st, a]; };
 // (v237) and swimming, the game's fourth pose (Soldier: pose 3): its camera 0.3 m over his position (the soldier
 // template's own default - no soldier's .tweak sets it), and only his head and shoulders out of the water. The demo
 // says he swims in his soldier's own records (players[].mv & 2) - before, a swimmer kept the stance he had before the
@@ -3067,21 +3096,22 @@ function canSee(i, j, tt, V) {
   if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return false;
   const D = losData(); if (!D) return null;
   if (q.h == null || o.h == null) return null;
-  const st = o.veh ? 0 : poseNow(round.players[j], tt), eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [0.6, 1.4] : AIM_H[st];
+  const sts = o.veh ? [0] : poseSets(round.players[j], tt), eye = q.eye ?? eyeOf(i, q, tt), pts = o.veh ? [[o.x, o.y, o.h + 0.6], [o.x, o.y, o.h + 1.4]] : sts.flatMap(st => [aimAt(o, st, 0), aimAt(o, st, 1)]);
   if (eye == null) return null;
-  if (fogHides(D, q.x, q.y, eye, o.x, o.y, o.h + Math.max(...pts), tt)) return false;   // (v235: lost in the fog)
+  if (fogHides(D, q.x, q.y, eye, o.x, o.y, Math.max(...pts.map(p => p[2])), tt)) return false;   // (v235: lost in the fog)
   const G = geoData(true);
   const clear = (bx, by, bh) => !(losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt)))
     && !vehBlocks(q.x, q.y, eye, bx, by, bh, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, bx, by, bh);
-  for (const th of pts) if (clear(o.x, o.y, o.h + th)) return true;
+  for (const [bx, by, bh] of pts) if (clear(bx, by, bh)) return true;
   if (o.veh) return false;
   // (v178) both blocked: a man at a corner or half behind cover still shows a shoulder or his hips - his chest 0.3 m to
   // each side across the line, and his hips (standing or crouching). 918 small-arms kills of 9 rounds: the killer "could
   // not see" his victim at the shot in 39 with the two points, 25 with these (most of the rest: through a wooden fence,
   // cardboard boxes, thin metal - which bullets go through - or a bush); ~1.7 times the work
+  // (v241: lying down, his hips too - now over the ground, 0.6 m back; going down or getting up, both stances)
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, sx = -dy / L * 0.3, sy = dx / L * 0.3;
-  if (clear(o.x + sx, o.y + sy, o.h + pts[1]) || clear(o.x - sx, o.y - sy, o.h + pts[1])) return true;
-  return st < 2 && clear(o.x, o.y, o.h + pts[1] - 0.45);
+  for (const st of sts) { const [cx, cy, ch] = aimAt(o, st, 1); if (clear(cx + sx, cy + sy, ch) || clear(cx - sx, cy - sy, ch)) return true; }
+  return sts.some(st => st !== POSE_SWIM && clear(...aimAt(o, st, 2)));
 }
 // ---------- what a soldier sees ----------
 // Vehicles stand in the way too: tanks, APCs, AA vehicles and closed jeeps as boxes from their 3D models (rest pose, the
@@ -3610,7 +3640,7 @@ function aimLine(i, tt, tol = AIM_TOL, lag = AIM_LAG) {
       if (!flat && o.h != null && q.pitch != null) { const [z0, z1] = bodyCol(j, o, ot), a0 = Math.atan2(z0 - e0, dd), a1 = Math.atan2(z1 - e0, dd); offV = (pt < a0 ? a0 - pt : pt > a1 ? pt - a1 : 0) * 180 / Math.PI; zt = Math.min(z1, Math.max(z0, e0 + Math.tan(pt) * dd)); }
       const off = Math.hypot(offH, offV); if (off > tol || (pick && off >= pick.off)) return;
       if (smokeBlocks(q.x, q.y, o.x, o.y, tt)) return;
-      if (D && !flat && o.h != null) { const pts = [zt, ...(o.veh ? [o.h + 0.6] : AIM_H[poseNow(pl, ot)].map(v => o.h + v))]; if (!pts.some(z => !(losBlocked(D, q.x, q.y, e0, o.x, o.y, z, tt) && !(G && !exactHit(D, G, q.x, q.y, e0, o.x, o.y, z, true, tt))) && !vehBlocks(q.x, q.y, e0, o.x, o.y, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, o.x, o.y, z))) return; }
+      if (D && !flat && o.h != null) { const pts = [[o.x, o.y, zt], ...(o.veh ? [[o.x, o.y, o.h + 0.6]] : poseSets(pl, ot).flatMap(so => [aimAt(o, so, 0), aimAt(o, so, 1)]))]; if (!pts.some(([bx, by, z]) => !(losBlocked(D, q.x, q.y, e0, bx, by, z, tt) && !(G && !exactHit(D, G, q.x, q.y, e0, bx, by, z, true, tt))) && !vehBlocks(q.x, q.y, e0, bx, by, z, tt, own, null) && !vegBlocks(q.x, q.y, e0, bx, by, z))) return; }
       const dn = Math.hypot(n.x - q.x, n.y - q.y); pick = { j, off, l: Math.hypot(dn, (zt - e0)), x: n.x, y: n.y, h: zt, d: dn };
     });
     if (pick) return { x: pick.x, y: pick.y, h: pick.h, l: pick.l, d: pick.d, kind: 'soldier', j: pick.j, off: pick.off, from: q };
@@ -3968,23 +3998,41 @@ function spotterOf(e) {
   C.set(e, r); return r;
 }
 // is any of the 9 lines (as bodyLines) clear with the map's exact shapes (G)? shoot (v180): for a bullet (exactHit)
+// (v240, Sagara: "false No line of sight" - Karkand 19.10 21:06, ILuminator's SVD onto men lying on a roof, the lines
+// to them hitting its edge) the kill's own shot: the game's direction of the hit (dir: the decoder's since v235) from the
+// killer's eye at q - clear to the victim at o, it had its way, whatever the body's points say. Those are the middle of
+// his head, chest and hips (lying: 0.35 / 0.25 m over his feet - v241: 0.45 / 0.25 m, along his body, aimAt), while his hitboxes reach higher: the shots that killed
+// men lying down went 0.14 / 0.34 / 0.59 m over their feet (p10 / median / p90; 75 headshots in 44 demos, the head 0.4 m
+// ahead of his position) - those two 0.57 and 0.48 m, over the roof's edge. Only where the line gets to him: within
+// SHOT_NEAR m of his position across the ground, between his feet and 2.2 m over them (else no word: null). On foot
+// only; shoot: the materials bullets go through left out
+const SHOT_NEAR = 1.0;
+function shotWay(D, G, e, q, eye, o, tt, shoot) {
+  if (!e || !e.dir || !G || o.veh || !Number.isFinite(q.x) || !Number.isFinite(o.x) || o.h == null) return null;
+  const [dx, dh, dz] = e.dir, hl = Math.hypot(dx, dz); if (hl < 0.2) return null;
+  const ux = dx / hl, uy = dz / hl, sl = dh / hl, s = (o.x - q.x) * ux + (o.y - q.y) * uy; if (s < 2) return null;
+  const ex = q.x + ux * s, ey = q.y + uy * s, eh = eye + sl * s, feet = o.h - 1;
+  if (Math.hypot(ex - o.x, ey - o.y) > SHOT_NEAR || eh < feet - 0.2 || eh > feet + 2.2) return null;
+  return !exactHit(D, G, q.x, q.y, eye, ex, ey, eh, true, tt, shoot);
+}
+// (v241) the three points of his body (head, chest, hips: aimAt - a man lying down along the way he faces)
+// - a set for each stance that counts now (poseSets: going down or getting up, both)
+const bodyPts = (j, o, tt) => o.veh ? [[1.4, 0.9, 0.4].map(h => [o.x, o.y, o.h + h])] : poseSets(round.players[j], tt).map(st => [0, 1, 2].map(k => aimAt(o, st, k)));
 function bodyClearExact(D, G, q, eye, j, o, tt, shoot) {
-  const st = o.veh ? 0 : poseNow(round.players[j], tt), hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  for (const th of hs) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, o.x + px * s, o.y + py * s, o.h + th, true, tt, shoot)) return true;
+  for (const set of bodyPts(j, o, tt)) for (const [x, y, h] of set) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, x + px * s, y + py * s, h, true, tt, shoot)) return true;
   return false;
 }
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
 // i at q, eye height eye, has a clear line to: [clear, of how many]
 function bodyLines(D, q, eye, j, o, tt, G) {
-  const st = o.veh ? 0 : poseNow(round.players[j], tt), hs = o.veh ? [1.4, 0.9, 0.4] : [AIM_H[st][0], AIM_H[st][1], AIM_H[st][1] - 0.45];
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  let n = 0; for (const th of hs) for (const s of [-1, 0, 1]) {
-    const bx = o.x + px * s, by = o.y + py * s, bh = o.h + th;
+  let best = 0; for (const set of bodyPts(j, o, tt)) { let n = 0; for (const [x, y, bh] of set) for (const s of [-1, 0, 1]) {
+    const bx = x + px * s, by = y + py * s;
     if (losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt))) continue;   // (G: a blocked line looked at again with the exact shapes)
     if (!vegBlocks(q.x, q.y, eye, bx, by, bh, true)) n++;
-  }
-  return [n, 9];
+  } best = Math.max(best, n); }
+  return [best, 9];
 }
 // The exact shapes in the side view (v127): their cross-section with the upright plane through the line from (ax, ay)
 // along (ux, uy) (unit), between s0 and s1 m along it - each triangle of each object near the line that the plane cuts,
@@ -7265,8 +7313,8 @@ function wallTracks(R, done) {
     const a = playerAt(i, tt), b = playerAt(j, tt); if (!a.alive || !b.alive || a.veh || b.veh || !Number.isFinite(a.x) || !Number.isFinite(b.x) || a.h == null || b.h == null) return false;
     const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy); if (d > fog) return false;
     if (a.yaw != null && angOff(Math.atan2(dx, dy), a.yaw) / DEG > coneDeg) return false;
-    const eye = a.h + EYE_H[poseNow(R.players[i], tt)], st = poseNow(R.players[j], tt);
-    return !losBlocked(D, a.x, a.y, eye, b.x, b.y, b.h + AIM_H[st][0], tt) || !losBlocked(D, a.x, a.y, eye, b.x, b.y, b.h + AIM_H[st][1], tt);
+    const eye = a.h + EYE_H[poseNow(R.players[i], tt)];
+    return poseSets(R.players[j], tt).some(st => !losBlocked(D, a.x, a.y, eye, ...aimAt(b, st, 0), tt) || !losBlocked(D, a.x, a.y, eye, ...aimAt(b, st, 1), tt));
   };
   const vehs = R.players.map((p, v) => p.vehicle ? v : -1).filter(v => v >= 0);
   const vehNear = (i, q, eye, tt) => vehs.some(v => {   // (a vehicle in the open near his crosshair: he may be shooting at it)
@@ -7295,8 +7343,8 @@ function wallTracks(R, done) {
         }
         const band = off >= FOV_IN && off <= FOV_OUT;
         if (band && !st.band && !st.ep && d >= 8 && d <= FOV_FAR && tt - st.last > FOV_FRESH) {
-          const eye = q.h + EYE_H[poseNow(R.players[i], tt)], so = poseNow(R.players[j], tt);
-          const hh = o.h + AIM_H[so][0], open = (!losBlocked(D, q.x, q.y, eye, o.x, o.y, hh, tt) || !losBlocked(D, q.x, q.y, eye, o.x, o.y, o.h + AIM_H[so][1], tt)) && !vegBlocks(q.x, q.y, eye, o.x, o.y, hh) && !smokeBlocks(q.x, q.y, o.x, o.y, tt);
+          const eye = q.h + EYE_H[poseNow(R.players[i], tt)];
+          const open = poseSets(R.players[j], tt).some(so => { const hdP = aimAt(o, so, 0); return (!losBlocked(D, q.x, q.y, eye, ...hdP, tt) || !losBlocked(D, q.x, q.y, eye, ...aimAt(o, so, 1), tt)) && !vegBlocks(q.x, q.y, eye, ...hdP); }) && !smokeBlocks(q.x, q.y, o.x, o.y, tt);
           const hit = (() => { const a = playerAt(i, tt - 2).hp, b = q.hp; return a != null && b != null && b < a - 1; })();
           if (open && !hit && !firedNear(j, tt) && !spottedNear(j, tt, tm)) {
             if (!fovBy.has(i)) fovBy.set(i, { n: 0, q: 0, first: null }); fovBy.get(i).n++; st.ep = { t0: tt, off, d };
@@ -7359,7 +7407,7 @@ function wallTracks(R, done) {
         }
         const r = runs.get(i);
         if (!best) { close(i); closeF(i); continue; }
-        const st = poseNow(R.players[best.j], tt), hidden = losBlocked(D, q.x, q.y, eye, best.o.x, best.o.y, best.o.h + AIM_H[st][0], tt) && losBlocked(D, q.x, q.y, eye, best.o.x, best.o.y, best.o.h + AIM_H[st][1], tt);
+        const hidden = poseSets(R.players[best.j], tt).every(st => losBlocked(D, q.x, q.y, eye, ...aimAt(best.o, st, 0), tt) && losBlocked(D, q.x, q.y, eye, ...aimAt(best.o, st, 1), tt));
         // (fired at a wall: the trigger held, on this hidden enemy, nobody he sees near his crosshair)
         if (hidden && held(i, tt) && ![...P.keys()].some(j => j !== best.j && j !== i && teamOf(j, tt) !== tm && seesAt(i, j, tt, WF_NEAR)) && !vehNear(i, q, eye, tt)) {
           const f = fires.get(i);
@@ -8362,11 +8410,13 @@ function adminHints() {
             const tq = tt - k2 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
             if (bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, tq), vi, b, tq)) { clear2 = true; break; }
           }
-          if (k2 >= Math.round(WALL_T * 10)) {
-            const ey = eyeOf(ki, q, tt), qe = eyeXY(q), sv = o.veh ? 0 : poseNow(R.players[vi], tt), by = exactHit(D, G, qe.x, qe.y, ey, o.x, o.y, o.h + (o.veh ? 0.9 : AIM_H[sv][1]), false, tt);
+          // (v240) the kill's own shot clear from his eye to the victim: no hint (shotWay)
+          if (k2 >= Math.round(WALL_T * 10) && !shotWay(D, G, e, eyeXY(q), eyeOf(ki, q, tt), o, tt, false)) {
+            const ey = eyeOf(ki, q, tt), qe = eyeXY(q), sv = o.veh ? 0 : poseNow(R.players[vi], tt), by = exactHit(D, G, qe.x, qe.y, ey, ...(o.veh ? [o.x, o.y, o.h + 0.9] : aimAt(o, sv, 1)), false, tt);
             // (v180) only what bullets go through in the way (wood boards, thin metal, plastic, cloth - the game's material
-            // table): a bullet could get there - not "No line of sight" but "Through thin walls", listed apart (info)
-            let thru = false;
+            // table): a bullet could get there - not "No line of sight" but "Through thin walls", listed apart (info); (v240)
+            // so too when the shot's own line is clear but for those
+            let thru = !!(G.penKnown && shotWay(D, G, e, qe, ey, o, tt, true));
             if (G.penKnown) for (let k3 = 0; k3 <= 6 && !thru; k3++) { const tq = tt - k3 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break; thru = bodyClearExact(D, G, a, eyeOf(ki, a, tq), vi, b, tq, true); }
             out.push({ t: e.t, kind: thru ? 'thru' : 'wall', adm: true, ...(thru ? { info: true } : {}), actor: e.killer, kill: e, hidden: clear2 ? k2 * 0.1 : null, by, x: e.x, y: e.y });
           }
@@ -8448,7 +8498,7 @@ const ANALYZE_V = 2;   // (v214: Q, U - the fire presses; K's hp)
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 11;   // (v237: Speed by stance, the stance now read right; v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
+const HINTS_V = 13;   // (v241: a man lying down - his head 0.45 m over his feet and 0.4 m ahead, chest and hips along his body: every hint that asks if he could be seen; v240: No line of sight - not when the kill's own shot had its way; v237: Speed by stance, the stance now read right; v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
 // (v227, Sagara: "налаштування всіх threshold'ів для кожної реакції на застереження ... щоб кожен адміністратор міг
 // налаштовувати собі все, що треба, сам. Але були наші рекомендовані thresholds") the hints' thresholds. HT_SPEC - one line
 // of JSON (admin.mjs reads it from server/admin-round.js to check what is saved): each one's name (k, the variable), hint
@@ -9431,8 +9481,9 @@ function drawSide() {
   const kp = round.players[ki], vp = round.players[vi], kFoot = !q.veh && !kp.vehicle, vFoot = !o.veh;
   const kSt = kFoot ? poseNow(kp, tt) : 0, vSt = vFoot ? poseNow(vp, tt) : 0;
   const kEye = kFoot ? q.h + EYE_H[kSt] : q.h + 1.2, kFeet = q.h - 1.0, vFeet = o.h - 1.0, vEye = vFoot ? o.h + EYE_H[vSt] : o.h + 1.2;
-  const vHead = o.h + (vFoot ? AIM_H[vSt][0] : 1.4), vChest = o.h + (vFoot ? AIM_H[vSt][1] : 0.6);
-  const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy) || 0.01, ux = dx / hd, uy = dy / hd;
+  // (v241: his head and chest as the sight lines take them - lying down, ahead along the way he faces)
+  const vPt = vFoot ? [aimAt(o, vSt, 0), aimAt(o, vSt, 1)] : [[o.x, o.y, o.h + 1.4], [o.x, o.y, o.h + 0.6]], vHead = vPt[0][2], vChest = vPt[1][2];
+  const dx = o.x - q.x, dy = o.y - q.y, hd = Math.hypot(dx, dy) || 0.01, ux = dx / hd, uy = dy / hd, vS = vPt.map(([x, y]) => (x - q.x) * ux + (y - q.y) * uy);
   const ext = Math.max(4, hd * 0.12), s0 = -ext, s1 = hd + ext, step = D ? D.gStep / 2 : (s1 - s0) / 120, OFF = D ? brkOff(D, tt) : null;
   // (v127: with the map's exact shapes, the walls are their cross-section along the line and the lines of sight run
   // against them; without them - or while they load - the 25 cm grid)
@@ -9481,14 +9532,20 @@ function drawSide() {
       } } } }
   // lines of sight from his eye to the victim's head and chest
   const ok = css('--medic'), bad = css('--hp-low'), hits = [], leafy = [], thins = [];
-  for (const th of [vHead, vChest]) {
-    const xh = G ? exactHit(D, G, q.x, q.y, kEye, o.x, o.y, th, false, tt) : null, uw = G ? (xh?.u ?? null) : D ? segHit(D, q.x, q.y, kEye, o.x, o.y, th, tt) : null, uv = vegHit(q.x, q.y, kEye, o.x, o.y, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u);
+  for (const [m0, [px, py, th]] of vPt.entries()) {
+    const xh = G ? exactHit(D, G, q.x, q.y, kEye, px, py, th, false, tt) : null, uw = G ? (xh?.u ?? null) : D ? segHit(D, q.x, q.y, kEye, px, py, th, tt) : null, uv = vegHit(q.x, q.y, kEye, px, py, th), u = uw == null ? uv : uv == null ? uw : Math.min(uw, uv); hits.push(u);
     // (v180) stopped by what bullets go through (a board, thin metal, plastic): amber, the bullet's own line on (dashed)
-    const thin = !!(xh && xh.pen && u === uw && !exactHit(D, G, q.x, q.y, kEye, o.x, o.y, th, true, tt, true) && (uv == null)); thins.push(thin); leafy.push(u != null && u === uv);
-    const ax = X(0), ay = Y(kEye), bx = X(hd), by = Y(th), mx = u == null ? bx : ax + (bx - ax) * u, my = u == null ? by : ay + (by - ay) * u;
+    const thin = !!(xh && xh.pen && u === uw && !exactHit(D, G, q.x, q.y, kEye, px, py, th, true, tt, true) && (uv == null)); thins.push(thin); leafy.push(u != null && u === uv);
+    const ax = X(0), ay = Y(kEye), bx = X(vS[m0]), by = Y(th), mx = u == null ? bx : ax + (bx - ax) * u, my = u == null ? by : ay + (by - ay) * u;
     g2.lineWidth = 1.5; g2.strokeStyle = ok; g2.setLineDash([]); g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(mx, my); g2.stroke();
     if (u != null) { g2.strokeStyle = thin ? css('--accent') : bad; g2.setLineDash([4, 3]); g2.beginPath(); g2.moveTo(mx, my); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); g2.lineWidth = 2; g2.beginPath(); g2.moveTo(mx - 4, my - 4); g2.lineTo(mx + 4, my + 4); g2.moveTo(mx + 4, my - 4); g2.lineTo(mx - 4, my + 4); g2.stroke(); }
   }
+  // (v240) the shot itself: the game's direction of the hit (dir) from his eye, rising or falling as it did - yellow, dashed;
+  // over the victim it shows how high the bullet went (a man lying on a roof's edge: over the edge, over the body's points)
+  let shotDrawn = false;
+  if (e.dir && kFoot) { const [ddx, ddh, ddz] = e.dir, hl = Math.hypot(ddx, ddz); if (hl > 0.2) { const sl = ddh / hl, s = (dx * ddx + dy * ddz) / hl;
+    if (s > 1) { const ax = X(0), ay = Y(kEye), bx = X(s), by = Y(kEye + sl * s); g2.strokeStyle = 'rgba(6,8,6,.75)'; g2.lineWidth = 4; g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(bx, by); g2.stroke();
+      g2.strokeStyle = css('--aim'); g2.lineWidth = 2; g2.setLineDash([7, 4]); g2.beginPath(); g2.moveTo(ax, ay); g2.lineTo(bx, by); g2.stroke(); g2.setLineDash([]); shotDrawn = true; } } }
   // where each looked up or down (drawn in this plane when he faced the other one; his view's height as a wedge)
   const face = (a, b) => angOff(Math.atan2(b.x - a.x, b.y - a.y), a.yaw);
   const kFace = kFoot ? face(q, o) : null, vFace = vFoot ? face(o, q) : null;
@@ -9501,17 +9558,19 @@ function drawSide() {
   if (kFoot && q.pitch != null && kFace < Math.PI / 3) ray(0, kEye, q.pitch, 1, kCol, true);
   if (vFoot && o.pitch != null && vFace < Math.PI / 3) ray(hd, vEye, o.pitch, -1, vCol, false);
   // the two of them
-  const figure = (sx, feet, st, inVeh, col, name, eye) => {
+  const figure = (sx, feet, st, inVeh, col, name, eye, fw) => {
     g2.fillStyle = col; g2.strokeStyle = css('--bg'); g2.lineWidth = 1.5;
     const px = X(sx), r = Math.max(3, 0.13 * k);
     if (inVeh) { const w = 4 * k, h = 2.2 * k; g2.fillRect(px - w / 2, Y(feet + 2.2), w, h); g2.strokeRect(px - w / 2, Y(feet + 2.2), w, h); }
-    else if (st === 2) { const L = 1.7 * k; g2.fillRect(px - L / 2, Y(feet + 0.35), L - r * 2, Math.max(3, 0.3 * k)); g2.beginPath(); g2.arc(px + L / 2 - r, Y(eye), r, 0, Math.PI * 2); g2.fill(); g2.stroke(); }
+    else if (st === 2) { const L = 1.7 * k, sg = fw == null || fw >= 0 ? 1 : -1; g2.fillRect(sg > 0 ? px - L / 2 : px - L / 2 + r * 2, Y(feet + 0.35), L - r * 2, Math.max(3, 0.3 * k)); g2.beginPath(); g2.arc(px + sg * (L / 2 - r), Y(eye), r, 0, Math.PI * 2); g2.fill(); g2.stroke(); }
     else { const hh = eye + 0.1 - feet, bw = Math.max(3, 0.32 * k); g2.fillRect(px - bw / 2, Y(feet + hh - 0.2), bw, (hh - 0.2) * k); g2.beginPath(); g2.arc(px, Y(eye + 0.05), r, 0, Math.PI * 2); g2.fill(); g2.stroke(); }
     g2.font = '600 11px ' + css('--font-data'); g2.textAlign = 'center'; g2.lineWidth = 3; g2.strokeStyle = css('--bg');
     const ty = Y(Math.max(eye, feet + 2.2)) - 8; g2.strokeText(name, px, ty); g2.fillStyle = css('--fg'); g2.fillText(name, px, ty); g2.textAlign = 'start';
   };
-  figure(0, kFeet, kSt, !kFoot, kCol, kp.name, kEye);
-  figure(hd, vFeet, vSt, !vFoot, vCol, vp.name, vEye);
+  // (v241: lying down, the head drawn on the side he faces - along the line, to the right: away from the killer)
+  const along = a => Number.isFinite(a.yaw) ? Math.sin(a.yaw) * ux + Math.cos(a.yaw) * uy : null;
+  figure(0, kFeet, kSt, !kFoot, kCol, kp.name, kEye, along(q));
+  figure(hd, vFeet, vSt, !vFoot, vCol, vp.name, vEye, along(o));
   // scale bar
   { const m = [1, 2, 5, 10, 20, 50].find(v => v * k >= 40) || 50, bx = 10, by = H - 10; g2.strokeStyle = css('--fg'); g2.lineWidth = 1.5; g2.beginPath(); g2.moveTo(bx, by - 4); g2.lineTo(bx, by); g2.lineTo(bx + m * k, by); g2.lineTo(bx + m * k, by - 4); g2.stroke(); g2.font = '600 10px ' + css('--font-data'); g2.fillStyle = css('--fg'); g2.fillText(m + ' m', bx + m * k + 5, by); }
   // what it says
@@ -9519,8 +9578,10 @@ function drawSide() {
   const L = [];
   L.push(`${pn(ki)} → ${pn(vi)} <span class="w">· ${esc(killWpn(e)) || 'no weapon'} · ${Math.round(d3)} m${Math.abs(dh) >= 1 ? ` · ${Math.round(Math.abs(dh) * 10) / 10} m ${dh > 0 ? 'above' : 'below'} him` : ' · on one level'}${e.hit === 'head' ? ' · headshot' : ''}</span>`);
   if (D) {
-    const [n] = bodyLines(D, q, kEye, vi, o, tt, G || null);
-    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''}${thins.some(v => v) ? ' <span class="w">· only things bullets go through in the way (amber): a bullet gets there</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? (exact ? (thins.some(v => v) ? '' : ' (a shot through foliage, or a gap the shapes don\'t have)') : ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)') : ''} · ${exact ? 'walls: the game\'s exact collision shapes' : 'walls: the 25 cm grid (the exact shapes are not loaded' + (G === undefined ? ' yet)' : ' for this map)')}</span>`);
+    const [n] = bodyLines(D, q, kEye, vi, o, tt, G || null), vFrom = vFoot && vSt !== POSE_SWIM ? poseFrom(vp, tt) : null;
+    // (v241) going down or getting up: the points of the stance he was leaving count too
+    const moving = vFrom != null && vFrom !== vSt ? ` · he was ${vSt === 2 ? 'going down' : vFrom === 2 ? 'getting up' : vSt > vFrom ? 'crouching down' : 'standing up'} (${STANCE_NAME[vFrom].toLowerCase()} until ${(tt - (() => { const Ls = vp.stance; let k = Ls.length - 1; while (k > 0 && Ls[k][0] > tt) k--; while (k > 0 && Ls[k - 1][1] === Ls[k][1]) k--; return Ls[k][0]; })()).toFixed(1)} s before): his body still between the two - the points of both count` : '';
+    L.push(`<span class="w">Line of sight:</span> ${hits[0] == null && hits[1] == null ? 'clear to his head and chest' : hits[0] == null ? 'clear to his head' : hits[1] == null ? 'clear to his chest' : 'blocked'}${leafy.some((v, m) => v && hits[m] != null) ? ' <span class="w">(a tree or bush)</span>' : ''}${thins.some(v => v) ? ' <span class="w">· only things bullets go through in the way (amber): a bullet gets there</span>' : ''} <span class="w">· ${n} of 9 lines to his head, chest and hips clear${n === 0 ? (exact && kFoot && shotWay(D, G, e, q, kEye, o, tt, false) ? ' - but the shot\'s own line (the hit\'s direction from his eye) is clear: the bullet went over or past what blocks these' : exact ? (thins.some(v => v) ? '' : ' (a shot through foliage, or a gap the shapes don\'t have)') : ' (a shot through a fence, crate or foliage, or a gap the 25 cm grid misses)') : ''}${moving} · ${exact ? 'walls: the game\'s exact collision shapes' : 'walls: the 25 cm grid (the exact shapes are not loaded' + (G === undefined ? ' yet)' : ' for this map)')}</span>`);
   } else L.push('<span class="w">Walls and hills are not known for this map: the ground is drawn straight between them.</span>');
   if (kFoot && q.pitch != null) L.push(`<span class="w">He looked</span> ${pitchText(q.pitch)}<span class="w">; the victim's chest was ${pitchText(need)} from his eyes${kFace >= Math.PI / 3 ? ` · he faced ${Math.round(kFace * 180 / Math.PI)}° to the side` : ''}</span>`);
   else if (!kFoot) L.push('<span class="w">Fired from a vehicle: where its gun pointed is not in the demo.</span>');
@@ -9535,7 +9596,7 @@ function drawSide() {
   { const pg = seriesAt(kp.ping, e.t); if (g && g.k != null && pg && pg[1] > 0) { const r = e.t - g.k, own = r - 0.1 - pg[1] / 1000;
     L.push(`<span class="w">On his screen:</span> ${own > 0.05 ? `about ${sec(own)}` : 'hardly any time'} <span class="w">from seeing him to the kill - the server's ${sec(r)} less ~0.1 s and his ping (${pg[1]} ms): others reach a player's screen 0.1 s and half his ping late, and his shot takes the other half to the server</span>`); } }
   // (v237, todo 286 a) where the killing shot came from, by the demo's own direction of the hit
-  { const so = shotOff(e, q); if (so) L.push(`<span class="w">The shot:</span> ${so.off < 3 ? 'straight from him' : `${Math.round(so.off)}° off the line from him (${(Math.round(so.lat * 10) / 10)} m to the side at his distance)`}${Math.abs(so.down) >= 3 ? `, coming ${Math.round(Math.abs(so.down))}° ${so.down > 0 ? 'down' : 'up'}` : ''}<span class="w">${so.off < 3 ? '' : so.when ? ` - to ${so.when.v ? `where ${esc(vp.name)} was ${sec(so.when.v)} before` : 'him'}${so.when.k ? `, from where ${esc(kp.name)} stood ${sec(so.when.k)} before` : ''}: what his screen showed (it runs behind the server)` : so.off >= SHOT_OFF && so.lat >= SHOT_LAT ? ' - from neither where he stood nor where his screen had the victim: the game had him elsewhere (lag), or the shot was not his' : ''}</span>`); }
+  { const so = shotOff(e, q); if (so) L.push(`<span class="w">The shot${shotDrawn ? ' (yellow, dashed)' : ''}:</span> ${so.off < 3 ? 'straight from him' : `${Math.round(so.off)}° off the line from him (${(Math.round(so.lat * 10) / 10)} m to the side at his distance)`}${Math.abs(so.down) >= 3 ? `, coming ${Math.round(Math.abs(so.down))}° ${so.down > 0 ? 'down' : 'up'}` : ''}<span class="w">${so.off < 3 ? '' : so.when ? ` - to ${so.when.v ? `where ${esc(vp.name)} was ${sec(so.when.v)} before` : 'him'}${so.when.k ? `, from where ${esc(kp.name)} stood ${sec(so.when.k)} before` : ''}: what his screen showed (it runs behind the server)` : so.off >= SHOT_OFF && so.lat >= SHOT_LAT ? ' - from neither where he stood nor where his screen had the victim: the game had him elsewhere (lag), or the shot was not his' : ''}</span>`); }
   if (vFoot) L.push(`<span class="w">${esc(vp.name)} faced ${Math.round(vFace * 180 / Math.PI)}° away from him${o.pitch != null ? ', looking ' + pitchText(o.pitch) : ''}.</span>`);
   { const km = kFoot ? moveText(q, kSt, mvNow(kp, tt), ki, tt) : null, vm = vFoot ? moveText(o, vSt, mvNow(vp, tt), vi, tt) : null; if (km || vm) L.push(`<span class="w">Moving:</span> ${km ? `${pn(ki)} <span class="w">${moveIcon(kSt, q, ki, tt)}${km}</span>` : ''}${km && vm ? ' <span class="w">·</span> ' : ''}${vm ? `${pn(vi)} <span class="w">${moveIcon(vSt, o, vi, tt)}${vm}</span>` : ''}`); }
   info.innerHTML = L.map(x => `<div>${x}</div>`).join('');

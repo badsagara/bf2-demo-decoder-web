@@ -963,6 +963,10 @@ nothing to do.
 what guests may, and keeps his map settings in `data/.prefs/<name>.json` (made by admin.mjs, never served: Caddy and the
 nginx example close all of `data/.*`; in the weekly backup). Nothing to do after the update; to stop new accounts: the
 admin page, Users and access → untick Sign-up → Save. admin.mjs restarts by itself on the new version, as always.
+(v240) The hint rules become version 12 (No line of sight checks the kill's own shot first): the background analysis goes
+over every round again by itself. Nothing decoded or summed up again, nothing to do.
+(v241) The hint rules become version 13 (a man lying down: his head higher and ahead of his position, in every sight
+line): the background analysis goes over every round again by itself. Nothing decoded or summed up again, nothing to do.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 

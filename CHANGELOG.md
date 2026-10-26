@@ -5,6 +5,55 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v241
+
+**A man lying down: his head where it is - higher and ahead of his position; going down or getting up, both
+stances** (Sagara, after v240: "maybe the problem is that you can't tell which roofs and buildings they are on"):
+
+- First the check he asked for, on Karkand 19.10 21:06: the positions and the map's shapes agree - 98.3% of on-foot
+  moments have the feet within 0.15 m of the surface under them (the rest: jumps), half of them on objects, 10.5% under
+  a roof; ILuminator stood on the roof of house detached 03 and on a stone wall, his victims lay on the roof of house
+  double 02. What was off was the man lying down himself: every sight line took his head and chest straight over his
+  position, 0.35 / 0.25 m over his feet, and his hips 0.2 m under them (in the ground).
+- The shots that killed men lying down (987 small-arms kills with the hit's direction, 44 demos) say where he is: the
+  head 0.34 m over his feet (median; p90 0.59) and 0.39 m ahead of his position along the way he faces, the body
+  0.18 m high, 0.1 m ahead. Now: head 0.45 m high, 0.4 m ahead; chest 0.25 m, 0.1 m ahead; hips 0.2 m, 0.6 m back.
+  Of 537 kills of men lying down whose shot had its way (16 demos, 9 maps) none of his 9 points was clear in 13
+  before, 10 now - the best of five sets tried, and never worse in any demo. Crouching and standing stay (the shots
+  agree with them).
+- **Going down or getting up takes a moment**: the demo's stance turns at once, the body follows. In the first 0.2 /
+  0.4 / 0.6 s after a man went from standing to lying, the shots that killed him passed 0.90 / 0.72 / 0.63 m over his
+  feet (lying settled: 0.25); from crouching to standing 0.44 / 0.60 / 0.80 m (standing: 1.08) - 1398 kills, 4 demos.
+  The 6 misses left in two Karkand demos were all such dives (down less than 0.35 s before). So for 0.6 s after a
+  change of stance the points of both stances count; the Side view says so ("he was going down … the points of both
+  count").
+- Together, on 4 recent rounds (847 small-arms kills whose own shot had its way): kills where none of the victim's points
+  was clear at the shot 9 -> 3 (men lying down 6 -> 1, men changing stance 4 -> 0); where the shot's line was blocked
+  (29), as many with a point clear as before (22) - not more lenient where it shouldn't be.
+- Every sight line takes it: who sees whom on the map, first sight, the Side view, No line of sight, Through a gap,
+  Fired at a wall, Wide view and the other hints that ask whether he could be seen.
+- **Side view**: the shot itself - the game's direction of the hit from the killer's eye - drawn as a yellow dashed
+  line, so you see how high the bullet went over the victim; a man lying down is drawn with his head the way he faces.
+- The hint rules become version 13 (the background analysis goes over every round again by itself); the decoder
+  (`18e8999d15`) and the round summaries (18) are as in v240.
+
+## v240
+
+**No line of sight: no more hints for kills whose own shot had its way** (Sagara: false hints on Karkand 19.10 21:06 -
+ILuminator's two SVD headshots, "house double 02" in the way):
+
+- Both victims lay on a flat roof just behind its edge. The hint's 9 lines go from the killer's eye to the middle of the
+  victim's head, chest and hips - for a man lying down 0.35 / 0.25 m over his feet - and all of them hit the roof's edge.
+  The game's own direction of the hit (kept by the decoder since v235), drawn from the killer's eye, was clear all the way
+  to him: the bullets went 0.57 and 0.48 m over his feet, over the edge. On 44 demos the shots that killed men lying down
+  went 0.14 / 0.34 / 0.59 m over their feet (p10 / median / p90; 75 headshots), the head 0.4 m ahead of his position.
+- So the hint now asks the kill's own shot first: its line from the killer's eye clear to the victim (passing within 1 m
+  of his position, between his feet and 2.2 m over them) - no hint; clear but for things bullets go through - Through thin
+  walls. A shot whose line doesn't reach the victim, or meets a wall on its way, still counts as before.
+- The Side view card says so for such a kill ("the shot's own line … is clear").
+- The hint rules become version 12 (the background analysis goes over every round again by itself); the decoder
+  (`18e8999d15`) and the round summaries (18) are as in v239.
+
 ## v239
 
 **What the map shows: every element, by group, kept in your profile** (Sagara: "another grouping, a way to set the
