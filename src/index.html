@@ -69,6 +69,14 @@ header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px
 .brand h1 b { color: var(--accent); font-weight: 700; }
 .brand span { color: var(--muted); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* (v242) a phone, on the site: Rounds, Records, Stats and the colours behind ☰; Log in stays */
+#navBtn { display: none; }
+@media (max-width: 640px) {
+  body.site #navBtn { display: inline-flex; width: 44px; justify-content: center; font-size: 18px; }
+  body.site .actions:not(.open) > :is(#themeBtn, #rndLink, #recLink, #statLink, #moreBtn) { display: none; }
+  body.site .actions.open { flex-basis: 100%; }
+  body.site .actions { margin-left: auto; }
+}
 .themeb { padding-inline: 9px; }
 .themeb svg { width: 16px; height: 16px; fill: currentColor; }
 a.btn { text-decoration: none; }
@@ -117,7 +125,7 @@ input[type=file] { display: none; }
    card in a column on the map's left, as high as the map, when the page is wide enough for both (placeFeed: at least
    300 px beside the map); else in Battle under the map as before. --mapw: the map's width (placeFeed) */
 .maprow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
-.maprow.lfeed { grid-template-columns: minmax(0, 1fr) min(var(--mapw, 600px), calc(100% - 312px)); }
+.maprow.lfeed { grid-template-columns: min(var(--mapw, 600px), calc(100% - 312px)) minmax(0, 1fr); }   /* (v242: the panel on the map's right) */
 .fslot { position: relative; min-width: 0; }
 .fslot[hidden] { display: none; }
 .fslot > .fcard { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
@@ -125,6 +133,12 @@ input[type=file] { display: none; }
 /* (v189) the panel folded (its Hide button, or the over-the-map feed's): only the tabs; in the column left of the map it
    shrinks to them at the top */
 .fcard .tabs .fcfold { margin-left: auto; color: var(--muted); } .fcard .tabs .fcfold:hover { color: var(--fg); }
+/* (v242) Filter ▾ beside Hide; the filter bar only while it is open or a filter is on */
+.fcard .tabs .fftog { margin-left: auto; color: var(--muted); } .fcard .tabs .fftog:hover, .fcard .tabs .fftog[aria-expanded="true"] { color: var(--fg); }
+.fcard .tabs .fftog.on { color: var(--accent); border-color: var(--accent); }
+.fcard .tabs .fftog:not([hidden]) + .fcfold { margin-left: 0; }
+.ffbar[hidden] { display: none; }
+#lbBox .tabs { margin-bottom: 6px; } .fslot #lbBox:not([hidden]) { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; } .fslot #lbBox .lbwrap { flex: 1 1 0; min-height: 0; max-height: none; overflow: auto; }
 .fcard.min > :not(.tabs) { display: none !important; } .fcard.min > .tabs { margin-bottom: 0; }
 /* (v191, Sagara: "при не fullscreen мапі killfeed згортався не горизонтально, а вертикально") in the column left of the
    map the panel folds into a thin upright strip (the whole height, its name written down it) and the map's column moves
@@ -136,19 +150,62 @@ input[type=file] { display: none; }
 .fslot > .fcard.min > .fcstrip span { writing-mode: vertical-rl; white-space: nowrap; }
 .fslot > .fcard.min > .fcstrip:hover, .fslot > .fcard.min > .fcstrip:focus-visible { color: var(--fg); background: var(--panel-2); }
 .fslot > .fcard.min > .fcstrip:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.maprow.lfeed.fmin { grid-template-columns: 40px min(var(--mapw, 600px), calc(100% - 52px)); justify-content: center; }
+.maprow.lfeed.fmin { grid-template-columns: min(var(--mapw, 600px), calc(100% - 52px)) 40px; justify-content: center; }
 .fslot .feed:not([hidden]) { flex: 1 1 0; min-height: 0; max-height: none; align-content: start; }
 .fslot :is(#hlBox, #admBox):not([hidden]) { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
 .fslot :is(#hlBox, #admBox) > :not(.feed) { flex: none; }
 .stage > .svbox { background: var(--panel); }
 /* the map as high as the window leaves under what is above it (--maptop: measured, fitMap), so a laptop's screen shows
    all of it with its controls; Bigger map: nearly the window's height */
-.mapbox { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; width: min(100%, max(360px, calc(100vh - var(--maptop, 150px) - 14px))); justify-self: center; }
-.mapbox.big { width: min(100%, max(420px, calc(100vh - 24px))); }
+.mapbox { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; width: 100%; }
+/* (v242, Sagara: "too many buttons") the map's column: the map and, under it, one bar - play, the round time, the speed,
+   Camera ▾, Show ▾, full screen. The map as high as the window leaves under what is above it and the bar (--barh) */
+.mapcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; justify-self: center; container: mapcol / inline-size;
+  width: min(100%, max(360px, calc(100vh - var(--maptop, 150px) - 14px - var(--barh, 66px)))); }
+.mapcol:has(> .mapbox.big) { width: min(100%, max(420px, calc(100vh - 24px - var(--barh, 66px)))); }
 /* playback bar on the map (also in full screen): play / pause, speed, round time. Sized up 1.5x for easy use */
-.mapplay { position: absolute; left: 10px; bottom: 10px; right: 10px; display: flex; align-items: center; gap: 10px; }
+.mapplay { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; }
+.mapbox.fs > .mapplay { position: absolute; left: 10px; bottom: 10px; right: 10px; flex-wrap: nowrap; padding: 0; background: none; border: 0; }   /* (full screen: over the map) */
 .mapplay > * { height: 42px; }
-.mapplay .btn { padding: 0 18px; font-size: 18px; gap: 9px; min-width: 6.4em; justify-content: center; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+.mapplay > .btn, .mapplay > .lwrap > .btn { padding: 0 14px; font-size: 14px; gap: 8px; justify-content: center; height: 42px; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+.mapplay > #play2 { padding: 0 18px; font-size: 18px; gap: 9px; min-width: 6.4em; }
+.mapplay > .ibtn { width: 42px; padding: 0; }
+.mapplay > .ibtn svg { fill: none !important; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.mapplay > .lwrap > .btn svg { fill: none !important; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
+.mapplay > .lwrap > .btn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.mapplay #showPre { font-weight: 600; color: var(--accent); }
+.pbsep { width: 1px; height: 26px !important; background: var(--line); }
+/* (the bar narrower than 1040 px: the round time and its slider on a row of their own, over the buttons) */
+@container mapcol (max-width: 1040px) { .mapcol .mapplay .seekw { order: -1; flex: 1 1 calc(100% - 52px); } .mapcol .mapplay > #vFull { order: -1; } .mapcol .mapplay .pbsep { display: none; } }   /* (full screen beside the time) */
+.mapcol .mapplay > .ibtn { flex: none; }   /* (a phone's rule makes every button grow) */
+@container mapcol (max-width: 640px) { .mapcol .mapplay > #play2 { min-width: 0; padding: 0 16px; } .mapcol .mapplay > .spd input[type=range] { width: 76px; } .mapcol .mapplay #mLayBtn .shp { display: none; } }
+@container mapcol (max-width: 470px) { .mapplay > .lwrap { flex: 1; } .mapplay > .lwrap > .btn { flex: 1; padding: 0 8px; } .mapplay > #play2 { min-width: 0; flex: 1; } }
+/* zoom in / out on the map, bottom right */
+.mzoom { position: absolute; right: 10px; bottom: 10px; z-index: 3; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--bg) 85%, transparent); }
+.mzoom .btn { width: 40px; height: 40px; padding: 0; justify-content: center; font: 600 20px/1 var(--font-body); border: 0; border-radius: 0; background: none; }
+.mzoom .btn + .btn { border-top: 1px solid var(--line); }
+.mapbox.fs .mzoom { bottom: 66px; }
+/* Camera ▾: follow, his view, aim line, keep him in the middle, how much of the map, zoom */
+.cmenu { min-width: 270px; padding: 8px; }
+.cmenu .cmh { margin: 8px 6px 4px; font: 700 12px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.cmenu .cmh:first-child { margin-top: 2px; }
+.cmenu .cmrow { display: flex; align-items: center; gap: 10px; padding: 2px 6px 4px; font-size: 13px; color: var(--muted); }
+.cmenu .cmrow select { flex: 1; min-width: 0; height: 36px; font: 600 14px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 8px; }
+.cmenu .btn.cmi { min-height: 40px; }
+.cmenu .btn.cmi svg { width: 15px; height: 15px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5; margin-right: 6px; }
+.cmenu .btn.cmi:not(.act)[aria-pressed="true"]::before { background: var(--accent); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--panel); }
+.cmenu .btn.cmi.wait::before { border-style: dashed; border-color: var(--accent); }
+.cmenu .btn.cmi[aria-disabled="true"] { color: var(--muted); }
+.cmenu .btn.cmi .w { margin-left: auto; padding-left: 10px; font: 500 11px var(--font-data); }
+.cmenu .vpov .sh, .cmenu .vlock .sh { transform: none; }
+.cmenu .cmseg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0 2px 4px; }
+.cmenu .cmseg .btn { justify-content: center; text-align: center; border: 1px solid var(--line); background: var(--panel-2); padding: 8px 6px; font-weight: 600; font-size: 13px; }
+.cmenu .cmseg .btn::before { display: none; }
+.cmenu .cmseg .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.cmenu .spd.cmzoom { display: flex; align-items: center; gap: 9px; height: 40px; padding: 0 8px; border: 0; background: none; }
+.cmenu .spd.cmzoom input[type=range] { flex: 1; min-width: 0; width: auto; }
+.cmenu .spd.cmzoom b { font: 600 13px var(--font-data); min-width: 6ch; text-align: right; }
+.cmenu .qcam { margin: 2px 6px 6px; display: flex; } .cmenu .qcam[hidden] { display: none; } .cmenu .qcam .sg { flex: 1; }
 .mapplay .btn svg { width: 16px; height: 16px; flex: none; fill: currentColor; }
 .mapplay .btn.playing { border-color: var(--accent); color: var(--accent); }
 .mapplay .spd { flex: none; display: flex; align-items: center; gap: 9px; padding: 0 12px; border: 1px solid var(--line); border-radius: 4px; background: color-mix(in srgb, var(--bg) 85%, transparent); cursor: pointer; }
@@ -334,7 +391,7 @@ input[type=file] { display: none; }
 .mapbox.side:not(.fs) .mapplay .seekw { order: 0; flex-basis: auto; }
 .mapbox.side .maptoast, .mapbox.side:not(.fs) .maptoast { bottom: 64px; }
 .mapctl :is(.qwall, .qrel, .qnam, .qpin, .qahd)[aria-pressed="false"], .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd)[aria-pressed="false"] { color: var(--muted); text-decoration: line-through; text-decoration-thickness: 1px; }
-.mapplay .qlay { display: none; }   /* (a phone: under the map, in its play bar - below) */
+.mapplay > .qlay { display: none; }   /* (v242: the pins are in Show ▾, not in the bar) */
 .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme) { gap: 6px; } .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd) svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 .mapplay :is(.qwall, .qrel, .qnam, .qpin, .qahd, .qahdme)[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .mapbox canvas { touch-action: none; }
@@ -631,6 +688,48 @@ details.schema p { max-width: 70ch; }
 /* the site (the page on a server with its rounds): the visitor's view; Tools shows the rest */
 body.site:not(.devshow) .actions > label, body.site:not(.devshow) #notice:not(.err), body.site:not(.devshow) #demoCard,
 body.site:not(.devshow) .mapsizel, body.site:not(.devshow) details.schema, body.site:not(.devshow) #mapHint, body.site #srcLabel { display: none; }
+/* (v243, Sagara: "two pages - the players' and the admins'") Review: the admins' page - this round's hints (and players,
+   kills, the review) on the left, the map, its bar, the kill's side view and the verdict on the right; the players' page
+   has no admins' parts any more (Review ↗ in the header) */
+.revgrid { display: contents; }
+.revside[hidden], .revpanel[hidden] { display: none; }
+body.review .revgrid { display: grid; grid-template-columns: minmax(340px, 440px) minmax(0, 1fr); gap: 12px; align-items: start; }
+body.review .revside { position: sticky; top: 8px; max-height: calc(100vh - 16px); overflow: auto; overscroll-behavior: contain; min-width: 0; }
+body.review .revside > .admpane { margin: 0; }
+body.review :is(#ptabs, .pane, #feedSlot) { display: none !important; }
+body.review .brand h1::after { content: 'Review'; margin-left: 10px; vertical-align: middle; font: 700 12px/1 var(--font-display); letter-spacing: .14em; text-transform: uppercase; color: var(--bg); background: var(--accent); border-radius: 3px; padding: 4px 7px; }
+#revBtn { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+body.review #revBtn { background: var(--accent); color: #17130a; }
+@media (max-width: 960px) { body.review .revgrid { grid-template-columns: minmax(0, 1fr); } body.review .revside { position: static; max-height: none; } }   /* (one column: the list first; a hint picked scrolls to the map) */
+/* (a wide screen: the side view and the verdict beside the map, all in sight at once) */
+@media (min-width: 1280px) {
+  body.review .stage { grid-template-columns: min(max(360px, calc(100vh - var(--maptop, 150px) - 14px - var(--barh, 66px))), 62%) minmax(300px, 1fr); align-items: start; }
+  body.review .stage > .maprow { grid-row: 1 / span 3; }
+  body.review .stage > :is(.sideview, .revpanel) { grid-column: 2; }
+  body.review .mapcol { width: 100%; }
+}
+.revpanel { display: grid; gap: 8px; }
+.revpanel .rvhead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.revpanel .rvhead b { font: 600 15px var(--font-data); }
+.revpanel .rvwhat { margin: 0; }
+.revpanel .rvloop { margin: 0; font-size: 13px; }
+.revpanel .rvverdict { display: flex; flex-wrap: wrap; gap: 8px; }
+.revpanel .rvverdict .btn { min-height: 44px; padding: 0 14px; font-weight: 600; }
+.revpanel .rvverdict .m-sus { color: var(--outside); border-color: color-mix(in srgb, var(--outside) 60%, var(--line)); }
+.revpanel .rvverdict .m-false { color: var(--medic); border-color: color-mix(in srgb, var(--medic) 55%, var(--line)); }
+.revpanel .rvverdict .on { background: color-mix(in srgb, currentColor 16%, var(--panel-2)); border-color: currentColor; }
+.revpanel .rvnote { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.revpanel .rvnote input { height: 40px; font: 14px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 10px; }
+.revpanel .rvnav { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.revpanel .rvnav .linkb { margin-left: auto; }
+.admpane .hlist li.cur { box-shadow: inset 0 0 0 1px var(--accent); border-radius: 4px; background: color-mix(in srgb, var(--accent) 8%, transparent); }
+details.admfd > summary { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; font-weight: 600; font-size: 13px; list-style: none; }
+details.admfd > summary::-webkit-details-marker { display: none; }
+details.admfd[open] > summary { border-color: var(--accent); color: var(--accent); margin-bottom: 8px; }
+/* (v242) Tools ▾ (your own demo, what the decoder reads) on the rounds page; under the map no second Play, Show ▾ or Clip -
+   the bar under the map has them, the round bar's Share ▾ the clip */
+body.site:not(.rview):not(.devshow) #moreBtn { display: none; }
+#tlSec #play, #tlSec #layBtn, body.site #tlSec #tClip { display: none; }
 #notice:empty { display: none; }
 /* the site's round bar: the round on the map in one line, the server's rounds by day under it */
 .session.roundbar { position: relative; padding: 6px 8px; }
@@ -642,6 +741,14 @@ body.site:not(.devshow) .mapsizel, body.site:not(.devshow) details.schema, body.
 .rcur > span { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .rcur .caret { color: var(--accent); font-size: 12px; }
 .rnav { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; } .rnav .btn { white-space: nowrap; }
+/* (v242) Share ▾: a link, a clip, the demo, the map's page */
+.shwrap #rShare svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; }
+.shwrap #rShare[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.lmenu.shmenu { min-width: 300px; max-width: calc(100vw - 24px); }
+.shmenu .smi, .shmenu .smi.on { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; text-align: left; white-space: normal; padding: 9px 10px; font-weight: 600; text-decoration: none; }
+.shmenu .smi::before { display: none; }
+.shmenu .smi .w { font: 400 12px var(--font-body); color: var(--muted); }
+.shmenu .smi:disabled { opacity: .55; }
 .rnav .w { font: 400 12px var(--font-data); color: var(--muted); margin-right: 4px; white-space: nowrap; }
 a.rcur { color: inherit; text-decoration: none; }
 /* (v200) all the site's rounds: a page of their own (#rounds=1), in place of the map and the views under it */
@@ -807,7 +914,7 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .timeline, bo
 .lmenu .lall .btn::before { display: none; }
 .lmenu .lall .btn:hover { color: var(--fg); }
 .lmenu .lnote { padding: 6px 10px 2px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 2px; }
-/* (v239) Map ▾: every element by group, a pin by each, presets on top */
+/* (v239) Show ▾: every element by group, a pin by each, presets on top */
 .lmenu.mcfg { display: block; width: min(780px, calc(100vw - 24px)); padding: 8px 10px 10px; }
 .lmenu.mcfg[hidden], .mcfg [hidden] { display: none !important; }
 .mcfg .mchead { display: grid; gap: 6px; padding: 2px 2px 8px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
@@ -832,6 +939,14 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .timeline, bo
 .mcfg .mch { padding: 3px 0 3px 8px; gap: 8px; } .mcfg .mch > span:first-child { flex: 1; font-size: 13px; }
 .mcfg .mch .qseg .sg { padding: 5px 7px; font-size: 12px; }
 .mcfg .lrange { padding: 0 32px 4px 31px; }
+.mcfg .mcquick { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding-top: 2px; }
+.mcfg .mcquick:has(> .qlay[hidden]) { display: none; }
+.mcfg .mcqh { font: 700 12px/1 var(--font-display); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.mcfg .qlay { flex-wrap: wrap; margin: 0; gap: 6px; }
+.mcfg .qlay .btn, .mcfg .qlay .btn.on { width: auto; gap: 6px; padding: 7px 10px; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: var(--panel-2); }
+.mcfg .qlay .btn::before { display: none; }
+.mcfg .qlay .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.mcfg .qlay svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linejoin: round; }
 .mcfg .mcnote { margin: 8px 2px 0; padding-top: 6px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
 .mpin { flex: none; width: 26px; height: 26px; display: inline-grid; place-items: center; background: none; border: 1px solid transparent; border-radius: 4px; color: var(--muted); cursor: pointer; opacity: .5; padding: 0; }
 .mpin svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
@@ -905,6 +1020,8 @@ body.mbar-on { padding-bottom: 72px; }
       <a class="btn" id="recLink" href="records/" hidden title="The best in one round and who did most: the last 7 days, 30 days, all rounds">Records</a>
       <a class="btn" id="statLink" href="#stats=1" hidden title="Clans, vehicles, the servers (when they play, their maps and flags), search the moments">Stats</a>
       <button class="btn" id="moreBtn" aria-expanded="false" hidden title="Open your own demo, what the decoder reads, the demo file's details">Tools ▾</button>
+      <button class="btn revb" id="revBtn" type="button" hidden aria-pressed="false">Review ↗</button>
+      <button class="btn" id="navBtn" type="button" aria-expanded="false" aria-label="Menu: rounds, records, stats, colours" title="Rounds, records, stats, colours">☰</button>
       <button class="btn admb" id="admBtn" type="button" hidden aria-haspopup="dialog" aria-controls="admDlg" title="Log in: the admins of the site and of its servers">Admin</button>
     </div>
   </header>
@@ -916,9 +1033,11 @@ body.mbar-on { padding-bottom: 72px; }
   <section class="ppage" id="pPage" aria-label="A player over all rounds" hidden></section>
   <section class="rpage" id="rPage" aria-label="All rounds" hidden></section>
 
+  <div class="revgrid" id="revGrid">
+  <aside class="revside" id="revSide" aria-label="Review: this round's hints, players and kills" hidden></aside>
   <div class="stage">
     <div class="maprow" id="mapRow">
-    <div class="fslot" id="feedSlot" hidden></div>
+    <div class="mapcol" id="mapCol">
     <div class="mapbox" id="mapbox">
       <canvas id="map" tabindex="0" aria-label="Tactical map"></canvas>
       <div class="htip" id="hTip" hidden></div>
@@ -927,22 +1046,26 @@ body.mbar-on { padding-bottom: 72px; }
         <span class="tag sim" id="simTag">Simulated</span>
         <span class="tag pov" id="povTag" hidden></span>
         <div class="topbar" id="topBar" aria-label="Tickets and time left" hidden></div>
-        <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Map ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
+        <div class="mlegend" id="mLegend" hidden><div class="lgbox"><button class="lgh" id="lgHead" type="button" aria-expanded="true" aria-controls="lgList" title="What the marks on the map mean: fold / unfold (Show ▾ Legend turns it off)">Legend <b aria-hidden="true">▾</b></button><ul class="lgl" id="lgList"></ul></div></div>
       </div>
-      <div class="mapplay"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><label class="spd zm" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><span class="qlay" role="group" aria-label="Pinned buttons (Map ▾)"></span></div>
+      <div class="mzoom" role="group" aria-label="Zoom"><button type="button" class="btn" id="zIn" aria-label="Zoom in" title="Zoom in (or the mouse wheel)">+</button><button type="button" class="btn" id="zOut" aria-label="Zoom out" title="Zoom out (or the mouse wheel)">−</button></div>
       <div class="fsfeed" id="fsfeed" aria-live="off"><button type="button" class="fsfold" id="feedFold" aria-expanded="true" aria-controls="fsfeedIn" title="Fold the kill feed (J)">–</button><div id="fsfeedIn"></div></div>
       <div class="tabboard" id="tabBoard" role="dialog" aria-label="Scoreboard" hidden></div>
       <div class="maptoast" id="mapToast" role="status" aria-live="polite" hidden></div>
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
-      <div class="mapctl"><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: every element, by group - presets, and a pin to put any on the map as a button (L)">Map <b class="layN2"></b> ▾</button></span><select class="qpre" id="mPre" aria-label="Preset: what the map shows"></select><button class="btn vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><span class="qlay" role="group" aria-label="Pinned buttons (Map ▾)"></span><button class="btn" id="vFull" aria-pressed="false" title="Full screen (F)">Full screen</button><button class="btn" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">Scoreboard</button><button class="btn" id="vBig" aria-pressed="false">Bigger map</button><button class="btn vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Lock camera</span></button><button class="btn" id="vFit">Fit action</button><button class="btn" id="vAll">Whole map</button><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
+    <div class="mapplay" id="pBar" role="group" aria-label="Playback and view"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><span class="pbsep" aria-hidden="true"></span><span class="lwrap cwrap"><button class="btn" id="camBtn" aria-expanded="false" aria-controls="camMenu" title="Whom the map follows, his view and aim line, how much of the map shows"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 5.2h3l1.3-2h4.4l1.3 2h3v8.3h-13z"/><circle cx="8" cy="9" r="2.6"/></svg><span>Camera</span> ▾</button><div class="lmenu cmenu" id="camMenu" role="group" aria-label="Camera" hidden><p class="cmh">Follow</p><label class="cmrow"><span>Soldier</span><select id="camWho" aria-label="The soldier the map follows"><option value="">nobody</option></select></label><button class="btn cmi vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn cmi vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><button class="btn cmi vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Keep him in the middle</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><p class="cmh">How much of the map</p><div class="cmseg"><button class="btn cmi act" id="vFit" title="Zoom to where the fighting is (the soldiers and the flags)">The fight</button><button class="btn cmi act" id="vAll" title="The whole map">Whole map</button><button class="btn cmi" title="The map nearly as high as the window" id="vBig" aria-pressed="false">Bigger map</button></div><label class="spd zm cmzoom" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><p class="cmh">On the map</p><button class="btn cmi" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">The game's scoreboard <span class="w">hold Tab</span></button></div></span><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: presets, every element by group, your quick switches (L)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l6.5 3.2L8 7.9 1.5 4.7z"/><path d="M1.5 8l6.5 3.2L14.5 8M1.5 11.3l6.5 3.2 6.5-3.2"/></svg><span>Show<span class="shp">: <b id="showPre">Standard</b></span></span> ▾</button></span><button class="btn ibtn" id="vFull" aria-pressed="false" aria-label="Full screen" title="Full screen (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 1.5h-4v4M10.5 1.5h4v4M5.5 14.5h-4v-4M10.5 14.5h4v-4"/></svg></button><select class="qpre" id="mPre" hidden tabindex="-1" aria-label="Preset: what the map shows"></select><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" hidden aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+    </div>
+    <div class="fslot" id="feedSlot" hidden></div>
     </div>
     <div class="sideview svbox" id="sideView" aria-label="Side view of a kill" hidden>
       <div class="svhead"><b id="svTitle">Side view</b><span class="w" id="svSub"></span><span class="spacer"></span><button class="btn" id="svGo" title="Back to the moment of this kill">Go to the kill</button><button class="btn" id="svX">Close</button></div>
       <canvas id="svCv" role="img" aria-label="Side view: the ground and walls along the line from the killer to the victim"></canvas>
       <div class="svinfo" id="svInfo"></div>
     </div>
+    <section class="card revpanel" id="revPanel" aria-label="This hint: watch it, then your verdict" hidden></section>
+  </div>
   </div>
 
   <div class="ptabs" id="ptabs" role="tablist" aria-label="What to show under the map">
@@ -950,7 +1073,7 @@ body.mbar-on { padding-bottom: 72px; }
     <button class="ptab" role="tab" id="ptStats" data-pane="stats" aria-selected="false" aria-controls="pnStats" tabindex="-1">Round stats</button>
     <button class="ptab" role="tab" id="ptWeapons" data-pane="weapons" aria-selected="false" aria-controls="pnWeapons" tabindex="-1">Weapons</button>
     <button class="ptab" role="tab" id="ptPlayers" data-pane="players" aria-selected="false" aria-controls="pnPlayers" tabindex="-1" hidden>Players · all rounds</button>
-    <button class="ptab ptadm" role="tab" id="ptAdmin" data-pane="admin" aria-selected="false" aria-controls="pnAdmin" tabindex="-1" title="For the admins: logged in only">Admin</button>
+    <button class="ptab ptadm" role="tab" id="ptAdmin" data-pane="admin" aria-selected="false" aria-controls="pnAdmin" tabindex="-1" title="For the admins: logged in only" hidden>Admin</button>
   </div>
   <div class="pane" id="pnBattle" data-pane="battle" role="tabpanel" aria-labelledby="ptBattle">
     <div class="panels">
@@ -960,9 +1083,9 @@ body.mbar-on { padding-bottom: 72px; }
         <div class="flagrow" id="flagrow"></div>
       </section>
       <section class="card fcard" id="feedCard">
-        <button type="button" class="fcstrip" id="fcStrip" aria-expanded="false" title="Show the kill feed, highlights and hints again"><span>Kill feed · Highlights</span><b>▸</b></button>
-        <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab2" role="tab" aria-selected="false" hidden>For admins</button><button class="btn fcfold" id="fcFold" type="button" aria-expanded="true" title="Fold this panel: only its tabs stay (the kill feed, highlights and hints go on being written)">Hide ▴</button></div>
-        <div class="ffbar" id="ffBar">
+        <button type="button" class="fcstrip" id="fcStrip" aria-expanded="false" title="Show the kill feed, highlights, players and hints again"><span>Kill feed · Highlights · Players</span><b>◂</b></button>
+        <div class="tabs" role="tablist"><button class="btn on" id="fTab0" role="tab" aria-selected="true">Kill feed</button><button class="btn" id="fTab1" role="tab" aria-selected="false">Highlights</button><button class="btn" id="fTab3" role="tab" aria-selected="false" title="The scoreboard at this moment: both sides">Players</button><button class="btn" id="fTab2" role="tab" aria-selected="false" hidden>For admins</button><button class="btn fftog" id="ffTog" type="button" aria-expanded="false" aria-controls="ffBar" title="Only some kills: by the killer, the victim, the weapon">Filter ▾</button><button class="btn fcfold" id="fcFold" type="button" aria-expanded="true" title="Fold this panel: only its tabs stay (the kill feed, highlights and hints go on being written)">Hide ▴</button></div>
+        <div class="ffbar" id="ffBar" hidden>
           <input id="ffK" list="ffList" placeholder="Killer…" autocomplete="off" spellcheck="false" aria-label="Killer (the one who did it)" title="The killer - the one who did it (killed, revived, repaired; the one a hint is about)"><datalist id="ffList"></datalist>
           <button class="btn" id="ffBoth" aria-pressed="false" title="Either way: the two names in either role - one name: he killed or was killed">⇄</button>
           <input id="ffV" list="ffList" placeholder="Victim…" autocomplete="off" spellcheck="false" aria-label="Victim (the one it was done to)" title="The victim - the one it was done to">
@@ -974,6 +1097,7 @@ body.mbar-on { padding-bottom: 72px; }
         <ul class="feed" id="feed"></ul>
         <div id="hlBox" hidden></div>
         <div id="admBox" hidden></div>
+        <div id="lbBox" hidden></div>
       </section>
       <section class="card" id="lbCard">
         <div class="tabs">
@@ -1025,7 +1149,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Map ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>T</kbd> all players' names on the map on / off (Map ▾: each kind)</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Show ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>T</kbd> all players' names on the map on / off (Show ▾: each kind)</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -1091,11 +1215,12 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v241';
+const APP_VERSION = 'v243';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
 const ADM = {};
+let revOn = false, revWant = false, revLoop = null, revSpeed0 = null;   // (v243: the admins' page, Review - below)
 { const v = document.getElementById('appVer'); if (v) v.textContent = APP_VERSION; }
 // ---------- game files ----------
 // Map sizes, team names, starting tickets and flag names for every vanilla map, and HUD icons (weapons, kits, minimap
@@ -1549,7 +1674,7 @@ let animNow = null;   // clock of flickering effects (seconds): the clip's own t
 // a stretch of the round picked for a video clip, its options, the job making it and the finished video
 const clip = { open: false, round: null, a: 0, b: 0, size: '1280x720', speed: 1, cam: 'follow', fmt: 'video', ff: 30, sound: true, job: null, out: null, drag: null, sel: undefined };
 let demoSrc = null;   // (v137) the open round's demo, for a clip as a .bf2demo: { name, file } or { name, url } (the server's copy)
-// names and labels on the map (Map ▾): soldiers on foot (and their kit), crew by their vehicle, vehicles' own names
+// names and labels on the map (Show ▾): soldiers on foot (and their kit), crew by their vehicle, vehicles' own names
 // (empty ones; all of them when the crew's are off), the wounded waiting for a medic, who spotted, flags, distances and
 // weapons (kill lines, grenades, rockets), what broke an object. The soldier followed: his name always. Remembered in
 // this browser. (v117, Sagara: "a drop-down with filters for the names")
@@ -1558,7 +1683,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
 const opts = { feed:true, kills:true, spots:true, medic:true, bodies:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, aimLn:false, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
-Object.assign(opts, { kit: true, hp: true, zoomDot: true, moveMk: true, oob: true, emptyVeh: true, vhp: true, killTags: true, shotDir: true, deaths: true, smoke: true, down: true, uav: true, crates: true, cmdCam: true, fogLine: true, seen: true, cover: true, aimMark: true, hands: true, lastSeen: true, grid: true, flags: true, trees: true, mapName: true, topbar: true });   // (v239: Map ▾ switches every element)
+Object.assign(opts, { kit: true, hp: true, zoomDot: true, moveMk: true, oob: true, emptyVeh: true, vhp: true, killTags: true, shotDir: true, deaths: true, smoke: true, down: true, uav: true, crates: true, cmdCam: true, fogLine: true, seen: true, cover: true, aimMark: true, hands: true, lastSeen: true, grid: true, flags: true, trees: true, mapName: true, topbar: true });   // (v239: Show ▾ switches every element)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -1568,7 +1693,7 @@ try { if (localStorage.getItem('bf2rr.legend') === '0') opts.legend = false; if 
 // the ground higher than the followed soldier's eyes (turquoise fill and hatching: off unless turned on)
 try { if (localStorage.getItem('bf2rr.relShade') === '0') opts.relShade = false; if (localStorage.getItem('bf2rr.relAbove') === '1') opts.relAbove = true; } catch (e) {}
 // (v158, Sagara: "перемикач курсору, який може показувати висоту або координати") what the pointer over the map shows:
-// 'off', 'height' or 'grid' (Map ▾ Cursor, G); at first as before - the height while the relief layer is on
+// 'off', 'height' or 'grid' (Show ▾ Cursor, G); at first as before - the height while the relief layer is on
 try { const v = localStorage.getItem('bf2rr.cursor'); opts.cursor = v === 'off' || v === 'height' || v === 'grid' ? v : localStorage.getItem('bf2rr.relief') === '1' ? 'height' : 'off'; } catch (e) {}
 // a vehicle seat's view from its third-person camera instead of its own (the card's View row, the map's 1st / 3rd and the C key switch it)
 try { if (localStorage.getItem('bf2rr.vcam') === '3') opts.cam3 = true; } catch (e) {}
@@ -2560,7 +2685,7 @@ function reliefWho(tt) {
   const onFoot = !p.vehicle && !q.veh;
   return { eye: V && V.eye != null ? V.eye : onFoot ? eyeOf(sel, q, tt) : q.h + 1.5, feet: onFoot ? q.h - 1.0 : g, name: p.vehicle ? p.name : p.name };
 }
-// a tag by the pointer over the map (a mouse), as Map ▾ Cursor says (v158): the ground's height under it (and how much
+// a tag by the pointer over the map (a mouse), as Show ▾ Cursor says (v158): the ground's height under it (and how much
 // higher or lower than the soldier you follow) - where the map's heights are not known, the grid instead - or where it
 // is: the grid square of the game's map (A-H across, 1-8 down), metres east and north of the map's middle, and how far
 // and which way from the soldier you follow
@@ -4577,16 +4702,16 @@ function povTag() {
   if (el.dataset.who !== key) { el.dataset.who = key; el.innerHTML = `<span>${POV.veh ? 'Crew\'s view' : 'His view'} · <b class="t${POV.tm}">${esc(nm)}</b></span><button type="button" id="povSnd" class="snd" title="Sounds he could hear: shots and explosions as rings where they are, an arrow at the map's edge for those off it (how far each carries: the game's sound files; footsteps not yet)">${SND_SVG}</button><button type="button" id="povOff" aria-label="Back to the whole map" title="Back to the whole map (V)">×</button>`; $('#povOff').onclick = () => povSet(false); $('#povSnd').onclick = () => sndSet(!opts.sound); }
   const b = $('#povSnd'); if (b) { b.classList.toggle('on', !!opts.sound); b.setAttribute('aria-pressed', String(!!opts.sound)); b.setAttribute('aria-label', opts.sound ? 'Sounds on (click: off)' : 'Sounds off (click: on)'); }
 }
-// (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Map ▾ Sounds
+// (v181) the sounds in his view on / off (remembered): the speaker in the tag over the map, Show ▾ Sounds
 const SND_SVG = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2 6h3l4-3v10l-4-3H2z" fill="currentColor" stroke="none"/><path class="w1" d="M11 5.5a3.5 3.5 0 0 1 0 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="w2" d="M12.8 3.5a6.3 6.3 0 0 1 0 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><path class="x" d="M11 6l4 4M15 6l-4 4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
 // (v188, Sagara: "Kill Feed можна було згортати кнопкою") the kill feed over the map folded to its button and back
-// (remembered): the button on it, J. Map ▾ Kill feed still takes it off the map altogether
+// (remembered): the button on it, J. Show ▾ Kill feed still takes it off the map altogether
 let feedMin = false; try { feedMin = localStorage.getItem('bf2rr.feedmin') === '1'; } catch (e) {}
 function feedFoldShow() { const fo = $('#fsfeed'), b = $('#feedFold'); if (!fo || !b) return; fo.classList.toggle('min', feedMin); b.textContent = feedMin ? 'Kill feed ▾' : 'Hide ▸'; b.title = feedMin ? 'Show the kill feed (J)' : 'Fold the kill feed (J)'; b.setAttribute('aria-expanded', String(!feedMin)); }
 // (v189, Sagara: "не бачу кнопки згортання кілфіду") the panel with the kill feed, highlights and hints (left of the map,
 // or under it) folds too: its Hide button; a tab clicked opens it again (remembered)
 let fcMin = false; try { fcMin = localStorage.getItem('bf2rr.fcmin') === '1'; } catch (e) {}
-function fcFoldShow() { const c = $('#feedCard'), b = $('#fcFold'); if (!c || !b) return; const side = c.parentElement === $('#feedSlot'); c.classList.toggle('min', fcMin); $('#mapRow')?.classList.toggle('fmin', fcMin && side); b.textContent = fcMin ? 'Show ▾' : side ? 'Hide ◂' : 'Hide ▴'; $('#fcStrip').setAttribute('aria-expanded', 'false'); b.title = fcMin ? 'Show this panel again' : 'Fold this panel: only its tabs stay'; b.setAttribute('aria-expanded', String(!fcMin)); }
+function fcFoldShow() { const c = $('#feedCard'), b = $('#fcFold'); if (!c || !b) return; const side = c.parentElement === $('#feedSlot'); c.classList.toggle('min', fcMin); $('#mapRow')?.classList.toggle('fmin', fcMin && side); b.textContent = fcMin ? 'Show ▾' : side ? 'Hide ▸' : 'Hide ▴'; $('#fcStrip').setAttribute('aria-expanded', 'false'); b.title = fcMin ? 'Show this panel again' : 'Fold this panel: only its tabs stay'; b.setAttribute('aria-expanded', String(!fcMin)); }
 function fcFold(on) { fcMin = !!on; try { localStorage.setItem('bf2rr.fcmin', fcMin ? '1' : '0'); } catch (e) {} fcFoldShow(); if (!fcMin) refresh(true); }
 function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmin', feedMin ? '1' : '0'); } catch (e) {} feedFoldShow(); refresh(true); }
 // (v185, Sagara: "додати кнопку вмикання прицільної лінії при виборі гравця") the followed soldier's aim line on / off
@@ -4594,14 +4719,14 @@ function feedFold(on) { feedMin = !!on; try { localStorage.setItem('bf2rr.feedmi
 function aimLnSet(on) {
   opts.aimLn = !!on;
   aimSync();   // (v230: and on the map)
-  toast(opts.aimLn ? (sel !== null ? 'Aim line on (X)' : 'Aim line on (X): it shows for the soldier you follow - click one') : 'Aim line off (X)'); mcChanged();   // (v239: Map ▾ keeps it)
+  toast(opts.aimLn ? (sel !== null ? 'Aim line on (X)' : 'Aim line on (X): it shows for the soldier you follow - click one') : 'Aim line off (X)'); mcChanged();   // (v239: Show ▾ keeps it)
 }
 function sndSet(on) { mcSet('sound', !!on); }
 function povSet(on) { pov = !!on; if (pov && !povOn()) toast('Follow a soldier or a vehicle first: click one on the map'); povSync(); refresh(true); }
 // ---------- (v181) what he could hear (Sagara, todo 212: "Звуки в «His view» ... кнопку, щоб їх можна було вимикати ...
 // Постріли й вибухи з дальністю чутності з файлів гри показувати хвилями, а те, що поза екраном, — стрілкою на краю мапи.
 // Кроки ... поки без них") ----------
-// In his view (and a crew's), with the speaker on (the tag over the map, or Map ▾ Sounds): shots - while somebody
+// In his view (and a crew's), with the speaker on (the tag over the map, or Show ▾ Sounds): shots - while somebody
 // holds a fire button, a ring every SND_PULSE s where he is (in a vehicle: where it is, its gun's sound) - and explosions
 // (grenades, rockets, missiles, C4, mines, claymores, shells; a vehicle blowing up), as rings spreading from where they
 // are, brighter and wider the louder they reached him; one off the screen: an arrow at the map's edge the way it came
@@ -4743,7 +4868,7 @@ function draw() {
   if (opts.relief) { const D = losData(); if (D) { drawRelief(D); const who = opts.relAbove ? reliefWho(t) : null; if (who) drawAbove(D, who.eye); } }
   if (cx === cvCtx) hTipShow();   // (the height under the pointer, as the round plays on)
   if (opts.front && !POV) drawFront();   // (Layers > Front line; v177: not in his view - it is everyone's places)
-  // grid A-H x 1-8 (v239: Map ▾ Grid)
+  // grid A-H x 1-8 (v239: Show ▾ Grid)
   if (opts.grid) {
   cx.strokeStyle = 'rgba(128,140,128,.28)'; cx.lineWidth = 1;
   cx.fillStyle = 'rgba(200,210,195,.55)'; cx.font = '500 10px ' + css('--font-data');
@@ -5088,7 +5213,7 @@ function draw() {
     // destroyed: a burning wreck for ~10 s, then gone from the map until it respawns at its spawn point
     const wk = p.vehicle ? (round.wreckOf.get(p.id) || []).find(w => w[0] <= t && t < w[1]) : null;
     if (wk && t >= wk[2]) return;
-    if (p.vehicle && !opts.emptyVeh && !riders.has(p.name) && sel !== i) return;   // (v239: Map ▾ Empty vehicles off)
+    if (p.vehicle && !opts.emptyVeh && !riders.has(p.name) && sel !== i) return;   // (v239: Show ▾ Empty vehicles off)
     const wreck = p.vehicle && (!!wk || (!round.wreckOf.size && round.meta.source !== 'demo' && q.hp !== null && q.hp <= 0));
     // a vehicle is drawn in the colour of the team in it, pointing where it drives: a tank, APC or AA vehicle from shapes
     // with its turret where the gun points (drawArmor), a jeep as the game's minimap symbol with its roof gun while
@@ -5176,7 +5301,7 @@ function draw() {
       const low = f <= 0.25, on = !low || hpBlink();
       cx.fillStyle = f > 0.5 ? css('--medic') : css('--accent'); cx.globalAlpha = ca * (on ? 1 : 0.18); cx.fillRect(px - w/2, yb + 1, Math.max(1, w * f), 3); cx.globalAlpha = 1;
     }
-    const lk = p.vehicle ? 'veh' : q.veh ? 'crew' : 'foot';   // (Map ▾: which kind of name this is)
+    const lk = p.vehicle ? 'veh' : q.veh ? 'crew' : 'foot';   // (Show ▾: which kind of name this is)
     if ((opts.lab[lk] || sel===i) && !(p.vehicle && occupied.has(p.name) && opts.lab.crew) && !(opts.lab.foot && inCrowd.has(i))) {   // (in a closed crowd: its names stacked beside it, below)
       // the kit's tool goes after the name at every zoom
       const kit = !p.vehicle && opts.kit ? kitNow(p, t) : null;   // (also in a vehicle: after his line by it, smaller)
@@ -5253,7 +5378,7 @@ function draw() {
           cx.globalAlpha = 1; cx.setLineDash([]); cx.lineCap = 'butt';
         }
       }
-      if (!opts.aimMark) continue;   // (v239: Map ▾ Crosshair off - the line alone)
+      if (!opts.aimMark) continue;   // (v239: Show ▾ Crosshair off - the line alone)
       if (hitP) {   // whom it is on: a crosshair ring round him (ticks up, down and to the sides), his side's colour inside it
         const o = round.players[al.j], tc = o.vehicle ? (riders.has(o.name) ? teamColor(riders.get(o.name)) : css('--veh-empty')) : teamColor(teamOf(al.j, t));
         const [tx, ty0] = o.vehicle ? toC(playerAt(al.j, t).x, playerAt(al.j, t).y) : spread.get(al.j) || toC(playerAt(al.j, t).x, playerAt(al.j, t).y), ty = ty0 - (o.vehicle ? 0 : lifted.get(al.j) || 0);   // (v179: lifted - round his marker)
@@ -5294,7 +5419,7 @@ function draw() {
   if (opts.blasts) {
     const pm = m => m / view.span * size, colOf = by => { const i = by == null ? undefined : round.pidx.get(by); return i === undefined ? css('--accent') : teamColor(teamOf(i, t)); };
     const tag = (txt, x, y, col) => { cx.font = '500 10px ' + css('--font-data'); cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.strokeText(txt, x, y); cx.fillStyle = col; cx.fillText(txt, x, y); };
-    const labels = opts.lab.dist && (sel !== null || view.span <= 500);   // (distances and weapon names only zoomed in or following someone; Map ▾)
+    const labels = opts.lab.dist && (sel !== null || view.span <= 500);   // (distances and weapon names only zoomed in or following someone; Show ▾)
     // a blast where it went off, over dur s: a white-hot flash, a fire ball growing to the blast radius R and fading, and
     // (Rk) a deeper red core where it kills a soldier with full health; fan: [facing, half angle] (claymore). (v148,
     // Sagara: no dashed circles round explosions - grenades', artillery's, any: the explosion alone)
@@ -5960,7 +6085,7 @@ for (const b of document.querySelectorAll('.vpov')) b.onclick = () => povSet(!po
 povSync();
 // (v230, Sagara: "Зроби на 2д мапі лінію прицілювання видимою жовтою лінією, кнопка якої буде доступна при виборі солдата і
 // знаходитися біля his view") the aim line's button on the map, next to His view: on / off as the card's Aim line, X and
-// Map ▾ (one setting, remembered); usable while a soldier or a vehicle is followed - without, a click says so
+// Show ▾ (one setting, remembered); usable while a soldier or a vehicle is followed - without, a click says so
 function aimSync() {
   const veh = !!(sel !== null && round && round.players[sel]?.vehicle), k = opts.aimLn + '|' + (sel !== null) + '|' + veh; if (k === aimKey) return; aimKey = k;
   for (const b of document.querySelectorAll('.vaim')) {
@@ -5976,6 +6101,8 @@ aimSync();
 const PHONE = window.matchMedia('(max-width: 640px)');
 let sideWanted = false;
 function setSideCtl(on) {
+  // (v242) no more: the buttons, the speed and the zoom live in the bar under the map and its Camera ▾ menu
+  sideWanted = false; $('#mapbox').classList.remove('side'); return;
   sideWanted = !!on;
   const mb = $('#mapbox'), col = $('#mapSide'), spd = $('#speedR').closest('label'), zm = $('#zoomR').closest('label'), ctl = mb.querySelector('.mapctl') || col.querySelector('.mapctl');
   const use = sideWanted && !PHONE.matches, was = mb.classList.contains('side');
@@ -5988,11 +6115,13 @@ function setSideCtl(on) {
   $('#vSide').title = use ? 'Put the buttons, the speed and the zoom back at the bottom of the map' : 'Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free';
 }
 $('#vSide').onclick = () => { setSideCtl(!$('#mapbox').classList.contains('side')); try { localStorage.setItem('bf2rr.side', sideWanted ? '1' : '0'); } catch (e) {} draw(); };
-PHONE.addEventListener('change', () => setSideCtl(sideWanted));
-try { if (localStorage.getItem('bf2rr.side') === '1') setSideCtl(true); } catch (e) {}
+// (v242: Controls left is gone - the bar under the map)
 // the map's height: what the window leaves under the header, the notice and the round bar (they change as rounds load)
 function fitMap() {
   const mb = $('#mapbox'); if (mb.classList.contains('fs')) return;
+  // (v242) the bar under the map and the gap over it: the map leaves room for them
+  const pb = $('#pBar'), bh = pb && pb.parentElement === $('#mapCol') ? Math.round(pb.offsetHeight + 8) : 0;
+  if (bh && bh !== fitMap.bh) { fitMap.bh = bh; document.documentElement.style.setProperty('--barh', bh + 'px'); }
   const top = Math.round(mb.getBoundingClientRect().top + window.scrollY);
   if (top > 0 && Math.abs(top - (fitMap.top || 0)) > 1) { fitMap.top = top; document.documentElement.style.setProperty('--maptop', top + 'px'); }
   placeFeed();
@@ -6004,8 +6133,8 @@ function placeFeed() {
   const row = $('#mapRow'), slot = $('#feedSlot'), card = $('#feedCard'), lb = $('#lbCard'), mb = $('#mapbox');
   if (!row || !card || !lb || mb.classList.contains('fs')) return;
   // (the map's width as its CSS has it: the window's height under what is above it, or nearly all of it when bigger)
-  const vh = window.innerHeight, mw = Math.round(mb.classList.contains('big') ? Math.max(420, vh - 24) : Math.max(360, vh - (fitMap.top || 150) - 14));
-  const left = !PHONE.matches && row.clientWidth - mw - 12 >= FEED_MIN;
+  const vh = window.innerHeight, bh = fitMap.bh || 66, mw = Math.round(mb.classList.contains('big') ? Math.max(420, vh - 24 - bh) : Math.max(360, vh - (fitMap.top || 150) - 14 - bh));
+  const left = !revOn && !PHONE.matches && row.clientWidth - mw - 12 >= FEED_MIN;   // (v243: Review - the hints are on the left)
   row.style.setProperty('--mapw', mw + 'px');
   if (left === (card.parentElement === slot)) return;
   row.classList.toggle('lfeed', left); slot.hidden = !left;
@@ -6014,6 +6143,7 @@ function placeFeed() {
   if (typeof fcFoldShow === 'function') fcFoldShow();   // (v191: upright strip beside the map, its tabs under it)
 }
 new ResizeObserver(() => requestAnimationFrame(placeFeed)).observe($('#mapRow'));
+new ResizeObserver(() => requestAnimationFrame(fitMap)).observe($('#pBar'));   // (v242: the bar wraps on a narrow map)
 window.addEventListener('resize', () => requestAnimationFrame(placeFeed));
 { const ro = new ResizeObserver(() => requestAnimationFrame(fitMap)); for (const el of [document.querySelector('header'), $('#notice'), $('#session'), $('#pPage'), $('#rPage')]) if (el) ro.observe(el); }
 fitMap();
@@ -6021,11 +6151,12 @@ fitMap();
 const mapbox = $('#mapbox');
 async function setFull(on) {
   mapbox.classList.toggle('fs', on);
+  { const pb = $('#pBar'); if (on) mapbox.append(pb); else $('#mapCol').append(pb); }   // (v242: the bar under the map: over it in full screen)
   try {
     if (on) { const rq = mapbox.requestFullscreen || mapbox.webkitRequestFullscreen; if (rq && !(document.fullscreenElement || document.webkitFullscreenElement)) await rq.call(mapbox); }
     else if (document.fullscreenElement || document.webkitFullscreenElement) await (document.exitFullscreen || document.webkitExitFullscreen).call(document);
   } catch (e) { /* not allowed here (e.g. inside a frame): the map still covers the page */ }
-  $('#vFull').textContent = on ? 'Exit full screen' : 'Full screen'; $('#vFull').setAttribute('aria-pressed', String(on));
+  $('#vFull').setAttribute('aria-label', on ? 'Exit full screen' : 'Full screen'); $('#vFull').title = on ? 'Exit full screen (F, Esc)' : 'Full screen (F)'; $('#vFull').setAttribute('aria-pressed', String(on));
   mbarSync(); if (!on) placeFeed();
   resize(); refresh(true);
 }
@@ -6342,7 +6473,7 @@ function playersTable(PR, nm, tn) {
     <p class="stnote">K: enemy kills; D: deaths that cost a ticket. Team: the side each soldier ended the round on. Click a column to sort.</p>`;
 }
 // a soldier's card (Battle view), or a moment on the map
-function openCard(i) { sel = i; paneSet('battle', true); refresh(true); const c = $('#pCard'); if (c && !c.hidden) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+function openCard(i) { sel = i; if (!revOn) paneSet('battle', true); refresh(true); const c = $('#pCard'); if (c && !c.hidden) c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
 function goMoment(i, tt) {
   sel = i; t = Math.max(0, Math.min(round.duration, tt));
   const q = playerAt(i, t); if (Number.isFinite(q.x)) viewAt(q.x, q.y, Math.min(view.span, 300));
@@ -6577,7 +6708,7 @@ function renderStats() {
 const HL_KINDS = [['multi', 'Multi-kills'], ['long', 'Long shots'], ['above', 'From above'], ['gap', 'Through a gap'], ['back', 'From behind'], ['veh', 'Vehicles'], ['armor', 'Ambushes on armour'], ['duel', 'Vehicle duels'], ['flag', 'Flags'], ['revive', 'Revives']];
 const HL_KILL = new Set(['long', 'above', 'gap', 'back']);   // highlights of one kill (a side view to go with them)
 const HL_LEAD = 2;
-let hlFilter = 'all', feedTab = 0, hlShown = -2;
+let hlFilter = 'all', feedTab = 0, hlShown = -2, ffOpen = false;   // (v242 ffOpen: Filter ▾ opened)
 // (v171, Sagara: "у вкладках For admins, хайлайтах і kill feed фільтрувати за нікнеймом: жертви або того, хто вбив;
 // у For admins - біля якого прапора це було"; v172: "одночасно вибрати жертву і вбивцю") one filter for the three
 // lists: the killer (the one who did it - killed, revived, repaired; the one a hint is about) and / or the victim (it
@@ -6651,6 +6782,7 @@ function ffUi() {
   $('#ffBoth').setAttribute('aria-pressed', String(ffBoth));
   $('#ffClear').hidden = !r.k.q && !r.v.q && ffFlag === 'all' && ffW === 'all' && !ffBoth;
   const ws = $('#ffW'); if (ws && ws.value !== ffW) ws.value = ffW;
+  if (typeof ffTogSync === 'function') try { ffTogSync(); } catch (e) {}
 }
 // the round's weapons, most kills first (v213)
 function ffWList() {
@@ -9710,7 +9842,7 @@ function renderTab(force) {
 // flag in the ScoreManager), the time left by the server's time limit (else the time played)
 function renderTop() {
   const box = $('#topBar'); if (!box) return;
-  if (!round || round.meta.source !== 'demo' || !round.TK || !opts.topbar) { box.hidden = true; return; }   // (v239: Map ▾ Top bar)
+  if (!round || round.meta.source !== 'demo' || !round.TK || !opts.topbar) { box.hidden = true; return; }   // (v239: Show ▾ Top bar)
   const [fa] = frameAt(t), tk = [round.TK[fa * 2], round.TK[fa * 2 + 1]], bl = round.raw?.bleed, lim = round.meta.settings?.timeLimit;
   if (!(tk[0] > 0 || tk[1] > 0)) { box.hidden = true; return; }
   if (opts.gameHud && hudReady()) { box.hidden = false; drawGameTop(box, tk, bl, lim); return; }   // (v142) as in the game
@@ -10967,7 +11099,7 @@ $('#cDrop').onclick = () => { dropClipOut(); clipMsg(''); renderClipBar(); };
 // ---------- playback ----------
 let lastTs = null;
 function loop(ts) {
-  if (playing && round) { if (lastTs!==null) { t += (ts-lastTs)/1000*speed; if (t >= round.duration) { t = round.duration; setPlaying(false); } } lastTs = ts; refresh(false); if (seekAt) seekTipShow(seekAt.el, seekAt.x, seekAt.tt, seekAt.line); }
+  if (playing && round) { if (lastTs!==null) { t += (ts-lastTs)/1000*speed; if (revLoop && t >= revLoop[1]) t = revLoop[0]; if (t >= round.duration) { t = round.duration; setPlaying(false); } } lastTs = ts; refresh(false); if (seekAt) seekTipShow(seekAt.el, seekAt.x, seekAt.tt, seekAt.line); }
   else lastTs = null;
   requestAnimationFrame(loop);
 }
@@ -10996,18 +11128,18 @@ $('#speedR').min = 0; $('#speedR').max = SPEEDS.length - 1; $('#speedR').step = 
 $('#speedR').addEventListener('input', e => setSpeed(SPEEDS[+e.target.value]));
 try { const sv = localStorage.getItem('bf2rr.speed'); if (sv) setSpeed(sv); } catch (e) {}
 setSpeed(speed);
-// (v181) the sounds in his view, the aim line: as the earlier pages kept them (Map ▾ keeps everything since v239)
+// (v181) the sounds in his view, the aim line: as the earlier pages kept them (Show ▾ keeps everything since v239)
 try { if (localStorage.getItem('bf2rr.sound') === '0') opts.sound = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.aimln') === '1') opts.aimLn = true; } catch (e) {}
 $('#feedFold').onclick = e => { e.stopPropagation(); feedFold(!feedMin); }; feedFoldShow();   // (v188)
 $('#fcFold').onclick = () => fcFold(!fcMin); $('#fcStrip').onclick = () => fcFold(false); fcFoldShow();   // (v189; v191: the upright strip)
-// how far ahead (the slider under "Next N s" in Map ▾): moving it turns the paths on
+// how far ahead (the slider under "Next N s" in Show ▾): moving it turns the paths on
 const aheadShow = () => { const a = $('#aheadT'), v = $('#aheadV'), n = $('#aheadN'); if (a) a.value = aheadT; if (v) v.textContent = aheadT + ' s'; if (n) n.textContent = aheadT; aheadKey = ''; aheadSync(); };
 // the map's layers in one menu (Layers ▾, with how many are on); keys and mouse under "?"
 // ---------- the legend (v152, Sagara: "додамо легенду і в фільтрах можливість її вимикати") ----------
 // A box on the map under its top bar (in full screen too): each mark the map draws and what it means, drawn by the same
 // code as on the map - on a small canvas each, cx swapped to it as for a clip - and only those of the layers switched
-// on. Map ▾ Legend turns it off, its header folds it (both remembered in this browser; folded at first on a phone).
+// on. Show ▾ Legend turns it off, its header folds it (both remembered in this browser; folded at first on a phone).
 const LG_W = 32, LG_H = 22;
 // a soldier as the map draws him (the game's mark, or the disc with its figure), facing up, at (x, y) in the icon
 const lgSol = (x, y, col, k = 0.8) => {
@@ -11108,7 +11240,7 @@ function lgFit() {
 }
 {
   const h = $('#lgHead');
-  let open = true; try { const v = localStorage.getItem('bf2rr.legendOpen'); open = v === null ? !matchMedia('(max-width: 640px)').matches : v === '1'; } catch (e) {}
+  let open = false; try { const v = localStorage.getItem('bf2rr.legendOpen'); open = v === '1'; } catch (e) {}   // (v242: folded until opened - it covered a third of the map)
   h.setAttribute('aria-expanded', String(open));
   h.onclick = () => { const o = h.getAttribute('aria-expanded') !== 'true'; h.setAttribute('aria-expanded', String(o)); try { localStorage.setItem('bf2rr.legendOpen', o ? '1' : '0'); } catch (e) {} lgFit(); };
   new ResizeObserver(() => requestAnimationFrame(() => { if (round) legend(); })).observe(mapbox);
@@ -11124,13 +11256,14 @@ const popToggle = (btn, box, on) => {
 // button that opened it; on the map it opens upwards and stays inside the map, scrolling when taller than the room.
 function layOpen(btn, on) {
   const box = $('#layMenu');
+  if (on && !$('#camMenu').hidden) camOpen(false);
   if (on && box.parentElement !== btn.parentElement) btn.parentElement.appendChild(box);
   for (const b of [$('#layBtn'), $('#mLayBtn')]) b.setAttribute('aria-expanded', String(on && b === btn));
-  const inMap = btn.closest('#mapbox');
+  const inMap = btn.closest('#mapbox') || (btn.closest('#pBar') ? mapbox : null);   // (v242: from the bar under the map - upwards, over it)
   box.hidden = !on; box.classList.remove('up'); box.style.transform = ''; box.style.maxHeight = ''; box.style.maxWidth = '';
   if (!on) return;
   const br = btn.getBoundingClientRect(), mr = inMap ? inMap.getBoundingClientRect() : null;
-  if (mr) box.style.maxWidth = Math.floor(mr.width - 16) + 'px';   // (v239: Map ▾ is wide - kept inside the map)
+  if (mr) box.style.maxWidth = Math.floor(mr.width - 16) + 'px';   // (v239: Show ▾ is wide - kept inside the map)
   else box.style.maxHeight = Math.max(320, Math.floor(innerHeight - br.bottom - 20)) + 'px';   // (v239: under the map - within the window, scrolling)
   if (inMap) {   // (upwards unless there is more room below it - on a phone the map above the buttons is short)
     const above = br.top - mr.top - 12, below = mr.bottom - br.bottom - 12, up = above >= box.scrollHeight || above >= below;
@@ -11142,10 +11275,45 @@ function layOpen(btn, on) {
 const layWho = () => $('#mLayBtn').getAttribute('aria-expanded') === 'true' ? $('#mLayBtn') : $('#layBtn');
 for (const id of ['#layBtn', '#mLayBtn']) $(id).onclick = e => { e.stopPropagation(); const b = $(id); layOpen(b, $('#layMenu').hidden || layWho() !== b); };
 $('#kbBtn').onclick = () => popToggle($('#kbBtn'), $('#kbHelp'), $('#kbHelp').hidden);
+$('#navBtn').onclick = () => { const a = $('#navBtn').closest('.actions'), on = !a.classList.contains('open'); a.classList.toggle('open', on); $('#navBtn').setAttribute('aria-expanded', String(on)); };   // (v242: a phone's header)
+// (v242, Sagara: "too many buttons, not logical") Camera ▾ in the bar under the map: whom the map follows, his view, aim
+// line, keep him in the middle (the seat's camera in a vehicle), how much of the map, the zoom, the game's scoreboard -
+// what were nine buttons over the map. Opens upwards over the map, as Show ▾
+function camWhoFill() {
+  const s = $('#camWho'); if (!round) { s.innerHTML = '<option value="">nobody</option>'; return; }
+  const L = round.players.map((p, i) => ({ p, i })).filter(x => !x.p.vehicle).sort((a, b) => a.p.name.trim().localeCompare(b.p.name.trim(), 'en', { sensitivity: 'base' }));
+  const side = i => teamOf(i, t) === 1 ? 1 : 0;
+  s.innerHTML = '<option value="">nobody</option>' + [0, 1].map(k => { const M = L.filter(x => side(x.i) === k); return M.length ? `<optgroup label="${esc(round.teams[k]?.name || 'Team ' + (k + 1))}">${M.map(x => `<option value="${x.i}">${esc(x.p.name.trim())}</option>`).join('')}</optgroup>` : ''; }).join('');
+  s.value = sel === null || round.players[sel]?.vehicle ? '' : String(sel);
+}
+function camOpen(on) {
+  const btn = $('#camBtn'), box = $('#camMenu');
+  if (on && !$('#layMenu').hidden) layOpen(layWho(), false);
+  btn.setAttribute('aria-expanded', String(on)); box.hidden = !on; box.classList.remove('up'); box.style.transform = ''; box.style.maxHeight = '';
+  if (!on) return;
+  camWhoFill();
+  const br = btn.getBoundingClientRect(), mr = mapbox.getBoundingClientRect();
+  const above = br.top - mr.top - 12, below = innerHeight - br.bottom - 12, up = above >= box.scrollHeight || above >= below;
+  box.classList.toggle('up', up); box.style.maxHeight = Math.max(160, Math.floor(up ? above : below)) + 'px';
+  const r = box.getBoundingClientRect(), lo = mr.left + 8, hi = mr.right - 8, dx = r.right > hi ? hi - r.right : r.left < lo ? lo - r.left : 0;
+  if (dx) box.style.transform = `translateX(${Math.round(Math.max(dx, lo - r.left))}px)`;
+}
+$('#camBtn').onclick = e => { e.stopPropagation(); camOpen($('#camMenu').hidden); };
+$('#camWho').addEventListener('change', e => {
+  const v = e.target.value; sel = v === '' ? null : +v;
+  if (sel === null) { pov = false; $('#selInfo').className = 'empty'; $('#selInfo').textContent = 'Click a soldier on the map or in the scoreboard.'; }
+  else { tab = teamOf(sel, t) === 1 ? 1 : 0; $('#tab0').classList.toggle('on', tab === 0); $('#tab1').classList.toggle('on', tab === 1); }
+  refresh(true);
+});
+document.addEventListener('click', e => { if (!$('#camMenu').hidden && !e.target.closest('#camMenu, #camBtn')) camOpen(false); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#camMenu').hidden) { camOpen(false); $('#camBtn').focus(); } });
+// zoom in / out on the map (the wheel and the menu's slider as before)
+const zoomStep = d => { if (!round) return; const z = $('#zoomR'); z.value = String(Math.max(0, Math.min(100, +z.value + d))); z.dispatchEvent(new Event('input')); };
+$('#zIn').onclick = () => zoomStep(8); $('#zOut').onclick = () => zoomStep(-8);
 document.addEventListener('click', e => { if (!$('#layMenu').hidden && !e.target.closest('#layMenu, #layBtn, #mLayBtn')) layOpen(layWho(), false); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#layMenu').hidden) { const b = layWho(); layOpen(b, false); b.focus(); } });
 // vehicles as icons or as models (Layers menu, or M); remembered in this browser
-// (v239) the scoreboard's and text's look, the soldiers' and vehicles' marks, the cursor: Map ▾'s choices (M, G)
+// (v239) the scoreboard's and text's look, the soldiers' and vehicles' marks, the cursor: Show ▾'s choices (M, G)
 function setHudView(game) { mcSet('hud', game ? 'game' : 'page'); }
 function setSolView(game) { mcSet('solMark', game ? 'game' : 'fig'); }
 function setVehView(models) { mcSet('vehMark', models ? 'models' : 'icons'); }
@@ -11183,7 +11351,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyG' && !e.ctrlKey && !e.metaKey && !e.altKey) { setCursor({ off: 'height', height: 'grid', grid: 'off' }[opts.cursor]); toast('Cursor: ' + { off: 'nothing', height: 'height', grid: 'grid square and metres' }[opts.cursor]); }
   if (e.code==='KeyK' && !e.ctrlKey && !e.metaKey && !e.altKey && round) { setCamLock(!camLock); if (camLock && sel === null) toast('Click a soldier: the camera will keep him in the middle'); }
   if (e.code==='KeyH' && !e.ctrlKey && !e.metaKey && !e.altKey) mcToggle('relief', true);
-  if (e.code==='KeyT' && !e.ctrlKey && !e.metaKey && !e.altKey) mcToggle('nicks', true);   // (v238: players' names; v239: Map ▾ All players' names)
+  if (e.code==='KeyT' && !e.ctrlKey && !e.metaKey && !e.altKey) mcToggle('nicks', true);   // (v238: players' names; v239: Show ▾ All players' names)
   if (e.code==='KeyC' && !e.ctrlKey && !e.metaKey && !e.altKey && camOn) setCam3(!opts.cam3);
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
   if (e.code==='KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey && round) povSet(!pov);   // (v177: his view only)
@@ -11211,10 +11379,11 @@ function accApply() {
   if (site) { hide('#rndLink', !can('list')); hide('#recLink', !can('records')); hide('#statLink', !can('stats')); }
   const tc = $('#tClip'); if (tc) tc.hidden = !can('clips');
   const dm = $('#cFmt option[value=demo]'); if (dm) { dm.disabled = !can('demos'); if (!can('demos') && clip.fmt === 'demo') clip.fmt = 'video'; }
-  const pa = $('#ptAdmin'); if (pa) pa.hidden = !!(acc && acc.in && !acc.admin);
+  const pa = $('#ptAdmin'); if (pa) pa.hidden = true;   // (v242: on the site only for its admins; v243: for nobody - the admins' page, Review ↗)
+  revKick();
   if (!can('players')) { const pp = $('#ptPlayers'); if (pp) pp.hidden = true; }
   admBtnSet();
-  if (MC_READY) mcProfile();   // (v239: Map ▾'s settings - his profile's, logged in)
+  if (MC_READY) mcProfile();   // (v239: Show ▾'s settings - his profile's, logged in)
 }
 // (v224) a round by its name from the admin server, for a visitor who may watch but not see the list: into the session
 async function refRound(want) {
@@ -11272,6 +11441,7 @@ function adminLoad(analyze) {
 }
 function renderAdmPane() {
   const box = $('#admPane'); if (!box) return;
+  if (!revOn && revWant) { revKick(); if (revOn) return; } else revBtnSync();
   if (ADM.loaded && ADM.renderPane) { try { ADM.renderPane(box); } catch (e) { console.error(e); box.innerHTML = '<p class="empty">Something went wrong here (the console says what).</p>'; } return; }
   if (admLoading) { box.innerHTML = '<p class="empty">Loading…</p>'; return; }
   const local = !/^https?:$/.test(location.protocol);
@@ -11345,11 +11515,11 @@ function admDlgDraw() {
       <button class="btn danger" type="submit">Delete my account</button><span class="admmsg" role="status" aria-live="polite"></span></form>` : '';
   box.innerHTML = `<div class="admdlgh"><h2 id="admDlgH">${on ? 'Logged in' : signup ? 'Sign up' : 'Log in'}</h2><button class="btn sm" type="button" id="admDlgX" aria-label="Close">✕</button></div>`
     + (on ? `<p>Logged in as <b>${esc(own ? "the site's owner" : acc.user)}</b>${own ? '' : `${acc.admin ? ` <span class="w">· Admin tab: ${esc((acc.servers || []).join(', ') || 'no servers')}</span>` : ''}<br><span class="w">may open: ${esc(may.join(', ') || 'nothing more than guests')}</span>`}.</p>
-      <p class="w">What the map shows (Map ▾: its switches, pins and your presets) is kept in your profile - the same on any computer.</p>
+      <p class="w">What the map shows (Show ▾: its switches, pins and your presets) is kept in your profile - the same on any computer.</p>
       ${again ? `<p class="w">An admin's powers (the Admin tab${acc.pageCards ? ', the admin page' : ''}) last 12 hours from the login (2 without a step): the password again for them.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg', own ? '' : acc.user)}` : ''}
       ${mine}
-      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s Admin tab</button>' : ''}${acc.admin && !again && ADM.htOpen ? '<button class="btn" type="button" id="admDlgHt">Hint thresholds</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}${!own && mode !== 'pw' ? '<button class="btn" type="button" data-dm="pw">Change password</button>' : ''}${!own && acc.self && mode !== 'del' ? '<button class="btn" type="button" data-dm="del">Delete my account</button>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
-      : signup ? `<p class="w">A new account may open what visitors may, and keeps what the map shows (Map ▾: its switches, pins, your presets) - the same on any computer. The site's owner can give it more.</p>${admSignHtml()}<p class="admswap w">Have an account? <button type="button" class="lnk" data-dm="">Log in</button></p>`
+      <p class="admacts">${roundOpen && acc.admin && !again ? '<button class="btn primary" type="button" id="admDlgTab">This round\'s admins\' page</button>' : ''}${acc.admin && !again && ADM.htOpen ? '<button class="btn" type="button" id="admDlgHt">Hint thresholds</button>' : ''}${acc.pageCards && !again ? '<a class="btn" href="/admin">Admin page</a>' : ''}${!own && mode !== 'pw' ? '<button class="btn" type="button" data-dm="pw">Change password</button>' : ''}${!own && acc.self && mode !== 'del' ? '<button class="btn" type="button" data-dm="del">Delete my account</button>' : ''}<button class="btn" type="button" id="admDlgOut">Log out</button></p>`
+      : signup ? `<p class="w">A new account may open what visitors may, and keeps what the map shows (Show ▾: its switches, pins, your presets) - the same on any computer. The site's owner can give it more.</p>${admSignHtml()}<p class="admswap w">Have an account? <button type="button" class="lnk" data-dm="">Log in</button></p>`
       : `<p class="w">With the name and password you were given. The site's owner: leave the name empty.</p>${admFormHtml('admDlgForm', 'admDlgU', 'admDlgP', 'admDlgMsg')}${acc && acc.signup ? '<p class="admswap w">No account? <button type="button" class="lnk" data-dm="signup">Sign up</button> - it keeps what the map shows on any computer.</p>' : ''}`);
   $('#admDlgX').onclick = () => $('#admDlg').close();
   for (const b of box.querySelectorAll('[data-dm]')) b.onclick = () => { admDlgMode = b.dataset.dm; admDlgDraw(); box.querySelector('input:not([hidden]):not([tabindex="-1"])')?.focus(); };
@@ -11369,7 +11539,7 @@ function admDlgDraw() {
     if (!j || !j.ok) { m.textContent = j?.msg || j?.error || 'Could not delete it.'; return; }
     m.textContent = 'Deleted.'; reloadHere();
   });
-  if ($('#admDlgTab')) $('#admDlgTab').onclick = () => { $('#admDlg').close(); if (ppage.nick || ppage.map) closePlayerPage(); paneSet('admin', true); $('#pnAdmin')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
+  if ($('#admDlgTab')) $('#admDlgTab').onclick = () => { $('#admDlg').close(); if (ppage.nick || ppage.map) closePlayerPage(); revSet(true); scrollTo({ top: 0, behavior: 'smooth' }); };   // (v243: Review)
   if ($('#admDlgOut')) $('#admDlgOut').onclick = admLogout;
   if ($('#admDlgHt')) $('#admDlgHt').onclick = () => { $('#admDlg').close(); ADM.htOpen(); };   // (v227)
 }
@@ -11388,13 +11558,13 @@ function admSignBind(f) {
       const was = acc, me = await admApi('me').catch(() => null);
       if (!me || !was || JSON.stringify(me.rights) !== JSON.stringify(was.rights)) { m.textContent = 'Signed up.'; reloadHere(); return; }
       acc = me; admDlgMode = ''; accApply(); $('#admDlg').close();
-      toast(`Signed up as ${me.user}: Map ▾ is kept in your profile`);
+      toast(`Signed up as ${me.user}: Show ▾ is kept in your profile`);
     } catch (err) { m.textContent = err.message; } finally { b.disabled = false; }
   });
 }
 function admDlgOpen(mode) {
   const d = $('#admDlg'); if (!d) return;
-  admDlgMode = typeof mode === 'string' && mode !== 'login' ? mode : '';   // (v239: 'signup' from Map ▾; the header's button: as it is)
+  admDlgMode = typeof mode === 'string' && mode !== 'login' ? mode : '';   // (v239: 'signup' from Show ▾; the header's button: as it is)
   admDlgDraw(); if (!d.open) d.showModal();
   const first = d.querySelector('#admSU') || d.querySelector('#admDlgU') || d.querySelector('#admDlgTab') || d.querySelector('#admDlgOut'); if (first) first.focus();
 }
@@ -11404,7 +11574,7 @@ if ($('#admDlg')) {
   d.addEventListener('click', e => { if (e.target === d) d.close(); });   // (a click outside the box)
   d.addEventListener('close', () => { d.querySelectorAll('input[type=password]').forEach(x => { x.value = ''; }); });   // (the browser gives the focus back to the button)
 }
-// ---------- (v239) Map ▾: every element the map draws, by what it shows; pins, presets, kept in his profile ----------
+// ---------- (v239) Show ▾: every element the map draws, by what it shows; pins, presets, kept in his profile ----------
 // (Sagara: "another grouping, a way to set the display of every element, and people keep their filters - signing up on
 // the site, in their profile") MC: an entry an element - k (its name in the settings), g (its group: MC_G), d (as the
 // page starts), n, tip, and get / set over opts (opts.lab: the names); ch: a choice of a few [value, name]; key: its key
@@ -11553,7 +11723,7 @@ function mcWhere() {
 // the menu: presets, then a block a group - a switch an element, a pin by each
 const MC_PIN_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 1.6h4l-.55 4.1 2.6 2.4v1.3H3.95V8.1l2.6-2.4z"/><path d="M8 9.4V15"/></svg>';
 function mcItemHtml(e) {
-  const pin = `<button type="button" class="mpin" data-pin="${e.k}" aria-pressed="false" aria-label="Pin ${esc(e.n)} to the map" title="Pin it to the map: a button there for it">${MC_PIN_SVG}</button>`;
+  const pin = `<button type="button" class="mpin" data-pin="${e.k}" aria-pressed="false" aria-label="Pin ${esc(e.n)}" title="Pin it: a quick switch for it at the top of this menu">${MC_PIN_SVG}</button>`;
   const tip = esc(e.tip + (e.key && !/\([A-Z]\)$/.test(e.tip) ? ` (${e.key})` : ''));
   if (e.ch) return `<div class="mci mch" title="${tip}"><span>${esc(e.n)}</span><span class="qseg" role="radiogroup" aria-label="${esc(e.n)}">${e.ch.map(([v, nm]) => `<button type="button" class="sg" data-k="${e.k}" data-v="${v}" role="radio" aria-checked="false">${esc(nm)}</button>`).join('')}</span>${pin}</div>`;
   const lab = e.k === 'ahead' ? 'Next <span id="aheadN">20</span> s<span class="w" id="aheadWho"></span>' : esc(e.n);
@@ -11564,9 +11734,10 @@ function mcRender() {
   const box = $('#layMenu');
   box.innerHTML = `<div class="mchead"><div class="mcrow"><label>Preset <select id="mcPre" aria-label="Preset"></select></label><button type="button" class="btn" id="mcSaveAs" title="Keep what the map shows now as a preset of yours, named">Save as…</button><button type="button" class="btn" id="mcDel" hidden>Delete</button><button type="button" class="btn" id="mcReset" title="Everything as the page starts (the pins stay)">Defaults</button></div>
     <form class="mcrow mcnew" id="mcNew" hidden><input id="mcName" maxlength="32" placeholder="Its name" aria-label="The preset's name" autocomplete="off"><button type="submit" class="btn primary">Save</button><button type="button" class="btn" id="mcNewX">Cancel</button><span class="mcmsg" id="mcMsg" role="status"></span></form>
-    <div class="mcwhere" id="mcWhere"></div></div>
-    <div class="mcgrid">${MC_G.map(([g, gn]) => `<section class="mcg" data-g="${g}"><h4><span>${esc(gn)}</span><button type="button" class="mcall" data-gall="${g}" data-v="1" title="All of ${esc(gn)} on">all</button><button type="button" class="mcall" data-gall="${g}" data-v="0" title="All of ${esc(gn)} off">none</button><button type="button" class="mpin" data-pin="g:${g}" aria-pressed="false" aria-label="Pin ${esc(gn)} to the map" title="Pin this group to the map: one button for all of it (off, and back as it was)">${MC_PIN_SVG}</button></h4>${MC.filter(e => e.g === g).map(mcItemHtml).join('')}</section>`).join('')}</div>
-    <p class="mcnote">A pin puts its element (or group) on the map as a button. The soldier you follow always has his name.</p>`;
+    <div class="mcwhere" id="mcWhere"></div>
+    <div class="mcquick"><span class="mcqh">Your quick switches</span><span class="qlay" role="group" aria-label="Your quick switches (pins)"></span></div></div>
+    <div class="mcgrid">${MC_G.map(([g, gn]) => `<section class="mcg" data-g="${g}"><h4><span>${esc(gn)}</span><button type="button" class="mcall" data-gall="${g}" data-v="1" title="All of ${esc(gn)} on">all</button><button type="button" class="mcall" data-gall="${g}" data-v="0" title="All of ${esc(gn)} off">none</button><button type="button" class="mpin" data-pin="g:${g}" aria-pressed="false" aria-label="Pin ${esc(gn)}" title="Pin this group: one quick switch for all of it at the top of this menu (off, and back as it was)">${MC_PIN_SVG}</button></h4>${MC.filter(e => e.g === g).map(mcItemHtml).join('')}</section>`).join('')}</div>
+    <p class="mcnote">A pin puts its element (or group) among your quick switches at the top of this menu. The soldier you follow always has his name.</p>`;
   mcPresetsRender(); mcWhere(); aheadShow();
 }
 function mcPresetsRender() {
@@ -11586,6 +11757,7 @@ function mcPresetSync() {
     s.value = match; if (s.value !== match) s.value = '';
     s.title = 'Preset: ' + (match ? match.slice(2) : o0?.textContent || '');
   }
+  { const sp = $('#showPre'); if (sp) sp.textContent = match ? match.slice(2) : P && !same ? mcCur + ' · changed' : 'Custom'; }   // (v242: the bar's Show ▾)
   const d = $('#mcDel'); if (d) { const u = match.startsWith('u:') ? match.slice(2) : P && cur.startsWith('u:') ? mcCur : null; d.hidden = !u; d.dataset.n = u || ''; d.textContent = 'Delete'; d.dataset.sure = ''; }
 }
 function mcApply(v) {
@@ -11595,15 +11767,15 @@ function mcApply(v) {
 // pinned elements: buttons on the map (both rows: over the map, and under it on a phone)
 const MC_ICON = { walls: '<path d="M2 3.5h7v4h5v5H2z"/>', relief: '<path d="M1 13l4.5-7 3 4 2-2.5L15 13z"/>', nicks: '<path d="M1.5 4.5h9.2l3.8 3.5-3.8 3.5H1.5z"/><path d="M4 8h4.5"/>', names: '<path d="M1.5 4.5h9.2l3.8 3.5-3.8 3.5H1.5z"/><path d="M4 8h4.5"/>', aimLn: '<path d="M2 14L12.5 3.5"/><circle cx="12.5" cy="3.5" r="2"/>', view: '<path d="M8 13L2.5 4a8 8 0 0 1 11 0z"/>', spots: '<path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4"/>' };
 function mcPinHtml(p, play) {
-  if (p.startsWith('g:')) { const g = MC_G.find(x => x[0] === p.slice(2)); return g ? `<button type="button" class="btn qpin" data-gp="${g[0]}" aria-pressed="false" title="${esc(g[1])} on the map: all off, and back as it was (pinned in Map ▾)">${esc(g[1])}</button>` : ''; }
+  if (p.startsWith('g:')) { const g = MC_G.find(x => x[0] === p.slice(2)); return g ? `<button type="button" class="btn qpin" data-gp="${g[0]}" aria-pressed="false" title="${esc(g[1])} on the map: all off, and back as it was (pinned in Show ▾)">${esc(g[1])}</button>` : ''; }
   const e = mcEl(p); if (!e) return '';
-  if (p === 'ahead') return `${play ? '<span class="qbr" aria-hidden="true"></span>' : ''}<span class="qahdg"><button type="button" class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button type="button" class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Map ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">${aheadT}</span> s</button><button type="button" class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span>`;
+  if (p === 'ahead') return `${play ? '<span class="qbr" aria-hidden="true"></span>' : ''}<span class="qahdg"><button type="button" class="btn qahdst" data-d="-1" aria-label="One second less ahead" title="One second less ahead (1-30 s; the mouse wheel over the button too)">−</button><button type="button" class="btn qahd" aria-pressed="true" title="While paused: where the soldier you follow goes in the next seconds, and if he dies (1-30 s: − / +, the wheel over it, or the slider in Show ▾). Follow a soldier: click him. Off: no path (A)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 13.5c2.2-5 5.2-8 9.5-9.2" stroke-dasharray="2.4 2.2"/><circle cx="13.2" cy="3.9" r="1.9"/></svg>Next <span class="qahdN">${aheadT}</span> s</button><button type="button" class="btn qahdst" data-d="1" aria-label="One second more ahead" title="One second more ahead (1-30 s)">+</button></span>`;
   const tip = esc(e.n + ': ' + e.tip + (e.key && !/\([A-Z]\)$/.test(e.tip) ? ` (${e.key})` : ''));
   if (e.ch) return `<span class="qseg" role="radiogroup" aria-label="${esc(e.n)}" title="${tip}">${e.ch.map(([v, nm]) => `<button type="button" class="sg" data-qk="${e.k}" data-v="${v}" role="radio" aria-checked="false">${esc(nm)}</button>`).join('')}</span>`;
   return `<button type="button" class="btn qpin" data-qk="${e.k}" aria-pressed="false" title="${tip}">${MC_ICON[e.k] ? `<svg viewBox="0 0 16 16" aria-hidden="true">${MC_ICON[e.k]}</svg>` : ''}${esc(e.short || e.n)}</button>`;
 }
 function mcPinsRender() {
-  for (const box of document.querySelectorAll('.qlay')) { const play = !!box.closest('.mapplay'); box.innerHTML = mcPins.map(p => mcPinHtml(p, play)).join(''); box.hidden = !mcPins.length; }
+  for (const box of document.querySelectorAll('.qlay')) { box.innerHTML = mcPins.map(p => mcPinHtml(p, false)).join(''); box.hidden = !mcPins.length; }   // (v242: one row, at the top of Show ▾)
   aheadKey = ''; mcSync(); if (typeof lgFit === 'function') lgFit();
 }
 // a group as one switch: on while any of it is; off keeps what was on, to bring it back
@@ -11741,10 +11913,9 @@ function admCan() { if (!round) return false; if (admIsOwner() || !session?.serv
 const admOutOfScope = () => `This round is from ${admServerOf() || 'a server'}: not one of the servers of your account (${(admMe?.servers || []).join(', ') || 'none'}).`;
 function admInit(me) {
   if (!document.getElementById('admCss')) { const st = document.createElement('style'); st.id = 'admCss'; st.textContent = ADM_CSS; document.head.appendChild(st); }
-  $('#fTab2').hidden = false; $('#fTab2').title = 'Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills';
-  const sp = document.querySelector('#fcStrip span'); if (sp) sp.textContent = 'Kill feed · Highlights · For admins';
+  $('#fTab2').title = 'Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills';   // (v243: not shown - the admins' page, Review ↗, has them)
   $('#ptAdmin').textContent = 'Admin ✓';
-  if (ADM_V !== APP_VERSION) console.warn(`the admins' part is of ${ADM_V}, the page of ${APP_VERSION}: reload the page`);
+  if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) console.warn(`the admins' part is of ${ADM_V}, the page of ${APP_VERSION}: reload the page`);
   htLoad(!!me && me.user === 'analysis').then(() => { if (new URLSearchParams(location.hash.slice(1)).has('thresholds')) htOpen(); });   // (v227)
 }
 // (v196, Sagara's filters) how strong a hint is: 0 minor (team kills, claymores, idle, spot spam, outside the map,
@@ -11848,7 +12019,7 @@ function admRenderPane(box) {
   const who = admMe && admMe.user ? `<b>${esc(admMe.user === 'owner' ? 'the site\'s owner' : admMe.user)}</b>${admMe.role === 'owner' ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}` : '';
   const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button> <button class="btn sm" id="admOut">Log out</button></span></div>`;
   const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen; };
-  if (ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
+  if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
   if (!round || round.meta?.source === 'sim') { box.innerHTML = head + '<p class="empty">Open a round.</p>'; bind(); return; }
   if (!admCan()) { box.innerHTML = head + `<p class="empty">${esc(admOutOfScope())}</p>`; bind(); return; }
   const keep = admDraftsKeep(box), V0 = admRev(admRedraw(() => admRenderPane(box))), nMk = admRevOn(V0) ? Object.keys(V0.marks || {}).length : 0;
@@ -11860,7 +12031,7 @@ function admRenderPane(box) {
   catch (e) { console.error(e); el.innerHTML = '<p class="empty">Something went wrong here (the console says what).</p>'; }
   admDraftsBind(box, keep);
   // (the hints still coming - the walls, wall tracking: drawn again when they are in)
-  if (admBusy() && !box._again) { const R = round; box._again = setTimeout(() => { box._again = null; if (round === R && pane === 'admin') admRenderPane(box); }, 1500); }
+  if (admBusy() && !box._again) { const R = round; box._again = setTimeout(() => { box._again = null; if (round === R && (pane === 'admin' || revOn)) admRenderPane(box); }, 1500); }
 }
 const admBusy = () => { const A = adminHints(); return !!(A.wait || A.glWait || (round._trackRun && !round._tracks) || (round._geoRun && !round._geo)); };
 const admBusyNote = () => admBusy() ? ' · wall tracking, floating and the exact shapes still going through the round (drawn again when done)…' : '';
@@ -11880,6 +12051,8 @@ const admCmp = (S, val) => (a, b) => { const x = val(a, S.sort), y = val(b, S.so
 
 // ---- Hints (v196) ----
 const admPF = { kind: 'all', who: '', team: '', str: 'nominor', wpn: '', t0: '', t1: '', minN: 1, rev: 'all' };
+// (v243) how many of the filters are not as they start (the folded Filters ▾ says so)
+const admPFon = () => { const F = admPF; return ['who', 'team', 'wpn', 't0', 't1'].filter(k => F[k]).length + (F.str !== 'nominor') + (F.minN > 1) + (F.rev !== 'all'); };
 const admMmss = v => { const m = /^\s*(\d+)(?::(\d{1,2}))?\s*$/.exec(v || ''); return m ? +m[1] * 60 + +(m[2] || 0) : null; };
 function admSubHints(el, re) {
   const A = adminHints(), dur = round.duration, F = admPF, t0 = admMmss(F.t0), t1 = admMmss(F.t1);
@@ -11899,13 +12072,14 @@ function admSubHints(el, re) {
   const pass = base.filter(o => (F.minN <= 1 || (o.h.actor != null && per.get(o.h.actor) >= F.minN)) && (!F.who || String(o.h.actor) === F.who));
   const cnt = new Map(); for (const o of pass) cnt.set(o.h.kind, (cnt.get(o.h.kind) || 0) + 1);
   const L = pass.filter(o => F.kind === 'all' || o.h.kind === F.kind);
+  admRevList = L.map(o => o.h);   // (v243: ‹ Previous / Next › in the review)
   const pn = id => { const i = pidx(id); return i === undefined ? '' : `<span class="t${teamOf(i, round.duration)}">${esc(round.players[i].name)}</span>`; };
   const top = [...per].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const tn = k => esc(round.teams?.[k]?.name || `Team ${k + 1}`);
   const players = [...per].sort((a, b) => b[1] - a[1]).map(([id, c]) => `<option value="${esc(id)}"${F.who === String(id) ? ' selected' : ''}>${esc(round.players[pidx(id)]?.name || id)} · ${c}</option>`).join('');
   const sel = (id, opts, v) => `<select id="${id}">${opts.map(([k, n]) => `<option value="${esc(k)}"${String(v) === String(k) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
   el.innerHTML = `<p class="admwarn">Hints for a closer look, not proof: watch the moment (and its side view) before you judge. Everything here comes from the demo alone.</p>
-    <div class="admfil">
+    <details class="admfd"${admPFon() ? ' open' : ''}><summary>Filters ▾${admPFon() ? ` <span class="w">· ${admPFon()} on</span>` : ''}</summary><div class="admfil">
       <label>Player <select id="apWho"><option value="">everyone</option>${players}</select></label>
       <label>Side ${sel('apTeam', [['', 'both'], ['0', tn(0)], ['1', tn(1)]], F.team)}</label>
       <label title="Minor: team kills, claymores, idle, spot spam, outside the map. Strong: what normal play can't do, or a rate chance gives under once in 10 000">Strength ${sel('apStr', [['all', 'all'], ['nominor', 'without the minor ones'], ['strong', 'strong only']], F.str)}</label>
@@ -11914,10 +12088,10 @@ function admSubHints(el, re) {
       <label>From <input id="apT0" placeholder="0:00" value="${esc(F.t0)}" aria-label="From (mm:ss)"></label><label>to <input id="apT1" placeholder="${fmt(dur)}" value="${esc(F.t1)}" aria-label="To (mm:ss)"></label>
       <label title="Only players with so many hints or more (with the filters above)">Players with ${sel('apMin', [1, 2, 3, 4, 5, 10].map(n => [n, n === 1 ? 'any' : n + '+']), F.minN)} hints</label>
       <button class="btn sm" id="apReset">Reset</button>
-    </div>
+    </div></details>
     <div class="hlchips">${[['all', 'All', pass.length], ...ADM_KINDS.map(([k, n]) => [k, n, cnt.get(k) || 0])].filter(([k, , c]) => k === 'all' || c || k === F.kind).map(([k, n, c]) => `<button class="btn${F.kind === k ? ' on' : ''}" data-k="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
     ${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => `<button class="linkb" data-who="${esc(id)}">${pn(id)}</button> <span class="w">${c}</span>`).join(', ')}</p>` : ''}
-    <ul class="feed hlist">${L.length ? L.map(({ h, i, s: st, key }) => { const [b, html] = admDescribe(h), mk = M[key], tr = trustedId(h.actor); return `<li class="${tr ? 'admtr' : ''}${mk ? ' admm-' + mk.state : ''}"><button class="hli" data-i="${i}" title="Watch it: ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html} <span class="admstr s${st}">${ADM_STR[st]}</span>${tr ? ' <span class="admtrb" title="A trusted player (Players: ★): not highlighted">★ trusted</span>' : ''}${mk ? ' ' + admMarkBadge(mk) : ''}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip hlvid" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button>${on ? admRvButtons(i, mk) : ''}</li>`; }).join('') : `<li class="empty">No hint with these filters.${F.str !== 'all' && A.some(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)) ? ` (${A.filter(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)).length} ${F.str === 'strong' ? 'weaker' : 'minor'} ones not shown: Strength)` : ''}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(({ h, i, s: st, key }) => { const [b, html] = admDescribe(h), mk = M[key], tr = trustedId(h.actor); return `<li class="${tr ? 'admtr' : ''}${mk ? ' admm-' + mk.state : ''}${admRevCur && admRevCur.round === round && admRevCur.key === admKey(h) ? ' cur' : ''}" data-key="${esc(admKey(h))}"><button class="hli" data-i="${i}" title="Watch it: ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html} <span class="admstr s${st}">${ADM_STR[st]}</span>${tr ? ' <span class="admtrb" title="A trusted player (Players: ★): not highlighted">★ trusted</span>' : ''}${mk ? ' ' + admMarkBadge(mk) : ''}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip hlvid" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button>${on ? admRvButtons(i, mk) : ''}</li>`; }).join('') : `<li class="empty">No hint with these filters.${F.str !== 'all' && A.some(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)) ? ` (${A.filter(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)).length} ${F.str === 'strong' ? 'weaker' : 'minor'} ones not shown: Strength)` : ''}</li>`}</ul>
     <p class="stnote">${L.length} of ${A.length} hints${V === null ? ' · loading the marks…' : V && V.ok === false ? ' · the marks: ' + esc(V.msg || V.error || 'no answer') : ''}${A.noLos ? ' · no wall data for this map: "No line of sight" is not checked' : ''}${A.wait ? ` · still checking ${A.wait} kill${A.wait > 1 ? 's' : ''} against the exact shapes…` : ''}${(round._trackRun && !round._tracks) || (round._geoRun && !round._geo) ? ' · wall tracking and floating still going through the round…' : ''}. A click: the moment on the map (Battle).</p>`;
   $('#apWho').onchange = e => { F.who = e.target.value; re(); };
   $('#apTeam').onchange = e => { F.team = e.target.value; re(); };
@@ -11929,10 +12103,10 @@ function admSubHints(el, re) {
   $('#apReset').onclick = () => { Object.assign(F, { kind: 'all', who: '', team: '', str: 'nominor', wpn: '', t0: '', t1: '', minN: 1, rev: 'all' }); re(); };
   el.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { F.kind = b.dataset.k; re(); });
   el.querySelectorAll('[data-who]').forEach(b => b.onclick = () => { F.who = b.dataset.who; re(); });
-  el.querySelectorAll('.hli').forEach(b => b.onclick = () => { paneSet('battle', true); jumpTo(A[+b.dataset.i]); });
-  el.querySelectorAll('.hlside').forEach(b => b.onclick = () => { paneSet('battle', true); openSide(A[+b.dataset.i].kill); });
-  el.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { paneSet('battle', true); const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
-  el.querySelectorAll('.hlvid').forEach(b => b.onclick = () => { paneSet('battle', true); clipAround(A[+b.dataset.i]); });
+  el.querySelectorAll('.hli').forEach(b => b.onclick = () => { if (revOn) { admRevPick(A[+b.dataset.i]); return; } paneSet('battle', true); jumpTo(A[+b.dataset.i]); });
+  el.querySelectorAll('.hlside').forEach(b => b.onclick = () => { admToMap(); openSide(A[+b.dataset.i].kill); });
+  el.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { admToMap(); const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
+  el.querySelectorAll('.hlvid').forEach(b => b.onclick = () => { admToMap(); clipAround(A[+b.dataset.i]); });
   // (v198) a mark: the same button again clears it; suspicious asks what was seen (for the report)
   el.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => {
     const h = A[+b.dataset.rv], key = admKey(h), cur = M[key], st = cur?.state === b.dataset.st ? null : b.dataset.st;
@@ -12057,8 +12231,8 @@ function admSubKills(el, re) {
   on('akFoot', x => { S.foot = x.checked; }); on('akH', x => { S.onlyH = x.checked; });
   $('#akReset').onclick = () => { Object.assign(S, { who: '', role: 'any', wpn: '', dmin: '', dmax: '', t0: '', t1: '', onlyH: false, tk: 'all', foot: false, n: 200 }); re(); };
   if ($('#akMore')) $('#akMore').onclick = () => { S.n += 200; re(); };
-  el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.k]; if (!o.e) return; paneSet('battle', true); jumpTo({ t: o.e.t, actor: o.e.killer, x: o.e.x, y: o.e.y, kill: o.e, adm: false, kind: 'kill' }); });
-  el.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.side]; paneSet('battle', true); openSide(o.e); });
+  el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.k]; if (!o.e) return; admToMap(); jumpTo({ t: o.e.t, actor: o.e.killer, x: o.e.x, y: o.e.y, kill: o.e, adm: false, kind: 'kill' }); });
+  el.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.side]; admToMap(); openSide(o.e); });
   $('#akCsv').onclick = () => {
     const nm = i => round.players[i]?.name || '';
     const head = ['time', 'killer', 'victim', 'weapon', 'cause', 'hit', 'team kill', 'killer vehicle', 'victim vehicle', 'distance m', 'height diff m', 'killer stance', 'victim stance', 'killer speed', 'victim speed', 'ping', 'aim off at kill deg', 'aim off 2 s before deg', 'bearing rate deg/s', 'reaction s', 'seen', 'sight grid (0.1 s)', 'sight exact (0.1 s)', 'fire to kill s', 'distance / fog', 'smoke', 'pitch off deg', 'hints'];
@@ -12124,7 +12298,7 @@ function admKey(h) {
 }
 const admRevOn = V => !!V && V.ok !== false && !V.local;
 function admTrusted(V, id) { const i = round.pidx.get(id); return i !== undefined && !!V.trusted?.[nickOf(round.players[i].name)]; }
-const admRedraw = re => { const R = round; return () => { if (round === R && pane === 'admin') re(); }; };
+const admRedraw = re => { const R = round; return () => { if (round === R && (pane === 'admin' || revOn)) re(); }; };
 // the round's marks and notes, the notes on its players, the trusted list (kept while asked again after a change)
 const admRevC = new Map();
 function admRev(redraw) {
@@ -12146,6 +12320,44 @@ async function admRevAct(what, body, re) {
   return j;
 }
 const admRvButtons = (i, mk) => `<span class="admrv">${['ok', 'false', 'sus'].map(s => `<button class="m-${s}${mk?.state === s ? ' on' : ''}" data-rv="${i}" data-st="${s}" aria-pressed="${mk?.state === s}" title="${ADM_MARK[s][1]}${mk?.state === s ? ' - again: clear the mark' : ''}">${ADM_MARK[s][0]}</button>`).join('')}</span>`;
+// ---- (v243) the admins' page (Review): a hint picked - the map at its moment, played again and again (REV_PRE s before
+// to REV_POST s after), the kill's side view under it, and the verdict: the marks of the list (✓ ✗ ⚑) with a note,
+// ‹ Previous / Next › through the list as filtered ----
+let admRevCur = null, admRevList = [];
+const admToMap = () => { if (!revOn) paneSet('battle', true); };
+function admRevPick(h) {
+  admRevCur = { h, key: admKey(h), round };
+  jumpTo(h);
+  if (h.kill) openSide(h.kill); else closeSide();   // (it pauses at the kill: the loop starts after it)
+  revLoopSet(h.t); admRevPanel();
+  document.querySelectorAll('#admPane .hlist li[data-key]').forEach(li => li.classList.toggle('cur', li.dataset.key === admRevCur.key));
+  const li = document.querySelector('#admPane .hlist li.cur'); if (li) li.scrollIntoView({ block: 'nearest' });
+  if (innerWidth <= 960) $('#mapbox').scrollIntoView({ block: 'start', behavior: 'smooth' });   // (one column: the map is under the list)
+}
+function admRevPanel() {
+  const box = $('#revPanel'); if (!box) return;
+  const c = admRevCur; if (!c || !revOn || c.round !== round) { box.hidden = true; return; }
+  const h = c.h, V = admRev(admRedraw(admRevPanel)), on = admRevOn(V), mk = on ? (V.marks || {})[c.key] : null, [b, html] = admDescribe(h), st = admStrength(h);
+  const i = round.pidx.get(h.actor), p = i !== undefined ? round.players[i] : null, k = admRevList.findIndex(x => admKey(x) === c.key);
+  box.hidden = false;
+  box.innerHTML = `<div class="rvhead"><span class="hk hk-${h.kind}">${esc(b)}</span><b>${fmt(h.t)}</b><span class="admstr s${st}">${ADM_STR[st]}</span>${mk ? admMarkBadge(mk) : ''}</div>
+    <p class="rvwhat">${html}</p>
+    <p class="w rvloop">${revLoop ? `Played again and again: ${fmt(revLoop[0])} – ${fmt(revLoop[1])}, at 1× · <button class="linkb" id="rvStop">stop the loop</button>` : `<button class="linkb" id="rvAgain">Play it again: ${fmt(Math.max(0, h.t - REV_PRE))} – ${fmt(Math.min(round.duration, h.t + REV_POST))}</button>`}${h.kill ? '' : ' · no kill: no side view'}</p>
+    ${on ? `<div class="rvverdict" role="group" aria-label="Your verdict">${['sus', 'false', 'ok'].map(s => `<button type="button" class="btn m-${s}${mk?.state === s ? ' on' : ''}" data-rst="${s}" aria-pressed="${mk?.state === s}" title="${mk?.state === s ? 'Again: clear the mark' : esc(ADM_MARK[s][1])}">${ADM_MARK[s][0]} ${s === 'sus' ? 'Suspicious' : s === 'false' ? 'A false alarm' : 'Checked: nothing there'}</button>`).join('')}</div>
+      <label class="rvnote">A note for the other admins (it goes with the mark, and in the report when suspicious)<input id="rvNote" maxlength="300" placeholder="What you saw…" value="${esc(mk?.note || '')}"></label>`
+      : `<p class="w">${V === null ? 'Loading the marks…' : V && V.local ? 'Marks and notes are kept on the site: open the round there.' : 'The marks: ' + esc(V?.msg || V?.error || 'no answer')}</p>`}
+    <div class="rvnav"><button type="button" class="btn sm" id="rvPrev"${k > 0 ? '' : ' disabled'}>‹ Previous hint</button><span class="w">${k >= 0 ? `${k + 1} of ${admRevList.length}` : ''}</span><button type="button" class="btn sm" id="rvNext"${k >= 0 && k < admRevList.length - 1 ? '' : ' disabled'}>Next hint ›</button>${p && !p.vehicle && session?.server ? `<button type="button" class="linkb" id="rvHis">${esc(p.name.trim())} over all rounds →</button>` : ''}</div>`;
+  const re = () => { admRevPanel(); renderAdmPane(); };
+  const stop = $('#rvStop'); if (stop) stop.onclick = () => { revLoopOff(); setPlaying(false); };
+  const again = $('#rvAgain'); if (again) again.onclick = () => { revLoopSet(h.t); admRevPanel(); };
+  box.querySelectorAll('[data-rst]').forEach(bt => bt.onclick = async () => {
+    const s = mk?.state === bt.dataset.rst ? null : bt.dataset.rst, note = ($('#rvNote')?.value || '').trim();
+    bt.disabled = true; await admRevAct('review-mark', { round: admRoundName(), key: c.key, state: s, note: s ? note : '', what: admDescribe(h)[2], t: h.t }, re);
+  });
+  const go = d => { const x = admRevList[k + d]; if (x) admRevPick(x); };
+  $('#rvPrev').onclick = () => go(-1); $('#rvNext').onclick = () => go(1);
+  const his = $('#rvHis'); if (his) his.onclick = () => openPlayerPage(nickOf(p.name));
+}
 const admMarkBadge = mk => `<span class="admmk m-${mk.state}" title="${esc(`${ADM_MARK[mk.state][1]} · ${mk.by} · ${admAt(mk.at)}${mk.note ? ' · ' + mk.note : ''}`)}">${ADM_MARK[mk.state][0]} ${esc(ADM_MARK[mk.state][1])} <span class="w">· ${esc(mk.by)}</span></span>`;
 const admStarBtn = (V, nick) => { const tr = V.trusted?.[nick]; return ` <button class="admstar${tr ? ' on' : ''}" data-trust="${esc(nick)}" aria-pressed="${!!tr}" title="${esc(tr ? `Trusted (by ${tr.by}${tr.why ? ': ' + tr.why : ''}${tr.servers ? ', on ' + tr.servers.join(', ') : ''}): his hints are not highlighted. A click: no more` : 'Trust him: his hints stay, not highlighted, and "not reviewed, not trusted" leaves them out')}">★</button>`; };
 function admTrustBind(el, V, re) {
@@ -12160,7 +12372,7 @@ function admTrustBind(el, V, re) {
 // notes: a list (its writer or the site's owner removes one), and what is typed kept over a redraw
 function admNoteList(L, V, attr, nick) {
   if (!L.length) return '<p class="w">No notes yet.</p>';
-  return `<ul class="admnotes">${L.map(n => `<li><span class="w">${esc(n.by)} · ${esc(admAt(n.at))}${n.round ? ` · <a href="#round=${encodeURIComponent(linkId(n.round))}&amp;tab=admin">${esc(linkId(n.round))}</a>` : ''}</span>${n.by === V.me || V.owner ? ` <button class="linkb admx" ${attr}="${esc(n.id)}"${nick ? ` data-pn="${esc(nick)}"` : ''} title="Remove this note">remove</button>` : ''}<div>${esc(n.text).replace(/\n/g, '<br>')}</div></li>`).join('')}</ul>`;
+  return `<ul class="admnotes">${L.map(n => `<li><span class="w">${esc(n.by)} · ${esc(admAt(n.at))}${n.round ? ` · <a href="#round=${encodeURIComponent(linkId(n.round))}&amp;review=1">${esc(linkId(n.round))}</a>` : ''}</span>${n.by === V.me || V.owner ? ` <button class="linkb admx" ${attr}="${esc(n.id)}"${nick ? ` data-pn="${esc(nick)}"` : ''} title="Remove this note">remove</button>` : ''}<div>${esc(n.text).replace(/\n/g, '<br>')}</div></li>`).join('')}</ul>`;
 }
 function admPlayerNotes(nick) {
   const V = admRev(); if (!admRevOn(V)) return '';
@@ -12253,9 +12465,9 @@ function admSubReview(el, re) {
     <textarea id="arText" readonly rows="16" aria-label="The report">${esc(rep.text)}</textarea>
     <p><button class="btn sm" id="arCopy">Copy</button> <button class="btn sm" id="arHtml">Download .html</button> <span class="w">the text fits Discord (bold with **); the .html is a page to send or keep</span></p>
   </section></div>`;
-  const go = x => { paneSet('battle', true); if (x.h) jumpTo(x.h); else { t = Math.max(0, Math.min(round.duration, x.t - HL_LEAD)); refresh(true); } };
+  const go = x => { if (revOn && x.h) { admRevPick(x.h); return; } admToMap(); if (x.h) jumpTo(x.h); else { t = Math.max(0, Math.min(round.duration, x.t - HL_LEAD)); refresh(true); } };
   el.querySelectorAll('[data-mgo]').forEach(b => b.onclick = () => go(MK[+b.dataset.mgo]));
-  el.querySelectorAll('[data-mclip]').forEach(b => b.onclick = () => { paneSet('battle', true); clipAround(MK[+b.dataset.mclip].h); });
+  el.querySelectorAll('[data-mclip]').forEach(b => b.onclick = () => { admToMap(); clipAround(MK[+b.dataset.mclip].h); });
   el.querySelectorAll('[data-mrm]').forEach(b => b.onclick = async () => { b.disabled = true; await admRevAct('review-mark', { round: nm, key: MK[+b.dataset.mrm].k, state: null }, re); });
   if ($('#arOpen')) $('#arOpen').onclick = () => { Object.assign(admPF, { rev: 'open', str: 'strong', kind: 'all', who: '', minN: 1 }); admSub = 'hints'; re(); };
   $('#arNoteAdd').onclick = async () => { const ta = $('#arNote'), v = ta.value.trim(); if (!v) { ta.focus(); return; } $('#arNoteAdd').disabled = true; const j = await admRevAct('review-note', { round: nm, text: v }, re); if (j.ok) admDraft.delete('rn:' + nm); else $('#arNoteAdd').disabled = false; };
@@ -12285,7 +12497,7 @@ function admPlayerTiles(nick, AG, tiles, hs, redraw) {
       tiles[ti] = `<div class="kpi${odd ? ' kodd' : ''}" data-wrap title="${esc(tip)}"><span class="kl">Headshots</span><span class="kv">${hs}</span><span class="ks">${pc(x.head / x.n)} of kills · his weapons give ${pc(x.exp / x.n)}${odd ? ' - far above' : ''}</span></div>`;
     } }
 }
-Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick) });
+Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick) });
 // @admin-end
 // ---------- loading ----------
 let simSeed = 1942;
@@ -12311,15 +12523,26 @@ function setRound(data, src) {
   try { renderStats(); } catch (e) { console.error(e); $('#stats').innerHTML = ''; }
   try { renderHighlights(); } catch (e) { console.error(e); $('#hlBox').innerHTML = ''; }
   try { admRender(); } catch (e) { console.error(e); $('#admBox').innerHTML = ''; }
-  if (pane === 'admin') renderAdmPane();   // (v196)
+  if (pane === 'admin' || revOn) renderAdmPane();   // (v196; v243: the admins' page)
+  revLoop = null; revKick();   // (v243)
   engWarm(round);
 }
 // kill feed / highlights tabs
-[0, 1, 2].forEach(k => $('#fTab' + k).addEventListener('click', () => {
+// (v242) and Players: the scoreboard, moved here from its own card (the side panel: Kill feed · Highlights · Players)
+{ const lb = $('#lbCard'), box = $('#lbBox'); if (lb && box) { while (lb.firstChild) box.appendChild(lb.firstChild); lb.hidden = true; } }
+[0, 1, 2, 3].forEach(k => $('#fTab' + k).addEventListener('click', () => {
   if (fcMin) fcFold(false);   // (v189: a tab of the folded panel opens it)
-  feedTab = k; [0, 1, 2].forEach(j => { $('#fTab' + j).classList.toggle('on', j === k); $('#fTab' + j).setAttribute('aria-selected', String(j === k)); });
-  $('#feed').hidden = k !== 0; $('#hlBox').hidden = k !== 1; $('#admBox').hidden = k !== 2; $('#ffFlag').hidden = k !== 2; hlShown = -2; markHighlights();
+  feedTab = k; [0, 1, 2, 3].forEach(j => { $('#fTab' + j).classList.toggle('on', j === k); $('#fTab' + j).setAttribute('aria-selected', String(j === k)); });
+  $('#feed').hidden = k !== 0; $('#hlBox').hidden = k !== 1; $('#admBox').hidden = k !== 2; $('#lbBox').hidden = k !== 3; $('#ffFlag').hidden = k !== 2; hlShown = -2; markHighlights();
+  $('#ffTog').hidden = k === 3; ffTogSync();
 }));
+// (v242) Filter ▾: the filter bar opens on it (and stays open while a filter is on); its name says when one is
+function ffTogSync() {
+  const on = !$('#ffClear').hidden, b = $('#ffTog'), open = (ffOpen || on) && feedTab !== 3;
+  $('#ffBar').hidden = !open; b.setAttribute('aria-expanded', String(open)); b.classList.toggle('on', on);
+  b.textContent = on ? 'Filter: on' : open ? 'Filter ▴' : 'Filter ▾';
+}
+$('#ffTog').onclick = () => { if (!$('#ffClear').hidden) { ffOpen = true; ffTogSync(); $('#ffK').focus(); return; } ffOpen = !ffOpen; ffTogSync(); if (ffOpen) $('#ffK').focus(); };
 // (v171) the filter bar's controls
 $('#ffK').addEventListener('input', ffApply); $('#ffV').addEventListener('input', ffApply);
 $('#ffBoth').onclick = () => { ffBoth = !ffBoth; ffApply(); };
@@ -15431,9 +15654,51 @@ function renderSessionRow(r) {
 }
 const sessStatus = r => r.status === 'decoding' ? `<span class="w">decoding ${Math.round(r.f * 100)}%</span>` : r.status === 'queued' ? '<span class="w">waiting</span>' : r.status === 'reading' ? '<span class="w">reading</span>'
   : r.status === 'done' ? '<button class="btn sm">Open</button>' : `<span class="w">${esc(r.status)}</span>`;
+// ---------- (v243, Sagara: "two pages - the players' and the admins'") Review: the admins' own page ----------
+// The round for an admin who wants to judge it: the admins' pane (Hints · Players · Kills · The round · Review - what
+// were the Admin tab and the For admins feed) on the left; the map, its bar, the kill's side view and the verdict on the
+// right. A hint picked: the map at its moment, played from REV_PRE s before to REV_POST s after again and again (at 1×;
+// the speed comes back after). In the link: review=1 (tab=admin, the old Admin tab's, comes here too); Review ↗ and
+// Player view ↗ in the header switch, at the same moment
+const REV_PRE = 5, REV_POST = 2;
+function revAvail() { return !!(ADM.loaded && ADM.renderPane && round && round.meta?.source !== 'sim' && (!session?.server || (acc && acc.admin))); }
+function revBtnSync() {
+  const b = $('#revBtn'); if (!b) return;
+  b.hidden = !revOn && !revAvail();
+  b.textContent = revOn ? 'Player view ↗' : 'Review ↗'; b.setAttribute('aria-pressed', String(revOn));
+  b.title = revOn ? "Back to the players' page, at this moment" : "The admins' page: this round's hints - each one played again, with its side view - and your verdict";
+}
+function revKick() { revBtnSync(); if (revWant && !revOn && revAvail()) revSet(true); }
+function revSet(on) {
+  on = !!on; revWant = on;
+  if (on && !revAvail()) { revBtnSync(); return; }
+  if (on === revOn) { revBtnSync(); return; }
+  revOn = on; document.body.classList.toggle('review', on);
+  const box = $('#admPane');
+  if (on) { $('#revSide').append(box); $('#revSide').hidden = false; pane = 'admin'; renderAdmPane(); }
+  else {
+    $('#pnAdmin').append(box); $('#revSide').hidden = true; $('#revPanel').hidden = true; revLoopOff();
+    if (revSpeed0 != null) { setSpeed(revSpeed0); revSpeed0 = null; }
+    paneSet('battle');
+  }
+  if (session && session.server) hashSet({ review: on ? 1 : null, tab: null });
+  revBtnSync(); placeFeed(); fitMap(); resize(); refresh(true);
+  if (on) $('#revSide').scrollTop = 0;
+}
+$('#revBtn').onclick = () => revSet(!revOn);
+// a hint's moment again and again (from the admins' part: ADM's review); a seek of one's own ends it
+function revLoopSet(tk) {
+  if (!round) return; revLoop = [Math.max(0, tk - REV_PRE), Math.min(round.duration, tk + REV_POST)]; t = revLoop[0];
+  if (speed !== 1) { if (revSpeed0 == null) revSpeed0 = speed; setSpeed(1); }
+  setPlaying(true);
+}
+function revLoopOff() { if (!revLoop) return; revLoop = null; if (ADM.revPanel) try { ADM.revPanel(); } catch (e) { console.error(e); } }
+$('#seek').addEventListener('input', revLoopOff);
 // ---------- views under the map: Battle, Round stats, Weapons, Players over all rounds ----------
 let pane = 'battle';
 function paneSet(name, fromUser) {
+  // (v243) the old Admin tab: the admins' page now
+  if (name === 'admin' && !revOn) { revWant = true; revKick(); if (revOn) return; name = 'battle'; }
   const tab = document.querySelector(`.ptab[data-pane="${name}"]`);
   if (!tab || tab.hidden) name = 'battle';
   pane = name;
@@ -15495,10 +15760,29 @@ const clockHM = d => (/(\d\d:\d\d)(:\d\d)?$/.exec(d || '') || ['', ''])[1];
 // where it was downloaded from: ingest.mjs demoSrcMark, src / srcOk); a demo a game server uploaded and since removed: none
 function demoLink(r) {
   const x = r.srv || {}; if (!can('demos')) return '';   // (v224)
-  if (x.demo) return `<a class="btn sm" id="rDemo" href="${esc('data/' + x.demo)}" download="${esc(r.name)}" title="Download this round's demo (${esc(r.name)}): to watch it in the game's Battle Recorder, or to open it here (Open .bf2demo)">⬇ Demo</a>`;
-  if (x.src && /^https?:\/\//i.test(x.src)) return `<a class="btn sm" id="rDemo" href="${esc(x.src)}" target="_blank" rel="noopener noreferrer nofollow" title="${x.srcOk ? 'The demo is no longer on this server - its source still lists it' : 'The demo is no longer on this server - where it was downloaded from (it may be gone there too)'}">⬇ Demo at its source ↗</a>`;
-  return `<button class="btn sm" id="rDemo" disabled title="The demo is no longer on this server, and where it came from is not known (a game server uploaded it)">Demo removed</button>`;
+  if (x.demo) return `<a class="btn smi" id="rDemo" role="menuitem" href="${esc('data/' + x.demo)}" download="${esc(r.name)}" title="Download this round's demo (${esc(r.name)}): to watch it in the game's Battle Recorder, or to open it here (Open .bf2demo)">Download the demo<span class="w">.bf2demo, for the game's Battle Recorder</span></a>`;
+  if (x.src && /^https?:\/\//i.test(x.src)) return `<a class="btn smi" id="rDemo" role="menuitem" href="${esc(x.src)}" target="_blank" rel="noopener noreferrer nofollow" title="${x.srcOk ? 'The demo is no longer on this server - its source still lists it' : 'The demo is no longer on this server - where it was downloaded from (it may be gone there too)'}">The demo at its source ↗<span class="w">no longer on this server</span></a>`;
+  return `<button class="btn smi" id="rDemo" role="menuitem" disabled title="The demo is no longer on this server, and where it came from is not known (a game server uploaded it)">Demo removed</button>`;
 }
+// (v242, Sagara: "too many buttons") Share ▾ in the round bar: a link to this moment, a video clip, the demo, the map's page
+// (were Copy link over the map, Clip under it, Map page and Demo in this bar)
+function rShareHtml(s, lst, r) {
+  const items = [`<button class="btn smi" id="shLink" role="menuitem" type="button">Copy a link to this moment<span class="w">the round here, following the one you follow</span></button>`];
+  if (can('clips')) items.push(`<button class="btn smi" id="shClip" role="menuitem" type="button">Make a video clip…<span class="w">part of the round as a video or GIF (I / O mark its ends)</span></button>`);
+  if (r) { const d = demoLink(r); if (d) items.push(d); }
+  if (s && lst && can('players')) items.push(`<button class="btn smi" id="rMapPg" role="menuitem" type="button" title="${esc(mapName(s.map))} over all rounds: where they die most, who kills most">${esc(mapName(s.map))}: the map's page<span class="w">all its rounds - where they die most, who kills most</span></button>`);
+  return `<span class="lwrap shwrap"><button class="btn sm" id="rShare" type="button" aria-expanded="false" aria-controls="rShareM" aria-haspopup="menu" title="A link to this moment, a video clip, the demo, the map's page"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="12" cy="3.5" r="2"/><circle cx="4" cy="8" r="2"/><circle cx="12" cy="12.5" r="2"/><path d="M5.8 9l4.4 2.5M10.2 4.5L5.8 7"/></svg>Share ▾</button><div class="lmenu shmenu" id="rShareM" role="menu" aria-label="Share" hidden>${items.join('')}</div></span>`;
+}
+function shOpen(on) { const b = $('#rShare'), m = $('#rShareM'); if (!b || !m) return; m.style.left = 'auto'; m.style.right = '0'; popToggle(b, m, on); }
+function rShareBind() {
+  const b = $('#rShare'); if (!b) return;
+  b.onclick = e => { e.stopPropagation(); shOpen($('#rShareM').hidden); };
+  const lk = $('#shLink'); if (lk) lk.onclick = () => { shOpen(false); $('#vLink').click(); };
+  const cl = $('#shClip'); if (cl) cl.onclick = () => { shOpen(false); if ($('#tClip').getAttribute('aria-pressed') !== 'true') $('#tClip').click(); requestAnimationFrame(() => $('#clipBar')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })); };
+  const dm = $('#rDemo'); if (dm) dm.addEventListener('click', () => shOpen(false));
+}
+document.addEventListener('click', e => { const m = $('#rShareM'); if (m && !m.hidden && !e.target.closest('#rShareM, #rShare')) shOpen(false); });
+document.addEventListener('keydown', e => { const m = $('#rShareM'); if (e.key === 'Escape' && m && !m.hidden) { shOpen(false); $('#rShare')?.focus(); } });
 const rpTk = s => s.tickets ? s.tickets.map((x, k) => `<span class="t${k}">${x[0]}→${x[1]}</span>`).join(' · ') : '—';
 function renderRoundBar(box, R, cur, tkCell) {
   box.classList.add('roundbar');
@@ -15507,11 +15791,12 @@ function renderRoundBar(box, R, cur, tkCell) {
   const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${nSrv > 1 && s.server ? `<span>${esc(s.server)}</span>` : ''}${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
     : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
   box.innerHTML = `<div class="rbar">${lst ? `<a class="rcur" id="rCur" href="${esc(rpHref())}" title="All the site's rounds: by server, map, day, player">${what}<span class="caret">All rounds ›</span></a>` : `<span class="rcur">${what}</span>`}
-    <span class="rnav">${lst ? `<span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button>` : ''}${s && lst && can('players') ? `<button class="btn sm" id="rMapPg" title="${esc(mapName(s.map))} over all rounds: where they die most, who kills most">Map page</button>` : ''}${ci >= 0 ? demoLink(L[ci]) : ''}</span></div>`;
+    <span class="rnav">${lst ? `<span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button>` : ''}${s || ci >= 0 ? rShareHtml(s, lst, ci >= 0 ? L[ci] : null) : ''}</span></div>`;
   if ($('#rCur') && lst) $('#rCur').addEventListener('click', e => { e.currentTarget.href = rpHref(); });   // (the page's filters as they are now)
   const go = d => { const x = L[ci + d]; if (x) { closePlayerPage(); openServerRound(x); } };
   if (lst) { $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1); }
-  const mpg = $('#rMapPg'); if (mpg) mpg.onclick = () => openMapPage(s.map);
+  const mpg = $('#rMapPg'); if (mpg) mpg.onclick = () => { shOpen(false); openMapPage(s.map); };
+  rShareBind();
   rpBackSet();   // (v200: the rounds page's "Back to", when the round came in after it)
 }
 
@@ -16621,7 +16906,7 @@ const siteBase = () => location.origin + location.pathname.replace(/[^/]*$/, '')
 function linkHere() {
   const r = session && session.server && session.rounds.find(x => x.name === $('#srcLabel').textContent); if (!r || !round) return null;
   const p = sel !== null ? round.players[sel] : null;
-  const rest = 't=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (pane !== 'battle' ? '&tab=' + pane : '');
+  const rest = 't=' + Math.round(t) + (p && !p.vehicle ? '&p=' + encodeURIComponent(p.name.trim()) : '') + (revOn ? '&review=1' : pane !== 'battle' ? '&tab=' + pane : '');
   return serverData?.shareOk ? siteBase() + 'r/' + encodeURIComponent(linkId(r.name)) + '?' + rest : siteBase() + '#round=' + encodeURIComponent(linkId(r.name)) + '&' + rest;
 }
 const playerLink = nick => serverData?.shareOk ? siteBase() + 'p/' + nickSlug(nick) : siteBase() + '#player=' + encodeURIComponent(nick);
@@ -16728,9 +17013,10 @@ async function serverBoot() {
   if (r0) fetch(siteBase() + 'r/' + encodeURIComponent(linkId(r0.name)), { method: 'HEAD', cache: 'no-cache' }).then(res => { serverData.shareOk = res.ok && /html/.test(res.headers.get('content-type') || ''); }).catch(() => {});
   document.body.classList.add('site'); $('#moreBtn').hidden = false; $('#rndLink').hidden = false; $('#recLink').href = siteBase() + 'records/'; $('#recLink').hidden = false; $('#statLink').hidden = false; versionWatch(); reprocIdxAt = Date.now(); setTimeout(reprocRefresh, 0);
   session = { server: true, done: true, showEmpty: false, sort: 'score', dir: -1, job: null, rounds: d.rounds.map(x => ({ name: x.name, status: x.empty ? 'empty' : 'done', sum: x.sum, srv: x, file: null })) };
-  $('#vLink').hidden = false;
+  // (v242: Copy link lives in the round bar's Share ▾ - its button stays hidden, Share ▾ clicks it)
   renderSession();
   const h = new URLSearchParams(location.hash.slice(1)), want = h.get('round');
+  if (h.has('review')) revWant = true;   // (v243)
   if (h.get('tab')) paneSet(h.get('tab'));
   accApply();
   if (d.linkOnly) { await refMeta(); if (want) await refRound(want); else if (!h.get('player') && !h.get('map')) linkOnlyNote(); }
@@ -16757,7 +17043,9 @@ window.addEventListener('hashchange', async () => { if (!session || !session.ser
   if (h.get('player')) { if (ppage.nick !== h.get('player') || ppage.vs !== (h.get('vs') || null)) openPlayerPage(h.get('player'), true, h.get('vs')); return; }
   if (h.get('map')) { if (ppage.map !== h.get('map').toLowerCase()) openMapPage(h.get('map'), true); return; }
   if (['stats', 'clans', 'vehicles', 'server', 'find'].some(k => h.has(k))) { const pg = h.has('stats') ? 'hub' : ['clans', 'vehicles', 'server', 'find'].find(k => h.has(k)); if (ppage.page !== pg || (pg === 'server' && ppage.arg !== h.get('server'))) statsFromHash(h); return; }
-  if (ppage.nick || ppage.map || ppage.page) closePlayerPage(true); if ((h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
+  if (ppage.nick || ppage.map || ppage.page) closePlayerPage(true);
+  if (h.has('review') || h.get('tab') === 'admin') { revWant = true; revKick(); } else if (revOn) revSet(false);   // (v243)
+  if (!revOn && !revWant && (h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
 
 new ResizeObserver(resize).observe(cv);
 new ResizeObserver(resize).observe(tl);

@@ -42,7 +42,7 @@ GitHub (this repository)  ──(every minute, update.sh: git pull)──►  si
 | | |
 |---|---|
 | [docs/install.md](docs/install.md) | installing and configuring the VPS, updating, backups, troubleshooting |
-| [docs/admin-guide.md](docs/admin-guide.md) | the admin page `/admin`, posts and summaries, the Admin tab of a round, review |
+| [docs/admin-guide.md](docs/admin-guide.md) | the admin page `/admin`, posts and summaries, a round's admins' page (Review), review |
 | [docs/admin-hints.md](docs/admin-hints.md) | what each hint for admins means (**for admins only**) |
 | [docs/user-guide.md](docs/user-guide.md) | for players and visitors: watching rounds, players, records, statistics, clips |
 | [docs/features.md](docs/features.md) | how each feature works and where its limits are |
@@ -129,7 +129,7 @@ the exact collision shapes of the maps `site/assets/geo`, the maps' trees `site/
 minimaps `site/assets/maps_hd`). Unpack it over your clone and push:
 
 ```bash
-V=v241                                   # the version in the archive's name
+V=v243                                   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

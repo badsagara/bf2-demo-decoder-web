@@ -284,7 +284,7 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
 ## Hints for admins
 
 - Hints are worked out by the page itself (in the admins' part, not in the public page), on the server by the
-  background analysis (a headless browser), and live in a round's Admin tab.
+  background analysis (a headless browser), and live on a round's admins' page (Review ↗, v243; before, its Admin tab).
 - **Thresholds** were tuned on archives of all rounds (1,619 rounds in v182, 2,779 in v213). Places where the game itself
   does what a hint looks for (teleports on Dragon Valley and Gulf of Oman, fast stretches, BTR-90 roads on Kubra Dam,
   spawn points missing from the layouts) are left out.
@@ -308,7 +308,7 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   it) — and a game clip needs the visitor's own copy.
 - Which demos go is set on the admin page (days, a GB limit, keep rounds with admin hints, a Keep list); the ones the
   source still offers go first. Below 5 GB free, the least needed demos go until there is room again.
-- **⬇ Demo** on a round: from the site; if removed, **Demo at its source ↗** (the page it was downloaded from); a demo a
+- **Download the demo** (Share ▾ on a round; before v242 **⬇ Demo**): from the site; if removed, **Demo at its source ↗** (the page it was downloaded from); a demo a
   game server uploaded and that was then removed: *Demo removed*.
 
 ## Pages, previews, RSS
@@ -318,6 +318,12 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   `robots.txt` (with a domain), and small link-preview pages `/r/<round>` and `/p/<player>` that lead straight on to the
   site. They are rewritten only when they change; pages of rounds no longer there are removed.
 - `rounds.json` is a light list (~0.5 KB → 0.15 KB a round); the full list and all kills stay on the server.
+- (v242) The round page for players: the map and **one bar under it** — Play, the round time, the speed, **Camera ▾**
+  (follow, his view, aim line, keep him in the middle, how much of the map, zoom, the game's scoreboard), **Show ▾** (what
+  the map shows, with your pinned quick switches at its top) and full screen; on the map only the zoom **+ / −** and the
+  folded legend. **Share ▾** in the round bar (a link to this moment, a clip, the demo, the map's page). Beside the map
+  Kill feed · Highlights · Players, the filter behind **Filter ▾**. Guests see no admin tab; (v243) the admins have
+  their own page for a round: **Review ↗**. 56 controls on the first screen before, 29 now (1440×900).
 
 ## Who may open what
 
@@ -347,7 +353,7 @@ Set on the admin page, card **Users and access** ([admin-guide.md](admin-guide.m
 - **Video clips** is the only part checked by the page alone: a clip is drawn in the browser from what the page shows, so
   there is no file to refuse. (A game video needs the demo, and so Download demos too.)
 - **Signing up** (v239; the owner may stop it): a visitor makes his own account (`/admin/api/signup`) — it opens what
-  guests may and nothing more until the owner ticks it. What it is for: **his map settings in his profile**. Map ▾ (every
+  guests may and nothing more until the owner ticks it. What it is for: **his map settings in his profile**. Show ▾ (v239–v241 Map ▾; every
   element the map draws, in seven groups: Soldiers, Vehicles, Combat, Teamwork, The soldier you follow, The map, Screen;
   pins — any element or group as a button on the map; presets — four built in and his own) is kept in the browser
   (`bf2rr.mapcfg`) and, logged in, in `data/.prefs/<name>.json` (`/admin/api/prefs`, 32 KB at most, written a second

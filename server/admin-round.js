@@ -1,7 +1,7 @@
-// BF2 Round Replay v241 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v243 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v241';
-// ---- part 1 (page line 6807) ----
+const ADM_V = 'v243';
+// ---- part 1 (page line 6939) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
 // Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
@@ -84,7 +84,7 @@ function kitSpots(R) {
 // most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
 // ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
 // (v170: the commander's supply crates are counted too - crateVisits)
-// ---- part 2 (page line 6892) ----
+// ---- part 2 (page line 7024) ----
 function ammoBags(R, i, t0, t1) {
   let n = 0;
   for (const b of R.events) {
@@ -94,7 +94,7 @@ function ammoBags(R, i, t0, t1) {
   }
   return n;
 }
-// ---- part 3 (page line 6939) ----
+// ---- part 3 (page line 7071) ----
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
 // i spent within CRATE_R of one (the crate's radius 5 m, Weapons/Handheld/supply_crate: it refills ammo and heals,
@@ -934,7 +934,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 let CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 7784) ----
+// ---- part 4 (page line 7916) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -1031,7 +1031,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 let SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 8039) ----
+// ---- part 5 (page line 8171) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1321,7 +1321,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 8331) ----
+// ---- part 6 (page line 8463) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1854,7 +1854,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
   box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 11706) ----
+// ---- part 7 (page line 11878) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -1893,10 +1893,9 @@ function admCan() { if (!round) return false; if (admIsOwner() || !session?.serv
 const admOutOfScope = () => `This round is from ${admServerOf() || 'a server'}: not one of the servers of your account (${(admMe?.servers || []).join(', ') || 'none'}).`;
 function admInit(me) {
   if (!document.getElementById('admCss')) { const st = document.createElement('style'); st.id = 'admCss'; st.textContent = ADM_CSS; document.head.appendChild(st); }
-  $('#fTab2').hidden = false; $('#fTab2').title = 'Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills';
-  const sp = document.querySelector('#fcStrip span'); if (sp) sp.textContent = 'Kill feed · Highlights · For admins';
+  $('#fTab2').title = 'Moments an admin may want to look at: kills with no line of sight, aim snaps, headshot rates, team kills';   // (v243: not shown - the admins' page, Review ↗, has them)
   $('#ptAdmin').textContent = 'Admin ✓';
-  if (ADM_V !== APP_VERSION) console.warn(`the admins' part is of ${ADM_V}, the page of ${APP_VERSION}: reload the page`);
+  if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) console.warn(`the admins' part is of ${ADM_V}, the page of ${APP_VERSION}: reload the page`);
   htLoad(!!me && me.user === 'analysis').then(() => { if (new URLSearchParams(location.hash.slice(1)).has('thresholds')) htOpen(); });   // (v227)
 }
 // (v196, Sagara's filters) how strong a hint is: 0 minor (team kills, claymores, idle, spot spam, outside the map,
@@ -2000,7 +1999,7 @@ function admRenderPane(box) {
   const who = admMe && admMe.user ? `<b>${esc(admMe.user === 'owner' ? 'the site\'s owner' : admMe.user)}</b>${admMe.role === 'owner' ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}` : '';
   const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button> <button class="btn sm" id="admOut">Log out</button></span></div>`;
   const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen; };
-  if (ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
+  if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
   if (!round || round.meta?.source === 'sim') { box.innerHTML = head + '<p class="empty">Open a round.</p>'; bind(); return; }
   if (!admCan()) { box.innerHTML = head + `<p class="empty">${esc(admOutOfScope())}</p>`; bind(); return; }
   const keep = admDraftsKeep(box), V0 = admRev(admRedraw(() => admRenderPane(box))), nMk = admRevOn(V0) ? Object.keys(V0.marks || {}).length : 0;
@@ -2012,7 +2011,7 @@ function admRenderPane(box) {
   catch (e) { console.error(e); el.innerHTML = '<p class="empty">Something went wrong here (the console says what).</p>'; }
   admDraftsBind(box, keep);
   // (the hints still coming - the walls, wall tracking: drawn again when they are in)
-  if (admBusy() && !box._again) { const R = round; box._again = setTimeout(() => { box._again = null; if (round === R && pane === 'admin') admRenderPane(box); }, 1500); }
+  if (admBusy() && !box._again) { const R = round; box._again = setTimeout(() => { box._again = null; if (round === R && (pane === 'admin' || revOn)) admRenderPane(box); }, 1500); }
 }
 const admBusy = () => { const A = adminHints(); return !!(A.wait || A.glWait || (round._trackRun && !round._tracks) || (round._geoRun && !round._geo)); };
 const admBusyNote = () => admBusy() ? ' · wall tracking, floating and the exact shapes still going through the round (drawn again when done)…' : '';
@@ -2032,6 +2031,8 @@ const admCmp = (S, val) => (a, b) => { const x = val(a, S.sort), y = val(b, S.so
 
 // ---- Hints (v196) ----
 const admPF = { kind: 'all', who: '', team: '', str: 'nominor', wpn: '', t0: '', t1: '', minN: 1, rev: 'all' };
+// (v243) how many of the filters are not as they start (the folded Filters ▾ says so)
+const admPFon = () => { const F = admPF; return ['who', 'team', 'wpn', 't0', 't1'].filter(k => F[k]).length + (F.str !== 'nominor') + (F.minN > 1) + (F.rev !== 'all'); };
 const admMmss = v => { const m = /^\s*(\d+)(?::(\d{1,2}))?\s*$/.exec(v || ''); return m ? +m[1] * 60 + +(m[2] || 0) : null; };
 function admSubHints(el, re) {
   const A = adminHints(), dur = round.duration, F = admPF, t0 = admMmss(F.t0), t1 = admMmss(F.t1);
@@ -2051,13 +2052,14 @@ function admSubHints(el, re) {
   const pass = base.filter(o => (F.minN <= 1 || (o.h.actor != null && per.get(o.h.actor) >= F.minN)) && (!F.who || String(o.h.actor) === F.who));
   const cnt = new Map(); for (const o of pass) cnt.set(o.h.kind, (cnt.get(o.h.kind) || 0) + 1);
   const L = pass.filter(o => F.kind === 'all' || o.h.kind === F.kind);
+  admRevList = L.map(o => o.h);   // (v243: ‹ Previous / Next › in the review)
   const pn = id => { const i = pidx(id); return i === undefined ? '' : `<span class="t${teamOf(i, round.duration)}">${esc(round.players[i].name)}</span>`; };
   const top = [...per].filter(([, c]) => c >= 2).sort((a, b) => b[1] - a[1]).slice(0, 12);
   const tn = k => esc(round.teams?.[k]?.name || `Team ${k + 1}`);
   const players = [...per].sort((a, b) => b[1] - a[1]).map(([id, c]) => `<option value="${esc(id)}"${F.who === String(id) ? ' selected' : ''}>${esc(round.players[pidx(id)]?.name || id)} · ${c}</option>`).join('');
   const sel = (id, opts, v) => `<select id="${id}">${opts.map(([k, n]) => `<option value="${esc(k)}"${String(v) === String(k) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
   el.innerHTML = `<p class="admwarn">Hints for a closer look, not proof: watch the moment (and its side view) before you judge. Everything here comes from the demo alone.</p>
-    <div class="admfil">
+    <details class="admfd"${admPFon() ? ' open' : ''}><summary>Filters ▾${admPFon() ? ` <span class="w">· ${admPFon()} on</span>` : ''}</summary><div class="admfil">
       <label>Player <select id="apWho"><option value="">everyone</option>${players}</select></label>
       <label>Side ${sel('apTeam', [['', 'both'], ['0', tn(0)], ['1', tn(1)]], F.team)}</label>
       <label title="Minor: team kills, claymores, idle, spot spam, outside the map. Strong: what normal play can't do, or a rate chance gives under once in 10 000">Strength ${sel('apStr', [['all', 'all'], ['nominor', 'without the minor ones'], ['strong', 'strong only']], F.str)}</label>
@@ -2066,10 +2068,10 @@ function admSubHints(el, re) {
       <label>From <input id="apT0" placeholder="0:00" value="${esc(F.t0)}" aria-label="From (mm:ss)"></label><label>to <input id="apT1" placeholder="${fmt(dur)}" value="${esc(F.t1)}" aria-label="To (mm:ss)"></label>
       <label title="Only players with so many hints or more (with the filters above)">Players with ${sel('apMin', [1, 2, 3, 4, 5, 10].map(n => [n, n === 1 ? 'any' : n + '+']), F.minN)} hints</label>
       <button class="btn sm" id="apReset">Reset</button>
-    </div>
+    </div></details>
     <div class="hlchips">${[['all', 'All', pass.length], ...ADM_KINDS.map(([k, n]) => [k, n, cnt.get(k) || 0])].filter(([k, , c]) => k === 'all' || c || k === F.kind).map(([k, n, c]) => `<button class="btn${F.kind === k ? ' on' : ''}" data-k="${k}">${n} <span class="w">${c}</span></button>`).join('')}</div>
     ${top.length ? `<p class="admtop">Most hints: ${top.map(([id, c]) => `<button class="linkb" data-who="${esc(id)}">${pn(id)}</button> <span class="w">${c}</span>`).join(', ')}</p>` : ''}
-    <ul class="feed hlist">${L.length ? L.map(({ h, i, s: st, key }) => { const [b, html] = admDescribe(h), mk = M[key], tr = trustedId(h.actor); return `<li class="${tr ? 'admtr' : ''}${mk ? ' admm-' + mk.state : ''}"><button class="hli" data-i="${i}" title="Watch it: ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html} <span class="admstr s${st}">${ADM_STR[st]}</span>${tr ? ' <span class="admtrb" title="A trusted player (Players: ★): not highlighted">★ trusted</span>' : ''}${mk ? ' ' + admMarkBadge(mk) : ''}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip hlvid" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button>${on ? admRvButtons(i, mk) : ''}</li>`; }).join('') : `<li class="empty">No hint with these filters.${F.str !== 'all' && A.some(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)) ? ` (${A.filter(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)).length} ${F.str === 'strong' ? 'weaker' : 'minor'} ones not shown: Strength)` : ''}</li>`}</ul>
+    <ul class="feed hlist">${L.length ? L.map(({ h, i, s: st, key }) => { const [b, html] = admDescribe(h), mk = M[key], tr = trustedId(h.actor); return `<li class="${tr ? 'admtr' : ''}${mk ? ' admm-' + mk.state : ''}${admRevCur && admRevCur.round === round && admRevCur.key === admKey(h) ? ' cur' : ''}" data-key="${esc(admKey(h))}"><button class="hli" data-i="${i}" title="Watch it: ${fmt(Math.max(0, h.t - HL_LEAD))}"><span class="ts">${fmt(h.t)}</span><span class="hk hk-${h.kind}">${esc(b)}</span><span>${html} <span class="admstr s${st}">${ADM_STR[st]}</span>${tr ? ' <span class="admtrb" title="A trusted player (Players: ★): not highlighted">★ trusted</span>' : ''}${mk ? ' ' + admMarkBadge(mk) : ''}</span></button>${h.kill ? `<button class="hlclip hlside" data-i="${i}" title="Side view of this kill">${SIDE_SVG}</button>` : ''}${h.kill && gvOk() ? `<button class="hlclip hlgv" data-i="${i}" title="${GV_TIP}">${GV_SVG}</button>` : ''}<button class="hlclip hlvid" data-i="${i}" title="Make a video clip of this moment">${CLIP_SVG}</button>${on ? admRvButtons(i, mk) : ''}</li>`; }).join('') : `<li class="empty">No hint with these filters.${F.str !== 'all' && A.some(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)) ? ` (${A.filter(h => admStrength(h) < (F.str === 'strong' ? 2 : 1)).length} ${F.str === 'strong' ? 'weaker' : 'minor'} ones not shown: Strength)` : ''}</li>`}</ul>
     <p class="stnote">${L.length} of ${A.length} hints${V === null ? ' · loading the marks…' : V && V.ok === false ? ' · the marks: ' + esc(V.msg || V.error || 'no answer') : ''}${A.noLos ? ' · no wall data for this map: "No line of sight" is not checked' : ''}${A.wait ? ` · still checking ${A.wait} kill${A.wait > 1 ? 's' : ''} against the exact shapes…` : ''}${(round._trackRun && !round._tracks) || (round._geoRun && !round._geo) ? ' · wall tracking and floating still going through the round…' : ''}. A click: the moment on the map (Battle).</p>`;
   $('#apWho').onchange = e => { F.who = e.target.value; re(); };
   $('#apTeam').onchange = e => { F.team = e.target.value; re(); };
@@ -2081,10 +2083,10 @@ function admSubHints(el, re) {
   $('#apReset').onclick = () => { Object.assign(F, { kind: 'all', who: '', team: '', str: 'nominor', wpn: '', t0: '', t1: '', minN: 1, rev: 'all' }); re(); };
   el.querySelectorAll('.hlchips .btn').forEach(b => b.onclick = () => { F.kind = b.dataset.k; re(); });
   el.querySelectorAll('[data-who]').forEach(b => b.onclick = () => { F.who = b.dataset.who; re(); });
-  el.querySelectorAll('.hli').forEach(b => b.onclick = () => { paneSet('battle', true); jumpTo(A[+b.dataset.i]); });
-  el.querySelectorAll('.hlside').forEach(b => b.onclick = () => { paneSet('battle', true); openSide(A[+b.dataset.i].kill); });
-  el.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { paneSet('battle', true); const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
-  el.querySelectorAll('.hlvid').forEach(b => b.onclick = () => { paneSet('battle', true); clipAround(A[+b.dataset.i]); });
+  el.querySelectorAll('.hli').forEach(b => b.onclick = () => { if (revOn) { admRevPick(A[+b.dataset.i]); return; } paneSet('battle', true); jumpTo(A[+b.dataset.i]); });
+  el.querySelectorAll('.hlside').forEach(b => b.onclick = () => { admToMap(); openSide(A[+b.dataset.i].kill); });
+  el.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { admToMap(); const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
+  el.querySelectorAll('.hlvid').forEach(b => b.onclick = () => { admToMap(); clipAround(A[+b.dataset.i]); });
   // (v198) a mark: the same button again clears it; suspicious asks what was seen (for the report)
   el.querySelectorAll('[data-rv]').forEach(b => b.onclick = async () => {
     const h = A[+b.dataset.rv], key = admKey(h), cur = M[key], st = cur?.state === b.dataset.st ? null : b.dataset.st;
@@ -2209,8 +2211,8 @@ function admSubKills(el, re) {
   on('akFoot', x => { S.foot = x.checked; }); on('akH', x => { S.onlyH = x.checked; });
   $('#akReset').onclick = () => { Object.assign(S, { who: '', role: 'any', wpn: '', dmin: '', dmax: '', t0: '', t1: '', onlyH: false, tk: 'all', foot: false, n: 200 }); re(); };
   if ($('#akMore')) $('#akMore').onclick = () => { S.n += 200; re(); };
-  el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.k]; if (!o.e) return; paneSet('battle', true); jumpTo({ t: o.e.t, actor: o.e.killer, x: o.e.x, y: o.e.y, kill: o.e, adm: false, kind: 'kill' }); });
-  el.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.side]; paneSet('battle', true); openSide(o.e); });
+  el.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.k]; if (!o.e) return; admToMap(); jumpTo({ t: o.e.t, actor: o.e.killer, x: o.e.x, y: o.e.y, kill: o.e, adm: false, kind: 'kill' }); });
+  el.querySelectorAll('[data-side]').forEach(b => b.onclick = () => { const o = shown[+b.dataset.side]; admToMap(); openSide(o.e); });
   $('#akCsv').onclick = () => {
     const nm = i => round.players[i]?.name || '';
     const head = ['time', 'killer', 'victim', 'weapon', 'cause', 'hit', 'team kill', 'killer vehicle', 'victim vehicle', 'distance m', 'height diff m', 'killer stance', 'victim stance', 'killer speed', 'victim speed', 'ping', 'aim off at kill deg', 'aim off 2 s before deg', 'bearing rate deg/s', 'reaction s', 'seen', 'sight grid (0.1 s)', 'sight exact (0.1 s)', 'fire to kill s', 'distance / fog', 'smoke', 'pitch off deg', 'hints'];
@@ -2276,7 +2278,7 @@ function admKey(h) {
 }
 const admRevOn = V => !!V && V.ok !== false && !V.local;
 function admTrusted(V, id) { const i = round.pidx.get(id); return i !== undefined && !!V.trusted?.[nickOf(round.players[i].name)]; }
-const admRedraw = re => { const R = round; return () => { if (round === R && pane === 'admin') re(); }; };
+const admRedraw = re => { const R = round; return () => { if (round === R && (pane === 'admin' || revOn)) re(); }; };
 // the round's marks and notes, the notes on its players, the trusted list (kept while asked again after a change)
 const admRevC = new Map();
 function admRev(redraw) {
@@ -2298,6 +2300,44 @@ async function admRevAct(what, body, re) {
   return j;
 }
 const admRvButtons = (i, mk) => `<span class="admrv">${['ok', 'false', 'sus'].map(s => `<button class="m-${s}${mk?.state === s ? ' on' : ''}" data-rv="${i}" data-st="${s}" aria-pressed="${mk?.state === s}" title="${ADM_MARK[s][1]}${mk?.state === s ? ' - again: clear the mark' : ''}">${ADM_MARK[s][0]}</button>`).join('')}</span>`;
+// ---- (v243) the admins' page (Review): a hint picked - the map at its moment, played again and again (REV_PRE s before
+// to REV_POST s after), the kill's side view under it, and the verdict: the marks of the list (✓ ✗ ⚑) with a note,
+// ‹ Previous / Next › through the list as filtered ----
+let admRevCur = null, admRevList = [];
+const admToMap = () => { if (!revOn) paneSet('battle', true); };
+function admRevPick(h) {
+  admRevCur = { h, key: admKey(h), round };
+  jumpTo(h);
+  if (h.kill) openSide(h.kill); else closeSide();   // (it pauses at the kill: the loop starts after it)
+  revLoopSet(h.t); admRevPanel();
+  document.querySelectorAll('#admPane .hlist li[data-key]').forEach(li => li.classList.toggle('cur', li.dataset.key === admRevCur.key));
+  const li = document.querySelector('#admPane .hlist li.cur'); if (li) li.scrollIntoView({ block: 'nearest' });
+  if (innerWidth <= 960) $('#mapbox').scrollIntoView({ block: 'start', behavior: 'smooth' });   // (one column: the map is under the list)
+}
+function admRevPanel() {
+  const box = $('#revPanel'); if (!box) return;
+  const c = admRevCur; if (!c || !revOn || c.round !== round) { box.hidden = true; return; }
+  const h = c.h, V = admRev(admRedraw(admRevPanel)), on = admRevOn(V), mk = on ? (V.marks || {})[c.key] : null, [b, html] = admDescribe(h), st = admStrength(h);
+  const i = round.pidx.get(h.actor), p = i !== undefined ? round.players[i] : null, k = admRevList.findIndex(x => admKey(x) === c.key);
+  box.hidden = false;
+  box.innerHTML = `<div class="rvhead"><span class="hk hk-${h.kind}">${esc(b)}</span><b>${fmt(h.t)}</b><span class="admstr s${st}">${ADM_STR[st]}</span>${mk ? admMarkBadge(mk) : ''}</div>
+    <p class="rvwhat">${html}</p>
+    <p class="w rvloop">${revLoop ? `Played again and again: ${fmt(revLoop[0])} – ${fmt(revLoop[1])}, at 1× · <button class="linkb" id="rvStop">stop the loop</button>` : `<button class="linkb" id="rvAgain">Play it again: ${fmt(Math.max(0, h.t - REV_PRE))} – ${fmt(Math.min(round.duration, h.t + REV_POST))}</button>`}${h.kill ? '' : ' · no kill: no side view'}</p>
+    ${on ? `<div class="rvverdict" role="group" aria-label="Your verdict">${['sus', 'false', 'ok'].map(s => `<button type="button" class="btn m-${s}${mk?.state === s ? ' on' : ''}" data-rst="${s}" aria-pressed="${mk?.state === s}" title="${mk?.state === s ? 'Again: clear the mark' : esc(ADM_MARK[s][1])}">${ADM_MARK[s][0]} ${s === 'sus' ? 'Suspicious' : s === 'false' ? 'A false alarm' : 'Checked: nothing there'}</button>`).join('')}</div>
+      <label class="rvnote">A note for the other admins (it goes with the mark, and in the report when suspicious)<input id="rvNote" maxlength="300" placeholder="What you saw…" value="${esc(mk?.note || '')}"></label>`
+      : `<p class="w">${V === null ? 'Loading the marks…' : V && V.local ? 'Marks and notes are kept on the site: open the round there.' : 'The marks: ' + esc(V?.msg || V?.error || 'no answer')}</p>`}
+    <div class="rvnav"><button type="button" class="btn sm" id="rvPrev"${k > 0 ? '' : ' disabled'}>‹ Previous hint</button><span class="w">${k >= 0 ? `${k + 1} of ${admRevList.length}` : ''}</span><button type="button" class="btn sm" id="rvNext"${k >= 0 && k < admRevList.length - 1 ? '' : ' disabled'}>Next hint ›</button>${p && !p.vehicle && session?.server ? `<button type="button" class="linkb" id="rvHis">${esc(p.name.trim())} over all rounds →</button>` : ''}</div>`;
+  const re = () => { admRevPanel(); renderAdmPane(); };
+  const stop = $('#rvStop'); if (stop) stop.onclick = () => { revLoopOff(); setPlaying(false); };
+  const again = $('#rvAgain'); if (again) again.onclick = () => { revLoopSet(h.t); admRevPanel(); };
+  box.querySelectorAll('[data-rst]').forEach(bt => bt.onclick = async () => {
+    const s = mk?.state === bt.dataset.rst ? null : bt.dataset.rst, note = ($('#rvNote')?.value || '').trim();
+    bt.disabled = true; await admRevAct('review-mark', { round: admRoundName(), key: c.key, state: s, note: s ? note : '', what: admDescribe(h)[2], t: h.t }, re);
+  });
+  const go = d => { const x = admRevList[k + d]; if (x) admRevPick(x); };
+  $('#rvPrev').onclick = () => go(-1); $('#rvNext').onclick = () => go(1);
+  const his = $('#rvHis'); if (his) his.onclick = () => openPlayerPage(nickOf(p.name));
+}
 const admMarkBadge = mk => `<span class="admmk m-${mk.state}" title="${esc(`${ADM_MARK[mk.state][1]} · ${mk.by} · ${admAt(mk.at)}${mk.note ? ' · ' + mk.note : ''}`)}">${ADM_MARK[mk.state][0]} ${esc(ADM_MARK[mk.state][1])} <span class="w">· ${esc(mk.by)}</span></span>`;
 const admStarBtn = (V, nick) => { const tr = V.trusted?.[nick]; return ` <button class="admstar${tr ? ' on' : ''}" data-trust="${esc(nick)}" aria-pressed="${!!tr}" title="${esc(tr ? `Trusted (by ${tr.by}${tr.why ? ': ' + tr.why : ''}${tr.servers ? ', on ' + tr.servers.join(', ') : ''}): his hints are not highlighted. A click: no more` : 'Trust him: his hints stay, not highlighted, and "not reviewed, not trusted" leaves them out')}">★</button>`; };
 function admTrustBind(el, V, re) {
@@ -2312,7 +2352,7 @@ function admTrustBind(el, V, re) {
 // notes: a list (its writer or the site's owner removes one), and what is typed kept over a redraw
 function admNoteList(L, V, attr, nick) {
   if (!L.length) return '<p class="w">No notes yet.</p>';
-  return `<ul class="admnotes">${L.map(n => `<li><span class="w">${esc(n.by)} · ${esc(admAt(n.at))}${n.round ? ` · <a href="#round=${encodeURIComponent(linkId(n.round))}&amp;tab=admin">${esc(linkId(n.round))}</a>` : ''}</span>${n.by === V.me || V.owner ? ` <button class="linkb admx" ${attr}="${esc(n.id)}"${nick ? ` data-pn="${esc(nick)}"` : ''} title="Remove this note">remove</button>` : ''}<div>${esc(n.text).replace(/\n/g, '<br>')}</div></li>`).join('')}</ul>`;
+  return `<ul class="admnotes">${L.map(n => `<li><span class="w">${esc(n.by)} · ${esc(admAt(n.at))}${n.round ? ` · <a href="#round=${encodeURIComponent(linkId(n.round))}&amp;review=1">${esc(linkId(n.round))}</a>` : ''}</span>${n.by === V.me || V.owner ? ` <button class="linkb admx" ${attr}="${esc(n.id)}"${nick ? ` data-pn="${esc(nick)}"` : ''} title="Remove this note">remove</button>` : ''}<div>${esc(n.text).replace(/\n/g, '<br>')}</div></li>`).join('')}</ul>`;
 }
 function admPlayerNotes(nick) {
   const V = admRev(); if (!admRevOn(V)) return '';
@@ -2405,9 +2445,9 @@ function admSubReview(el, re) {
     <textarea id="arText" readonly rows="16" aria-label="The report">${esc(rep.text)}</textarea>
     <p><button class="btn sm" id="arCopy">Copy</button> <button class="btn sm" id="arHtml">Download .html</button> <span class="w">the text fits Discord (bold with **); the .html is a page to send or keep</span></p>
   </section></div>`;
-  const go = x => { paneSet('battle', true); if (x.h) jumpTo(x.h); else { t = Math.max(0, Math.min(round.duration, x.t - HL_LEAD)); refresh(true); } };
+  const go = x => { if (revOn && x.h) { admRevPick(x.h); return; } admToMap(); if (x.h) jumpTo(x.h); else { t = Math.max(0, Math.min(round.duration, x.t - HL_LEAD)); refresh(true); } };
   el.querySelectorAll('[data-mgo]').forEach(b => b.onclick = () => go(MK[+b.dataset.mgo]));
-  el.querySelectorAll('[data-mclip]').forEach(b => b.onclick = () => { paneSet('battle', true); clipAround(MK[+b.dataset.mclip].h); });
+  el.querySelectorAll('[data-mclip]').forEach(b => b.onclick = () => { admToMap(); clipAround(MK[+b.dataset.mclip].h); });
   el.querySelectorAll('[data-mrm]').forEach(b => b.onclick = async () => { b.disabled = true; await admRevAct('review-mark', { round: nm, key: MK[+b.dataset.mrm].k, state: null }, re); });
   if ($('#arOpen')) $('#arOpen').onclick = () => { Object.assign(admPF, { rev: 'open', str: 'strong', kind: 'all', who: '', minN: 1 }); admSub = 'hints'; re(); };
   $('#arNoteAdd').onclick = async () => { const ta = $('#arNote'), v = ta.value.trim(); if (!v) { ta.focus(); return; } $('#arNoteAdd').disabled = true; const j = await admRevAct('review-note', { round: nm, text: v }, re); if (j.ok) admDraft.delete('rn:' + nm); else $('#arNoteAdd').disabled = false; };
@@ -2437,7 +2477,7 @@ function admPlayerTiles(nick, AG, tiles, hs, redraw) {
       tiles[ti] = `<div class="kpi${odd ? ' kodd' : ''}" data-wrap title="${esc(tip)}"><span class="kl">Headshots</span><span class="kv">${hs}</span><span class="ks">${pc(x.head / x.n)} of kills · his weapons give ${pc(x.exp / x.n)}${odd ? ' - far above' : ''}</span></div>`;
     } }
 }
-Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick) });
+Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick) });
 // @agg-admin-begin
 // (v183, todo 221) his headshots against what his weapons give everyone: the share of small-arms kills to the head is
 // each weapon's own (HS_W, 145 thousand kills of the analysis of 1619 rounds of 8 servers, todo 146: sniper rifles ~0.47,
@@ -2459,7 +2499,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 15977) ----
+// ---- part 8 (page line 16262) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2477,7 +2517,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 16013) ----
+// ---- part 9 (page line 16298) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

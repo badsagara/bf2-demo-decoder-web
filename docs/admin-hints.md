@@ -7,7 +7,7 @@ Hints point you to moments worth a closer look. **They are not proof.** Always w
 
 ## How to read them
 
-**Strength** (shown next to each hint in the Admin tab):
+**Strength** (shown next to each hint on a round's admins' page, Review — the Admin tab until v242):
 - **minor**: server rules or plain information (team kills, claymores, AFK and so on).
 - **hint**: worth a look.
 - **strong**: something normal play can't do, or a result so far above everyone else that luck would give it less than once in 10,000.

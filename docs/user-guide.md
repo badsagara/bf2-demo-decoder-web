@@ -5,7 +5,7 @@ records, and make a clip to share. Everything here works in any modern browser, 
 numbers are worked out (and what a demo can't tell) is in [features.md](features.md).
 
 Contents: [The site at a glance](#the-site-at-a-glance) · [Logging in](#logging-in) · [Watching a round](#watching-a-round) ·
-[Following a soldier](#following-a-soldier) · [What the map shows (Map ▾)](#what-the-map-shows-map-) ·
+[Following a soldier](#following-a-soldier) · [What the map shows (Show ▾)](#what-the-map-shows-show-) ·
 [The panels and tabs](#the-panels-and-tabs) · [Clips](#clips-video-gif-or-a-game-video) ·
 [All rounds](#all-rounds) · [A player's page](#a-players-page) · [A map's page](#a-maps-page) · [Records](#records) ·
 [Stats](#stats) · [Links, previews, RSS](#links-previews-rss) · [On your own computer](#on-your-own-computer) ·
@@ -20,13 +20,17 @@ The page opens on the newest round. At the top:
 | **Rounds** | every round of the site: by server, map, day, player ([All rounds](#all-rounds)) |
 | **Records** | the best in one round and who did most: last 7 days, 30 days, all time ([Records](#records)) |
 | **Stats** | clans, vehicles, the servers, search moments ([Stats](#stats)) |
-| **Tools ▾** | open a demo of your own, and what the decoder reads from the demo file ([On your own computer](#on-your-own-computer)) |
+| **Tools ▾** | (on the Rounds page) open a demo of your own, and what the decoder reads from the demo file ([On your own computer](#on-your-own-computer)) |
 | **Log in** | for the site's users and admins ([Logging in](#logging-in)); logged in, it shows your name |
+| **Review ↗** | (v243) only for the site's admins, logged in: the round's admins' page — see the admin guide; **Player view ↗** comes back |
 | the theme button | light or dark colours (remembered in this browser) |
+| **☰** | on a phone: Rounds, Records, Stats and the colours (v242) |
 
 Over the map, the **round bar**: the map, day and time, length, players, the server, who won and the tickets. Click it
-for **All rounds ›**; **‹ Newer** / **Older ›** step to the next or previous round; **Map page** opens the map over all
-rounds; **⬇ Demo** downloads the round's demo (or links to where it came from, if the site no longer has it).
+for **All rounds ›**; **‹ Newer** / **Older ›** step to the next or previous round. (v242) **Share ▾**: **Copy a link to
+this moment** (the round here, following the soldier you follow), **Make a video clip…** (see [Clips](#clips)),
+**Download the demo** (or where it came from, if the site no longer has it) and **the map's page** (the map over all
+rounds).
 
 When a new version of the site comes out while you watch, a bar says **A new version is out · Reload**; Reload brings you
 back to the same moment with the same soldier.
@@ -39,7 +43,7 @@ were going (the same round and moment). On an open site the **Log in** button at
 
 - **Name and password**: as the site's owner gave them to you — or your own: **Sign up** (v239, under the login form,
   when the site lets visitors make accounts) takes a name (2–32 letters, digits, `. _ -`) and a password of 8 or more. A
-  new account may open what visitors may (the owner can give it more), and keeps what the map shows — Map ▾'s switches,
+  new account may open what visitors may (the owner can give it more), and keeps what the map shows — Show ▾'s switches,
   pins and your presets — in your profile, the same on any computer you log in on.
 - **Keep me logged in on this computer**: 30 days (14 without a visit) instead of 12 hours (2 without a visit). Don't
   tick it on a shared computer.
@@ -47,28 +51,32 @@ were going (the same round and moment). On an open site the **Log in** button at
   **Change password** (the one you have first; your other logins end) and, for an account you made yourself, **Delete my
   account** (with its settings; the browser keeps its own copy of them).
 - What your account may not open is not shown: for example without "All rounds" there is no Rounds button and no
-  ‹ Newer / Older › — a round opens from its link; without "Download demos" there is no ⬇ Demo.
+  ‹ Newer / Older › — a round opens from its link; without "Download demos" there is no Download the demo.
 - "This account may not open that page" on the login page: ask the site's owner, or log in with another account.
 
 ## Watching a round
 
+(v242) Everything that plays the round and changes the view is in **one bar under the map** (over it in full screen):
+
 - **Play** / Space — play and pause. The speed slider (or `+` / `−`) goes up to many times real time.
-- **The timeline** under the map: drag to any moment; its marks are kills in each side's colour, ▼ flags captured,
-  ▽ neutralised. `←` / `→` jump 10 s back or on.
-- **The map**: scroll to zoom, drag to move. The zoom slider shows how many metres the map shows across.
-- **Buttons over the map**: **His view** (`V`, v228: only what the soldier you follow knew — see below), **Aim line**
-  (`X`, v230: his aim line, while you follow someone — see below), **Full screen** (`F`), **Scoreboard** (hold `Tab`, or click to keep it open — the game's own
-  scoreboard at this moment, both sides by squad), **Bigger map**, **Lock camera** (`K`, keeps the soldier you follow in
-  the middle; dragging unlocks), **Fit action** (zoom to the part of the map the round was played on), **Whole map**, **Copy link** (a link to
-  this round at this moment, following the soldier you follow), **Controls left** (these buttons in a column left of the
-  map so its bottom stays free).
-- **The bar at the top of the map**: tickets and time left, as in the game. **Legend ▾** says what each mark means (only
-  for the layers switched on).
-- **Quick buttons**: Icons / Models (`M`, vehicles as map icons or 3D models seen from above), Buildings (`B`), Relief
-  (`H`), **Names** (`T`: all the players' names on the map off and on again — the soldier you follow keeps his, the kill
-  feed keeps them), **Next 20 s** (`A`, see below), 1st / 3rd person for a vehicle seat (`C`). (v239) These are the
-  pinned elements of **Map ▾**: pin any other there (Spots, the Aim line, a whole group…), unpin these. The box by
-  **Map ▾** switches presets.
+- **The round time** and its slider: drag to any moment. `←` / `→` jump 10 s back or on.
+- **Camera ▾** — **Follow**: the soldier the map follows (or click him on the map); **His view** (`V`: only what he knew
+  in the game — see below); **Aim line** (`X`: his aim line — see below); **Keep him in the middle** (`K`: the map moves
+  with him; dragging the map stops it); 1st / 3rd person for a vehicle seat (`C`); how much of the map: **The fight**
+  (where the soldiers and flags are), **Whole map**, **Bigger map** (nearly the window's height); the zoom slider (how
+  many metres the map shows across); **The game's scoreboard** (or hold `Tab`).
+- **Show ▾** (`L`) — what the map shows: presets, every element by group, and your quick switches at its top (see
+  [What the map shows](#what-the-map-shows-show-)). The button says which preset is on.
+- **⛶** — full screen (`F`).
+- **On the map**: scroll or **+** / **−** (bottom right) to zoom, drag to move. The bar at the top: tickets and time left,
+  as in the game. **Legend ▸** (folded at first) says what each mark means (only for what is switched on).
+- **Beside the map** (a wide screen; else under it): **Kill feed** · **Highlights** · **Players** (the scoreboard at
+  this moment, by side) — and **Filter ▾** (only some kills: by the killer, the victim, the weapon). **Hide ▸** folds
+  the panel to a strip.
+
+Before v242 these were twenty buttons over the map (His view, Aim line, Full screen, Scoreboard, Bigger map, Lock camera,
+Fit action, Whole map, Copy link, Controls left, the quick buttons, Map ▾ and its presets) and a second Play, Map ▾ and
+Clip under the map.
 
 On a phone the page is laid out for the narrow screen: the map first, with **Play**, **−10 s** and a seek bar under it;
 **Map ↑** brings you back to the map from the tables.
@@ -85,7 +93,7 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   ✕ deaths (faint: revived), click to go there; **Killed with**, **Killed most**, **Killed by**; **All his rounds ›**
   opens his page.
 - `N` / `P` — his next / previous moment (a kill, a death, a revive…).
-- **His view** (`V`; the **His view** button with an eye on the map, next to Map ▾, or the one in his card) — only what he knew
+- **His view** (`V`; **Camera ▾ → His view**, or the button in his card) — only what he knew
   in the game: his side, the enemies he had in sight (faded for a few seconds where he last saw one), his side's spots,
   and every empty vehicle (v228; a burning wreck only where he could see it). The map's button is filled while it is on;
   pressed with nobody followed, it waits (dashed) for the next soldier you click. For a vehicle, **Crew's view**: what
@@ -111,10 +119,10 @@ Click a soldier on the map, his row on the scoreboard, or his name anywhere. The
   along the hit's direction — how high the bullet went over the victim (over a roof's edge, say). A man lying down is
   drawn with his head the way he faces.
 
-## What the map shows (Map ▾)
+## What the map shows (Show ▾)
 
-**Map ▾** (`L`; on the map and under it) lists everything the map draws, by what it shows — every element its own
-switch (v239). The number on the button is how many are on.
+**Show ▾** (`L`; in the bar under the map — v239–v241 Map ▾, on the map) lists everything the map draws, by what it
+shows — every element its own switch (v239). The button says which preset is on.
 
 | Group | Elements |
 |---|---|
@@ -127,12 +135,13 @@ switch (v239). The number on the button is how many are on.
 | **Screen** | Map name · Top bar (tickets, time) · Kill feed · Legend · Scoreboard and text: Game / Page · Cursor: Off / Height / Grid (`G`) |
 
 - **all / none** by a group switches the whole group.
-- **Pins**: the pin by an element (or by a group) puts it on the map as a button, in the order pinned (12 at most);
-  a group's button turns it all off and back as it was. At first: Icons / Models, Buildings, Relief, Names, Next 20 s.
+- **Pins**: the pin by an element (or by a group) puts it among **your quick switches** at the top of Show ▾ (v242;
+  before, buttons on the map), in the order pinned (12 at most); a group's switch turns it all off and back as it was.
+  At first: Icons / Models, Buildings, Relief, Names, Next 20 s.
 - **Presets**: Standard (as the page starts), Clean (soldiers, vehicles, flags and kills — few names, no extras), Kill
   check (the aim line, relief, the ground over his eyes, heights by the pointer), Everything — and your own: **Save as…**
   keeps what the map shows now under a name (30 at most), **Delete** removes one, **Defaults** puts everything back as
-  the page starts. The box by Map ▾ on the map switches them; "· changed" after a name: changed since.
+  the page starts. "· changed" after a name: changed since.
 - **Where it is kept**: in this browser always; logged in, also in your profile on the site — the same on any computer
   (your profile's settings win when you log in; your first login sends this browser's there). The line under the
   presets says which.
@@ -144,11 +153,12 @@ switch (v239). The number on the button is how many are on.
 **Battle** (the default tab):
 
 - **Tickets & flags** — each side's tickets over the round and the flags.
-- **Kill feed · Highlights** — next to the map (or under it on a narrow screen). **Kill feed**: every kill, revive and
-  capture; click one to jump there. **Highlights**: the moments worth watching (below). A filter for both: **Killer…**,
-  **Victim…** (⇄: either way round), **Any weapon**, near a flag; ✕ clears it. **Hide ▴** folds the panel to a strip;
-  `J` folds the kill feed over the map.
-- **Team 1 / Team 2** — the scoreboard of each side.
+- **Kill feed · Highlights · Players** — right of the map (v242; before, on its left), or under it on a narrow screen.
+  **Kill feed**: every kill, revive and capture; click one to jump there. **Highlights**: the moments worth watching
+  (below). **Players** (v242; before, its own card under the map): the scoreboard of each side at this moment.
+  **Filter ▾** opens a filter for the feed and the highlights: **Killer…**, **Victim…** (⇄: either way round), **Any
+  weapon**, near a flag; ✕ clears it ("Filter: on" while one is). **Hide ▸** folds the panel to a strip; `J` folds the
+  kill feed over the map.
 
 **Round stats** — the whole round:
 
@@ -171,7 +181,7 @@ rounds page): rounds, score, kills, deaths, K/D and more; column groups includin
 
 ## Clips: video, GIF or a game video
 
-**Clip** (under the map) opens the clip bar. Mark the stretch with **Start here** / **End here** (`I` / `O`), or drag the
+**Share ▾ → Make a video clip…** (the round bar; v242 — before, **Clip** under the map) opens the clip bar. Mark the stretch with **Start here** / **End here** (`I` / `O`), or drag the
 ends of the yellow band on the timeline.
 
 - **File**: **Video (MP4)** (up to 2 minutes of video), **GIF** (plays everywhere, also in chats without video; 600 px, 10
@@ -242,7 +252,7 @@ There is also a plain page for every player at `/players/<nick>.html`, and `/pla
 
 ## A map's page
 
-**Map page** (on the round bar) or `…/#map=<map>`: its rounds, who kills most there and with what, where they die most,
+**Share ▾ → the map's page** (on the round bar; before v242 **Map page**) or `…/#map=<map>`: its rounds, who kills most there and with what, where they die most,
 **Records on this map**, and a heat map of everyone's kills and deaths.
 
 ## Records
@@ -268,7 +278,7 @@ vehicles, anti-air guns, anti-air rockets from the ground, air-to-air missiles. 
 
 ## Links, previews, RSS
 
-- **Copy link** gives `https://site/r/<round>?t=466&p=…` — the round at that moment, following that soldier — and a
+- **Share ▾ → Copy a link to this moment** (v242; before, **Copy link** on the map) gives `https://site/r/<round>?t=466&p=…` — the round at that moment, following that soldier — and a
   player's page link `https://site/p/<nick>`. Telegram, Discord, Slack and WhatsApp show the map, date, winner and score,
   players and kills, the best player (for a player: his rounds, kills, deaths, K/D) and the map's picture under the link.
 - Plain pages that search engines can read: `/rounds/` (the last 100 rounds and a monthly archive; each round with
@@ -279,7 +289,7 @@ vehicles, anti-air guns, anti-air rockets from the ground, air-to-air missiles. 
 
 ## On your own computer
 
-**Tools ▾** shows the file buttons:
+**Tools ▾** (at the top of the **Rounds** page; v242 — before, on every page) shows the file buttons:
 
 - **Open .bf2demo** — any demo from your game's demos folder; it is decoded in your browser (nothing is uploaded) and
   replayed like the site's rounds.
@@ -303,7 +313,7 @@ The same `index.html` works without a server (open it from a local web server su
 | `I` `O` | clip start / end |
 | `Tab` (hold) | scoreboard |
 | `F` | full screen |
-| `L` | what the map shows (Map ▾) |
+| `L` | what the map shows (Show ▾) |
 | `M` | vehicles: icons / models |
 | `B` | buildings' outlines |
 | `T` | all players' names on the map on / off |

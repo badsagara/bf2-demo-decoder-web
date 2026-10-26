@@ -2,8 +2,8 @@
 
 For the site's owner and for the admins of the game servers. Part 1 is the admin page `/admin` (the owner's; an account
 sees the cards it was given), including **who may open the site** ([Users and access](#users-and-access)). Part 2 is what
-admins see on the site itself after logging in: the **Admin** tab of each round, the **For admins** tab next to the map,
-and the hint cards on players' pages. Part 3 is how to work with hints. What every hint means is in
+admins see on the site itself after logging in: each round's **admins' page** (**Review ↗** in the header — v243; it
+holds what were the Admin tab and the For admins tab next to the map), and the hint cards on players' pages. Part 3 is how to work with hints. What every hint means is in
 [admin-hints.md](admin-hints.md); how the numbers behind them are worked out is in [features.md](features.md).
 
 > Admin tools and hints are deliberately not visible to players: the hint rules and thresholds are not in the public
@@ -271,7 +271,7 @@ all**, then **Save** (it asks before closing).
 
 **Sign-up** (v239) — *visitors may make their own account* (on at first): **Log in → Sign up** on the site and on
 `/login` make an account with a name and a password. It may open what guests may — nothing more until you tick it in its
-row (tagged **signed up**) — and keeps that visitor's map settings (Map ▾: switches, pins, presets) in his profile
+row (tagged **signed up**) — and keeps that visitor's map settings (Show ▾: switches, pins, presets) in his profile
 (`data/.prefs/<name>.json`, 32 KB at most), so they are the same on any computer he logs in on. He can change his
 password and delete his own account (with its settings). Limits: 3 new accounts an hour from an address, 30 an hour in
 all, 5000 accounts at most; a name is taken whatever its case. Untick and **Save** to stop new ones (those made stay;
@@ -345,16 +345,32 @@ cleared from the field at once, and never appears in an address, in the page or 
 cookie is HttpOnly, SameSite=Lax, Secure over https. On a non-https address the window warns that the password would
 cross the network unencrypted.
 
-### The Admin tab of a round
+### The admins' page of a round (Review)
 
-Five parts:
+(v243) Logged in as an admin, the header has **Review ↗** on every round: the round's own page for judging it.
+**Player view ↗** goes back to the players' page at the same moment. A link to it: `…/#round=<round>&review=1` (the old
+`tab=admin` links come here too); it is not shown to anyone else — players' pages have no admins' parts.
+
+- **On the left**: the admins' pane (its five parts below — what was the Admin tab under the map) — **Hints** first;
+  its filters are folded under **Filters ▾** (it says how many are on).
+- **Click a hint**: the map goes to its moment and plays it **again and again, from 5 s before to 2 s after, at 1×**
+  (the speed you had comes back when you leave the page; your own seek stops the loop — *Play it again* restarts it);
+  for a kill, its **side view** opens (beside the map on a wide screen, under it on a narrow one); and under it:
+  - what the hint says, its strength, its mark if it has one;
+  - **your verdict**: **⚑ Suspicious**, **✗ A false alarm**, **✓ Checked: nothing there** (the same marks as ✓ ✗ ⚑ in
+    the list; the same button again clears it), with **a note for the other admins** (it goes with the mark, and in
+    the report when suspicious);
+  - **‹ Previous hint** / **Next hint ›** through the list as filtered, and **his page** over all rounds.
+- On a phone or a narrow window: one column, the list first; a hint picked scrolls to the map.
+
+Its five parts:
 
 **Hints** — every hint of the round with filters: **Player** (with his number of hints), **Side** (of the one the hint
 is about, at that moment), **Strength** (*all*; *without the minor ones* — the default: no team kills, claymores, AFK,
 spot spam, leaving the map; *strong only* — see [Part 3](#what-a-hint-is)), **Weapon** (small arms, sniper rifles, launchers, grenades and explosives,
 vehicles, emplacements, not a kill), **From / to** (mm:ss), **Players with N+ hints**, **Review** (below), and chips of
-the kinds with counts. Click a hint: that moment on the map (Battle); ⟂: the side view of the kill. Next to each hint the
-review buttons ✓ ✗ ⚑.
+the kinds with counts. Click a hint: its moment, played again and again (above); ⟂: the side view of the kill. Next to
+each hint the review buttons ✓ ✗ ⚑.
 
 **Players** — every soldier of the round: K, D, team kills; his hints (without the minor ones), the strong ones, of which
 kinds; **headshots** (his heads / small-arms kills with a known hit, his share, and what the same weapons would give
@@ -396,10 +412,10 @@ strong unmarked, notes on the round and players, links to the moments) → **Cop
   site; notes on a round are seen by that round's admins.
 - All of this is kept in `data/.admin/review/` on the VPS (not served to the web).
 
-### For admins next to the map
+### For admins next to the map (until v242)
 
-In the panel left of the map (Kill feed · Highlights), the tab **For admins** lists the same hints as a feed while the
-round plays, with the same killer / victim / weapon / flag filter as the kill feed. Click one to jump to it.
+The tab **For admins** in the panel beside the map listed the same hints as a feed while the round played. Since v243
+the players' page has no admins' parts: the hints are on the admins' page (Review ↗).
 
 ### On a player's page
 
@@ -455,7 +471,7 @@ Each is described, with its conditions and examples, in [admin-hints.md](admin-h
 
 (v227) A hint fires past its thresholds: a time, an angle, a distance, a count in a round, odds. Ours are **recommended** —
 set on thousands of real rounds so that honest play stays under them — and they are what the site uses until it is told
-otherwise. The editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in
+otherwise. The editor opens from the **Thresholds** button on a round's admins' page (Review), **Hint thresholds** in the Log in
 dialog (once logged in), the admin page's card, or `/#thresholds`. Its table has, for each hint (and *Every hint* for
 what they share), each threshold with what it means, its name, the recommended value and two columns:
 
@@ -479,10 +495,10 @@ looser threshold gives more hints and more false ones.
 
 ### A suggested routine
 
-1. Open the round's **Admin** tab → **Hints**, Strength *strong only*, Review *not reviewed, not trusted*.
-2. Click each hint, watch the moment with **His view** (what he could know) and **⟂** (side view: ground, walls and the
-   line of sight). Use **Kills** to see his other kills in numbers.
-3. Mark it ✓, ✗ or ⚑ (say what you saw).
+1. Open the round → **Review ↗** → **Hints**, **Filters ▾**: Strength *strong only*, Review *not reviewed, not trusted*.
+2. Click the first hint: its moment plays again and again, with the side view of the kill. **Camera ▾ → His view**
+   shows what he could know. Use **Kills** to see his other kills in numbers.
+3. Your verdict under it — ⚑, ✗ or ✓, with a note — then **Next hint ›**.
 4. In **Players → History** check his other rounds and his hints card; add a note if useful; ★ a player you know is
    clean.
 5. **Review → A report for the servers' admins** → Copy into the admins' Discord, or Download .html.

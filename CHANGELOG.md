@@ -5,6 +5,54 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v243
+
+**The admins' own page for a round: Review** (Sagara's two pages — the players' page was v242; the mock-up "BF2 Round
+Replay — new pages"):
+
+- **Review ↗** in the header, for an admin logged in (on the site: an account with the Admin tab right; a demo opened
+  on this computer: always): the round's own page for judging it. **Player view ↗** goes back at the same moment. In the
+  link: `review=1` (old `tab=admin` links come here; the login window's button too).
+- **On the left**, the admins' pane — Hints · Players · Kills · The round · Review, as the Admin tab had them; the
+  hints' filters fold under **Filters ▾** (it says how many are on).
+- **A hint clicked**: the map goes to its moment and plays it **again and again, 5 s before to 2 s after, at 1×** (your
+  own speed comes back when you leave; a seek of yours stops the loop, *Play it again* restarts it); a kill's **side
+  view** opens — **beside the map** on a wide screen, so map, side view and verdict are in sight at once.
+- **The verdict** under it: **⚑ Suspicious**, **✗ A false alarm**, **✓ Checked: nothing there** — the marks the list's
+  ✓ ✗ ⚑ set (the same button again clears it) — with **a note for the other admins** in a field instead of a prompt;
+  **‹ Previous hint** / **Next hint ›** through the list as filtered; his page over all rounds.
+- **The players' page has no admins' parts any more**: no Admin tab, no For admins tab beside the map — for admins
+  too; guests never see Review.
+- On a phone or a narrow window: one column, the list first; a hint picked scrolls to the map.
+- Fixed on the way: the page on its own (not split for the site) failed to draw the admins' pane (`ADM_V`).
+- Nothing to do on the server: the decoder (`18e8999d15`), the round summaries (18) and the hint rules (13) are as in
+  v242; marks and notes are kept as before (`data/.admin/review/`).
+
+## v242
+
+**The round page for players: one bar under the map instead of twenty buttons over it** (Sagara: "my site is overloaded
+with buttons and not very logical to use" — the mock-up "BF2 Round Replay — new pages", two pages: this one for
+everyone, the admins' own next):
+
+- **Under the map, one bar** (over it in full screen): **Play**, the round time and its slider, the speed, **Camera ▾**,
+  **Show ▾** and **⛶** full screen. On a narrow map the time gets a row of its own over the buttons.
+- **Camera ▾**: **Follow** (a list of the soldiers, by side — or click one on the map), **His view** (`V`), **Aim
+  line** (`X`), **Keep him in the middle** (`K`, was Lock camera), the seat's 1st / 3rd person (`C`), **The fight**
+  (was Fit action), **Whole map**, **Bigger map**, the zoom slider, **The game's scoreboard** (or hold `Tab`).
+- **Show ▾** (`L`) is the old Map ▾ — the button says which preset is on; **your quick switches** (the pins: Icons /
+  Models, Buildings, Relief, Names, Next 20 s at first) are at its top instead of on the map.
+- **On the map** only **+ / −** (bottom right) and the legend — now folded until you open it.
+- **Share ▾** in the round bar: **Copy a link to this moment**, **Make a video clip…**, **Download the demo**, **the
+  map's page** (were Copy link on the map, Clip under it, Map page and ⬇ Demo in the bar).
+- **Beside the map**, on its right now: **Kill feed · Highlights · Players** — the scoreboard became the third tab;
+  the killer / victim / weapon filter opens from **Filter ▾** ("Filter: on" while one is).
+- Gone: the second Play and Map ▾ under the map (the bar has them), **Controls left** (one bar, under the map), the
+  ADMIN tab for guests (on the site only for its admins; For admins and Admin as before for them — their own page is
+  the next version), **Tools ▾** except on the Rounds page. On a phone the header's links are behind **☰**.
+- 1440×900: 56 buttons and fields on the first screen before, 29 now. Every function is still there; the keys are as
+  before. Nothing to do on the server: the decoder (`18e8999d15`), the round summaries (18) and the hint rules (13) are
+  as in v241.
+
 ## v241
 
 **A man lying down: his head where it is - higher and ahead of his position; going down or getting up, both
