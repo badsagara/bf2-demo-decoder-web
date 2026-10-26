@@ -5,6 +5,38 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v245
+
+**The site in a Caddy that already serves other sites** (Sagara: a script for a Caddy that already has websites, which
+rewrites nothing and does it properly):
+
+- New `server/caddy-attach.sh` (with `server/caddylib.sh`, shared with `units.sh`); `install.sh` uses it in its step
+  **Caddy**. The site is a file of its own, `/etc/caddy/bf2replay.caddy`, and Caddy's config gets **one `import` line**
+  at its end, with a comment above it — not a line of the other sites changes. Only a config that is still the
+  package's placeholder page (or empty) is replaced, as before: a fresh Caddy.
+- It finds the config Caddy really runs (`--config` in the service's `ExecStart`; `BF2R_CADDYFILE` / `BF2R_CADDY_UNIT`
+  for other set-ups) and checks before it changes anything: the config as it is now; the site's name against the sites
+  already there (the same name, or no name while Caddy serves others: it stops); the whole new config as a copy, with
+  the service's own environment (`{$VAR}`). Then Caddy is reloaded, not restarted; a config Caddy refuses puts the files
+  back, and Caddy keeps the old one. A copy of what changed: `/etc/caddy/bf2replay-backup/<date-time>/`.
+- `--check` only says what it would do; `--remove` takes the line and the file out again (the config comes back as it
+  was). Caddy in Docker, `--resume` (config API), a JSON config, Caddy older than 2.5.1: it stops and says what to do
+  (INSTALL.md §10).
+- `install.sh` runs the check right after the packages, before it makes anything of the site.
+- Fixed on the way: `install.sh` replaced the whole Caddyfile when the package's placeholder block was still in it next
+  to other sites. `units.sh` checked a new site file only against `/etc/caddy/Caddyfile` and without the service's
+  environment, and with Caddy stopped it threw the new file away (the reload failed); now it checks the config Caddy
+  runs, and keeps a checked file for Caddy's next start.
+- Tried with a real Caddy 2.6.2, 2.8.4 and 2.10.2: a fresh one; one with global options, the placeholder block, sites
+  in the Caddyfile and through `import sites/*.caddy` (a reverse proxy among them), snippets; the same name, no name,
+  a broken config, a refused reload, a wildcard site, a glob that takes in the site's file, `{$VAR}` from an
+  `EnvironmentFile`, Caddy run as root with `Environment=`, a config in another folder, a symlinked Caddyfile (the symlink
+  stays; Caddy reads relative imports from the symlink's folder, and so does the script), a stopped Caddy, `--resume`,
+  no service, an install from before v245.
+  The other sites answered all along; `--remove` gave the config back byte for byte.
+- Nothing to do on a VPS already installed: the decoder (`18e8999d15`), the round summaries (18) and the hint rules
+  (13) are as in v244.
+
 ## v244
 
 **Asking the statistics: a constructor for admins** (Sagara: the admin picks the person, the parameter, how to judge it

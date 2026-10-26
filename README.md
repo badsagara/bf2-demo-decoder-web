@@ -12,6 +12,7 @@ site/         the site itself: index.html + assets/ (maps, icons, wall and terra
               vehicle models, pictures for link previews: assets/og)
 server/       for the VPS: install.sh (installs everything in one run), fetch.mjs (takes demos from the servers' pages),
               ingest.mjs (decodes demos), update.sh (updates from GitHub), units.sh (systemd timers and Caddy),
+              caddy-attach.sh + caddylib.sh (the site in Caddy, also in a Caddy that serves other sites),
               notify.mjs / digest.mjs / alerts.mjs (posts, summaries, admin alerts), admin.mjs + admin.html (the admin
               page), analyze.sh / analyze.mjs (analysis of many rounds; in the background — the hints over all of a
               player's rounds), glitch.mjs (the grid of where soldiers stood, for Glitch spot), demos.mjs (which old demos
@@ -93,8 +94,9 @@ The full guide is [docs/install.md](docs/install.md). In short:
    `sudo bash /srv/bf2replay/repo/server/analyze.sh start`.
 
 Every setting is in `/etc/bf2replay.conf` ([docs/install.md §6](docs/install.md#6-settings-etcbf2replayconf)); the
-admin page holds the rest. Another web server on 80/443: `BF2R_WEB=none` and `server/nginx-example.conf`
-([§13](docs/install.md#13-another-web-server-nginx)).
+admin page holds the rest. A Caddy already serving other sites: the site is added next to them, nothing else changes
+(`server/caddy-attach.sh`). Another web server on 80/443: `BF2R_WEB=none` and `server/nginx-example.conf`
+([§13](docs/install.md#13-a-web-server-already-on-the-vps-caddy-with-other-sites-or-nginx)).
 
 ## Once: make the repository
 
@@ -129,7 +131,7 @@ the exact collision shapes of the maps `site/assets/geo`, the maps' trees `site/
 minimaps `site/assets/maps_hd`). Unpack it over your clone and push:
 
 ```bash
-V=v244                                   # the version in the archive's name
+V=v245                                   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

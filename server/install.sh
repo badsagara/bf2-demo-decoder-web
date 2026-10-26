@@ -14,8 +14,9 @@
 # BF2R_FETCH_AT     HH:MM, when (server clock; default 05:30)
 # BF2R_FETCH_SINCE  YYYY-MM-DD: don't download demos recorded before this day (empty = all the page lists)
 # BF2R_FETCH_MAX    at most so many downloads a day (default 0 = no limit)
-# BF2R_WEB     caddy (default: installs Caddy, automatic HTTPS) or none (another web server already runs here: set it up
-#              yourself from nginx-example.conf)
+# BF2R_WEB     caddy (default: installs Caddy, automatic HTTPS; a Caddy already here with other sites is used as it is -
+#              the site is added with caddy-attach.sh, BF2R_DOMAIN then required) or none (another web server already
+#              runs here: set it up yourself from nginx-example.conf)
 #
 # It installs Node.js 22 (if needed), Caddy, git and rsync; makes the users bf2replay (runs everything) and bf2upload
 # (SFTP only, into /srv/bf2replay/upload/incoming, for game servers that send their demos themselves); clones the repository; sets up Caddy and
@@ -43,7 +44,8 @@ say "Ports 80 / 443"
 if [ "$WEB" = caddy ] && ss -ltnp 2>/dev/null | grep -E ':(80|443)\s' | grep -vq caddy; then
   ss -ltnp | grep -E ':(80|443)\s' || true
   echo "Another web server already listens on port 80 or 443. Stop it, or run again with BF2R_WEB=none and serve the"
-  echo "site with that web server (nginx-example.conf; INSTALL.md)."
+  echo "site with that web server (nginx-example.conf; INSTALL.md). (A Caddy already running here as a service is fine:"
+  echo "the site is added to it. Caddy in Docker shows up above as docker-proxy: INSTALL.md section 10.)"
   exit 1
 fi
 
@@ -66,6 +68,12 @@ if [ "$WEB" = caddy ] && ! command -v caddy >/dev/null; then
   apt-get update -q && apt-get install -y -q caddy
 fi
 echo "node $(node -v)"; [ "$WEB" = caddy ] && echo "caddy $(caddy version | head -1 | cut -d' ' -f1)"
+if [ "$WEB" = caddy ]; then
+  # (v245) before anything of the site is made: can Caddy take the site next to what it already serves? (changes nothing)
+  if ! BF2R_DOMAIN=$DOMAIN bash "$HERE/caddy-attach.sh" --check; then
+    echo; echo "Nothing of the site was installed yet (only the packages above). Fix this and run install.sh again."; exit 1
+  fi
+fi
 
 say "Users and folders"
 getent group bf2replay >/dev/null || groupadd --system bf2replay
@@ -176,22 +184,12 @@ systemctl reload ssh 2>/dev/null || systemctl reload sshd 2>/dev/null || systemc
 
 if [ "$WEB" = caddy ]; then
 say "Caddy"
-SITE_ADDR=${DOMAIN:-:80}
-sed "s|__SITE__|$SITE_ADDR|" "$HERE/Caddyfile.in" > /etc/caddy/bf2replay.caddy
-if [ -f /etc/caddy/Caddyfile ] && grep -q 'import bf2replay.caddy' /etc/caddy/Caddyfile; then :;
-elif [ -f /etc/caddy/Caddyfile ] && grep -qv '^\s*#\|^\s*$' /etc/caddy/Caddyfile && ! grep -q 'root \* /usr/share/caddy' /etc/caddy/Caddyfile; then
-  echo 'import bf2replay.caddy' >> /etc/caddy/Caddyfile   # (keeps the sites Caddy already serves)
-else
-  echo 'import bf2replay.caddy' > /etc/caddy/Caddyfile     # (the package's placeholder page goes)
-fi
-install -d -o caddy -g caddy -m 755 /var/log/caddy
-# (the log file must be Caddy's: one left owned by root, e.g. by caddy run as root, stops Caddy from loading the site)
-[ -f /var/log/caddy/bf2replay.log ] || install -o caddy -g caddy -m 644 /dev/null /var/log/caddy/bf2replay.log
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
-chown -R caddy:caddy /var/log/caddy
+# (v245) caddy-attach.sh: the site's own file /etc/caddy/bf2replay.caddy and one import line at the end of Caddy's
+# config; the sites Caddy already serves stay as they are (only the package's placeholder page is replaced). Everything
+# is checked on a copy first, Caddy is reloaded, and a refused change goes back. It stops (changing nothing) when the
+# site would clash with a site already there - e.g. the same domain, or no domain while Caddy serves others.
 systemctl enable caddy >/dev/null 2>&1 || true
-if systemctl is-active --quiet caddy; then systemctl reload caddy; else systemctl restart caddy; fi || {
-  echo; echo "Caddy did not start. Its log:"; journalctl -u caddy -n 40 --no-pager -o cat; exit 1; }
+BF2R_DOMAIN=$DOMAIN bash "$HERE/caddy-attach.sh"
 else
   say "Web server: not touched (BF2R_WEB=$WEB); serve $ROOT/site and $ROOT/data as in nginx-example.conf"
 fi

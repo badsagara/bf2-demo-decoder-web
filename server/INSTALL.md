@@ -32,7 +32,8 @@ rounds), `upload/incoming/` (incoming). Settings: `/etc/bf2replay.conf`.
   When less than 3 GB is left on the disk (`BF2R_MIN_FREE_GB`), `fetch.mjs` stops and says so in its log. So that it
   doesn't come to that, `ingest.mjs` already below 5 GB (`BF2R_MIN_FREE_GB` + 2) removes the oldest demos (the decoded
   rounds stay) until 5 GB are free (`BF2R_RAW_AUTOCLEAN=0`: don't remove).
-- **Node.js 22, Caddy, git, rsync** — `install.sh` installs them.
+- **Node.js 22, Caddy, git, rsync** — `install.sh` installs them. A Caddy already serving other sites here is used as it
+  is: the site is added next to them (§10).
 - **Ports 22, 80, 443** open (in `ufw`, and in the hoster's firewall if its panel has one).
 - **A domain** for HTTPS. Free: https://www.duckdns.org → your own `something.duckdns.org` → the VPS's IP.
   It works without a domain too, but only as `http://IP`.
@@ -231,6 +232,8 @@ pages from `BF2R_FETCH_URLS` is not needed — there are no more extra downloads
 | `BF2R_BACKUP_ROUNDS` | `1`: the decoded rounds go into the copy too (`data/rounds`, ~3 MB a round; the only copy of a round whose demo is gone) | 0 |
 | `BF2R_JOBS` | how many demos to decode at once — new ones and again (since v162); each takes up to ~1.2 GB of RAM. Set here, the admin page can't change it (§16) | 0 = as chosen on the admin page, else as many as the CPU cores and memory allow, at most 4 |
 | `BF2R_HINTS` | `0`: turn off the background analysis (`bf2replay-hints`: Glitch spot and the hints over all of a player's rounds, §20) | 1 |
+| `BF2R_CADDY_UNIT` | (v245) the systemd service that runs Caddy, when it is not `caddy` (§10) | caddy |
+| `BF2R_CADDYFILE` | (v245) Caddy's main config, when the service runs another one than `/etc/caddy/Caddyfile` — `caddy-attach.sh` writes it here when it finds one; `units.sh` checks each new site config against it (§10) | /etc/caddy/Caddyfile |
 
 More settings: posts and summaries (`BF2R_TELEGRAM_TOKEN`, `BF2R_NOTIFY_MIN_PLAYERS`, `BF2R_DIGEST_AT`,
 `BF2R_DIGEST_TZ`) in §15; the full list in [docs/install.md §6](../docs/install.md#6-settings-etcbf2replayconf).
@@ -308,7 +311,63 @@ sudo apt-get update                                                   # must pas
 Webmin listens on port 10000; if you use it, after `ufw enable` open it only to your own IP:
 `sudo ufw allow from YOUR_IP to any port 10000 proto tcp`.
 
-## 10. If the VPS already has nginx (or another web server on 80/443)
+## 10. If the VPS already has a web server: Caddy with other sites, or nginx
+
+### Caddy already serves other sites (v245)
+
+Nothing to do but give the site a name of its own (`BF2R_DOMAIN`, a name no site in that Caddy has yet, DNS first:
+§1). `install.sh` adds the site to that Caddy with `server/caddy-attach.sh`, and the other sites go on as they are:
+
+- the site is a file of its own, `/etc/caddy/bf2replay.caddy` (made from `Caddyfile.in`; `units.sh` writes it anew
+  after an update that changes it);
+- Caddy's config — `/etc/caddy/Caddyfile`, or whatever its service runs (`--config` in its `ExecStart`) — gets **one
+  line** at its end, `import /etc/caddy/bf2replay.caddy`, with a comment above it. Not a line of the other sites
+  changes. Only a config that is still the package's placeholder page (or empty) is replaced: a fresh Caddy;
+- everything is checked before it is done: the config as it is now (it stops if that doesn't validate already), the
+  site's name against the names already there (the same name: it stops), and the whole new config — yours plus the
+  site — as a copy, with the service's own environment (`{$VAR}` from its `EnvironmentFile`), while the files Caddy
+  runs from stay untouched;
+- then Caddy is **reloaded**, not restarted: the other sites go on without a break. If Caddy refuses the new config,
+  the files go back as they were and Caddy keeps the old one. What changed is copied first into
+  `/etc/caddy/bf2replay-backup/<date-time>/`.
+
+`install.sh` asks the same right after installing the packages (`caddy-attach.sh --check`), before it makes anything of
+the site, and stops with the reason if the site can't go in — e.g. no `BF2R_DOMAIN` while Caddy serves other sites
+(the site would be a catch-all on port 80).
+
+By hand, at any time (as root):
+
+```bash
+cd /srv/bf2replay/repo/server        # (before the first install: the folder you copied, /tmp/bf2r-server)
+sudo bash caddy-attach.sh --check                                  # what it would do; changes nothing
+sudo BF2R_DOMAIN=replay.your-domain bash caddy-attach.sh           # add the site (again: update it, or a new name)
+sudo bash caddy-attach.sh --remove                                 # take the site out again: its line and its file
+```
+
+`--check` shows Caddy's version and service, the config it runs, the sites already in it, and notes worth reading: the
+name doesn't point to this machine yet; a wildcard site (`*.your-domain`) covers the name too (the exact name wins);
+Caddy's global options turn automatic HTTPS off or move the ports (they apply to this site too).
+
+It does not handle these, and stops saying so (changing nothing):
+
+- Caddy older than 2.5.1 (the site needs `forward_auth`): update Caddy first.
+- Caddy keeping its config itself (`--resume`, the `caddy-api` service) or running a JSON config: add the site's
+  block yourself (`caddy adapt --config server/Caddyfile.in` gives its JSON, with `__SITE__` replaced by your domain).
+- Caddy in Docker (there is no `caddy` service; the ports belong to `docker-proxy`): run `install.sh` with
+  `BF2R_WEB=none`, mount `/srv/bf2replay` into the container (read-only), put the block of `Caddyfile.in` into its
+  Caddyfile (your domain for `__SITE__`), and let it reach `127.0.0.1:8781` — the admin page and the login
+  (`network_mode: host`). The updates then don't change that block: add what a new version brings by hand.
+- A service with another name: `BF2R_CADDY_UNIT=<name>`; a config other than its `--config`: `BF2R_CADDYFILE=<path>`.
+  Both are kept in `/etc/bf2replay.conf` for `units.sh`.
+
+`units.sh` (after each update) checks a new site file against the whole config Caddy runs — the other sites too, with
+the service's environment — and reloads Caddy only if it runs; a file Caddy would refuse is not used.
+
+Before v245 `install.sh` itself added `import bf2replay.caddy` to a Caddyfile with other sites, but it replaced the whole
+file when the package's placeholder block (`root * /usr/share/caddy`) was still in it next to them. A VPS installed
+then needs nothing: `caddy-attach.sh` recognises the old line.
+
+### nginx (or another web server on 80/443)
 
 `install.sh` notices it and stops. Then run it with `BF2R_WEB=none` (Caddy is not installed) and connect the site to
 nginx following `nginx-example.conf` (with the command for HTTPS through certbot). (v182: the example got the line
@@ -975,6 +1034,9 @@ by itself on the new version, as always.
 ~80-150 MB more while admins use it (let go after 30 minutes unused). Its unit gets `MALLOC_MMAP_THRESHOLD_=131072`
 (that memory given back to the system): the update puts the unit in place and restarts the admin page by itself.
 Nothing to do; on a VPS with little memory, watch `systemctl status bf2replay-admin` (Memory:) after a few questions.
+(v245) Only the install scripts change (`caddy-attach.sh`: the site in a Caddy that already serves other sites, §10):
+nothing to do. `units.sh` now checks a new site config against the whole config Caddy runs, with its service's
+environment, and reloads Caddy only while it runs.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 
