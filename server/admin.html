@@ -94,6 +94,7 @@ details.hlp { margin: 0 0 10px; } details.hlp > summary { font-size: 12.5px; } d
 .dgh { margin: 12px 0 2px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 13px; } .dgh .w { font-weight: 400; } .dged .pit td.c { width: 3em; }
 /* (v196) the servers' admins */
 .urow { border-top: 1px solid var(--line); padding: 8px 0; } .urow:first-child { border-top: 0; } .usrv { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 4px 0; } .usrv label.ck { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
+.unote { color: var(--muted); font-size: 12.5px; margin: 2px 0 6px; } .ugrp label.ck.dis { opacity: .72; } .usave { color: var(--muted); font-size: 12.5px; }   /* (v246) */
 .ugrp { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin: 5px 0; } .ugrp > b { min-width: 6.5em; font-size: 12.5px; color: var(--muted); font-weight: 600; } .ugrp label.ck { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; }
 .accst { margin: 4px 0 8px; } .accst b.open { color: var(--ok); } .accst b.shut { color: var(--warn, #e2b547); }
 .ufrm { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); } .ufrm .usrv { flex: 1 1 100%; } .tag.ok { color: var(--ok); border-color: var(--ok); }
@@ -274,7 +275,7 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
     <h2 id="hH">How to use this page</h2>
     <h3>Every day</h3><p>Nothing needs doing: demos are downloaded, decoded, posted and analysed by themselves. A glance is enough - <b>Rounds</b> grows, <b>Being decoded</b> empties, <b>Disk</b> has room, <b>Services</b> shows no "failed".</p>
     <h3>A new game server</h3><ul><li><b>Where demos come from</b>: its demo page or its address → Check → Add. Its rounds show up under Rounds within minutes.</li><li><b>Posts about new rounds</b> → open the server → its Discord webhook and / or Telegram chat → <b>The post</b> → Preview → Send a test post.</li><li>The <b>Summaries</b> under it: tick Day, Week or Month, choose their channel and look at <b>The summary</b> → Preview the summary.</li><li>Its admins: an <b>Admin channel</b> for the hints of each round, and accounts under <b>Servers' admins</b> for the Admin tab of the rounds on the site.</li></ul>
-    <h3>Who may open the site</h3><ul><li>Open to everyone: <b>Users and access</b> → Guests all ticked. Closed: untick the parts (or all) → Save; then each person an account: <b>Add</b> (a name, a password), open his row, tick what he may open → <b>Save his rights</b>.</li><li>A server's admins: an account with the <b>Admin tab</b> and their servers ticked; for their posts and summaries too, the card <b>Posts about new rounds</b> (only their servers).</li><li>Someone can't get in: his row - a new password (<b>Set</b>), his rights. The login page is <span class="mono">/login</span>; a page closed to a visitor goes there by itself.</li></ul>
+    <h3>Who may open the site</h3><ul><li>Open to everyone: <b>Users and access</b> → Guests all ticked. Closed: untick the parts (or all) → Save; then each person an account: <b>Add</b> (a name, a password), open his row, tick what he may open (each tick is saved at once). A part ticked under Guests is open to every account too: its tick in an account changes nothing.</li><li>A server's admins: an account with the <b>Admin tab</b> and their servers ticked; for their posts and summaries too, the card <b>Posts about new rounds</b> (only their servers).</li><li>Someone can't get in: his row - a new password (<b>Set</b>), his rights. The login page is <span class="mono">/login</span>; a page closed to a visitor goes there by itself.</li></ul>
     <h3>After an update</h3><p>"Update from GitHub" looks for a new version every minute. When the decoder or the hint rules change, the old rounds are decoded and analysed again by themselves - watch <b>Being decoded</b> and <b>Background analysis</b> (the site works all the while).</p>
     <h3>When something is wrong</h3><ul><li>A service <b>failed</b>: the Log, that service - then its button to run it again.</li><li><b>Failed demos</b> under Being decoded: "Try them again" (after an update most decode).</li><li>The disk nearly full: <b>Demos: what to keep</b> - fewer days or a GB limit; "What would go?" before Save.</li><li>A post or summary did not arrive: the server's "last post" / "last summaries" lines say why; then Send a test post.</li><li>A page of the site looks wrong after a change to the records: <b>Recalculate all records</b>.</li></ul>
     <h3>Safe keeping</h3><p>Webhooks, the bot's token and the passwords stay on the VPS (here only their last 4 characters show). Log out on a shared computer. This page's password is set on the VPS: <span class="mono">sudo node /srv/bf2replay/repo/server/admin.mjs --set-password</span>.</p>
@@ -549,30 +550,57 @@ function renderAccess() {
   };
 }
 function rightsBoxes(u) {
-  const A = S.access, R = u.rights || { site: {}, cards: {} };
-  return `<div class="ugrp"><b>The site</b>${A.site.map(([k, n, w]) => ckBox('data-rs', k, n, w, R.site[k])).join('')}</div>`
+  // (v246, Sagara: "the permission ticks in the admin page do nothing") a part of the site open to guests is open to every
+  // account too (a login never gives less than not logged in): its tick here can change nothing - shown so, greyed, with
+  // why; the account's own tick for it kept as it was (it counts again once the part is closed to guests)
+  const A = S.access, R = u.rights || { site: {}, cards: {} }, G = A.guests || {}, allOpen = A.site.every(([k]) => G[k]);
+  const siteBox = ([k, n, w]) => G[k] ? `<label class="ck dis" title="${esc('Open to guests (Guests above): everyone may open it, logged in or not, so a tick here changes nothing - untick it under Guests to make it a login\'s. ' + (w || ''))}"><input type="checkbox" data-rs="${esc(k)}" data-keep="${R.site[k] ? 1 : 0}" checked disabled> ${esc(n)}<span class="muted"> · guests too</span></label>` : ckBox('data-rs', k, n, w, R.site[k]);
+  return `<div class="ugrp"><b>The site</b>${A.site.map(siteBox).join('')}</div>${allOpen ? '<div class="unote">The site is open to everyone (Guests above): every account opens all of it, whatever is ticked here. Untick a part under Guests (and Save there) to make it need a login - then the ticks here say who may.</div>' : ''}`
     + `<div class="ugrp"><b>Admin tab</b>${ckBox('data-ra', 'admin', "his servers' rounds: hints, players, kills, review", "The Admin tab of a round (and the hint cards on players' pages) for the rounds of the servers ticked under it", R.admin)}</div>`
     + `<div class="ugrp"><b>His servers</b>${srvBoxes(u.servers || [])}</div>`
-    + `<div class="ugrp"><b>This page</b>${A.cards.map(([k, n]) => ckBox('data-rc', k, n, '', R.cards[k])).join('')}</div>`;
+    + `<div class="ugrp"><b>This page</b>${A.cards.map(([k, n]) => ckBox('data-rc', k, n, '', R.cards[k])).join('')}</div>`
+    + `<div class="unote">Saved as you tick. The Admin tab and the cards of this page work for 12 h after he logs in with his password (2 h with no step on this page), then he logs in again; the site's page sees a change when he opens it again.</div>`;
+}
+// the line under his name: what he may open, his Admin tab and servers, this page's cards
+function uSummary(u) {
+  const A = S.access, G = A.guests || {}, R = u.rights || { site: {}, cards: {} }, own = A.site.filter(([k]) => R.site[k] && !G[k]).map(([, n]) => n), open = A.site.filter(([k]) => G[k]).length, cards = A.cards.filter(([k]) => R.cards[k]).map(([, n]) => n);
+  const site = open === A.site.length ? 'the whole site (open to everyone)' : own.length ? esc(own.join(', ')) + (open ? ' + what guests may' : '') : 'nothing of the site but what guests may';
+  return `<span class="muted">${site}${R.admin ? ` · <b>Admin tab</b> (${(u.servers || []).length ? esc(u.servers.join(', ')) : '<span class="warn">no server: no rounds</span>'})` : ''}${cards.length ? ` · this page: ${esc(cards.join(', '))}` : ''}</span>`;
 }
 function renderUsers() {
   const U = S.users || [], box = $('#uList');
-  if (uDirty || box.contains(document.activeElement) || box.querySelector('details.urights[open]')) return;   // (being changed: drawn again after Save)
-  box.innerHTML = U.length ? U.map(u => { const R = u.rights || { site: {}, cards: {} }, site = S.access.site.filter(([k]) => R.site[k]).map(([, n]) => n), cards = S.access.cards.filter(([k]) => R.cards[k]).map(([, n]) => n);
-    return `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.self ? '<span class="tag" title="Made by himself (Sign up): what guests may, until you tick more">signed up</span>' : ''}${u.in ? '<span class="tag ok">logged in now</span>' : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
+  if (uDirty || box.contains(document.activeElement) || box.querySelector('details.urights[open]')) return;   // (being changed: drawn again after)
+  box.innerHTML = U.length ? U.map(u => {
+    return `<div class="urow" data-u="${esc(u.name)}"><div class="row"><b>${esc(u.name)}</b>${u.self ? '<span class="tag" title="Made by himself (Sign up): what guests may, until you tick more">signed up</span>' : ''}${u.in ? (u.adm === false && (u.rights?.admin || Object.keys(u.rights?.cards || {}).length) ? '<span class="tag" title="Logged in, but his admin powers (the Admin tab, this page) ran out: 12 h after he logged in, 2 h with no step here - he logs in again with his password">logged in · admin powers out</span>' : '<span class="tag ok">logged in now</span>') : ''}<span class="muted">${u.last ? 'last login ' + ago(u.last) : 'never logged in'} · made ${ago(u.created)}</span><span style="flex:1"></span>`
     + `<input type="password" data-f="pw" placeholder="new password" aria-label="New password for ${esc(u.name)}" autocomplete="new-password" style="width:11em"><button type="button" data-a="pw">Set</button><button type="button" class="danger" data-a="rm">Remove</button></div>`
-    + `<details class="urights"><summary><span class="muted">${site.length ? esc(site.join(', ')) : 'nothing of the site but what guests may'}${R.admin ? ` · <b>Admin tab</b> (${u.servers.length ? esc(u.servers.join(', ')) : '<span class="warn">no server: no rounds</span>'})` : ''}${cards.length ? ` · this page: ${esc(cards.join(', '))}` : ''}</span></summary>${rightsBoxes(u)}`
-    + `<div class="row"><button type="button" class="primary" data-a="rights">Save his rights</button></div></details></div>`; }).join('') : '<div class="muted">no accounts yet</div>';
+    + `<details class="urights"><summary>${uSummary(u)}<span class="usave" aria-live="polite"></span></summary>${rightsBoxes(u)}</details></div>`; }).join('') : '<div class="muted">no accounts yet</div>';
 }
-$('#uList').addEventListener('change', () => { uDirty = true; });
+// (v246) a tick saves at once (half a second after the last one): no button to forget
+const uSaveT = new Map();
+function uRightsOf(row) {
+  const site = {}, cards = {};
+  for (const c of row.querySelectorAll('input[data-rs]')) site[c.dataset.rs] = c.disabled ? c.dataset.keep === '1' : c.checked;
+  for (const c of row.querySelectorAll('input[data-rc]')) cards[c.dataset.rc] = c.checked;
+  return { servers: [...row.querySelectorAll('input[data-sv]:checked')].map(x => x.dataset.sv), rights: { site, admin: !!row.querySelector('input[data-ra]')?.checked, cards } };
+}
+$('#uList').addEventListener('change', e => {
+  const c = e.target, row = c.closest('.urow');
+  if (!row || !c.matches('input[type=checkbox]')) { uDirty = true; return; }
+  const name = row.dataset.u, sv = row.querySelector('.usave'); if (sv) sv.textContent = ' · saving…';
+  clearTimeout(uSaveT.get(name));
+  uSaveT.set(name, setTimeout(() => {
+    uSaveT.delete(name); const body = uRightsOf(row);
+    act('user-set', { name, ...body }).then(j => {
+      const ok = !!(j && j.ok), sm = row.querySelector('details.urights summary');
+      if (ok && sm) sm.innerHTML = uSummary({ name, ...body }) + '<span class="usave" aria-live="polite"> · saved</span>';
+      else if (sv) sv.textContent = ' · not saved';
+    });
+  }, 500));
+});
 $('#uList').addEventListener('click', e => {
   const b = e.target.closest('button[data-a]'); if (!b) return; const row = b.closest('.urow'), name = row.dataset.u;
   if (b.dataset.a === 'rm') { if (confirm(`Remove the account ${name}? He is logged out.`)) act('user-remove', { name }, b).then(() => { uDirty = false; }); }
   if (b.dataset.a === 'pw') { const pw = row.querySelector('[data-f=pw]').value; if (pw.length < 8) { toast('the password: at least 8 characters', false); return; } act('user-set', { name, password: pw }, b).then(j => { if (j && j.ok) { row.querySelector('[data-f=pw]').value = ''; uDirty = false; } }); }
-  if (b.dataset.a === 'rights') {
-    const site = {}, cards = {}; for (const c of row.querySelectorAll('input[data-rs]')) site[c.dataset.rs] = c.checked; for (const c of row.querySelectorAll('input[data-rc]')) cards[c.dataset.rc] = c.checked;
-    act('user-set', { name, servers: [...row.querySelectorAll('input[data-sv]:checked')].map(x => x.dataset.sv), rights: { site, admin: !!row.querySelector('input[data-ra]')?.checked, cards } }, b).then(j => { if (j && j.ok) { uDirty = false; const d = row.querySelector('details.urights'); if (d) d.open = false; } });
-  }
 });
 $('#uForm').addEventListener('submit', e => {
   e.preventDefault(); const name = $('#uName').value.trim(), password = $('#uPw').value;

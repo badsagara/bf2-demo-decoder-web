@@ -282,7 +282,10 @@ tick parts for it.
 everything but the demos (Watch rounds, All rounds, Players and maps, Records, Stats, Video clips); open its row to change
 that:
 
-- **The site** — the parts above. An account may always open what guests may, plus what is ticked here.
+- **The site** — the parts above. An account may always open what guests may, plus what is ticked here. (v246) A part
+  ticked under **Guests** is open to everyone, so its tick in an account can change nothing: it is shown ticked and grey
+  ("guests too"), and while the whole site is open a line says so — untick a part under Guests (and Save) to make it
+  need a login; the account's own tick is kept and counts from then on.
 - **Admin tab** — the Admin tab of the rounds of **his servers** (hints, players, kills, the round, review), the For
   admins tab and the hint cards on players' pages.
 - **His servers** — the game servers of the Admin tab, and of the Posts card below.
@@ -291,7 +294,10 @@ that:
   default minimum of players, templates or "Use on all servers", which stay the owner's), Log, **Hint thresholds: the
   site's** (v227: may change the thresholds the whole site uses; with the Admin tab). *Users and access* and *Settings*
   are always the owner's.
-- **Save his rights**; **Set** a new password (logs him out everywhere); **Remove** (logs him out).
+- (v246) **Each tick is saved at once** (half a second after the last one; "saved" by the line under his name — no
+  button to forget). The Admin tab and the cards of this page work for 12 h after he logs in with his password (2 h with
+  no step on the admin page); then he logs in again — his row says **admin powers out** while he is logged in without
+  them. **Set** a new password (logs him out everywhere); **Remove** (logs him out).
 
 The row shows when he last logged in, whether he is logged in now, and **signed up** for an account he made himself. Accounts made before v224 (server admins) keep what
 they had: they may watch everything and have the Admin tab of their servers.
@@ -490,18 +496,18 @@ Strength:
   capture, a guided missile, Glitch spot; no line of sight confirmed by the exact shapes and hidden for 1 s+), or a share
   (headshots, reaction, triggerbot, pre-aim, wide view) that luck gives less than once in 10,000.
 
-The kinds fall into groups (55 in all):
+The kinds fall into groups (63 in all):
 
 | Group | Hints |
 |---|---|
 | Visibility and walls | No line of sight, Through thin walls, Wall tracking, Fired at a wall, Through smoke, Beyond fog, Wide view, Spots unseen, Glitch spot |
-| Aim and shooting | Aim snaps, Reaction, Headshots, Triggerbot, Smooth aim, Target switch, Pre-aim, No spread, No trigger |
+| Aim and shooting | Aim snaps, Reaction, Headshots, Sniper headshots, Triggerbot, Smooth aim, Target switch, Pre-aim, No spread, No trigger |
 | Movement | Speed, Stamina, Teleport, Through walls, Floating, Under the map, Parachute, Vehicle speed, Outside the map, Idle |
 | Spawning | Spawn, Early spawn |
 | Weapons and ammo | Melee reach, Fire rate, Ammo, Damage, Guided missiles, Artillery |
 | Flags and score | Fast flag, Kill farming, Spot spam |
 | Macros and scripts | Clicker, Bullet rate, Spot rhythm, Anti-AFK script, Prone spam, Bunny hop |
-| More cheat signs | Lag switch, One-hit kills, Silent aim, Aim lock, Spin |
+| More cheat signs | Lag switch, One-hit kills, Silent aim, Aim lock, Spin, Sideways sprint, Speed in the air, Shot in a jump, Speed by stance, Shot from elsewhere (v245), No recoil (v245), Endless ammo (v245) |
 | Server rules (minor) | Team kills, Claymore at a flag, Claymore kills, Side switch, TK + revive |
 
 Each is described, with its conditions and examples, in [admin-hints.md](admin-hints.md).

@@ -724,7 +724,8 @@ function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip
   // (and the day: the records page's week and month move on)
-  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV, !!r.demo, r.src || '', r.resumAt || ''])])).digest('hex'), stampF = path.join(WWW, '.stamp');
+  // (v246: and the page's statistics code - its records: a new page writes them again at once, not the next day)
+  const stamp = crypto.createHash('sha1').update(JSON.stringify([WWW_VER, abs, !!d.share, new Date().toISOString().slice(0, 10), AGG?.v || '', d.rounds.map(r => [r.name, r.decoder, r.added, r.sumV, !!r.demo, r.src || '', r.resumAt || ''])])).digest('hex'), stampF = path.join(WWW, '.stamp');
   try { if (fs.readFileSync(stampF, 'utf8') === stamp) return; } catch (e) {}
   const mapName = m => dec.GAME?.maps?.[m]?.name || m;
   const idOf = name => name.replace(/\.bf2demo(\.gz)?$/i, '');
@@ -838,7 +839,7 @@ ${T.map(x => `<tr><td>${plink(x.name)}</td><td class="n">${x.n}</td><td class="n
       return `<tr><th>${escH(name)}</th>${top.map(([v, nm, rn, w], i) => `<td${i ? ' class="mute"' : ''}>${val(v, w)} ${plink(nm)}<br>${RBN.has(rn) ? rlink(RBN.get(rn)) : ''}</td>`).join('')}${'<td></td>'.repeat(3 - top.length)}</tr>`; }).join('\n'); })()
       : REC.map(([k, name, fmt]) => {
       const all = []; for (const r of L) for (const p of r.sum.P || []) { if (/^Player \d+$/.test(nickOf(p.name))) continue; const v = recVal(p, k); if (v > 0) all.push({ v, p, r }); }
-      all.sort((a, b) => b.v - a.v || when(a.r) - when(b.r)); const top = all.slice(0, 3);
+      all.sort((a, b) => b.v - a.v || when(a.r) - when(b.r)); const seen = new Set(), top = all.filter(x => { const nk = nickOf(x.p.name); if (seen.has(nk)) return false; seen.add(nk); return true; }).slice(0, 3);   // (v246: three different players)
       return top.length ? `<tr><th>${escH(name)}</th>${top.map((x, i) => `<td${i ? ' class="mute"' : ''}><b>${escH(String(fmt(x.v)))}</b> ${plink(x.p.name)}<br>${rlink(x.r)}</td>`).join('')}${'<td></td>'.repeat(3 - top.length)}</tr>` : '';
     }).join('\n');
     const tot = new Map(); for (const r of L) for (const p of r.sum.P || []) { const k = nickOf(p.name); if (!P.has(k)) continue; const a = tot.get(k) || { name: p.name, n: 0, k: 0, d: 0, score: 0, rev: 0, wins: 0 }; a.n++; a.k += p.k; a.d += p.d; a.score += p.score || 0; a.rev += p.rev || 0; if (p.win) a.wins++; tot.set(k, a); }

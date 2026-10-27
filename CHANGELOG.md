@@ -5,37 +5,70 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v246
+
+**Sagara's five: the page that jumped, the rights' ticks, the weapon plate, squad colours, the records** (2026-10-28):
+
+- **The round page no longer jumps** (Chrome, Edge: "as if someone zooms in and out"). The map's width and the bar under
+  it hung on each other the wrong way round: a map under 470 px stretches the bar's buttons into fewer rows, which left
+  room for a wider map, whose bar then wrapped into more rows again — every frame (a window ~900–1010 px wide and 900 px
+  high: the map 465 ↔ 515 px). A lower bar it had a moment ago is no longer taken back for the same window size. Checked:
+  windows 860–2000 px wide (every 57 px) × 700–1200 high, at 100%, 125% and 150% screen scale, on the round page, in
+  Review and with Bigger map, and phones and tablets - nothing keeps resizing or redrawing any more.
+- **Admin page, accounts' rights** — **each tick is saved at once** (no *Save his rights* button to forget; "saved" by
+  the line under his name). A part of the site open to **guests** is open to every account too, so its tick there could
+  change nothing — now shown ticked and grey ("guests too"), with a line while the whole site is open; the account's own
+  tick is kept and counts once that part is closed to guests. His row says **admin powers out** when he is logged in but
+  his 12 h of admin powers (the Admin tab, the admin page's cards) ran out.
+- **Weapon in his hands** — the plate under the soldier you follow: also in **Camera ▾** (beside Aim line) and on the
+  key **W** (Show ▾ → The soldier you follow had it as *In his hands*).
+- **Squad colours** — Show ▾ → Soldiers → **Colour: Side / Squad**: each side's squads 1–5 in a colour of their own (warm
+  ones for the red side, cool ones for the blue — every pair told apart by colour-blind eyes too), the squad's number on
+  a small disc by each man; the commander, men in no squad and squads 6–9 keep the side's colour, and every name stays in
+  its side's colour. The legend shows both sides' five, the Players list a dot by the squad's number.
+- **Records**: one player no longer takes two places of the same record (1st and 3rd with two rounds) — the three are
+  three different players, each with his best round — on the Records pages and the maps' pages (Records on this map).
+- On the server: the statistics' code changed, so the statistics and the Records pages are written again by themselves
+  after the update (some minutes on a big site; the Records pages at once, not the next day). The decoder
+  (`18e8999d15`), the round summaries (18) and the hint rules (14) are as in v245: nothing decoded or analysed again.
+
 ## v245
 
-**The site in a Caddy that already serves other sites** (Sagara: a script for a Caddy that already has websites, which
-rewrites nothing and does it properly):
+**The killing bullet's direction, the commander's UAV, two new hacks found, the game video's kill feed** (Sagara: "let's
+do these points" — the list of what could be done without him, todo 295):
 
-- New `server/caddy-attach.sh` (with `server/caddylib.sh`, shared with `units.sh`); `install.sh` uses it in its step
-  **Caddy**. The site is a file of its own, `/etc/caddy/bf2replay.caddy`, and Caddy's config gets **one `import` line**
-  at its end, with a comment above it — not a line of the other sites changes. Only a config that is still the
-  package's placeholder page (or empty) is replaced, as before: a fresh Caddy.
-- It finds the config Caddy really runs (`--config` in the service's `ExecStart`; `BF2R_CADDYFILE` / `BF2R_CADDY_UNIT`
-  for other set-ups) and checks before it changes anything: the config as it is now; the site's name against the sites
-  already there (the same name, or no name while Caddy serves others: it stops); the whole new config as a copy, with
-  the service's own environment (`{$VAR}`). Then Caddy is reloaded, not restarted; a config Caddy refuses puts the files
-  back, and Caddy keeps the old one. A copy of what changed: `/etc/caddy/bf2replay-backup/<date-time>/`.
-- `--check` only says what it would do; `--remove` takes the line and the file out again (the config comes back as it
-  was). Caddy in Docker, `--resume` (config API), a JSON config, Caddy older than 2.5.1: it stops and says what to do
-  (INSTALL.md §10).
-- `install.sh` runs the check right after the packages, before it makes anything of the site.
-- Fixed on the way: `install.sh` replaced the whole Caddyfile when the package's placeholder block was still in it next
-  to other sites. `units.sh` checked a new site file only against `/etc/caddy/Caddyfile` and without the service's
-  environment, and with Caddy stopped it threw the new file away (the reload failed); now it checks the config Caddy
-  runs, and keeps a checked file for Caddy's next start.
-- Tried with a real Caddy 2.6.2, 2.8.4 and 2.10.2: a fresh one; one with global options, the placeholder block, sites
-  in the Caddyfile and through `import sites/*.caddy` (a reverse proxy among them), snippets; the same name, no name,
-  a broken config, a refused reload, a wildcard site, a glob that takes in the site's file, `{$VAR}` from an
-  `EnvironmentFile`, Caddy run as root with `Environment=`, a config in another folder, a symlinked Caddyfile (the symlink
-  stays; Caddy reads relative imports from the symlink's folder, and so does the script), a stopped Caddy, `--resume`,
-  no service, an install from before v245.
-  The other sites answered all along; `--remove` gave the config back byte for byte.
-- Nothing to do on a VPS already installed: the decoder (`18e8999d15`), the round summaries (18) and the hint rules
-  (13) are as in v244.
+- **Shot from elsewhere** — a new hint (60): twice or more in a round a small-arms kill on foot from 15 m or more whose
+  killing bullet came 20° or more off the line from the killer (3 m or more to the side at his distance), and not from
+  where his screen had the two of them a moment before. The direction is the game's own record of the last hit (kept by
+  the decoder since v235; the Side view card says it, the map draws it yellow and dashed when it is off). In 43 demos:
+  645 such kills, 0.4° off in the middle, 5.1° at the 99th percentile, never two of one soldier. **Strong** from 3.
+  Missiles, AA guns and kills from aircraft are no longer measured that way (their hit comes from the missile, not the
+  man): no dashed line for them.
+- **The commander's UAV** — while it is up (30 s) every enemy within **100 m** of the place it circles is on that whole
+  side's minimap (the game's settings; the drone itself flies a 59 m circle round it — its start event is 59 m east of
+  the middle, exact on 253 UAVs). The map draws the ring (dashed, the side's colour) with the UAV (Show ▾, Teamwork); **His view**
+  counts the enemies in it as known; **Wall tracking**, **Fired at a wall**, **Pre-aim** and **Wide view** leave out an
+  enemy his side had spotted (5 s) or had in its UAV ring — fewer false hints. About 1 enemy in 5 was in a ring while a
+  UAV was up.
+- **No recoil** — a new hint (61): the game's recoil of each sniper rifle (its files: 4–6° up, × 0.25 through the scope)
+  against his view in the demo — honest scoped shots rise 1.39° in the middle, 2.5% less than a tenth of the kick; the
+  hint from 8 scoped shots with chance < 1 in 10,000. (Automatic weapons' bursts were measured too: a steady hand holds
+  them flat, so they tell nothing.)
+- **Endless ammo** — a new hint (62, **strong**): in one life with one gun, 8 or more long presses that took no bullet
+  from the magazine (by hand 3 at most in 1,271 lives × guns), or more magazines changed than 1.5 × those he carries
+  (the game's count for the weapon, 5 for most; one more lot for each ammo bag, crate or support near him).
+- **Game video**: **Kill feed & clock** over every view (the kills at the top right as the game shows them, his own
+  yellow; the time left and both sides' tickets at the top); **Slow at the kill** (2 s before to 0.7 s after at a quarter
+  of the speed); **All views in one** — one more MP4, `…_all.mp4`, the views in a 2 × 2 grid, each named. Checked with
+  ffmpeg 6.1 on test films; the game's own rendering needs a PC with the game.
+- **The archive's false places** (todo 227): Kill farming on Dragon Valley (150, −660) and Through walls on Wake
+  (−690, 680) were already gone since v214 (farming from aircraft left out; the carrier's deck) — checked again.
+- **What the game's files and OpenBF2 told us** (knowledge only, no code taken): the soldiers' speeds and jump were
+  already in Speed, Floating, Bunny hop and Stamina (v233, v235); now the weapons' recoil, magazines, muzzle velocity
+  and the UAV's rules (radius, 30 s, the circle) — in the hints above.
+- The hint rules become version **14**: the background analysis goes over every round again by itself. The decoder
+  (`18e8999d15`) and the round summaries (18) are as in v244: nothing decoded or summed up again, nothing to do. 169
+  thresholds of 57 hints, 63 kinds.
 
 ## v244
 

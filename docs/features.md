@@ -119,7 +119,10 @@ ambushes, Highlights, and many admin hints.
   bleed this way; "Other" is what neither the deaths nor the bleed explain. **Smoke** from grenades and
   vehicles' launchers blocks for as long as it lasts.
 - "**In view**" means inside the frame; whether walls were in between is checked separately (and only on the 22 maps).
-- **His view** keeps an enemy faded for a few seconds where he was last seen, and adds what his side spotted; **Crew's
+- **His view** keeps an enemy faded for a few seconds where he was last seen, and adds what his side spotted and (v245)
+  every enemy within 100 m of the place his side's UAV circles — the server sends those to the whole side's minimap
+  (uavRadius 100, the drone 30 s up on a 59 m circle round it: the game's settings, read in OpenBF2; the circle checked
+  on 253 UAVs of 6 demos, the drone's start event 59 m east of its middle); **Crew's
   view** does the same for everyone in a vehicle. An enemy vehicle counts as seen when its hull is in sight (its middle,
   roof, nose or tail; v228 — before, its own hull was mostly taken for a wall, so it was seen mainly through someone in it), and
   every empty vehicle is shown: nobody is in it to know of (a burning wreck only where he could see it).
@@ -266,6 +269,12 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   rendered again at that narrower view (`renderFieldOfView`, up to two zooms a clip) and ffmpeg puts that film in for
   those seconds; a scope (zoom 0.4 and under) gets the game's round sight, black round it. Behind him and From the side
   became free cameras made the same way as the game's (7 m / 5 m) for this.
+- (v245) **Kill feed & clock** over the films too: the round's kills at the top right (6 s each, five at most, the newest
+  at the bottom) and the clock (the time left by the server's limit) with the tickets; **Slow at the kill** — the
+  filter's end splits the film round the kill (2 s before to 0.7 s after) and plays that part at a quarter of the speed
+  (each frame four times: the game films 30 frames a second); **All views in one** — ffmpeg's `xstack` puts the views'
+  MP4s in a 2 × 2 grid (two side by side in the middle), each named in its corner. All checked with ffmpeg 6.1 on test
+  films; the game's own rendering of a kit needs a PC with the game.
 
 ## Posts and summaries
 

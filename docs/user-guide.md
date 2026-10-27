@@ -61,7 +61,8 @@ were going (the same round and moment). On an open site the **Log in** button at
 - **Play** / Space — play and pause. The speed slider (or `+` / `−`) goes up to many times real time.
 - **The round time** and its slider: drag to any moment. `←` / `→` jump 10 s back or on.
 - **Camera ▾** — **Follow**: the soldier the map follows (or click him on the map); **His view** (`V`: only what he knew
-  in the game — see below); **Aim line** (`X`: his aim line — see below); **Keep him in the middle** (`K`: the map moves
+  in the game — see below); **Aim line** (`X`: his aim line — see below); **Weapon in his hands** (`W`, v246: the plate
+  with what he holds under him, on or off); **Keep him in the middle** (`K`: the map moves
   with him; dragging the map stops it); 1st / 3rd person for a vehicle seat (`C`); how much of the map: **The fight**
   (where the soldiers and flags are), **Whole map**, **Bigger map** (nearly the window's height); the zoom slider (how
   many metres the map shows across); **The game's scoreboard** (or hold `Tab`).
@@ -126,11 +127,11 @@ shows — every element its own switch (v239). The button says which preset is o
 
 | Group | Elements |
 |---|---|
-| **Soldiers** | **All players' names** (one switch for every name below: on foot, crew, the wounded, who spotted — `T`) · **Marks**: Game (the minimap's mark, the squad leader's number, the commander's star, your squad green) / Figures (stance and movement) · Names · Kit (the tool after the name) · Health bars · Up high (on a roof, a tower, a deck: lifted over his shadow) · Firing (a flash at the gun) · Aiming down the sights (a white dot) · Parachute, ladder, water · Out of bounds |
+| **Soldiers** | **All players' names** (one switch for every name below: on foot, crew, the wounded, who spotted — `T`) · **Marks**: Game (the minimap's mark, the squad leader's number, the commander's star, your squad green) / Figures (stance and movement) · **Colour** (v246): Side / **Squad** — each side's squads 1–5 in a colour of their own (warm ones for the red side, cool ones for the blue), the squad's number on a small disc by each man; the commander, men in no squad and squads 6–9 keep the side's colour, and the names stay in the side's colour (the legend shows both sides' five; the Players list a dot) · Names · Kit (the tool after the name) · Health bars · Up high (on a roof, a tower, a deck: lifted over his shadow) · Firing (a flash at the gun) · Aiming down the sights (a white dot) · Parachute, ladder, water · Out of bounds |
 | **Vehicles** | **Look**: Icons / Models (`M`) · Empty vehicles (off: only manned ones) · Crew names · Vehicle names · Health bars · Emplacements |
 | **Combat** | Kill lines · +1 · TK · HS · Shot direction (dashed, the way the killing bullet came when it was 6°+ off the kill line and his screen doesn't explain it) · Where one died (a cross, 10 s) · Bodies · Explosions (grenades, rockets, blasts, shell hits, C4, claymores, AT mines) · Smoke · Distances and weapons |
-| **Teamwork** | Spots · Who spotted · Squad orders · Medic (revives, heals, repairs, bags, calls) · Wounded (the ring a medic has to revive him) · Wounded names · UAV · Supply crates · Commander's camera |
-| **The soldier you follow** | Field of view · Fog line · He sees him (an eye) · Behind cover · Crosshair (where it meets someone, a wall, the ground) · Aim line (`X`) · In his hands · Sounds · Last seen (His view) · Next N s (`A`, with how many seconds) · Vehicle seat camera: 1st / 3rd person (`C`) |
+| **Teamwork** | Spots · Who spotted · Squad orders · Medic (revives, heals, repairs, bags, calls) · Wounded (the ring a medic has to revive him) · Wounded names · UAV (v245: with the 100 m ring whose enemies are on that side's minimap) · Supply crates · Commander's camera |
+| **The soldier you follow** | Field of view · Fog line · He sees him (an eye) · Behind cover · Crosshair (where it meets someone, a wall, the ground) · Aim line (`X`) · Weapon in his hands (`W`; also in Camera ▾) · Sounds · Last seen (His view) · Next N s (`A`, with how many seconds) · Vehicle seat camera: 1st / 3rd person (`C`) |
 | **The map** | Grid · Flags · Flag names · Buildings (`B`) · Trees and bushes · What broke · Relief (`H`), its Shading and Higher than his eyes · Spawn points · Front line |
 | **Screen** | Map name · Top bar (tickets, time) · Kill feed · Legend · Scoreboard and text: Game / Page · Cursor: Off / Height / Grid (`G`) |
 
@@ -208,6 +209,14 @@ real game picture, not the map. Follow a soldier first; tick the views you want:
   see them (walls, hills, smoke, trees); a ring round the one he aims at; in the other views his yellow aim line.
 - **Every name** (v237) — off: names in his eyes as the game showed them to him (an enemy's only while he is under the
   crosshair, 300 m at most; a team mate's within 120 m); on: a name over every soldier and manned vehicle in the picture.
+- **Kill feed & clock** (v245) — drawn over every view: the kills at the top right as the game shows them (killer, weapon,
+  victim, his own in yellow; the newest at the bottom, 6 s each, five at most) and at the top the round's clock (the time
+  left, as the game's) with both sides' tickets.
+- **Slow at the kill** (v245) — for a kill's game video: from 2 s before the kill to 0.7 s after it at a quarter of the
+  speed, in every view's MP4 (the video gets that much longer; the game films 30 frames a second, so the slow part shows
+  each frame four times).
+- **All views in one** (v245) — when two or more views are made: one more MP4, `…_all.mp4`, with them side by side
+  (2 × 2, 640×360 each, each named in its corner) — made of the views' MP4s after them.
 
 **Make the kit** packs a `.zip` (a few hundred KB): the round's demo, with the part of the round before the clip packed
 into a short stretch so the game gets there fast; a camera for each view; and `make-videos.bat`. Unpack the zip into the
@@ -215,7 +224,7 @@ game's folder (its folder goes next to `BF2.exe`) and run `make-videos.bat`: the
 30 frames a second) and closes by itself, then the next. With [ffmpeg](https://ffmpeg.org) (in PATH, in the kit's folder
 or the game's) each film is cut to the clip and made an MP4 (`mods\bf2\Demos\…_eyes.mp4` and so on); without it, the
 films stay large AVI files. `watch-in-game.bat` plays the demo in the game with your own camera instead. The game shows
-no HUD or crosshair in a demo; without **Names & crosshair** the films are as the game draws them. (The drawing over the
+no HUD or crosshair in a demo; without **Names & crosshair** and **Kill feed & clock** the films are as the game draws them. (The drawing over the
 films needs an ffmpeg with libass — the usual Windows builds have it; without, the films are made plain.)
 
 The quickest way: the **game video** button (a play sign in a film frame) by a kill in the kill feed, in a highlight or
@@ -258,7 +267,7 @@ There is also a plain page for every player at `/players/<nick>.html`, and `/pla
 ## Records
 
 `/records/` (the **Records** button): for the last **7 days**, **30 days** and **all time**, the best in one round and who
-did most — most kills (also on foot, from vehicles), headshots, streaks on foot and in vehicles, longest kill, knife,
+did most (v246: three different players for each record — each with his best round, never one man twice) — most kills (also on foot, from vehicles), headshots, streaks on foot and in vehicles, longest kill, knife,
 claymores, mines, launchers on infantry, run over, grenades, grenade launcher, C4, revives, heals, repairs, flags, best
 score, best K/D (10+ kills) — and per **weapon group** the longest kill and most kills in a round: hand-held weapons (no
 sniper rifles), sniper rifles, hand-held anti-tank rockets, launchers on a stand (TOW, HJ-8), tank cannons, other
@@ -320,6 +329,7 @@ The same `index.html` works without a server (open it from a local web server su
 | `K` | lock the camera on the soldier you follow |
 | `V` | his view (a vehicle: its crew's) |
 | `X` | his aim line |
+| `W` | the weapon in his hands (the plate under the soldier you follow) on / off |
 | `J` | fold / unfold the kill feed over the map |
 | `G` | cursor: height / grid / nothing |
 | `H` | relief |

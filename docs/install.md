@@ -10,7 +10,7 @@ Contents: [1 What you need](#1-what-you-need) · [2 The GitHub repository](#2-th
 [7 The admin password](#7-the-admin-password) · [8 Services and timers](#8-services-and-timers) ·
 [9 Files on the VPS](#9-files-on-the-vps) · [10 Updating the site](#10-updating-the-site) ·
 [11 Background analysis](#11-background-analysis-hints-for-admins) · [12 Posts and summaries](#12-posts-to-discord-and-telegram) ·
-[13 A web server already on the VPS](#13-a-web-server-already-on-the-vps-caddy-with-other-sites-or-nginx) · [14 Game servers that upload](#14-game-servers-that-upload-their-demos) ·
+[13 Another web server (nginx)](#13-another-web-server-nginx) · [14 Game servers that upload](#14-game-servers-that-upload-their-demos) ·
 [15 Disk space and old demos](#15-disk-space-and-old-demos) · [16 Backups](#16-backups) ·
 [17 Everyday commands](#17-everyday-commands) · [18 Troubleshooting](#18-troubleshooting) ·
 [19 Trying the site locally](#19-trying-the-site-locally)
@@ -24,7 +24,7 @@ Contents: [1 What you need](#1-what-you-need) · [2 The GitHub repository](#2-th
 | **Ports** | 22, 80 and 443 open — in `ufw` and in the hoster's own firewall, if its panel has one. |
 | **A domain** | for HTTPS and link previews. Free: [duckdns.org](https://www.duckdns.org) → `something.duckdns.org` → the VPS's IP. Without a domain the site works on `http://IP` only, and link previews lack pictures. |
 | **GitHub** | a (private) repository with this folder; the VPS pulls updates from it. |
-| **Software** | Node.js 22, Caddy, git, rsync — `install.sh` installs them (a Caddy already serving other sites is used as it is, §13). The background analysis adds Playwright + Chromium (~400 MB) on first use (§11). |
+| **Software** | Node.js 22, Caddy, git, rsync — `install.sh` installs them. The background analysis adds Playwright + Chromium (~400 MB) on first use (§11). |
 
 ## 2. The GitHub repository
 
@@ -84,11 +84,11 @@ sudo BF2R_REPO=git@github.com:YOUR_LOGIN/bf2-round-replay.git \
 | Variable | |
 |---|---|
 | `BF2R_REPO` | the repository: `git@github.com:…` for a private one (a deploy key is used), `https://…` for a public one. Required on the first run. |
-| `BF2R_DOMAIN` | the site's name; Caddy gets its HTTPS certificate from Let's Encrypt by itself. Empty: plain `http://IP`. Required when the VPS's Caddy already serves other sites (§13). |
+| `BF2R_DOMAIN` | the site's name; Caddy gets its HTTPS certificate from Let's Encrypt by itself. Empty: plain `http://IP`. |
 | `BF2R_FETCH_URLS` | where the demos are (§5). Can be left empty and filled in on the admin page later. |
 | `BF2R_GIT_KEY` | the deploy key's file (default `/root/.ssh/GitHub_bf2_repo`). |
 | `BF2R_BRANCH` | the branch to follow (default `main`). |
-| `BF2R_WEB` | `caddy` (default: installs Caddy, or adds the site to the Caddy already there, §13) or `none` when another web server already uses ports 80/443 (§13). |
+| `BF2R_WEB` | `caddy` (default) or `none` when another web server already uses ports 80/443 (§13). |
 
 **The deploy key.** If `/root/.ssh/GitHub_bf2_repo` doesn't exist, the script makes it, stops at the step
 *Repository* and prints the public half (`ssh-ed25519 AAAA… bf2replay@…`). In the repository on GitHub: Settings → Deploy
@@ -102,7 +102,7 @@ sudo ssh -F /dev/null -i /root/.ssh/GitHub_bf2_repo -o IdentitiesOnly=yes -T git
 
 What the script does: installs Node.js 22, Caddy, git and rsync; makes the users `bf2replay` (runs everything) and
 `bf2upload` (SFTP only, for game servers that upload, §14); clones the repository into `/srv/bf2replay/repo`; writes
-`/etc/bf2replay.conf`; adds the site to Caddy (`caddy-attach.sh`, §13) and sets up the systemd services and timers (§8). At the end it prints the site's address.
+`/etc/bf2replay.conf`; sets up Caddy and the systemd services and timers (§8). At the end it prints the site's address.
 The first download starts at once (everything the demo pages list, newest first; rounds appear one by one as they are
 decoded).
 
@@ -300,7 +300,7 @@ it, publishes `site/` and updates the services. Don't want to wait: `sudo system
 A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v245   # the version in the archive's name
+V=v246   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push
@@ -357,28 +357,10 @@ cd /srv/bf2replay/repo/server && sudo -u bf2replay node alerts.mjs --test 'Serve
 journalctl -u bf2replay-ingest | grep 'round post'                                     # what was posted and why not
 ```
 
-## 13. A web server already on the VPS (Caddy with other sites, or nginx)
+## 13. Another web server (nginx)
 
-**Caddy that already serves other sites** (v245): run `install.sh` as usual, with a `BF2R_DOMAIN` none of those sites
-uses. It adds the site with `server/caddy-attach.sh`: the site's own file `/etc/caddy/bf2replay.caddy`, and one line at
-the end of Caddy's config, `import /etc/caddy/bf2replay.caddy` — nothing else in that config changes. Before it does,
-it checks the config as it is, the name against the sites already there, and the whole new config as a copy (with the
-service's environment); then it reloads Caddy (no break for the other sites), and if Caddy refuses, puts everything
-back. A copy of what changed: `/etc/caddy/bf2replay-backup/`. `install.sh` checks this first (`--check`), before it
-makes anything of the site.
-
-```bash
-sudo bash /srv/bf2replay/repo/server/caddy-attach.sh --check                         # what it would do; changes nothing
-sudo BF2R_DOMAIN=replay.your-domain bash /srv/bf2replay/repo/server/caddy-attach.sh  # add or update the site
-sudo bash /srv/bf2replay/repo/server/caddy-attach.sh --remove                        # take it out again
-```
-
-It stops (changing nothing) for: the same name already in Caddy; no `BF2R_DOMAIN`; a config that doesn't validate
-already; Caddy older than 2.5.1; Caddy keeping its config itself (`--resume`) or running JSON; Caddy in Docker. Details,
-and what to do in each case: [server/INSTALL.md §10](../server/INSTALL.md#10-if-the-vps-already-has-a-web-server-caddy-with-other-sites-or-nginx).
-
-**nginx (or another web server on 80/443).** If something already listens on 80/443, `install.sh` stops. Run it with
-`BF2R_WEB=none` (Caddy is not installed) and set nginx up from `server/nginx-example.conf`: the site root, `/data/` (with its private paths returning 404), the link
+If something already listens on 80/443, `install.sh` stops. Run it with `BF2R_WEB=none` (Caddy is not installed) and
+set nginx up from `server/nginx-example.conf`: the site root, `/data/` (with its private paths returning 404), the link
 previews `/r/` and `/p/`, the static pages `/rounds|players|maps|records`, `rss.xml`, `sitemap.xml`, `robots.txt`, and
 the proxy for `/admin` and `/login` to `127.0.0.1:8781`, and (v224) the gate: `auth_request /_bf2r_gate` with its
 `location`, `error_page 401 / 403` to the login, and the `map $http_sec_fetch_mode` line in the http block. HTTPS:

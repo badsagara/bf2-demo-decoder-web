@@ -870,7 +870,7 @@ function revTrusted(b, s) {
 // guests' (data/.access.json) - which closes the site, or parts of it, to whoever is not logged in
 function usersState() {
   const U = readUsers().users, now = Date.now();
-  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], rights: userRights(u), created: u.created || null, last: u.last || null, by: u.by || null, self: !!u.self, in: [...sessions.values()].some(x => x.user === name && x.role !== 'owner' && now < x.exp) })).sort((a, b) => a.name.localeCompare(b.name));
+  return Object.entries(U).map(([name, u]) => ({ name, servers: u.servers || [], rights: userRights(u), created: u.created || null, last: u.last || null, by: u.by || null, self: !!u.self, in: [...sessions.values()].some(x => x.user === name && x.role !== 'owner' && now < x.exp), adm: [...sessions.values()].some(x => x.user === name && x.role !== 'owner' && now < x.exp && admOk(x)) }))   // (v246: adm - his admin powers still on in a login).sort((a, b) => a.name.localeCompare(b.name));
 }
 function accessState() { return { guests: guests(), gate: fs.existsSync(GATE_F), site: ACC_SITE, guestExtra: ACC_GUEST, cards: ACC_CARDS, open: openPlaces(guests()), signup: signupOpen() }; }
 function knownServers() { const S = new Set(); for (const r of index().rounds || []) if (r.sum && !r.sum.empty && r.sum.server) S.add(r.sum.server); return [...S].sort(); }

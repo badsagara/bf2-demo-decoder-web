@@ -489,6 +489,7 @@ svg.fig { width: 1.15em; height: 1.15em; vertical-align: -.22em; fill: currentCo
 table.lb td.kit { width: 22px; color: var(--fg); }
 table.lb td.sc { font-weight: 600; }
 table.lb .lbsq { font: 500 10px var(--font-data); }
+table.lb .lbsq .sqdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 3px; vertical-align: 0; box-shadow: 0 0 0 1px rgba(6,8,6,.6); }   /* (v246) */
 .t0 { color: var(--team0); font-weight: 600; }
 .t1 { color: var(--team1); font-weight: 600; }
 .empty { color: var(--muted); font-size: 13px; }
@@ -1091,7 +1092,7 @@ body.mbar-on { padding-bottom: 72px; }
       <div class="mapside" id="mapSide" role="group" aria-label="Map controls"></div>
       <div class="decbar" id="decBar" role="status" aria-live="polite" hidden><div class="decrow"><span id="decTxt">Decoding</span><b id="decPct">0%</b></div><div class="dectrack"><i id="decFill"></i></div><div class="decsub" id="decSub"></div></div>
     </div>
-    <div class="mapplay" id="pBar" role="group" aria-label="Playback and view"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><span class="pbsep" aria-hidden="true"></span><span class="lwrap cwrap"><button class="btn" id="camBtn" aria-expanded="false" aria-controls="camMenu" title="Whom the map follows, his view and aim line, how much of the map shows"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 5.2h3l1.3-2h4.4l1.3 2h3v8.3h-13z"/><circle cx="8" cy="9" r="2.6"/></svg><span>Camera</span> ▾</button><div class="lmenu cmenu" id="camMenu" role="group" aria-label="Camera" hidden><p class="cmh">Follow</p><label class="cmrow"><span>Soldier</span><select id="camWho" aria-label="The soldier the map follows"><option value="">nobody</option></select></label><button class="btn cmi vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn cmi vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><button class="btn cmi vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Keep him in the middle</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><p class="cmh">How much of the map</p><div class="cmseg"><button class="btn cmi act" id="vFit" title="Zoom to where the fighting is (the soldiers and the flags)">The fight</button><button class="btn cmi act" id="vAll" title="The whole map">Whole map</button><button class="btn cmi" title="The map nearly as high as the window" id="vBig" aria-pressed="false">Bigger map</button></div><label class="spd zm cmzoom" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><p class="cmh">On the map</p><button class="btn cmi" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">The game's scoreboard <span class="w">hold Tab</span></button></div></span><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: presets, every element by group, your quick switches (L)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l6.5 3.2L8 7.9 1.5 4.7z"/><path d="M1.5 8l6.5 3.2L14.5 8M1.5 11.3l6.5 3.2 6.5-3.2"/></svg><span>Show<span class="shp">: <b id="showPre">Standard</b></span></span> ▾</button></span><button class="btn ibtn" id="vFull" aria-pressed="false" aria-label="Full screen" title="Full screen (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 1.5h-4v4M10.5 1.5h4v4M5.5 14.5h-4v-4M10.5 14.5h4v-4"/></svg></button><select class="qpre" id="mPre" hidden tabindex="-1" aria-label="Preset: what the map shows"></select><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" hidden aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
+    <div class="mapplay" id="pBar" role="group" aria-label="Playback and view"><button class="btn" id="play2" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 1.5v13l11-6.5z"/></svg><span>Play</span></button><div class="seekw"><span class="ptime" title="Time in the round / the round's length; below it, the game server's clock at this moment"><span class="pt1"><b class="clock" id="clock">00:00</b><i id="clockDur"></i></span><span class="pt2" id="clockReal"></span></span><input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Round time"></div><label class="spd" title="Playback speed: drag, or + / − keys"><input type="range" id="speedR" min="0" max="21" step="1" value="13" aria-label="Playback speed"><b id="speedV">10×</b></label><span class="pbsep" aria-hidden="true"></span><span class="lwrap cwrap"><button class="btn" id="camBtn" aria-expanded="false" aria-controls="camMenu" title="Whom the map follows, his view and aim line, how much of the map shows"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 5.2h3l1.3-2h4.4l1.3 2h3v8.3h-13z"/><circle cx="8" cy="9" r="2.6"/></svg><span>Camera</span> ▾</button><div class="lmenu cmenu" id="camMenu" role="group" aria-label="Camera" hidden><p class="cmh">Follow</p><label class="cmrow"><span>Soldier</span><select id="camWho" aria-label="The soldier the map follows"><option value="">nobody</option></select></label><button class="btn cmi vpov" id="vPov" aria-pressed="false" title="His view: only what the soldier you follow knew in the game - his side, the enemies he had in sight, his side's spots (V). Follow a soldier first: click one"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 8c1.8-3 4.2-4.5 7-4.5S13.2 5 15 8c-1.8 3-4.2 4.5-7 4.5S2.8 11 1 8z"/><circle cx="8" cy="8" r="2.2"/></svg><span>His view</span></button><button class="btn cmi vaim" id="vAim" aria-pressed="false" aria-disabled="true" title="Aim line: follow a soldier first (click one) - then a yellow line from him to where his crosshair meets something (X)"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="2.4" cy="13.6" r="1.6" fill="currentColor" stroke="none"/><path class="ln" d="M3.8 12.2L11 5"/><path d="M11 .8v2.4M11 6.8v2.4M6.8 5h2.4M12.8 5h2.4"/></svg><span>Aim line</span></button><button class="btn cmi vhand" id="vHand" aria-pressed="true" aria-disabled="true" title="Weapon in his hands: follow a soldier first (click one) - then what he holds, on a plate under him (W)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 6.5h11l2 1.2v1.3h-6l-1 1.2H5.3l-.6 3.3H2.4l.9-3.7H1.5z"/><path d="M8.6 9l.4 1.6"/></svg><span>Weapon in his hands</span></button><button class="btn cmi vlock" id="vLock" aria-pressed="false" title="Lock the camera on the soldier you follow: the map keeps him in the middle as he moves (K). Dragging the map unlocks it"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7.2" width="10" height="7.3" rx="1.4"/><path class="sh" d="M5.3 7.2V5.1a2.7 2.7 0 0 1 5.4 0v2.1"/><path d="M8 10.2v1.6"/></svg><span>Keep him in the middle</span></button><span class="qseg qcam" role="radiogroup" aria-label="View from a vehicle" hidden><button class="sg qC1" role="radio" aria-checked="true" title="The view from a vehicle seat: its own camera, first person (C)">1st person</button><button class="sg qC3" role="radio" aria-checked="false" title="The view from a vehicle seat: the camera behind and above it, third person (C). Which one he played with is not in the demo">3rd person</button></span><p class="cmh">How much of the map</p><div class="cmseg"><button class="btn cmi act" id="vFit" title="Zoom to where the fighting is (the soldiers and the flags)">The fight</button><button class="btn cmi act" id="vAll" title="The whole map">Whole map</button><button class="btn cmi" title="The map nearly as high as the window" id="vBig" aria-pressed="false">Bigger map</button></div><label class="spd zm cmzoom" title="Zoom: drag, or scroll on the map. The number is how many metres the map shows across"><svg class="mg" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6"/><path d="M10 10l4.5 4.5"/></svg><input type="range" id="zoomR" min="0" max="100" step="0.5" value="0" aria-label="Zoom"><b id="zoomV">1 km</b></label><p class="cmh">On the map</p><button class="btn cmi" id="vTab" aria-pressed="false" title="The game's scoreboard at this moment, both sides by squad (hold Tab, or click to keep it open)">The game's scoreboard <span class="w">hold Tab</span></button></div></span><span class="lwrap mlay"><button class="btn" id="mLayBtn" aria-expanded="false" aria-controls="layMenu" title="What the map shows: presets, every element by group, your quick switches (L)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5l6.5 3.2L8 7.9 1.5 4.7z"/><path d="M1.5 8l6.5 3.2L14.5 8M1.5 11.3l6.5 3.2 6.5-3.2"/></svg><span>Show<span class="shp">: <b id="showPre">Standard</b></span></span> ▾</button></span><button class="btn ibtn" id="vFull" aria-pressed="false" aria-label="Full screen" title="Full screen (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5.5 1.5h-4v4M10.5 1.5h4v4M5.5 14.5h-4v-4M10.5 14.5h4v-4"/></svg></button><select class="qpre" id="mPre" hidden tabindex="-1" aria-label="Preset: what the map shows"></select><button class="btn" id="vLink" hidden title="Copy a link to this round at this moment, following the soldier you follow">Copy link</button><button class="btn vside" id="vSide" hidden aria-pressed="false" title="Put these buttons, the speed and the zoom in a column on the left of the map, so its bottom stays free"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/><path d="M5.5 2.5v11"/></svg><span>Controls left</span></button></div>
     </div>
     <div class="fslot" id="feedSlot" hidden></div>
     </div>
@@ -1185,7 +1186,7 @@ body.mbar-on { padding-bottom: 72px; }
     <div class="kbhelp" id="kbHelp" hidden>
       <span><kbd>Space</kbd> play / pause</span><span><kbd>+</kbd> <kbd>−</kbd> speed</span><span><kbd>←</kbd> <kbd>→</kbd> 10 s back / on</span>
       <span><kbd>N</kbd> <kbd>P</kbd> next / previous moment of the soldier you follow (or highlight)</span><span><kbd>I</kbd> <kbd>O</kbd> clip start / end</span>
-      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Show ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>T</kbd> all players' names on the map on / off (Show ▾: each kind)</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
+      <span><kbd>Tab</kbd> (hold) scoreboard</span><span><kbd>F</kbd> full screen</span><span><kbd>L</kbd> what the map shows (Show ▾)</span><span><kbd>M</kbd> vehicles: icons / models</span><span><kbd>B</kbd> buildings' outlines on / off</span><span><kbd>T</kbd> all players' names on the map on / off (Show ▾: each kind)</span><span><kbd>K</kbd> lock the camera on the soldier you follow</span><span><kbd>V</kbd> his view: only what the soldier you follow knew (a vehicle: its crew) - the same as the button in his card</span><span><kbd>X</kbd> the aim line of the soldier you follow on / off - the same as Aim line on the map (by His view) and in his card</span><span><kbd>W</kbd> the weapon in the hands of the soldier you follow on / off - the same as Camera ▾ Weapon in his hands</span><span><kbd>J</kbd> fold / unfold the kill feed over the map - the same as its Hide button (the panel left of the map or under it has its own)</span><span><kbd>G</kbd> cursor: height / grid / nothing</span><span><kbd>H</kbd> relief (heights) on / off</span><span><kbd>A</kbd> the next N s (paused) only for the soldier you follow, or for everyone: on / off</span><span><kbd>C</kbd> view from a vehicle seat: 1st / 3rd person</span><span>Paused: where everyone goes and who dies in the next 1-30 s ("Next … s" on the map or in Layers ▾, with its slider); "For him" on the map or in his card: only the soldier you follow</span><span>Click a soldier on the map, or his row on the timeline: follow him</span><span>Scroll on the map: zoom · drag: move</span>
     </div>
     <div class="clipbar" id="clipBar" aria-label="Video clip" hidden>
       <div id="cSet">
@@ -1251,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v245';
+const APP_VERSION = 'v246';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -2115,6 +2116,10 @@ function shotOff(e, k) {
   if (!e || !e.dir || !k || !Number.isFinite(k.x) || e.x == null) return null;
   const c = killCause(e, false); if (c !== 'small' && c !== 'veh' && c !== 'emp') return null;
   if (/grenade|launcher|GP-|M203|RPG|SRAW|Eryx|C4|Claymore|mine|knife|defib|missile|rocket|bomb|Hellfire|Sidewinder|Sea Sparrow|TOW|HJ-8|Igla|Stinger|QW-2|artillery|cannon/i.test(e.weapon || '')) return null;   // (explosive: the blast's way)
+  // (v245: 43 demos - the guided missiles (Maverick laser / TV), the AA guns' flak and the shots of a man in an aircraft
+  // come 30-176 deg off: a blast's way, or the aircraft far on before the bullet arrives)
+  if (/Maverick|\((laser|TV)\)|\bAA\b|Phalanx|Tunguska|Linebacker|PGZ|ZSU|flak/i.test(e.weapon || '')) return null;
+  { const ki0 = round.pidx.get(e.killer); if (ki0 !== undefined && airNames().has(playerAt(ki0, e.t - 0.05).veh)) return null; }
   const [dx, dh, dz] = e.dir, hl = Math.hypot(dx, dz); if (hl < 0.2) return null;
   const ux = dx / hl, uy = dz / hl, kx = e.x - k.x, ky = e.y - k.y, kl = Math.hypot(kx, ky); if (kl < 3) return null;
   const off = Math.acos(Math.max(-1, Math.min(1, (ux * kx + uy * ky) / kl))) * 180 / Math.PI;
@@ -2220,6 +2225,23 @@ function inHands(i, tt) {
   return { slot, wid, since, name: (wid && WEAPONS[wid]) || SLOT_NAME[slot] };
 }
 const teamColor = tm => tm===0 ? css('--team0') : tm===1 ? css('--team1') : css('--neutral');
+// (v246, Sagara: "squad colours" - each squad its own colour) Show ▾ Soldiers -> Colour: Side / Squad. Each side's first
+// five squads in a colour of their own - warm ones for the red side, cool ones for the blue - and the squad's number by
+// each of its men (the leader's mark in Game has it already); the 6th-9th squads, the commander and those in no squad keep
+// the side's colour, and every name stays in its side's colour. The five of a side were picked to be told apart: every
+// pair at least 15 apart in OKLab (x100), 8 for red-green colour blindness (protan, deutan), each 3:1 on the map
+const SQ_PAL = { warm: ['#fba952', '#f41ced', '#f19fd6', '#f53c41', '#ae6aa8'], cool: ['#34dbb9', '#bc48fe', '#9babfd', '#05a388', '#5480c7'] };
+const sqPal = tm => SQ_PAL[teamColor(tm) === css('--us') ? 'cool' : 'warm'];
+// his squad's number at tt (0: in none, the commander, a vehicle row)
+function sqOf(i, tt) { const p = round.players[i]; if (!p || p.vehicle) return 0; const c = seriesAt(p.cmdr, tt); if (c && c[1]) return 0; const q = seriesAt(p.squad, tt); return q && q[1] ? q[1] : 0; }
+// a soldier's colour on the map: his side's, or (Colour: Squad) his squad's
+function solColor(i, tt) { const tm = teamOf(i, tt); if (!opts.sqCol || (tm !== 0 && tm !== 1)) return teamColor(tm); const n = sqOf(i, tt); return n >= 1 && n <= SQ_PAL.warm.length ? sqPal(tm)[n - 1] : teamColor(tm); }
+// the squad's number on a disc of its colour, at the lower right of his mark
+function sqBadge(x, y, n, col) {
+  const v = parseInt(String(col).trim().replace('#', '').padEnd(6, '0').slice(0, 6), 16), lum = (0.2126 * (v >> 16 & 255) + 0.7152 * (v >> 8 & 255) + 0.0722 * (v & 255)) / 255;
+  cx.save(); cx.beginPath(); cx.arc(x, y, 5.8, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 1.4; cx.stroke();
+  cx.font = '800 8.5px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillStyle = lum > 0.45 ? '#0e120f' : '#ffffff'; cx.fillText(String(n), x, y + 0.5); cx.restore();
+}
 const rgbaOf = (col, a) => { const h = String(col).trim().replace('#', ''); if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(h)) return null; const v = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16); return `rgba(${v >> 16 & 255},${v >> 8 & 255},${v & 255},${a})`; };
 // ---------- field of view ----------
 // (v219, Sagara: "the 1.5 patch gave native widescreen, nearly everyone plays 16:9") The game's soldier camera
@@ -4657,7 +4679,39 @@ function povSpots(tm) {
   C.set(tm, M); return M;
 }
 const povSpotted = (i, tt, tm) => (povSpots(tm).get(i) || []).some(a => a <= tt && tt - a <= SPOT_SHOW);
-// what the followed soldier knows at tt: known (row -> 'self' | 'ally' | 'seen' | 'spot' | 'empty'), mem (row -> when he last saw
+// (v245, todo 286 c) the commander's UAV: while it is up, every enemy within UAV_R m of the place it circles is on his whole
+// side's minimap - the server sends them to all of that side (getRelevantEnemyObjects with the game's uavRadius, 100 by
+// default); the drone itself circles uavVehicleRadius (60 m) round that place at uavVehicleFlightHeight (120 m) over the
+// highest ground there, for 30 s (OpenBF2's ServerConnection / UAVVehicleManager / GameLogic and the game's
+// UAVControlObject.con, read for knowledge). The place: the drone's event is where it starts, 59 m east of it (and 1.6 m
+// north: 253 UAVs of 6 demos, each circle fitted to its track - 59 m round, its middle 59.0 / 1.6 m from the event,
+// both to 0.3 m), else the middle of the drone's last turn (13 s at 30 m/s). -> [{ team, t0, t1, x, y, path }] (kept
+// per round)
+const UAV_R = 100, UAV_TURN = 2 * Math.PI * 60 / 30, UAV_START = [59, 1.6];
+function uavZones() {
+  if (round._uavZ) return round._uavZ;
+  const Z = [], E = round.events.filter(e => e.type === 'uav'), end = round.duration;
+  for (const u of round.raw?.uavs || []) {
+    const put = E.find(e => e.on && e.team === u.team && Math.abs(e.t - u.t0) <= 3);
+    Z.push({ team: u.team, t0: u.t0, t1: u.t1 ?? end, x: put ? put.x - UAV_START[0] : null, y: put ? put.y - UAV_START[1] : null, path: u.path || [] });
+  }
+  // (no drone's records: the commander's events alone, on to off)
+  if (!Z.length) for (const e of E) { if (e.on) Z.push({ team: e.team, t0: e.t, t1: Math.min(end, e.t + 30), x: e.x - UAV_START[0], y: e.y - UAV_START[1], path: [] }); else { const z = Z.filter(z => z.team === e.team && z.t1 === end).pop(); if (z) z.t1 = e.t; } }
+  return (round._uavZ = Z);
+}
+// the place a UAV circles at tt: its own, else the middle of the drone's last turn (null: not known yet)
+function uavAt(z, tt) {
+  if (z.x != null && Number.isFinite(z.x)) return [z.x, z.y];
+  let sx = 0, sy = 0, n = 0; for (const q of z.path) { if (q[0] > tt) break; if (q[0] >= tt - UAV_TURN) { sx += q[1]; sy += q[2]; n++; } }
+  return n >= 4 ? [sx / n, sy / n] : null;
+}
+// is row j (a soldier or a vehicle) on side tm's minimap by its UAV at tt
+function uavShows(j, tt, tm) {
+  if (tm == null || tm < 0) return false; const Z = uavZones(); if (!Z.length) return false;
+  const o = playerAt(j, tt); if (!o.alive || !Number.isFinite(o.x)) return false;
+  return Z.some(z => z.team === tm && tt >= z.t0 && tt <= z.t1 && (c => c && Math.hypot(o.x - c[0], o.y - c[1]) <= UAV_R)(uavAt(z, tt)));
+}
+// what the followed soldier knows at tt: known (row -> 'self' | 'ally' | 'seen' | 'spot' | 'uav' | 'empty'), mem (row -> when he last saw
 // one he no longer knows of)
 function povFrame(tt) {
   const s = sel, tm = povTeam(s, tt), known = new Map([[s, 'self']]), mem = new Map(), rid = povRiders(tt), vrow = new Map();
@@ -4666,6 +4720,7 @@ function povFrame(tt) {
   for (const [vn, L] of rid) { const j = vrow.get(vn); if (j !== undefined && !known.has(j) && L.some(i => known.has(i))) known.set(j, 'ally'); }   // (his side's vehicles, his own)
   for (const i of povSeen(s, tt)) if (!known.has(i)) known.set(i, 'seen');
   for (const [i] of povSpots(tm)) if (!known.has(i) && povSpotted(i, tt, tm)) known.set(i, 'spot');
+  if (uavZones().length) round.players.forEach((p, i) => { if (!known.has(i) && (p.vehicle || teamOf(i, tt) !== tm) && uavShows(i, tt, tm)) known.set(i, 'uav'); });   // (v245: his side's UAV)
   // (v228, Sagara: "Коли вмикаєш режим виду з очей одного солдата, він не бачить пустої техніки") the empty vehicles: all
   // of them - nobody in them to know of; a wreck only where he could see it (it tells of a kill he may not know of)
   round.players.forEach((p, i) => { if (!p.vehicle || known.has(i) || rid.has(p.name)) return; const q = playerAt(i, tt); if (!q.alive || !Number.isFinite(q.x) || (round.wreckOf.get(p.id) || []).some(w => w[0] <= tt && tt < w[1])) return; known.set(i, 'empty'); });
@@ -4682,7 +4737,7 @@ function povKnewAt(i, tt) {
   const p = round.players[i];
   if (p.vehicle) { if ((povRiders(tt).get(p.name) || []).some(k => k === POV.s || teamOf(k, tt) === POV.tm)) return true; }
   else if (teamOf(i, tt) === POV.tm) return true;
-  return povSeenAt(POV.s, +(Math.round(tt / POV_STEP) * POV_STEP).toFixed(1)).has(i) || povSpotted(i, tt, POV.tm);
+  return povSeenAt(POV.s, +(Math.round(tt / POV_STEP) * POV_STEP).toFixed(1)).has(i) || povSpotted(i, tt, POV.tm) || uavShows(i, tt, POV.tm);
 }
 const povOwn = (by, tt) => { if (!POV) return true; const i = by == null ? undefined : round.pidx.get(by); return i !== undefined && (i === POV.s || teamOf(i, tt) === POV.tm); };
 // could he see a place at tt: in his field of view, out to the fog limit, the ground's line clear (h: the height there -
@@ -4891,7 +4946,7 @@ function drawLift(px, py, up, hg, col) {
 }
 function draw() {
   if (!round) return;
-  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) { povTag(); povSync(); aimSync(); }   // (v177: his view only; v228: the map's button)
+  POV = povOn() ? povFrame(t) : null; if (cx === cvCtx) { povTag(); povSync(); aimSync(); handSync(); }   // (v177: his view only; v228: the map's button)
   if (cx === cvCtx) { lockView(); syncZoom(); }
   cx.setTransform(dpr,0,0,dpr,0,0);
   cx.clearRect(0,0,size,sizeH);
@@ -5241,11 +5296,11 @@ function draw() {
       px = sp[0]; py = sp[1];
     } }
     // (v179) up on a roof, a floor, a deck: lifted over his shadow
-    { const hg = !p.vehicle && opts.lift ? overGround(i, q) : null, up = liftPx(hg); if (up) { cx.globalAlpha = ca; drawLift(px, py, up, hg, teamColor(teamOf(i, t))); cx.globalAlpha = 1; py -= up; lifted.set(i, up); } }
+    { const hg = !p.vehicle && opts.lift ? overGround(i, q) : null, up = liftPx(hg); if (up) { cx.globalAlpha = ca; drawLift(px, py, up, hg, solColor(i, t)); cx.globalAlpha = 1; py -= up; lifted.set(i, up); } }
     // an enemy the followed soldier sees: an eye over him (after his marker, below; v152 - no pink glow)
     const seenEn = inView && inView.has(i) && inView.get(i) !== false && sel !== i && !p.vehicle && teamOf(i, t) !== teamOf(selView?.who ?? sel, t);
     // a vehicle takes the colour of the team inside it; empty (nobody known to be in it) it is grey
-    const col = !p.vehicle ? teamColor(teamOf(i, t)) : riders.has(p.name) ? teamColor(riders.get(p.name)) : css('--veh-empty');
+    const col = !p.vehicle ? solColor(i, t) : riders.has(p.name) ? teamColor(riders.get(p.name)) : css('--veh-empty');   // (v246: Colour: Squad)
     // destroyed: a burning wreck for ~10 s, then gone from the map until it respawns at its spawn point
     const wk = p.vehicle ? (round.wreckOf.get(p.id) || []).find(w => w[0] <= t && t < w[1]) : null;
     if (wk && t >= wk[2]) return;
@@ -5304,6 +5359,8 @@ function draw() {
       if (wreck) drawFire(px, py, 16, wk ? t - wk[0] : 0);
       cx.globalAlpha = 1;
     }
+    // (v246) Colour: Squad - the squad's number by each of its men (a squad leader's mark in Game shows it already)
+    if (opts.sqCol && !p.vehicle && q.alive && !q.veh) { const n = sqOf(i, t); if (n && !(opts.gameSol && seriesAt(p.squad, t)?.[2])) { cx.globalAlpha = ca; sqBadge(px + 9, py + 9, n, col); cx.globalAlpha = 1; } }
     const vr = vehRad.get(p.name);
     { const o = opts.oob ? outside.get(p.vehicle ? p.name : i) : undefined; if (o !== undefined && !(p.vehicle ? wreck : q.veh)) {
       const r = p.vehicle ? Math.max(18, (vr || 0) + 6) : 21, oc = css('--outside');
@@ -5638,7 +5695,13 @@ function draw() {
     }
   }
   // (v134) the commander's UAV while it is up: where it flies (its track every 0.5 s), its last 6 s as a trail, in its
-  // team's colour - the enemies under it are on that team's minimap meanwhile
+  // team's colour - the enemies under it are on that team's minimap meanwhile; (v245) the ring round the place it circles
+  // (UAV_R m): the enemies in it are what that side's minimap shows
+  if (opts.uav) for (const z of uavZones()) {
+    if (t < z.t0 || t > z.t1 || (POV && z.team !== POV.tm)) continue; const c = uavAt(z, t); if (!c) continue;
+    const [px, py] = toC(c[0], c[1]), rr = UAV_R * size / view.span; if (rr < 4) continue;
+    cx.globalAlpha = 0.35; cx.strokeStyle = teamColor(z.team); cx.lineWidth = 1.2; cx.setLineDash([2, 4]); cx.beginPath(); cx.arc(px, py, rr, 0, Math.PI * 2); cx.stroke(); cx.setLineDash([]); cx.globalAlpha = 1;
+  }
   if (opts.uav) for (const u of round.raw?.uavs || []) {
     if (t < u.t0 || t > u.t1 || !u.path.length || (POV && u.team !== POV.tm)) continue;
     const P = u.path; let k = 1; while (k < P.length - 1 && P[k][0] < t) k++;
@@ -5946,7 +6009,7 @@ function panels(force) {
   const hasScore = exactSb || !!round.meta.scoreEstimate || round.events.some(e => e.type === 'score');
   const hasHs = !!round.meta.hits, hasSq = round._hasSq ??= round.players.some(p => p.squad || p.cmdr);
   // (his squad after the name: 2★ = squad 2, its leader; C = the commander)
-  const sqTag = p => { const c = seriesAt(p.cmdr, t); if (c && c[1]) return ' <span class="w lbsq" title="Commander">C</span>'; const q = seriesAt(p.squad, t); return q && q[1] ? ` <span class="w lbsq" title="Squad ${q[1]}${q[2] ? ', its leader' : ''}">${q[1]}${q[2] ? '★' : ''}</span>` : ''; };
+  const sqTag = p => { const c = seriesAt(p.cmdr, t); if (c && c[1]) return ' <span class="w lbsq" title="Commander">C</span>'; const q = seriesAt(p.squad, t); return q && q[1] ? ` <span class="w lbsq" title="Squad ${q[1]}${q[2] ? ', its leader' : ''}">${opts.sqCol ? `<i class="sqdot" style="background:${solColor(round.players.indexOf(p), t)}"></i>` : ''}${q[1]}${q[2] ? '★' : ''}</span>` : ''; };   // (v246: Colour: Squad - its colour)
   const rows = round.players.map((p,i)=>{ const g = exactSb && sbNow(p, t); return {p,i,k:g ? g[2] : K.get(p.id)||0,d:g ? g[3] : Dd.get(p.id)||0,hs:HS.get(p.id)||0,s:scoreNow(p, t)}; }).filter(r=>!r.p.vehicle && teamOf(r.i, t)===tab).sort((a,b)=>(hasScore ? b.s-a.s : 0)||b.k-a.k||a.d-b.d);
   const hasKits = round.players.some(p => p.kits);
   const scoreTitle = exactSb ? "The game's own score: its scoreboard is sent to every player and so is in the demo" : round.meta.scoreEstimate ? 'Score by the game rules from what the demo shows (kills, team kills, suicides, revives, heals, repairs, flags, vehicle assists). The demo holds no kill assists, ammo or team damage, so it can differ from the game by a few points' : 'Score';
@@ -6130,8 +6193,19 @@ function aimSync() {
       : `Aim line${opts.aimLn ? ' on' : ''}: a yellow line from ${veh ? 'its guns' : 'him'} to where ${veh ? 'they point' : 'his crosshair meets something'} - somebody, a vehicle, a wall or the ground; dashed into the sky, out to the fog limit (X)`;
   }
 }
+// (v246, Sagara: "a way to turn off what weapon is in his hands") the plate under the soldier you follow - here as well as in
+// Show ▾ (The soldier you follow), and W on the keyboard
+let handKey = '';
+function handSync() {
+  const k = opts.hands + '|' + (sel !== null); if (k === handKey) return; handKey = k;
+  for (const b of document.querySelectorAll('.vhand')) {
+    b.setAttribute('aria-pressed', String(!!opts.hands)); b.setAttribute('aria-disabled', String(sel === null));
+    b.title = sel === null ? 'Weapon in his hands: follow a soldier first (click one) - then what he holds, on a plate under him (W)' : `Weapon in his hands${opts.hands ? ' on' : ' off'}: what he holds, on a plate under him - brighter for a second after he switches (W)`;
+  }
+}
+for (const b of document.querySelectorAll('.vhand')) b.onclick = () => mcToggle('hands', true);
 for (const b of document.querySelectorAll('.vaim')) b.onclick = () => { if (sel === null) { toast('Aim line: follow a soldier first - click one on the map'); return; } aimLnSet(!opts.aimLn); };
-aimSync();
+aimSync(); handSync();
 // Controls left (v108): the map's buttons, the speed and the zoom moved into a column on the left of the map (and back);
 // remembered in this browser. Not on a phone (the bar sits under the map there).
 const PHONE = window.matchMedia('(max-width: 640px)');
@@ -6157,7 +6231,17 @@ function fitMap() {
   const mb = $('#mapbox'); if (mb.classList.contains('fs')) return;
   // (v242) the bar under the map and the gap over it: the map leaves room for them
   const pb = $('#pBar'), bh = pb && pb.parentElement === $('#mapCol') ? Math.round(pb.offsetHeight + 8) : 0;
-  if (bh && bh !== fitMap.bh) { fitMap.bh = bh; document.documentElement.style.setProperty('--barh', bh + 'px'); }
+  // (v246, Sagara: "the site jumps, as if someone zooms in and out", Chrome and Edge) the bar's height and the map's width
+  // hang on each other, and not always one way: a map under 470 px stretches the bar's buttons into fewer rows, which
+  // makes room for a wider map, whose bar then wraps into more rows again - every frame (a window 900-1010 px wide, 900
+  // high: the map 465 <-> 515 px). A lower bar it had in the last 2 s is not taken back: the taller one stays - until the
+  // window's size changes (once it went back and forth, for as long as the window keeps its size)
+  { const wk = innerWidth + 'x' + innerHeight; if (fitMap.wk !== wk) { fitMap.wk = wk; fitMap.was = new Map(); fitMap.pin = 0; } }
+  if (bh && bh !== fitMap.bh) {
+    const now = performance.now(), back = bh < (fitMap.bh || 0) && (bh < fitMap.pin || now - (fitMap.was.get(bh) ?? -1e9) < 2000);
+    if (back) fitMap.pin = Math.max(fitMap.pin, fitMap.bh);
+    else { if (fitMap.bh) fitMap.was.set(fitMap.bh, now); fitMap.bh = bh; document.documentElement.style.setProperty('--barh', bh + 'px'); }
+  }
   const top = Math.round(mb.getBoundingClientRect().top + window.scrollY);
   if (top > 0 && Math.abs(top - (fitMap.top || 0)) > 1) { fitMap.top = top; document.documentElement.style.setProperty('--maptop', top + 'px'); }
   placeFeed();
@@ -7381,7 +7465,7 @@ const SOL_K = 2.3, LEAD_K = 1.6, CMD_K = 1.3;
 function gameSoldier(i, p, q, px, py, col) {
   const c = seriesAt(p.cmdr, t), sq = seriesAt(p.squad, t), cmd = !!(c && c[1]), lead = !cmd && !!(sq && sq[1] && sq[2]);
   let colour = col;
-  if (sel !== null && sq && sq[1] && round.players[sel] && !round.players[sel].vehicle) { const s2 = seriesAt(round.players[sel].squad, t); if (s2 && s2[1] === sq[1] && teamOf(sel, t) === teamOf(i, t)) colour = SQUAD_GREEN; }
+  if (!opts.sqCol && sel !== null && sq && sq[1] && round.players[sel] && !round.players[sel].vehicle) { const s2 = seriesAt(round.players[sel].squad, t); if (s2 && s2[1] === sq[1] && teamOf(sel, t) === teamOf(i, t)) colour = SQUAD_GREEN; }
   if (cmd) { if (!drawHud('arrow', null, 32 * CMD_K, px, py, q.yaw)) return false; return drawHud(col === css('--mec') ? 'cmd1' : 'cmd2', null, 32 * CMD_K, px, py, 0); }
   if (lead) { if (!drawHud('arrow', null, 32 * LEAD_K, px, py, q.yaw)) return false; return drawHud('sq' + Math.min(9, sq[1]), colour, 16 * LEAD_K, px, py, q.yaw); }
   return drawHud('sol', colour, 16 * SOL_K, px, py, q.yaw);
@@ -8060,7 +8144,7 @@ const CLIP_SPEEDS = [0.5, 1, 2, 4, 8, 16];
 const DEMO_FFS = [1, 10, 30, 100, 0], DEMO_LEAD = 90;
 const ffLabel = f => f === 1 ? 'Real pace' : f ? '×' + f : 'Fastest';
 const CLIP_HINT = 'Drag the ends of the yellow band on the timeline, or press I / O to start / end the clip at the playhead. The video shows the map with the layers you have on, the round clock, tickets and kills, with sound made from the demo (shots, rockets, explosions; at up to 2×).';
-const DEMO_HINT = "A kit for Battlefield 2 on your PC (Windows, the game installed): a .zip to unpack into the game's folder, with the round's demo from this moment on and a camera for each view ticked. Its make-videos.bat has the game film each view (1280x720, ~2-4 min each) and, with ffmpeg, makes them MP4. Follow a soldier for the views. The game shows no HUD in a demo: with Names & crosshair, ffmpeg draws the crosshair, the zoom of his sights, names, health and distance over the films.";
+const DEMO_HINT = "A kit for Battlefield 2 on your PC (Windows, the game installed): a .zip to unpack into the game's folder, with the round's demo from this moment on and a camera for each view ticked. Its make-videos.bat has the game film each view (1280x720, ~2-4 min each) and, with ffmpeg, makes them MP4. Follow a soldier for the views. The game shows no HUD in a demo: with Names & crosshair, ffmpeg draws the crosshair, the zoom of his sights, names, health and distance over the films; with Kill feed & clock, the kills and the round's clock. Slow at the kill plays 2 s before to 0.7 s after it at a quarter of the speed; All views in one adds one MP4 with the views side by side.";
 const CLIP_SVG = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1 4.2h9.6v7.6H1zM11.4 7.1l3.6-2.3v6.4l-3.6-2.3z"/></svg>';
 // (v229) the game video kit's views (makeDemoClip below), ticked in the clip bar, remembered
 const GV_VIEWS = [['eyes', 'His eyes', 'What he saw: the camera at his eyes (in a vehicle, his seat\'s view); with Names & crosshair, the crosshair and the zoom of his sights'],
@@ -8072,8 +8156,14 @@ const GV_OVER = ['over', 'Names & crosshair', 'Drawn over the films by ffmpeg (t
 // (v237) in his eyes, names as the game shows them (NametagManager, OpenBF2 - read for knowledge): an enemy only while he
 // is the one under the crosshair, up to 300 m and in clear sight; his own side within 120 m - or, ticked, every name
 const GV_ALLN = ['allnames', 'Every name', 'In his eyes a name over every soldier and manned vehicle in the picture. Off: as the game showed them to him - an enemy only while he is the one under his crosshair (up to 300 m, in clear sight), his own side within 120 m'];
-clip.views = { eyes: true, behind: true, side: false, still: false, over: true, allnames: false };
-try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of [...GV_VIEWS, GV_OVER, GV_ALLN]) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
+// (v245, todo 295) more over the films and from them: the kill feed and the round's clock with the tickets (as the game's
+// HUD has them), the kill slowed down, and one more video with all the views made side by side
+const GV_HUD = ['hud', 'Kill feed & clock', "Drawn over the films: the kills at the top right as the game shows them (killer, weapon, victim; his own in yellow), and at the top the round's clock (the time left, as the game's) with both sides' tickets"];
+const GV_SLOW = ['slow', 'Slow at the kill', 'The kill slowed down: from 2 s before it to 0.7 s after it at a quarter of the speed (the video is that much longer) - for a kill\'s game video (the film icon on a kill)'];
+const GV_GRID = ['grid', 'All views in one', 'One more video: all the views made side by side (2 x 2, each 640x360), named - 1280x720'];
+const GV_OPTS = [GV_OVER, GV_ALLN, GV_HUD, GV_SLOW, GV_GRID], GV_SLOW_X = 4, GV_SLOW_PRE = 2, GV_SLOW_POST = 0.7, GV_KF_SHOW = 6;
+clip.views = { eyes: true, behind: true, side: false, still: false, over: true, allnames: false, hud: true, slow: false, grid: true };
+try { const o = JSON.parse(localStorage.getItem('bf2rr.gviews') || 'null'); if (o) for (const [k] of [...GV_VIEWS, ...GV_OPTS]) if (typeof o[k] === 'boolean') clip.views[k] = o[k]; } catch (e) {}
 const gvSave = () => { try { localStorage.setItem('bf2rr.gviews', JSON.stringify(clip.views)); } catch (e) {} };
 const clipForceRec = /[?&]cliprec\b/.test(location.search);   // (testing: film in real time even with WebCodecs)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.clip') || '{}'); if (CLIP_SIZES[o.size]) clip.size = o.size; if (CLIP_SPEEDS.includes(o.speed)) clip.speed = o.speed; if (o.fmt === 'gif' || o.fmt === 'demo') clip.fmt = o.fmt; if (DEMO_FFS.includes(o.ff)) clip.ff = o.ff; } catch (e) {}
@@ -8162,7 +8252,7 @@ function renderClipBar() {
     { const sl = $('#cSndL'), fast = clip.speed > SND_MAX_SPEED; sl.hidden = dem || gif; $('#cSnd').checked = clip.sound && !fast; $('#cSnd').disabled = fast; sl.classList.toggle('off', fast); sl.title = fast ? `No sound faster than ${SND_MAX_SPEED}× (it would be a din)` : 'Sound made from the demo: shots while a fire button is held, rockets leaving their launcher, explosions - louder the nearer the middle of the picture, left or right as on it (at 0.5× to 2×)'; }
     $('#cFFl').hidden = true; $('#cHint').textContent = dem ? DEMO_HINT : CLIP_HINT;
     { const gv = $('#cViews'); gv.hidden = !dem;
-      if (!gv.childElementCount) { gv.innerHTML = [...GV_VIEWS, GV_OVER, GV_ALLN].map(([k, n, tip]) => `<label${k === 'over' || k === 'allnames' ? ' class="gvover"' : ''} title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
+      if (!gv.childElementCount) { gv.innerHTML = [...GV_VIEWS, ...GV_OPTS].map(([k, n, tip]) => `<label${GV_OPTS.some(o => o[0] === k) ? ' class="gvover"' : ''} title="${esc(tip)}"><input type="checkbox" data-gv="${k}"> ${n}</label>`).join(''); gv.querySelectorAll('[data-gv]').forEach(c => c.onchange = () => { clip.views[c.dataset.gv] = c.checked; gvSave(); renderClipBar(); }); }
       gv.querySelectorAll('[data-gv]').forEach(c => { c.checked = !!clip.views[c.dataset.gv]; }); }
     // camera: follow the soldier you follow (if you follow one), else the map as it is on screen
     const p = sel !== null ? round.players[sel] : null, fo = $('#cCam').options[0];
@@ -9025,6 +9115,11 @@ function gvOverlay(view, i, P, R, zp) {
   // an event a frame; the same text on the next frame makes it longer
   const put = (key, m, layer, style, text) => { const o = open.get(key); if (o && o.text === text && o.e === m) { o.e = m + 1; return; } if (o) ev.push(o); open.set(key, { layer, style, text, s: m, e: m + 1 }); };
   const draw = (body, tags) => `{\\an7\\pos(0,0)\\p1${tags}}${body}{\\p0}`;
+  // (v245) what is drawn: names, crosshair and aim with Names & crosshair (ov); the kill feed and the clock with Kill feed &
+  // clock (hud)
+  const ov = clip.views.over !== false, hud = !!clip.views.hud, putO = ov ? put : () => {};
+  const KF = hud ? round.events.filter(e => e.type === 'kill' && e.killer !== e.victim && e.t >= (P.TA - P.T0) / 30 - GV_KF_SHOW && e.t <= (P.TB - P.T0) / 30 + 0.1) : [];
+  const lim = round.meta.settings?.timeLimit, TKc = round.TK;
   const seeC = new Map(), seeOf = (j, m, tt) => { const k = j * 1e5 + (m - m % 3); if (!seeC.has(k)) { let v = null; try { v = canSee(i, j, tt); } catch (e) {} seeC.set(k, v); } return seeC.get(k); };
   for (let m = 0; m < n; m++) {
     const tt = (P.TA + m - P.T0) / 30, c = pose[m], z = eyes && zp && zp.at[m] >= 0 ? zp.Z[zp.at[m]] : 1, cam = gvCam(c), tw = gvTw(view, z), pix = v => gvPix(v, tw);
@@ -9058,11 +9153,11 @@ function gvOverlay(view, i, P, R, zp) {
       const sn = l.mine || l.seeJ === i || !alive ? true : seeOf(l.seeJ, m, tt), dim = sn === false ? '\\alpha&H70&' : '', [x, y] = l.p;
       if (l.foe && sn === false) continue;   // (the game names an enemy only along one clear ray to him)
       const nc = l.mine ? C.me : C.team[l.tm] || '#cfcfcf';
-      put('n' + l.j, m, 1, 'T', `{\\an2\\pos(${gvN(x)},${gvN(y - 9)})${dim}\\c${col(nc)}}${gvEsc(l.nm)}${l.dist != null ? `{\\c&HE6E6E6&\\fs12} ${Math.round(l.dist)} m` : ''}`);
+      putO('n' + l.j, m, 1, 'T', `{\\an2\\pos(${gvN(x)},${gvN(y - 9)})${dim}\\c${col(nc)}}${gvEsc(l.nm)}${l.dist != null ? `{\\c&HE6E6E6&\\fs12} ${Math.round(l.dist)} m` : ''}`);
       if (l.hp != null) {
         const w = 40, x0 = x - w / 2, y0 = y - 7, f = Math.max(0, Math.min(1, l.hp / 100)), hc = l.hp > 50 ? C.hp[2] : l.hp > 25 ? C.hp[1] : C.hp[0];
-        put('b' + l.j, m, 1, 'D', draw(gvRect(x0 - 1, y0 - 1, x0 + w + 1, y0 + 4), `\\1c&H000000&\\1a&H${dim ? 'C0' : '50'}&`));
-        if (f > 0) put('f' + l.j, m, 2, 'D', draw(gvRect(x0, y0, x0 + w * f, y0 + 3), `\\1c${col(hc)}${dim ? '\\1a&H90&' : ''}`));
+        putO('b' + l.j, m, 1, 'D', draw(gvRect(x0 - 1, y0 - 1, x0 + w + 1, y0 + 4), `\\1c&H000000&\\1a&H${dim ? 'C0' : '50'}&`));
+        if (f > 0) putO('f' + l.j, m, 2, 'D', draw(gvRect(x0, y0, x0 + w * f, y0 + 3), `\\1c${col(hc)}${dim ? '\\1a&H90&' : ''}`));
       }
     }
     // where he aims
@@ -9070,15 +9165,15 @@ function gvOverlay(view, i, P, R, zp) {
     if (al && (al.kind === 'soldier' || al.kind === 'vehicle') && al.j != null) {
       const o = playerAt(al.j, tt), mid = al.kind === 'vehicle' ? o.h + 1.2 : o.h, v = Number.isFinite(o.x) && o.h != null ? cam(o.x, o.y, mid) : null, p = pix(v);
       if (p) { const r = Math.max(10, Math.min(70, GV_W / 2 / tw * (al.kind === 'vehicle' ? 2.2 : 0.8) / v[2]));
-        put('ring', m, 3, 'D', draw(gvCircle(p[0], p[1], r), `\\1a&HFF&\\bord2.2\\3c${col(C.aim)}`)); if (Math.abs(p[0] - GV_W / 2) < r + 60) ringLow = p[1] + r; }
+        putO('ring', m, 3, 'D', draw(gvCircle(p[0], p[1], r), `\\1a&HFF&\\bord2.2\\3c${col(C.aim)}`)); if (Math.abs(p[0] - GV_W / 2) < r + 60) ringLow = p[1] + r; }
     }
     if (eyes) {
-      if (scope) { put('mask', m, 4, 'D', draw(GV_SCOPE.mask, '\\1c&H000000&')); put('reticle', m, 5, 'D', draw(GV_SCOPE.cross, '\\1c&H000000&')); }
-      else if (alive) put('cross', m, 5, 'D', draw(GV_CROSS, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}`));
+      if (scope) { putO('mask', m, 4, 'D', draw(GV_SCOPE.mask, '\\1c&H000000&')); putO('reticle', m, 5, 'D', draw(GV_SCOPE.cross, '\\1c&H000000&')); }
+      else if (alive) putO('cross', m, 5, 'D', draw(GV_CROSS, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}`));
       if (al && al.kind !== 'sky') {
         const who = al.kind === 'soldier' ? `{\\c${col(C.team[teamOf(al.j, tt)] || '#cfcfcf')}} ${gvEsc(round.players[al.j].name)}` : al.kind === 'vehicle' ? `{\\c&HE6E6E6&} ${gvEsc(mapNm(round, round.players[al.j]))}` : '';
         // (through a scope: right of its vertical line, under the horizontal one - out of the way of the ring)
-        put('dist', m, 6, 'T', scope ? `{\\an7\\pos(${GV_W / 2 + 10},${GV_H / 2 + 8})\\c&HFFFFFF&}${Math.round(al.l)} m${who}` : `{\\an8\\pos(${GV_W / 2},${gvN(Math.min(GV_H / 2 + 90, Math.max(GV_H / 2 + 22, ringLow + 5)))})\\c${col(C.aim)}}${Math.round(al.l)} m${who}`);   // (under the ring round him, when it is there)
+        putO('dist', m, 6, 'T', scope ? `{\\an7\\pos(${GV_W / 2 + 10},${GV_H / 2 + 8})\\c&HFFFFFF&}${Math.round(al.l)} m${who}` : `{\\an8\\pos(${GV_W / 2},${gvN(Math.min(GV_H / 2 + 90, Math.max(GV_H / 2 + 22, ringLow + 5)))})\\c${col(C.aim)}}${Math.round(al.l)} m${who}`);   // (under the ring round him, when it is there)
       }
     } else if (al && al.from && Number.isFinite(al.from.x)) {
       // his aim line: from his eye to where it meets something (the part in front of the camera)
@@ -9088,8 +9183,21 @@ function gvOverlay(view, i, P, R, zp) {
       const pa = A && pix(A), pb = A && pix(B);
       if (pa && pb) { const dx = pb[0] - pa[0], dy = pb[1] - pa[1], ln = Math.hypot(dx, dy);
         if (ln > 4) { const nx = -dy / ln * 1.5, ny = dx / ln * 1.5, q = [[pa[0] + nx, pa[1] + ny], [pb[0] + nx, pb[1] + ny], [pb[0] - nx, pb[1] - ny], [pa[0] - nx, pa[1] - ny]];
-          put('aim', m, 3, 'D', draw(`m ${q.map(([x, y]) => gvN(x) + ' ' + gvN(y)).join(' l ')}`, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}${al.kind === 'sky' ? '\\1a&H70&\\3a&H90&' : ''}`));
-          if (al.kind !== 'sky' && al.kind !== 'soldier' && al.kind !== 'vehicle') put('hit', m, 3, 'D', draw(gvCircle(pb[0], pb[1], 6), `\\1a&HFF&\\bord2\\3c${col(C.aim)}`)); } }
+          putO('aim', m, 3, 'D', draw(`m ${q.map(([x, y]) => gvN(x) + ' ' + gvN(y)).join(' l ')}`, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}${al.kind === 'sky' ? '\\1a&H70&\\3a&H90&' : ''}`));
+          if (al.kind !== 'sky' && al.kind !== 'soldier' && al.kind !== 'vehicle') putO('hit', m, 3, 'D', draw(gvCircle(pb[0], pb[1], 6), `\\1a&HFF&\\bord2\\3c${col(C.aim)}`)); } }
+    }
+    if (hud) {
+      // the round's clock (the time left by the server's limit, as the game's top bar; else the time played) and the tickets
+      const [fa] = frameAt(tt), tk = TKc ? [TKc[fa * 2], TKc[fa * 2 + 1]] : null, okT = tk && (tk[0] > 0 || tk[1] > 0), clk = fmt(lim ? Math.max(0, lim - tt) : tt);
+      put('clock', m, 7, 'T', `{\\an8\\pos(${GV_W / 2},8)\\fs20}${okT ? `{\\c${col(C.team[0])}}${Math.round(tk[0])}   ` : ''}{\\c&HFFFFFF&}${clk}${okT ? `   {\\c${col(C.team[1])}}${Math.round(tk[1])}` : ''}`);
+      // the kill feed: the kills of the last GV_KF_SHOW s, the newest at the bottom, 5 at the most (his own in yellow)
+      const kf = KF.filter(e => e.t <= tt + 1e-6 && tt - e.t < GV_KF_SHOW).slice(-5);
+      kf.forEach((e, r) => {
+        const ki = round.pidx.get(e.killer), vi = round.pidx.get(e.victim); if (vi === undefined) return;
+        const kc = ki === i ? C.me : ki !== undefined ? C.team[teamOf(ki, e.t)] || '#cfcfcf' : '#cfcfcf', vc = vi === i ? C.me : C.team[teamOf(vi, e.t)] || '#cfcfcf';
+        const w = killWpn(e) || '';
+        put('kf' + e.t + '|' + e.victim, m, 7, 'T', `{\\an9\\pos(${GV_W - 14},${36 + r * 22})}${ki !== undefined ? `{\\c${col(kc)}}${gvEsc(round.players[ki].name)}` : ''}${w ? `{\\c&HD0D0D0&\\fs13}  [${gvEsc(w)}]  ` : '  '}{\\c${col(vc)}\\fs15}${gvEsc(round.players[vi].name)}`);
+      });
     }
     for (const [k, o] of open) if (o.e !== m + 1) { ev.push(o); open.delete(k); }
   }
@@ -9156,17 +9264,20 @@ async function makeDemoClip() {
     const KIT = `bf2r_${map}_${m ? `${m[1]}${m[2]}${m[3]}_${m[4]}${m[5]}` : 'round'}_${mmss(a)}`, demoName = KIT + '.bf2demo';
     const files = [{ name: `${KIT}/${demoName}`, data: await deflateBytes(P.data) }];
     const first = P.TS + 3, trim = Math.max(0, (P.TA + P.shift - first) / 30), dur = (P.TB - P.TA) / 30;
-    const made = [], over = clip.views.over !== false, VN = Object.fromEntries(GV_VIEWS.map(([k, n]) => [k, n]));
+    const made = [], over = clip.views.over !== false, hud = !!clip.views.hud, ass = over || hud, VN = Object.fromEntries(GV_VIEWS.map(([k, n]) => [k, n]));
+    // (v245) the kill slowed down (a kill's game video): its stretch in the clip's own time, and how much longer the video gets
+    const slow = clip.views.slow && kill ? { t1: Math.max(0, kill.t - a - GV_SLOW_PRE), t2: Math.min(b - a, kill.t - a + GV_SLOW_POST) } : null;
+    const slowAdd = slow ? (slow.t2 - slow.t1) * (GV_SLOW_X - 1) : 0;
     const conOf = (v, file, fov) => crlf(`rem BF2 Round Replay - game video kit, view "${v}"\nrem made on the site; run make-videos.bat, not this\ndemo.demoMode render\ndemo.cameraMode playback\ndemo.demoFile ${KIT}\\${demoName}\ndemo.cameraFile ${KIT}\\${v}.bf2cam\ndemo.renderFile mods\\bf2\\Demos\\${KIT}_${file}.avi\ndemo.renderCompressed 1\ndemo.renderPanorama 0\ndemo.numPanoramaSlices 0\ndemo.renderWidth 1280\ndemo.renderHeight 720\ndemo.renderFps 30\ndemo.renderFieldOfView ${(Math.round(fov * 100) / 100)}\ndemo.syncCameraAndDemo 1\n`);
     for (const v of views) {
       if (job.cancelled) break;
       let R = v === 'eyes' ? camEyes(who, P) : v === 'behind' ? camFollow(who, P, true) : v === 'side' ? camFollow(who, P, false) : camStill(who, P, kill);
       if (!R.length) continue;
-      step(0.87 + 0.09 * made.length / views.length, over ? `${VN[v]}: camera and what goes over it` : `${VN[v]}: camera`);
+      step(0.87 + 0.09 * made.length / views.length, ass ? `${VN[v]}: camera and what goes over it` : `${VN[v]}: camera`);
       await new Promise(r => setTimeout(r, 0));
       // (v232) over the film: the zooms of his sights (eyes) and the .ass
       const zp = over && v === 'eyes' ? gvZoomPlan(who, P) : null;
-      if (over) files.push(await zipText(`${KIT}/${v}.ass`, gvOverlay(v, who, P, R, zp)));
+      if (ass) files.push(await zipText(`${KIT}/${v}.ass`, gvOverlay(v, who, P, R, zp)));
       // before the clip: the camera holding its first pose
       const lead = R[0]; { const H = []; for (let k = P.TS + 1; k < R[0].tick; k++) H.push({ tick: k, x: lead.x, y: lead.y, h: lead.h, yaw: lead.yaw, pitch: lead.pitch }); R = H.concat(R); }
       files.push({ name: `${KIT}/${v}.bf2cam`, data: await deflateBytes(camRecs(R)) });
@@ -9184,26 +9295,42 @@ async function makeDemoClip() {
     // over it where he looks through his sights, the .ass burnt in (FG0-FG2: with 0-2 zoomed films); an ffmpeg that can't
     // (no libass) makes it plain
     const en = (zp, n) => zp.iv[n].map(([s0, s1]) => `between(t,${((s0 - 0.5) / 30).toFixed(3)},${((s1 + 0.5) / 30).toFixed(3)})`).join('+');
+    // (v245) the slowing as the filter's end: the film in three parts, the middle one GV_SLOW_X times as long (each frame
+    // shown that many times), joined again
+    const sx = x => x.toFixed(3), tail = slow ? `[s];[s]split=3[p1][p2][p3];[p1]trim=end=${sx(slow.t1)},setpts=PTS-STARTPTS[q1];[p2]trim=start=${sx(slow.t1)}:end=${sx(slow.t2)},setpts=${GV_SLOW_X}*(PTS-STARTPTS)[q2];[p3]trim=start=${sx(slow.t2)},setpts=PTS-STARTPTS[q3];[q1][q2][q3]concat=n=3:v=1:a=0[o]` : '[o]';
     const block = ({ v, zp }) => {
-      const nz = zp ? zp.Z.length : 0, sub = over ? `subtitles=${KIT}/${v}.ass:fontsdir=${KIT}/fonts` : 'null';
+      const nz = zp ? zp.Z.length : 0, sub = ass ? `subtitles=${KIT}/${v}.ass:fontsdir=${KIT}/fonts` : 'null';
       let L = `\nrem ---- ${VN[v]}\ncall :render ${v}\nset "I0=%AVI%"\nset "I1="\nset "I2="\n`;
       for (let n = 0; n < nz; n++) L += `call :render ${v}_z${n + 1}\nset "I${n + 1}=%AVI%"\n`;
-      L += `set "FG0=[0:v]${sub}[o]"\n`;
-      if (nz >= 1) L += `set "FG1=[0:v][1:v]overlay=enable='${en(zp, 0)}'[z1];[z1]${sub}[o]"\n`;
-      if (nz >= 2) L += `set "FG2=[0:v][1:v]overlay=enable='${en(zp, 0)}'[z1];[z1][2:v]overlay=enable='${en(zp, 1)}'[z2];[z2]${sub}[o]"\n`;
+      L += `set "FG0=[0:v]${sub}${tail}"\nset "FGP=[0:v]null${tail}"\n`;
+      if (nz >= 1) L += `set "FG1=[0:v][1:v]overlay=enable='${en(zp, 0)}'[z1];[z1]${sub}${tail}"\n`;
+      if (nz >= 2) L += `set "FG2=[0:v][1:v]overlay=enable='${en(zp, 0)}'[z1];[z1][2:v]overlay=enable='${en(zp, 1)}'[z2];[z2]${sub}${tail}"\n`;
       return L + `call :mp4 ${v} ${nz}\n`;
     };
     const cut = `-ss ${trim.toFixed(3)} -t ${dur.toFixed(3)}`;
+    // (v245) all the views made in one (up to 4, 640x360 each; two side by side in the middle), each named in its corner
+    const GN = clip.views.grid && made.length >= 2 ? made.slice(0, 4) : [], gd = dur + slowAdd;
+    const cell = k => GN.length === 2 ? [k * 640, 180] : [(k % 2) * 640, Math.floor(k / 2) * 360];
+    const gridIn = GN.map((o, k) => `[${k}:v]scale=640:360,setsar=1[c${k}]`).join(';') + (GN.length === 3 ? `;color=c=black:s=640x360:r=30:d=${gd.toFixed(3)}[c3]` : '');
+    const gridAll = GN.length === 2 ? '[c0][c1]hstack=inputs=2,pad=1280:720:0:180' : '[c0][c1][c2][c3]xstack=inputs=4:layout=0_0|w0_0|0_h0|w0_h0';
+    if (GN.length && ass) files.push(await zipText(`${KIT}/all.ass`, `[Script Info]\nTitle: BF2 Round Replay - all views\nScriptType: v4.00+\nPlayResX: ${GV_W}\nPlayResY: ${GV_H}\nScaledBorderAndShadow: yes\n\n[V4+ Styles]\n` +
+      'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n' +
+      'Style: T,Arial,17,&H00FFFFFF,&H00FFFFFF,&H00101010,&H00000000,-1,0,0,0,100,100,0,0,1,2,0,7,0,0,0,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n' +
+      GN.map((o, k) => { const [x, y] = cell(k); return `Dialogue: 0,0:00:00.00,9:59:59.00,T,,0,0,0,,{\\an7\\pos(${x + 10},${y + 8})}${VN[o.v]}`; }).join('\n') + '\n'));
+    const MP = v => `"mods\\bf2\\Demos\\%KIT%_${v}.mp4"`;
+    const gridBat = GN.length ? `\nrem ---- all the views in one (made of their MP4s)\nset "GRID=${gridIn};${gridAll}[g];[g]${ass ? `subtitles=${KIT}/all.ass:fontsdir=${KIT}/fonts` : 'null'}[o]"\nset "GRIDP=${gridIn};${gridAll}[o]"\nset "ALL=mods\\bf2\\Demos\\%KIT%_all.mp4"\nif not defined FF goto gridend\n` +
+      GN.map(o => `if not exist ${MP(o.v)} goto gridend\n`).join('') + `echo Making all the views into one MP4 ...\n"%FF%" -hide_banner -loglevel error -y ${GN.map(o => `-i ${MP(o.v)}`).join(' ')} -filter_complex "%GRID%" -map "[o]" %X264% "%ALL%"\n` +
+      `if not exist "%ALL%" "%FF%" -hide_banner -loglevel error -y ${GN.map(o => `-i ${MP(o.v)}`).join(' ')} -filter_complex "%GRIDP%" -map "[o]" %X264% "%ALL%"\n:gridend\n` : '';
     if (made.length) files.push({ name: `${KIT}/make-videos.bat`, data: crlf(head + `set "VS=%LOCALAPPDATA%\\VirtualStore%CD:~2%"\nset "FF="\nwhere ffmpeg >nul 2>&1 && set "FF=ffmpeg"\nif not defined FF if exist "%KIT%\\ffmpeg.exe" set "FF=%KIT%\\ffmpeg.exe"\nif not defined FF if exist "ffmpeg.exe" set "FF=ffmpeg.exe"\nif not defined FF echo ffmpeg was not found: the videos stay AVI files (see README.txt)\n` +
-      (over ? `rem (the font of what is drawn over the films: Windows' Arial Bold, copied here so ffmpeg looks no further)\nif not exist "%KIT%\\fonts" mkdir "%KIT%\\fonts"\nif exist "%WINDIR%\\Fonts\\arialbd.ttf" copy /y "%WINDIR%\\Fonts\\arialbd.ttf" "%KIT%\\fonts\\arialbd.ttf" >nul\n` : '') +
+      (ass ? `rem (the font of what is drawn over the films: Windows' Arial Bold, copied here so ffmpeg looks no further)\nif not exist "%KIT%\\fonts" mkdir "%KIT%\\fonts"\nif exist "%WINDIR%\\Fonts\\arialbd.ttf" copy /y "%WINDIR%\\Fonts\\arialbd.ttf" "%KIT%\\fonts\\arialbd.ttf" >nul\n` : '') +
       `set "CUT=${cut}"\nset "X264=-c:v libx264 -crf 20 -preset veryfast -pix_fmt yuv420p"\n` +
-      made.map(block).join('') + `\necho.\necho Done. The videos are in mods\\bf2\\Demos, named ${KIT}_...\npause\nexit /b 0\n\n` +
+      made.map(block).join('') + gridBat + `\necho.\necho Done. The videos are in mods\\bf2\\Demos, named ${KIT}_...\npause\nexit /b 0\n\n` +
       `:render\nset "AVI=mods\\bf2\\Demos\\%KIT%_%1.avi"\necho Rendering %1 (BF2 opens; it closes by itself when the clip ends) ...\nstart "" /wait BF2.exe +fullscreen 0 +szx 1280 +szy 720 +noSound 1 +demo %KIT%\\%1.con\nif not exist "%AVI%" if exist "%VS%\\%AVI%" set "AVI=%VS%\\%AVI%"\nif not exist "%AVI%" echo No video was written for %1\nexit /b 0\n\n` +
       `:mp4\nrem %1 the view, %2 how many zoomed films; I0 its film, I1 I2 the zoomed ones\nset "MP4=mods\\bf2\\Demos\\%KIT%_%1.mp4"\nif not exist "%I0%" exit /b 1\nif not defined FF exit /b 0\nset "N=%2"\nif "%N%"=="2" if not exist "%I2%" set "N=1"\nif "%N%"=="1" if not exist "%I1%" set "N=0"\necho Making %1 into an MP4 ...\n` +
       `if "%N%"=="0" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" -filter_complex "%FG0%" -map "[o]" %X264% "%MP4%"\n` +
       `if "%N%"=="1" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" %CUT% -i "%I1%" -filter_complex "%FG1%" -map "[o]" %X264% "%MP4%"\n` +
       `if "%N%"=="2" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" %CUT% -i "%I1%" %CUT% -i "%I2%" -filter_complex "%FG2%" -map "[o]" %X264% "%MP4%"\n` +
-      `if not exist "%MP4%" echo What goes over the film did not work (an ffmpeg without libass?) - %1 is made without it\nif not exist "%MP4%" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" %X264% "%MP4%"\nif not exist "%MP4%" goto keep\nfor %%F in ("%MP4%") do if %%~zF LSS 100000 goto keep\ndel "%I0%"\nif defined I1 if exist "%I1%" del "%I1%"\nif defined I2 if exist "%I2%" del "%I2%"\nexit /b 0\n:keep\necho The MP4 did not come out - the AVI is kept: %I0%\nexit /b 0\n` + nobf2) });
+      `if not exist "%MP4%" echo What goes over the film did not work (an ffmpeg without libass?) - %1 is made without it\nif not exist "%MP4%" "%FF%" -hide_banner -loglevel error -y %CUT% -i "%I0%" -filter_complex "%FGP%" -map "[o]" %X264% "%MP4%"\nif not exist "%MP4%" goto keep\nfor %%F in ("%MP4%") do if %%~zF LSS 100000 goto keep\ndel "%I0%"\nif defined I1 if exist "%I1%" del "%I1%"\nif defined I2 if exist "%I2%" del "%I2%"\nexit /b 0\n:keep\necho The MP4 did not come out - the AVI is kept: %I0%\nexit /b 0\n` + nobf2) });
     const zr = made.reduce((x, o) => x + (o.zp ? o.zp.Z.length : 0), 0), mins = Math.ceil((P.TB + P.shift - first) / 30 / 0.4 / 60);
     files.push({ name: `${KIT}/README.txt`, data: crlf(`BF2 Round Replay - game video kit
 ${lbl}
@@ -9215,7 +9342,8 @@ The first ${fmtDur(P.leadIn + 3)} of it are the round before the clip, packed (t
 ${made.length ? `2. Run ${KIT}\\make-videos.bat. For each view BF2 opens in a 1280x720 window, plays the clip and closes by itself
    (about 1.5 min to load, then ~${mins} min of rendering a view)${zr ? `; his eyes are rendered ${zr} more time${zr > 1 ? 's' : ''}, zoomed in as through his sights` : ''}. Don't use the PC for games meanwhile.
 3. With ffmpeg (https://ffmpeg.org - Download, a Windows build; put ffmpeg.exe into this folder or anywhere in PATH) each
-   view becomes mods\\bf2\\Demos\\${KIT}_<view>.mp4 (${fmtDur(dur)}), and the big AVIs (~2.8 MB a frame) are deleted.
+   view becomes mods\\bf2\\Demos\\${KIT}_<view>.mp4 (${fmtDur(dur + slowAdd)}${slow ? `, the kill at ${fmt(kill.t)} slowed down ${GV_SLOW_X} times from ${GV_SLOW_PRE} s before it to ${GV_SLOW_POST} s after` : ''}), and the big AVIs (~2.8 MB a frame) are deleted.${GN.length ? `
+   Then all the views in one: ${KIT}_all.mp4 (${GN.map(o => VN[o.v]).join(', ')}, each named in its corner).` : ''}
    Without ffmpeg the AVIs stay: uncompressed 1280x720, ~83 MB a second - most players can't play them smoothly.
 ` : ''}Or run watch-in-game.bat to watch it in the game with your own camera (keys 1-9 set the speed: 1 pause, 2 normal,
 3 = 5%, 4 = 25%, 5 = 50%, 6 = 75%, 7 = 150%, 8 = 300%, 9 = 1000%).
@@ -9227,8 +9355,10 @@ ${over ? `The game shows no HUD in a demo; ffmpeg draws over the films (the .ass
   health and distance from him - faded where he couldn't see them (walls, hills, smoke, trees); a ring round the one
   he aims at; in the views from outside his aim line.
   The picture is the game's and the drawing the site's: a few pixels apart now and then is the demo's own aim.
-` : `There is no HUD or crosshair in the videos: the game shows none when it plays a demo.
-`}`) });
+` : `There is no crosshair in the videos: the game shows none when it plays a demo.
+`}${hud ? `- The kill feed at the top right as the game shows it (killer, weapon, victim - his own in yellow) and at the top
+  the round's clock (the time left) with both sides' tickets.
+` : ''}`) });
     if (job.cancelled) { clipMsg(job.why + '.'); return; }
     step(0.97, 'Zip');
     const blob = zipStore(files);
@@ -9334,7 +9464,9 @@ const tmName = tm => (round && round.teams[tm]?.name) || (tm ? 'USMC' : 'MEC');
 // [layer (an opts key that must be on, or null), its name, what it means (the tooltip), draw at (0, 0) = the icon's middle, blinks]
 const LEGEND = [
   [null, () => `${tmName(0)} · ${tmName(1)}`, 'The two sides, in their colours', () => { lgSol(-9, 1, teamColor(0)); lgSol(9, 1, teamColor(1)); }],
-  ['gameSol', () => 'His squad', 'The squad of the soldier you follow, in green', () => lgSol(0, 1, SQUAD_GREEN)],
+  ['gameSolSq', () => 'His squad', 'The squad of the soldier you follow, in green', () => lgSol(0, 1, SQUAD_GREEN)],
+  ['sqCol', () => `Squads · ${tmName(0)}`, 'Show ▾ Colour: Squad - squads 1 to 5 of this side, each in its own colour, with its number by each man; the commander, those in no squad and squads 6-9 in the side\'s colour', () => { sqPal(0).forEach((c, k) => { cx.beginPath(); cx.arc(-12 + k * 6, 0, 2.9, 0, Math.PI * 2); cx.fillStyle = c; cx.fill(); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 0.9; cx.stroke(); }); }],
+  ['sqCol', () => `Squads · ${tmName(1)}`, 'Show ▾ Colour: Squad - squads 1 to 5 of this side, each in its own colour, with its number by each man; the commander, those in no squad and squads 6-9 in the side\'s colour', () => { sqPal(1).forEach((c, k) => { cx.beginPath(); cx.arc(-12 + k * 6, 0, 2.9, 0, Math.PI * 2); cx.fillStyle = c; cx.fill(); cx.strokeStyle = 'rgba(6,8,6,.85)'; cx.lineWidth = 0.9; cx.stroke(); }); }],
   [null, () => 'Followed', 'The soldier you follow (click one on the map or in the lists)', () => { lgSol(0, 1, teamColor(0), 0.55); cx.scale(0.62, 0.62); lgRing(17, '#000', 'rgba(255,255,255,.8)', 2.4); }],
   ['zoomDot', () => 'Aiming (sights)', 'A white dot at his nose: looking down the sights (zoomed in), not firing from the hip', () => { cx.translate(0, 5); lgSol(0, 0, teamColor(0), 0.55); cx.scale(0.62, 0.62); drawZoomDot(0, 0, 0); }],
   ['aimMark', () => 'Crosshair on him', 'Where the followed soldier\'s crosshair is: on somebody or a vehicle (with how far)', () => {
@@ -9387,7 +9519,7 @@ function legend() {
   const box = $('#mLegend'), on = !!(round && opts.legend);
   box.hidden = !on; if (!on) return;
   const lk = lgScale(); box.style.setProperty('--lgk', String(lk));
-  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() && opts.lastSeen : k === 'sound' ? povOn() && opts.sound : k === 'fogLine' ? opts.view && opts.fogLine : opts[k])), d = (window.devicePixelRatio || 1) * lk;
+  const L = LEGEND.filter(([k]) => !k || (k === 'pov' ? povOn() && opts.lastSeen : k === 'sound' ? povOn() && opts.sound : k === 'fogLine' ? opts.view && opts.fogLine : k === 'gameSolSq' ? opts.gameSol && !opts.sqCol : opts[k])), d = (window.devicePixelRatio || 1) * lk;
   const key = [document.documentElement.dataset.theme || '', document.documentElement.hasAttribute('data-us-first'), povOn(), L.map(x => x[1]()).join(','), opts.gameSol, tmName(0), tmName(1), d, Object.values(HUD_IMG).filter(im => im.complete && im.naturalWidth).length].join('|');
   if (key !== lgKey) {
     lgKey = key; const ul = $('#lgList'); ul.textContent = '';
@@ -9533,6 +9665,7 @@ document.addEventListener('keydown', e => {
   if (e.code==='KeyA' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aheadAll(!opts.ahead);
   if (e.code==='KeyV' && !e.ctrlKey && !e.metaKey && !e.altKey && round) povSet(!pov);   // (v177: his view only)
   if (e.code==='KeyX' && !e.ctrlKey && !e.metaKey && !e.altKey && round) aimLnSet(!opts.aimLn);   // (v185: the aim line)
+  if (e.code==='KeyW' && !e.ctrlKey && !e.metaKey && !e.altKey && round) mcToggle('hands', true);   // (v246: the weapon in his hands)
   if (e.code==='KeyJ' && !e.ctrlKey && !e.metaKey && !e.altKey && round && opts.feed) feedFold(!feedMin);   // (v188: the kill feed folded)
   if (e.code==='KeyL' && !e.ctrlKey && !e.metaKey && !e.altKey) { const b = $('#mLayBtn'), on = $('#layMenu').hidden || layWho() !== b; layOpen(b, on); if (on) $('#layMenu').querySelector('button')?.focus({ preventScroll: true }); }
 });
@@ -9772,6 +9905,7 @@ const MC = [];
   MC.push({ k: 'nicks', g: 'sol', n: "All players' names", short: 'Names', tip: "Every player's name on the map - on foot, by his vehicle, the wounded, who spotted - in one switch (T); each kind on its own here, in its group. The soldier you follow keeps his", key: 'T', derived: true,
     get: () => NICK.some(l => opts.lab[l]), set: v => { if (!v) { nickMem = NICK.filter(l => opts.lab[l]); for (const l of NICK) opts.lab[l] = false; } else for (const l of nickMem && nickMem.length ? nickMem : NICK) opts.lab[l] = true; } });
   C('solMark', 'sol', 'game', 'Marks', "As on the game's minimap (its soldier mark pointing where he looks, a squad leader's number, the commander's star, your squad green), or a disc with a figure for how he stands and moves", [['game', 'Game'], ['fig', 'Figures']], () => opts.gameSol ? 'game' : 'fig', v => { opts.gameSol = v !== 'fig'; });
+  C('solCol', 'sol', 'side', 'Colour', "Each soldier in his side's colour, or in his squad's: the first five squads of a side each its own (warm ones for the red side, cool for the blue) with the squad's number by each man; the commander, those in no squad and the 6th-9th squads keep the side's colour, names too", [['side', 'Side'], ['squad', 'Squad']], () => opts.sqCol ? 'squad' : 'side', v => { opts.sqCol = v === 'squad'; });
   N('names', 'sol', 'foot', 'Names', "Soldiers' names on foot (the one you follow always has his)");
   B('kit', 'sol', true, 'Kit', "The tool of his kit after his name (medic's bag, sniper rifle, …)");
   B('hp', 'sol', true, 'Health bars', 'Under a hurt soldier: green, amber at half or less, blinking at a quarter');
@@ -9809,7 +9943,7 @@ const MC = [];
   B('cover', 'his', true, 'Behind cover', 'A dotted ring round those in his field of view hidden by a wall, a hill, smoke, bushes or the fog');
   B('aimMark', 'his', true, 'Crosshair', 'Where his crosshair meets somebody (a ring round him), a vehicle, a wall or the ground (a cross), with how far');
   B('aimLn', 'his', false, 'Aim line', 'A yellow line from him to where his crosshair meets something; dashed into the sky (X)', { key: 'X' });
-  B('hands', 'his', true, 'In his hands', 'What he holds, on a plate under him (brighter for a second after he switches)');
+  B('hands', 'his', true, 'Weapon in his hands', 'What he holds, on a plate under him (brighter for a second after he switches) (W)', { key: 'W' });
   B('sound', 'his', true, 'Sounds', 'His view: the shots and explosions he could hear - rings where they are, an arrow at the edge for those off the map');
   B('lastSeen', 'his', true, 'Last seen', 'His view: an enemy he lost sight of, where he last saw him');
   B('ahead', 'his', true, 'Next N s', 'While paused: where he goes in the next 1-30 s (the slider), and if he dies - the vehicle he rides in too (A)', { key: 'A' });
@@ -9977,7 +10111,7 @@ function mcSync() {
   const B = MC_KEPT.filter(e => !e.ch), n = B.filter(e => e.get()).length;
   $('#layN').textContent = n + '/' + B.length; for (const b of document.querySelectorAll('.layN2')) b.textContent = n + '/' + B.length;
   const mt = $('#mapTag'); if (mt) mt.hidden = !opts.mapName;
-  aheadKey = ''; aheadSync(); if (typeof aimSync === 'function') aimSync();
+  aheadKey = ''; aheadSync(); if (typeof aimSync === 'function') aimSync(); if (typeof handSync === 'function') handSync();
   mcPresetSync();
 }
 function mcChanged(noSave) {
@@ -13643,14 +13777,17 @@ function recVal(p, k) {
   const v = p.x?.[k] ?? p[k]; return Array.isArray(v) ? v : [v || 0];
 }
 // the best n of each key over rounds R (round entries): { key: [[value, name, round name, weapon], ...] } - a tie: the
-// earlier round first
+// earlier round first. (v246, Sagara: "the records put one and the same player 1st and 3rd - that can't be") n different
+// players: each once, with his best (his other rounds - and a second line of his in one round - left out)
 function aggRecs(R, n = 3) {
   const out = {};
   for (const [k] of REC_KEYS) {
     const all = [];
-    for (const r of R) for (const p of r.sum?.P || []) { if (/^Player \d+$/.test(nickOf(p.name))) continue; const [v, w] = recVal(p, k); if (v > 0) all.push([v, p.name, r.name, w || '', String(r.sum.date || '')]); }
+    for (const r of R) for (const p of r.sum?.P || []) { const nk = nickOf(p.name); if (/^Player \d+$/.test(nk)) continue; const [v, w] = recVal(p, k); if (v > 0) all.push([v, p.name, r.name, w || '', String(r.sum.date || ''), nk]); }
     all.sort((a, b) => b[0] - a[0] || a[4].localeCompare(b[4]));
-    if (all.length) out[k] = all.slice(0, n).map(x => x.slice(0, 4));
+    const seen = new Set(), top = [];
+    for (const x of all) { if (seen.has(x[5])) continue; seen.add(x[5]); top.push(x.slice(0, 4)); if (top.length >= n) break; }
+    if (top.length) out[k] = top;
   }
   return out;
 }

@@ -53,29 +53,17 @@ if ! cmp -s "$HERE/status.sh" /usr/local/bin/bf2replay-status 2>/dev/null; then
   install -m 755 "$HERE/status.sh" /usr/local/bin/bf2replay-status; echo "bf2replay-status updated"
 fi
 
-# the site's Caddy config (only where install.sh / caddy-attach.sh set Caddy up): Caddyfile.in with the domain from
-# /etc/bf2replay.conf. A new one is checked with the whole config Caddy runs (BF2R_CADDYFILE, default
-# /etc/caddy/Caddyfile, other sites included; with the service's own environment - caddylib.sh, v245) and is not used
-# if Caddy wouldn't take it; Caddy is reloaded (not restarted), only if it runs
+# the site's Caddy config (only where install.sh set Caddy up): Caddyfile.in with the domain from /etc/bf2replay.conf;
+# a new one that doesn't validate is not used
 CF=/etc/caddy/bf2replay.caddy
 if [ -f "$CF" ] && command -v caddy >/dev/null 2>&1; then
-  cval() { { sed -n "s/^$1=\"\{0,1\}\([^\"#]*\)\"\{0,1\}\s*\$/\1/p" /etc/bf2replay.conf 2>/dev/null || true; } | tail -1 | tr -d ' '; }
-  dom=$(cval BF2R_DOMAIN); MAIN=$(cval BF2R_CADDYFILE); MAIN=${MAIN:-/etc/caddy/Caddyfile}
-  # shellcheck disable=SC2034  # (read by caddylib.sh)
-  BF2R_CADDY_UNIT=$(cval BF2R_CADDY_UNIT)
-  # shellcheck source=caddylib.sh
-  . "$HERE/caddylib.sh"
+  dom=$({ sed -n 's/^BF2R_DOMAIN="\{0,1\}\([^"#]*\)"\{0,1\}\s*$/\1/p' /etc/bf2replay.conf 2>/dev/null || true; } | tail -1 | tr -d ' ')
   tmp=$(mktemp)
   sed "s|__SITE__|${dom:-:80}|" "$HERE/Caddyfile.in" > "$tmp"
   if ! cmp -s "$tmp" "$CF"; then
-    exec 9>"$CADDY_LOCK"
-    if flock -w 60 9; then
-      cp -p "$CF" "$CF.bak"; install -m 644 "$tmp" "$CF"
-      if caddy_run validate --config "$MAIN" --adapter caddyfile >/dev/null 2>&1 &&
-         { ! systemctl is-active --quiet "$CADDY_UNIT" || caddy_reload "$MAIN"; }; then echo "web server config updated"
-      else cp -p "$CF.bak" "$CF"; echo "the new web server config was not taken (Caddy refused it): the old one stays"; fi
-      flock -u 9
-    else echo "web server config: another change of Caddy's files is running (caddy-attach.sh) - next time"; fi
+    cp "$CF" "$CF.bak"; install -m 644 "$tmp" "$CF"
+    if caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 && systemctl reload caddy; then echo "web server config updated"
+    else cp "$CF.bak" "$CF"; echo "the new web server config was not taken (caddy validate failed): the old one stays"; fi
   fi
   rm -f "$tmp"
 fi
