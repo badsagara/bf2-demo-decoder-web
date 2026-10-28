@@ -1,4 +1,4 @@
-# Admin hints — what each one means and when it shows up (v250)
+# Admin hints — what each one means and when it shows up (v251)
 
 > **For admins only.** This file describes the hint rules and thresholds that are kept out of the public page. Don't
 > share it with players. A copy of the project's `admin-hints-en.md`; back to [the docs](README.md) · [admin guide](admin-guide.md).
@@ -301,7 +301,11 @@ commander is left out. A flag is told by its name (each layer — 16, 32, 64 —
 2. **His own way of choosing.** The same weights are fitted again on each player's own choices, pulled towards
    everyone's: a player who always goes for the far flags nobody fights over (back-capping) meets fewer enemies of
    every kind, and by his own weights that is his way, not luck. Only the known part is fitted, so a cheater's pull
-   away from hidden enemies stays in what is left.
+   away from hidden enemies stays in what is left. (v251) **His taste in flags** too: how much more (or less) than
+   everyone he goes for each flag of a map and side — a player who likes a quiet flag (South Base on Wake Island, where
+   enemies hardly ever are) meets few hidden enemies without knowing of any. It is learnt **only from his choices that
+   tell nothing** (every flag with as many hidden enemies: a radar shows nothing there), so a cheater's pull towards
+   the empty flags is not taken for his taste; pulled towards everyone's. His card shows his flags.
 3. For each player: the hidden enemies his own odds foretell over his telling choices, and how many he met
    (**avoided** = the difference); how often he chose the emptiest flag, and how often his odds would (**emptiest**
    x / E). How unlikely "so few" is, **exactly** (hidden enemies are rare, so a plain bell curve would run ahead of it).
@@ -332,13 +336,43 @@ it does not find. Real honest players also talk (voice, squads): run `--check` o
 should spread about ±1), **split halves** (a real trait keeps its place between his odd and even rounds), peeking put
 into real players' choices, and whether *lost* goes with the ranking (it should not).
 
+**On the server's own rounds (v251: the archive of 2026-10-28, 3,432 rounds, 172,477 choices, 39,235 telling, 737
+players ranked).** Nobody stands out beyond chance: beyond is spread as pure chance would spread it (over 2: 16 players,
+chance alone gives 17; under −2: 13; over 3: none, chance gives 1); it does not go with K/D (r 0.05), with how often he
+is killed on the way (−0.04) or with *lost* (0.01). 82% of telling choices differ by one hidden enemy only. On each
+server on its own one player was flagged (Wake Island, beyond 3.67, q 0.009): he went for South Base in 35% of the
+choices it was in (everyone 17–21%; hidden enemies there 0.05–0.09 a trip) and for the Airfield less than everyone —
+his taste; with it (v251) 1.48. What was tried, each with the placebo (5 shuffles) and peeking put into 20 / 30 / 50% of
+real players' telling choices (found at p < 0.01):
+
+| | found at 20 / 30 / 50% | |
+|---|---|---|
+| v250 | 7 / 15 / 41% | placebo clean |
+| **+ his taste in flags, from the choices that tell nothing (v251)** | **8 / 17 / 43%** | placebo clean; the Wake Island player 1.48 |
+| the same taste from all his choices | 6 / 12 / 34% | the taste eats the peeking |
+| only the enemies on the flag itself (not 20–60 m out) | 8 / 13 / 36% | 467 players ranked, not 737 |
+| heard enemies counted as hidden | 5 / 11 / 33% | players do go by sound: heard is known |
+| hidden enemies against the flag's usual number | 5 / 8 / 22% | and the placebo flags 2 |
+| only the trips that got there (`--arrived`) | — | 261 ranked, nobody at q < 0.05 |
+
+So a player who follows a radar in half of his telling choices is found 4 times in 10; one who does it in a third of
+them, 1 in 6 — mostly when he has 60+ telling choices. Which enemies count as known (20 s or 10 s back?) could not be
+tried on that archive; the analysis keeps it from v251 on (below).
+
+**Another rule for "known" (v251).** The analysis keeps, for every enemy within a flag's zone + 60 m, when his side last
+saw him before the trip and next after, when the player himself saw him on the way, his spots, the UAV ring, a man of
+his side he killed, his shots within 150 / 300 m of the side. The counts above are the page's rule over it;
+`choices.mjs --known seen=10,hear=0,...` works them out by another (keys and limits: server/INSTALL.md → Flag choices)
+— with `--check` to see whether it finds more with the placebo still clean — and `BF2R_CHOICES_KNOWN` in
+/etc/bf2replay.conf makes the background run (and the page) use it. Rounds analysed before v251 are left out then.
+
 **Not in the demo**: voice. A squad that talks ("A is empty") makes its leader look lucky too — check his squad
 mates' *beyond* and watch the moments. A team mate as a spectator who tells him (ghosting) looks the same as a
 wallhack here.
 
 **Where**: (v250) the site's **Flag choices** page for admins (`#achoices=1`: the admins' pane, a player's page, the
 Statistics page — [admin-guide.md](admin-guide.md#the-flag-choices-page-v250)): the ranking, a plot against the reading of
-the game, each player's most telling choices with links to the moment, the daily check; a server's admin sees his
+the game, each player's flags (v251) and most telling choices with links to the moment, the daily check; a server's admin sees his
 servers only, each on its own. On the server: `node server/choices.mjs` (the table; `--nick NAME`; `--check`;
 `--selftest`). The background analysis works it out at most once an hour (`analyze.mjs --choices` at once), each
 server on its own too, and runs the check once a day.

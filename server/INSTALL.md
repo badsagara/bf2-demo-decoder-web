@@ -1035,6 +1035,14 @@ an account with the card Background analysis) starts `analyze.mjs --choices` in 
 choices.mjs now works each server out on its own too and runs its check once a day (some minutes on a big site: in
 the background analysis's run). The page, admin.mjs and the analysis restart / pick it up by themselves: nothing to do.
 
+(v251) The background analysis keeps one more thing in its flag choices (its version 4: what his side could know of each
+enemy near a flag), so **every round goes through it once more** by itself, after the new rounds — the hint rules (15),
+the players' hint cards, the decoder and the summaries stay, nothing decoded again; a round takes ~10% longer. Until it
+is through, choices.mjs ranks with the rounds it has (the old ones count as before). choices.mjs also learns each
+player's taste in flags now (his card shows his flags): nothing to set; its first run after the update does the daily
+check again at once (some minutes on a big site). Another rule for which enemies count as known
+can be tried with `choices.mjs --known ...` and then set (below, "Flag choices"); nothing to do otherwise.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (170 of 57 hints since v247: times, angles, distances, counts, odds) can be set from the site's page:
@@ -1078,6 +1086,30 @@ sudo -u bf2replay node analyze.mjs --choices       # data/.admin/choices.json no
 
 `--all` counts squad members who followed their leader too; `--maps`, `--since`, `--until` narrow the rounds; `--dir`
 reads an unpacked analysis archive. The file is for the admins (`/admin/api/data/choices.json`, like the hint cards).
+
+(v251) Which enemies count as known to his side is the page's rule (seen by his side from 20 s before he set off to 5 s
+after; seen by him, spotted or in the UAV ring until he got there; killed a man of his side in the minute before; or
+fired within 150 m of one of them in the 10 s before — heard). The analysis (from v251) keeps, for every enemy near a
+flag, when each of those happened, so another rule can be tried without analysing again — and compared with `--check`
+(more found when peeking is put in, the placebo still clean):
+
+```bash
+sudo -u bf2replay node choices.mjs --known seen=10 --check          # sightings by his side from 10 s before, not 20
+sudo -u bf2replay node choices.mjs --known hear=0,own=0 --check     # heard counts as hidden; his own sightings on the way don't count
+```
+
+Keys: `seen` (s before, 20; at most 60), `after` (s after, 5; at most 20), `own` (1 / 0), `spot` / `uav` (1 / 0),
+`spotTo` / `uavTo` (s after he set off, -1 until he got there), `kill` (s before, 60; at most 120; 0 none), `hear` (s
+before, 10; at most 30; 0: heard counts as hidden), `hearD` (150 or 300 m), `near` (m out of the zone that is "there",
+20), `far` (out to which "on the way in", 60). Rounds analysed before v251 are left out with another rule, and the
+admins' file is left as it is (`--out F` to write the result elsewhere). To make the background run (and the admins'
+page) use one:
+
+```bash
+echo 'BF2R_CHOICES_KNOWN="seen=10"' | sudo tee -a /etc/bf2replay.conf   # then the page's "Work it out again", or wait for the next run
+```
+
+The page says which rule it was worked out by (at the top of Flag choices). Remove the line to go back to the page's.
 
 ## 21. Old demos: what to keep so that there is room (v186)
 

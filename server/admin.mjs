@@ -459,9 +459,10 @@ function analysisState() {
   const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
   const copies = readJson(path.join(DATA, '.copies.json'), {})?.copies || {}, fileOf = n => String(n || '').replace(/\.bf2demo$/i, '').replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz';
   const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty && r.bfr && !copies[r.name] && !((r.sum.players ?? 0) < 6));
-  // (v249: a round done with the hint rules now but an older analysis - without the flag choices - is not done yet either)
+  // (v249: a round done with the hint rules now but an older analysis - without the flag choices - is not done yet either;
+  // v251: nor one whose analysis the index has no version of - the background run reads it from the file and puts it in)
   const AV = hvPage.av || 0;
-  let cur = 0, old = 0; for (const r of R) { const f = fileOf(r.name), v = hv[f]; if (v === undefined) continue; if (String(v) === String(HV) && !(AV && hv['v:' + f] !== undefined && hv['v:' + f] < AV)) cur++; else old++; }   // (v227: HINTS_V.<hash> - the same, or older)
+  let cur = 0, old = 0; for (const r of R) { const f = fileOf(r.name), v = hv[f]; if (v === undefined) continue; if (String(v) === String(HV) && !(AV && (hv['v:' + f] ?? 0) < AV)) cur++; else old++; }   // (v227: HINTS_V.<hash> - the same, or older)
   const auto = readJson(path.join(OUTD, 'auto.json'), null), run = readJson(path.join(OUTD, 'run.json'), null);
   const runOn = !!(run && !run.ended && alive(run.pid)), autoOn = !!(auto && !auto.ended && alive(auto.pid));
   const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
@@ -846,7 +847,7 @@ function choicesFor(s, R) {
   const scopes = [];
   if (own) scopes.push({ key: '', label: 'All servers', rounds: J.rounds, choices: J.choices, telling: J.telling, null: J.null, pseudoR2: J.pseudoR2, players: mark(J.players, null) });
   for (const [sv, o] of Object.entries(J.byServer || {})) if (own || srvOk(s, sv)) scopes.push({ key: sv, label: sv, ...o, players: mark(o.players, sv) });
-  return { ...base, min: J.min, check: J.check || null, scopes, mine: own ? null : (s.servers || []) };
+  return { ...base, min: J.min, check: J.check || null, known: J.known || null, scopes, mine: own ? null : (s.servers || []) };
 }
 function choicesRun(s, R) {
   if (!R.owner && !R.cards.analysis) return { ok: false, msg: "working it out again is the owner's, or an account's with the card Background analysis" };

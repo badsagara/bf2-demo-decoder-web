@@ -5,6 +5,34 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v251
+
+**Flag choices: tuned on the server's 3 432 rounds** (Sagara sent the analysis archive of 2026-10-28; "давай"):
+
+- **His taste in flags.** The model now learns, for each player, how much more (or less) than everyone he goes for each
+  flag of a map and side — only from his choices where every flag had as many hidden enemies (a radar shows nothing
+  there), so a cheater's pull to the empty flags is not taken for taste. On the archive the only player flagged on his
+  server (Wake Island, beyond 3.67, q 0.009) was a liking for South Base, where enemies hardly ever are: 1.48 with his
+  taste. Peeking put into 30% of telling choices is found a little more often (17% against 15%), the placebo is as clean.
+  Learnt from all his choices instead, the taste ate the peeking (12%), so not that.
+- **His flags on his card**: the flags he went for most unlike everyone — how often he went / was on offer, how often
+  everyone's odds would have him go, how many hidden enemies are there as a rule, his taste.
+- **What his side could know of each enemy is kept** (the analysis's table C, version 4: `E` for every enemy within a
+  flag's zone + 60 m — when his side last saw him, when it saw him next, when he himself saw him on the way, spots, the
+  UAV ring, killed one of his side, fired within 150 / 300 m of his side). The counts are the page's rule over it, as
+  before (the same on our demos, row by row). `choices.mjs --known seen=10,hear=0,...` works the counts out again by
+  another rule — with `--check` to see whether it finds more — and `BF2R_CHOICES_KNOWN` in /etc/bf2replay.conf makes
+  the background run use it (§20, Flag choices). **The background analysis goes over every round once more** for it (the hint rules
+  are the same: no new hints; a round takes ~10% longer).
+- The daily check is worked out again at once when the model or the rule for "known" changed (right after this update
+  too), not kept for a day from the one before.
+- The **Placebo** tile turns red only when the shuffles flag someone more often than chance (1 shuffle in 20 does; 3 of
+  10 is too many). The admin page's Background analysis card counts a round whose analysis version the index does not
+  know as not done yet.
+- Tried on the archive and left out (admin-hints.md → Flag choices): only the enemies on the flag itself (fewer
+  players, less found), heard enemies counted as hidden (worse: players do go by sound), hidden enemies against the
+  flag's usual number (worse, and a noisier placebo), only the trips that got there (nobody at q < 0.05).
+
 ## v250
 
 **Flag choices: a page for admins** (Sagara: "let's make it a special page only admins can open", 2026-10-28):

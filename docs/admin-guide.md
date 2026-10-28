@@ -507,15 +507,19 @@ What is on it:
 
 | Part | What it shows |
 |---|---|
-| Tiles | players ranked (15+ telling choices); **worth a look** (q < 0.05 — none while fewer than 30 are ranked); the daily **placebo** (should be 0) and the **trusted players** at q < 0.05 (should be 0) — red when not |
+| Tiles | players ranked (15+ telling choices); **worth a look** (q < 0.05 — none while fewer than 30 are ranked); the daily **placebo** (red — v251 — only when more shuffles flag someone than chance would: 1 in 20 does, so 1 of 10 is fine, 3 of 10 is not) and the **trusted players** at q < 0.05 (should be 0) — red when not |
 | How to read it | the terms in a few lines |
-| A player (when one is picked) | beyond and q, hidden enemies avoided, the emptiest flag x / foretold, his reading of the game; what it says (stands out / somewhat above / nothing out of the ordinary / not ranked yet); **his most telling choices**: the flags he could have gone for — ▶ the one he went for — each with its distance, hidden enemies on it + on the way in, known ones, his odds; the link opens the round 3 s before he set off, following him; *killed on the way* when he died before getting there |
+| A player (when one is picked) | beyond and q, hidden enemies avoided, the emptiest flag x / foretold, his reading of the game; what it says (stands out / somewhat above / nothing out of the ordinary / not ranked yet); (v251) **his flags** — the flags he went for most unlike everyone: went / on offer, everyone's odds, hidden enemies there as a rule, the taste the model allows him (a liking for a quiet flag is his way, not luck: his odds take it in); **his most telling choices**: the flags he could have gone for — ▶ the one he went for — each with its distance, hidden enemies on it + on the way in, known ones, his odds; the link opens the round 3 s before he set off, following him; *killed on the way* when he died before getting there |
 | The plot | each ranked player: across — his reading of the game (the known enemies he avoided); up — **beyond** (the ranking); red — q < 0.05 (with the line where it starts), ○ — trusted; tap a dot for his choices |
 | The table | every ranked player by beyond (100 at first, **Show all**): rounds, telling choices, emptiest, avoided, z hid, z kn, beyond, lost (his trips killed on the way with the flag not known), q; ★ trusted; a filter by nick, *only q < 0.05*, *also those not ranked yet*; tap a row for his choices |
 | The check | once a day: placebo, split halves, the trusted players, peeking put into real players' choices, killed-on-the-way against the ranking |
 | Work it out again | the owner, or an account with the card *Background analysis*: worked out from every analysed round now (the background analysis does it by itself once an hour when new rounds were analysed) |
 
+(v251) The head says *known by the site's own rule (...)* when the server works it out by another rule for which
+enemies his side knew of (`BF2R_CHOICES_KNOWN`, server/INSTALL.md → Flag choices).
+
 A player at q < 0.05: watch his moments (the side view, his team's minimap, his squad), his hints, his other rounds;
+first his flags — a flag he takes far more than everyone, where enemies hardly ever are, explains a lot;
 mark him trusted in Review when he is clean (★ here too, and he counts in the check). Never a verdict on its own:
 voice is not in the demo.
 
@@ -600,8 +604,8 @@ highest ones under *Background analysis*.
 
 Who "is lucky" at flags over all his rounds: goes for the flag where no enemy is, when nothing his side knew said it was
 empty — what a wallhack or radar gives. Each trip to a flag his side did not hold is set against the flags he could
-have gone for, and a model learnt from everyone's choices (and fitted again to his own way of choosing) says how likely
-each was by what he could know. Players are
+have gone for, and a model learnt from everyone's choices (and fitted again to his own way of choosing and, since v251,
+his own liking for some flags) says how likely each was by what he could know. Players are
 ranked by how many enemies he could not know of he avoided beyond that (and beyond his reading of the game: the known
 enemies he avoided). How it works and how sure it is: [admin-hints.md](admin-hints.md#flag-choices--over-all-of-a-players-rounds-v249).
 
@@ -614,6 +618,7 @@ sudo -u bf2replay node choices.mjs                    # the table: players ranke
 sudo -u bf2replay node choices.mjs --nick NAME        # his choices, the most telling first, each with a link to the moment
 sudo -u bf2replay node choices.mjs --check            # is it measuring anything on our rounds (placebo, split halves, peeking put in)
 sudo -u bf2replay node choices.mjs --maps strike_at_karkand --since 2026-10-01
+sudo -u bf2replay node choices.mjs --known seen=10 --check   # (v251) another rule for "known" - does it find more
 ```
 
 Read *beyond* and *q* (q < 0.05: of the players at or above him, about 1 in 20 is there by luck). It needs a player's

@@ -325,7 +325,9 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   fewer hidden enemies than his odds foretell stands out (`server/choices.mjs`, `data/.admin/choices.json`). Voice is
   not in the demo, so it is a reason to watch, never proof. (v250) The admins' page **Flag choices** (`#achoices=1`):
   the ranking, a plot, each player's most telling choices with links; every server on its own too (a server's admin
-  sees only his); a check once a day (placebo, split halves, the trusted players).
+  sees only his); a check once a day (placebo, split halves, the trusted players). (v251) Each player's own taste in
+  flags (learnt where a radar shows nothing) is taken in, and his card shows his flags; the analysis keeps what his
+  side could know of each enemy, so the rule for "known" can be tried another way (`choices.mjs --known`).
 - **Glitch spot** uses a grid (2 × 2 m, 2.5 m high) of where living soldiers stood on foot in all rounds of a map; it
   needs 30+ rounds of the map.
 - A hint is a reason to watch, never proof; see [admin-hints.md](admin-hints.md) for each one.
