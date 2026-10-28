@@ -188,6 +188,7 @@ there; a value set here wins over the page.
 | `BF2R_RAW_KEEP_DAYS` | remove demos older than N days (**admin page**: *Demos: what to keep*) | 0 = as on the admin page |
 | `BF2R_RAW_AUTOCLEAN` | `1`: below `BF2R_MIN_FREE_GB` + 2 GB free, remove the least needed demos until there is room (rounds stay) | 1 |
 | `BF2R_HINTS` | `0` = no background analysis (§11) | 1 |
+| `BF2R_ANALYZE_JOBS` | rounds the analysis opens side by side (**admin page**: *Background analysis* → *Rounds at once*; since v248) | 0 = admin page / automatic (cores less two, memory, ≤ 12) |
 
 **Posts and summaries** (the rest is on the admin page)
 
@@ -335,13 +336,14 @@ sudo bash /srv/bf2replay/repo/server/analyze.sh pack       # an archive of what 
 ```
 
 Options after `start`: `--jobs 2`, `--limit 500`, `--maps strike_at_karkand`, `--min-players 6`, `--since 2026-10-01`,
-`--fresh` (do again rounds already done). A manual run uses 1–3 browsers at once (~1.5 GB each), at low CPU and disk
-priority; each round takes 5–30 s.
+`--fresh` (do again rounds already done). A manual run uses as many pages at once as the admin page's *Rounds at once*
+(or `--jobs`; ~0.5–1.5 GB each), at low CPU and disk priority; each round takes 2–15 s (v248; 5–30 s before).
 
-After that the timer `bf2replay-hints` keeps going by itself: Glitch spot over 150 new rounds, then 40 rounds in the page
-(new ones first, then those made by older hint rules), then the players' cards — every 5 minutes after the last run
-ended. It is controlled on the admin page (*Background analysis*: Run now, All rounds now, Pause / Go on, archive for
-Claude). `BF2R_HINTS=0` turns it off for good.
+After that the timer `bf2replay-hints` keeps going by itself: Glitch spot over 150 new rounds, then the rounds in the
+page (new ones first, then those made by older hint rules), several at once, in batches of 40 a page with the players'
+cards written after each — up to 95 minutes a run, the next one 5 minutes after the last ended. It is controlled on the
+admin page (*Background analysis*: Run now, Rounds at once, Pause / Go on, archive for Claude). `BF2R_HINTS=0` turns it
+off for good.
 
 ## 12. Posts to Discord and Telegram
 

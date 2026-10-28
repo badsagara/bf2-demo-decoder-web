@@ -196,9 +196,11 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
 
   <section class="card wide" data-card="analysis" aria-labelledby="hAn">
     <h2 id="hAn">Background analysis</h2>
-    <details class="hlp"><summary>What the buttons do</summary><ul><li><b>Run now</b>: a run at once, instead of waiting 5 minutes.</li><li><b>All rounds now</b>: no 40-round limit, several rounds at a time, run after run until all are done - after an update that changes the hint rules. <b>Back to 40 a run</b> ends it.</li><li><b>Pause</b>: the rounds it is on are finished, then nothing until <b>Go on</b> (e.g. while the VPS is busy decoding).</li><li><b>Its log</b>: its lines in the Log below.</li><li><b>Glitch spot</b>: the maps' grids of where soldiers stood (a map needs enough rounds before it gives hints).</li><li><b>Highest suspicion scores</b>: the players to look at first (their pages on the site, the Admin tab of their rounds).</li><li><b>Archive for Claude</b>: every round's numbers in one file - make it, download it, send it to Claude to set the hints' thresholds, then remove it here.</li></ul></details>
-    <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, a few at a time, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. 40 rounds a run, one at a time, 5 minutes after the last run (or all of them at once: "All rounds now"). When it is near 100%, the archive below is what Claude needs to set the thresholds.</p>
+    <details class="hlp"><summary>What the buttons do</summary><ul><li><b>Run now</b>: a run at once, instead of waiting 5 minutes.</li><li><b>Rounds at once</b>: how many rounds it opens side by side, each in a browser page of its own (one core each). Automatic: the cores less two, at most 12 - the site and the decoding of new demos stay first (it runs at a low priority). A change takes effect within seconds, also while it runs; the table under it says how fast each number went here.</li><li><b>Pause</b>: the rounds it is on are finished, then nothing until <b>Go on</b> (e.g. while the VPS is busy decoding).</li><li><b>Its log</b>: its lines in the Log below.</li><li><b>Glitch spot</b>: the maps' grids of where soldiers stood (a map needs enough rounds before it gives hints).</li><li><b>Highest suspicion scores</b>: the players to look at first (their pages on the site, the Admin tab of their rounds).</li><li><b>Archive for Claude</b>: every round's numbers in one file - make it, download it, send it to Claude to set the hints' thresholds, then remove it here.</li></ul></details>
+    <p class="muted" style="margin:0 0 8px">Hints over all rounds (bf2replay-hints): every round opened in the site's page on the server, several at once, for the players' hint cards; and the grids of where soldiers stood, for Glitch spot. A run goes through every round that needs it - batches of 40 a page, the players' cards written after each, new rounds first - for up to 95 minutes; the next one starts 5 minutes after it ends. When it is near 100%, the archive below is what Claude needs to set the thresholds.</p>
     <div id="anBox"></div>
+    <div class="jobs" id="anJobs"></div>
+    <div id="anMore"></div>
   </section>
 
   <section class="card wide" data-card="hints" aria-labelledby="hHt">
@@ -479,7 +481,7 @@ function renderJobs() {
 }
 // (v192) the background analysis: how far, the last run, when all is done; the glitch grids; the hint cards
 function renderAnalysis() {
-  const A = S.analysis, box = $('#anBox'); if (!A) { box.innerHTML = ''; return; }
+  const A = S.analysis, box = $('#anBox'); if (!A) { box.innerHTML = ''; $('#anJobs').innerHTML = ''; $('#anMore').innerHTML = ''; return; }
   const pc = A.total ? Math.floor(100 * A.cur / A.total) : 0, L = [], au = A.auto, st = A.set || {};
   if (A.off) L.push('<div class="row warn">BF2R_HINTS=0 in /etc/bf2replay.conf: the background analysis is off</div>');
   L.push(`<div class="row"><span class="big">${pc}%</span><span class="muted">${A.cur} of ${A.total} rounds (6+ soldiers, not copies) looked at with the page's hint rules now (${A.hv})${A.old ? ` · ${A.old} with older ones` : ''}${A.none ? ` · ${A.none} not yet` : ''}${A.failed ? ` · <span class="warn">${A.failed} failed</span>` : ''}</span></div><div class="bar"><i style="width:${pc}%"></i></div>`);
@@ -487,18 +489,17 @@ function renderAnalysis() {
   // (v193) what it is doing: running now (how far), paused, the last run's own words
   const now = [];
   if (st.paused) now.push(`<b class="warn">paused</b> ${ago(st.paused)}`);
-  if (A.running === 'auto' && au) now.push(`<b class="ok">running now</b>: ${au.done} of ${au.rounds} round${au.rounds === 1 ? '' : 's'} this run, ${au.jobs} at once${au.boost ? ' (all rounds now)' : ''} · started ${ago(au.started)}`);
+  if (A.running === 'auto' && au) now.push(`<b class="ok">running now</b>: ${au.done} round${au.done === 1 ? '' : 's'} done this run${au.batch > 1 ? ` (batch ${au.batch})` : ''}, ${au.running ?? au.jobs} at once · started ${ago(au.started)}`);
   else if (A.running === 'manual') now.push(`<b class="ok">analyze.sh start is running</b>${A.manual ? `: ${A.manual.done} of ${A.manual.rounds}` : ''} (the background one waits for it)`);
   else if (!st.paused && !A.off) now.push('not running now: the next run starts 5 minutes after the last one ends (or press "Run now")');
-  if (st.boost && !st.paused) now.push('<b>all rounds now</b> (several at once, run after run until all are done)');
   L.push(`<div class="row">${now.join(' · ')}</div>`);
   const N = A.note; if (N) L.push(`<div class="row muted">last run ${ago(N.at)}: ${esc(N.msg)}</div>`);
   else if (au && au.ended) L.push(`<div class="row muted">last run ${ago(au.ended)}: ${au.done} round${au.done === 1 ? '' : 's'}${au.secs != null ? ` in ${hm(au.secs)}` : ''}${au.failed ? `, ${au.failed} failed` : ''}</div>`);
-  if (!st.boost && (A.eta || (A.eta === 0 && A.total))) L.push(`<div class="row muted">${A.eta ? `at 40 a run: all done in about ${hm(A.eta)}` : '<span class="ok">all done</span>'}</div>`);
+  if (A.eta || (A.eta === 0 && A.total)) L.push(`<div class="row muted">${A.eta ? `all done in about ${hm(A.eta)}${A.rate ? ` (${(A.rate * 60).toFixed(1)} rounds a min at ${A.jobs?.jobs || 1} at once)` : ''}` : '<span class="ok">all done</span>'}</div>`);
   L.push(`<div class="anact"><button type="button" data-an="run" class="primary"${A.running ? ' disabled' : ''} title="Start a run now instead of waiting for the timer">Run now</button>`
-    + (st.boost ? '<button type="button" data-an="unboost" title="Back to 40 rounds a run, one at a time">Back to 40 a run</button>' : `<button type="button" data-an="boost"${A.playwright && A.cur < A.total ? '' : ' disabled'} title="No 40-round limit: all rounds that need it, several at once (as analyze.sh start), run after run until all are done; then back to 40 a run. The site stays first (low priority)">All rounds now</button>`)
     + (st.paused ? '<button type="button" data-an="resume">Go on</button>' : '<button type="button" data-an="pause" class="danger" title="The rounds being done are finished first; then nothing until Go on">Pause</button>')
     + '<button type="button" data-an="log" title="bf2replay-hints in the log below">Its log</button></div>');
+  box.innerHTML = L.join(''); L.length = 0; renderAnJobs();
   const G = A.glitch;
   if (G) { const M = Object.entries(G.maps || {}), ready = M.filter(([, n]) => n >= G.minRounds);
     L.push(`<div class="row"><b>Glitch spot</b><span class="muted">${ready.length} of ${M.length} maps have ${G.minRounds}+ rounds in their grid${G.left ? ` · ${G.left} rounds still to add` : ''} · ${G.stays} stays left to check · ${G.hints} hint${G.hints === 1 ? '' : 's'} · ${ago(G.at)}</span></div>`
@@ -514,9 +515,33 @@ function renderAnalysis() {
   if (AR.length) L.push(`<table class="antab"><thead><tr><th>Archive</th><th>Made with</th><th class="n">Rounds</th><th class="n">Size</th><th></th></tr></thead><tbody>${AR.map(a => `<tr><td><span class="mono">${esc(a.file)}</span><br><span class="muted">${a.part ? (P && P.on ? 'being made' : 'unfinished') : ago(a.made || a.at)}</span></td>`
     + `<td>${a.part ? '' : `${a.site ? `site <b>${esc(a.site)}</b>` : 'site version not kept <span class="muted">(made before v193)</span>'}${a.pages ? `<br><span class="muted">rounds done by the page: ${vers(a.pages)}</span>` : a.unknown ? '<br><span class="muted">(what is in it: unknown)</span>' : ''}${a.hv ? `<br><span class="muted">hint rules: ${Object.entries(a.hv).sort((x, y) => y[0] - x[0]).map(([k, n]) => `${+k ? (a.hvNow && +k >= a.hvNow ? `the latest (${k})` : `older (${k})`) : 'none (before v185)'} ${n}`).join(', ')}</span>` : ''}${a.glitch ? `<br><span class="muted">with the glitch spots${a.glitch.gridsIn ? '' : ' (not the maps\' grids: too big)'}</span>` : ''}`}</td>`
     + `<td class="n">${a.rounds ?? ''}</td><td class="n">${mb(a.bytes)}</td><td class="act">${a.part ? '' : `<a class="btn primary" href="/admin/api/analysis-file?name=${encodeURIComponent(a.file)}" download>Download</a> `}<button type="button" class="danger" data-an="archive-delete" data-file="${esc(a.file)}"${a.part && P && P.on ? ' disabled' : ''}>Remove</button></td></tr>`).join('')}</tbody></table>`);
-  box.innerHTML = L.join('');
+  $('#anMore').innerHTML = L.join('');
 }
-$('#anBox').addEventListener('click', e => {
+// (v248) how many rounds the background analysis does at once: the choice, the machine, how fast each number went
+// (analysis/.jobs-stats.json) - as "Demos at once" for the decoding
+let anJobsPick = null;   // (chosen, not saved yet: kept over the 5 s refreshes)
+function renderAnJobs() {
+  const A = S.analysis, J = A && A.jobs, box = $('#anJobs'); if (!J) { box.innerHTML = ''; return; }
+  if (box.contains(document.activeElement) && document.activeElement.tagName === 'SELECT') return;   // (not while choosing)
+  const pick = anJobsPick ?? J.set, per = J.pageGb * GB, top = Math.min(J.max, Math.max(4, J.cpus, J.set || 0, pick || 0));
+  const opts = [`<option value="0"${!pick ? ' selected' : ''}>automatic (${J.auto})</option>`].concat(Array.from({ length: top }, (_, i) => i + 1).map(n => `<option value="${n}"${pick === n ? ' selected' : ''}>${n}${n * per > J.mem ? ' (more memory than there is)' : n > J.cpus ? ' (more than the cores)' : ''}</option>`));
+  const choose = J.conf ? `<b>${J.jobs}</b> <span class="tag" title="Edited in /etc/bf2replay.conf on the VPS: remove it there to choose here">BF2R_ANALYZE_JOBS</span>`
+    : `<select id="anJobsSel" aria-label="Rounds analysed at once">${opts.join('')}</select><button type="button" id="anJobsSave">Save</button>`;
+  const au = A.auto, open = A.running === 'auto' && au && au.running != null ? ` <span class="muted">· ${au.running} page${au.running === 1 ? '' : 's'} open now</span>` : '';
+  const need = J.jobs * per, warn = need > J.avail ? `<div class="row warn">${J.jobs} at once may need ~${(need / GB).toFixed(1)} GB: more than the ${(J.avail / GB).toFixed(1)} GB free now - the system can stop the analysis's browser when memory runs out (its rounds are done again in the next run)</div>` : '';
+  const by = Object.entries(J.stats?.by || {}).map(([j, o]) => ({ j: +j, n: o.n, rpm: o.secs ? o.n / o.secs * +j * 60 : 0, each: o.n ? o.secs / o.n : 0 })).filter(o => o.n).sort((a, b) => a.j - b.j);
+  const best = by.filter(o => o.n >= 5).reduce((b, o) => !b || o.rpm > b.rpm ? o : b, null);
+  const table = by.length ? `<table><thead><tr><th>At once</th><th class="n">Rounds</th><th class="n">Rounds a min</th><th class="n">Each took</th></tr></thead><tbody>${by.map(o => `<tr class="${best && o.j === best.j && by.length > 1 ? 'best' : ''}${o.j === J.jobs ? ' cur' : ''}"><td>${o.j}</td><td class="n">${o.n}</td><td class="n">${o.rpm.toFixed(1)}</td><td class="n">${o.each.toFixed(1)} s</td></tr>`).join('')}</tbody></table>
+    <div class="row muted" style="font-size:12px;align-items:center"><span>${best && by.length > 1 ? `fastest so far: <b class="ok">${best.j} at once</b> · ` : ''}measured here${J.stats?.since ? ' since <span style="white-space:nowrap">' + esc(String(J.stats.since).slice(0, 10)) + '</span>' : ''}</span><button type="button" id="anJobsReset" style="padding:2px 8px">Clear</button></div>` : '<div class="row muted" style="font-size:12px">No speeds measured yet: they come with the next rounds analysed.</div>';
+  box.innerHTML = `<div class="row" style="align-items:center"><label for="anJobsSel">Rounds at once</label>${choose}${open}</div>
+    <div class="row muted" style="font-size:12px">VPS: ${J.cpus} core${J.cpus === 1 ? '' : 's'} · ${(J.mem / GB).toFixed(1)} GB memory, ${(J.avail / GB).toFixed(1)} GB free · load ${J.load.map(x => x.toFixed(1)).join(' ')} · each round at once takes up to ~${J.pageGb} GB</div>
+    ${warn}${table}
+    <details style="margin-top:6px"><summary>How to find the best number</summary><p class="muted" style="font-size:12.5px;margin:6px 0 0">Choose a number while there are many rounds to do (after an update that changes the hint rules) and let it run 15-30 minutes, then look at <b>Rounds a min</b>: the bigger, the faster. Then the next number. A change takes effect within seconds, also while it runs. Compare over many rounds each: a Karkand round with 60 men takes ten times as long as a quiet Wake one. More than the cores rarely helps (each round then takes longer); each one needs up to ~${J.pageGb} GB of memory. Automatic: the cores less two, the memory, at most 12.</p></details>`;
+  if ($('#anJobsSel')) $('#anJobsSel').onchange = () => { anJobsPick = +$('#anJobsSel').value; };
+  if ($('#anJobsSave')) $('#anJobsSave').onclick = () => { const v = +$('#anJobsSel').value; act('analysis', { do: 'jobs', jobs: v }, $('#anJobsSave')).then(j => { if (j && j.ok) anJobsPick = null; }); };
+  if ($('#anJobsReset')) $('#anJobsReset').onclick = () => { if (confirm('Clear the measured speeds? They are measured again from the next rounds.')) act('analysis', { do: 'jobs', reset: true }, $('#anJobsReset')); };
+}
+document.querySelector('[data-card="analysis"]').addEventListener('click', e => {
   const b = e.target.closest('button[data-an]'); if (!b) return;
   const d = b.dataset.an;
   if (d === 'log') { $('#logUnit').value = 'hints'; loadLog(); $('#logUnit').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }

@@ -14,11 +14,12 @@
 #                                                             stood, at once (~0.5 s a round; no browser), then the
 #                                                             glitch spots (data/.admin/glitch)
 # (v185) Without any of this, bf2replay-hints.timer runs analyze.mjs --auto in the background, 5 minutes after each run
-# ends: 150 decoded rounds into the glitch grids, then 40 rounds in the page (once Playwright is installed by "start":
-# the new rounds, then those done by older hint rules), then the player pages' hints card (data/.admin/hints). It waits
-# while a run of this script is going. (v193) The admin page's Background analysis card runs it now, does all rounds
-# at once (as "start" would, run after run), pauses it, and makes and downloads the archive (named with the site's
-# version: bf2-analysis-<date>-<version>.tar).
+# ends: 150 decoded rounds into the glitch grids, then the rounds in the page (once Playwright is installed by "start":
+# the new rounds, then those done by older hint rules), then the player pages' hints card (data/.admin/hints). (v248)
+# Several at once, batch after batch (40 a page, the cards written after each) for up to 95 minutes. It waits while a
+# run of this script is going. (v193) The admin page's Background analysis card runs it now, pauses it, (v248) sets how
+# many rounds at once (for this script's runs too, unless --jobs), and makes and downloads the archive (named with the
+# site's version: bf2-analysis-<date>-<version>.tar).
 # Anything after "start" goes to analyze.mjs: --jobs 2, --limit 500, --maps strike_at_karkand, --min-players 6,
 # --since 2026-10-01, --fresh (see the top of analyze.mjs).
 set -euo pipefail
@@ -52,8 +53,8 @@ case "${1:-start}" in
   status)
     if systemctl is-active --quiet "$UNIT"; then echo "Running - $(count) rounds done so far:"; else echo "Not running - $(count) rounds done:"; fi
     journalctl -u "$UNIT" -n 12 -o cat --no-pager 2>/dev/null || true
-    echo; echo "In the background (bf2replay-hints: 40 rounds a run, 5 minutes after the last run ends; the admin page's"
-    echo "Background analysis card shows it too, and runs it now / all rounds at once / pauses it):"
+    echo; echo "In the background (bf2replay-hints: every round that needs it, several at once, 5 minutes after the last run"
+    echo "ends; the admin page's Background analysis card shows it too, runs it now, pauses it, sets how many at once):"
     if systemctl is-active --quiet bf2replay-hints.service; then echo "  running now"; fi
     # (its own lines, not systemd's "Started / Deactivated / Consumed")
     journalctl -u bf2replay-hints.service -n 200 -o cat --no-pager 2>/dev/null | grep -v 'bf2replay-hints.service' | tail -6 | sed 's/^/  /' || true

@@ -9,7 +9,9 @@
 //   node analyze.mjs                one file a round in $BF2R_ROOT/analysis/rounds (a round already done is skipped:
 //                                   the run goes on from where it stopped), then the archive
 //                                   $BF2R_ROOT/analysis/bf2-analysis-<date>.tar (what to send to Claude)
-//     --jobs N                      rounds at once (default: the cores less one, ~1.5 GB of memory each, at most 3)
+//     --jobs N                      rounds at once (v248: else BF2R_ANALYZE_JOBS in /etc/bf2replay.conf, else the admin
+//                                   page's choice - Background analysis, Rounds at once -, else automatic: the cores
+//                                   less two, the memory at ~PAGE_GB a page, at most 12; before v248 at most 3)
 //     --limit N                     at most N rounds this run
 //     --maps a,b                    only these maps (strike_at_karkand,dalian_plant)
 //     --min-players N               rounds with fewer soldiers left out (default 6)
@@ -20,13 +22,16 @@
 //                                   bf2-analysis-<date>-<version>.tar, with a .json beside it of what is in it; the
 //                                   admin page makes and downloads it too)
 //     --no-pack                     no archive at the end
-//     --auto                        (v185, bf2replay-hints.timer) the background run: a few rounds a time (--limit 40,
-//                                   1 at once) - those not done yet, then those done by older hint rules (the page's
-//                                   HINTS_V), the newest first; no archive; then the hints over every player's rounds.
-//                                   (v193) The admin page's say (analysis/.auto-set.json): paused (nothing is done),
-//                                   or all rounds now (no 40 a run, as many at once as analyze.sh would) - a run takes
-//                                   new rounds for up to 95 minutes (the service's limit is 2 h), the next one goes on
-//                                   5 minutes later; what each run did: analysis/auto-note.json
+//     --auto                        (v185, bf2replay-hints.timer) the background run: those not done yet, then those
+//                                   done by older hint rules (the page's HINTS_V), the newest first; no archive; then
+//                                   the hints over every player's rounds. (v248) As many at once as --jobs says, in
+//                                   batches of 40 a page at once (BATCH): after each, the players' hint cards are
+//                                   written and the list looked at again (new rounds first); the run goes on, batch
+//                                   after batch, while rounds are left and its time (95 min; the service's limit is
+//                                   2 h) is not up - no more 5 minutes between batches of 40, one at a time, and no
+//                                   "All rounds now" (v193-v246). The admin page's say (analysis/.auto-set.json):
+//                                   paused (nothing is done), how many at once (looked at again every 5 s: the run
+//                                   follows a change at once); what each run did: analysis/auto-note.json
 //     --hints                       only the hints over every player's rounds: data/.admin/hints.json (each hint's share
 //                                   of soldier-rounds) and data/.admin/hints/<nick>.json (the player page's card; v196:
 //                                   the admins' - data/stats before)
@@ -241,8 +246,9 @@ function glitchStep(budget) {
   return aggGlitch({ DATA, OUT, rounds, nickOf: F.nickOf, budget, log });
 }
 if (has('--glitch')) { glitchStep(+val('--glitch', 0) || 1e9); process.exit(0); }
-// (v193) the admin page's say over the background run: analysis/.auto-set.json { paused: when, boost: when } (either may
-// be missing); what a run did, for the admin page: analysis/auto-note.json { at, kind, msg, ... }
+// (v193) the admin page's say over the background run: analysis/.auto-set.json { paused: when, jobs: 0-16 } (either may be
+// missing; v248: jobs - "boost", All rounds now of v193-v246, is no more: dropped when found); what a run did, for the
+// admin page: analysis/auto-note.json { at, kind, msg, ... }
 const SETF = path.join(OUT, '.auto-set.json'), NOTEF = path.join(OUT, 'auto-note.json');
 const autoSet = () => { try { return JSON.parse(fs.readFileSync(SETF, 'utf8')) || {}; } catch (e) { return {}; } };
 const autoSetPut = o => { try { const t = SETF + '.tmp'; fs.writeFileSync(t, JSON.stringify(o)); fs.renameSync(t, SETF); } catch (e) {} };
@@ -250,7 +256,21 @@ const note = (kind, msg, x = {}) => { if (!AUTO) return; try { fs.mkdirSync(OUT,
 // (v193) a run of this script still going (a pid in run.json of a run that ended without saying so may be another
 // program's by now: it is this script only when its command line says so)
 const alive = pid => { if (!pid) return false; try { return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').includes('analyze.mjs'); } catch (e) { if (fs.existsSync('/proc/self')) return false; try { process.kill(pid, 0); return true; } catch (e2) { return false; } } };
-const BOOST = AUTO && !!autoSet().boost, RUN_BUDGET = AUTO ? (+val('--budget', 0) || 95) * 60e3 : Infinity;
+const RUN_BUDGET = AUTO ? (+val('--budget', 0) || 95) * 60e3 : Infinity;
+// (v248) how many rounds at once: --jobs N (for the whole run), else BF2R_ANALYZE_JOBS in /etc/bf2replay.conf, else the
+// admin page's choice (analysis/.auto-set.json jobs; 0 = automatic), else automatic - the cores less two (the site and the
+// decoding of new demos keep theirs; it runs at a low priority anyway), the memory at PAGE_GB a page (60% of it), at most
+// 12; admin.mjs works it out the same way. Looked at again after each round and every 5 s: a change on the admin page
+// takes effect at once - more pages are opened, or as many as are too many close after their round. Before v248: the
+// background run 1 at once, analyze.sh and All rounds now the cores less one, at most 3
+const JOBS_MAX = 16, PAGE_GB = 1.5;
+const autoJobs = () => Math.max(1, Math.min(12, (os.cpus().length || 1) - 2, Math.floor(os.totalmem() * 0.6 / (PAGE_GB * 2 ** 30))));
+const ARG_JOBS = Math.max(0, Math.floor(+val('--jobs', 0)) || 0), CONF_JOBS = Math.max(0, Math.floor(+opt('BF2R_ANALYZE_JOBS', '0')) || 0);
+function jobsWanted() {
+  if (ARG_JOBS) return Math.min(JOBS_MAX, ARG_JOBS);
+  if (CONF_JOBS) return Math.min(JOBS_MAX, CONF_JOBS);
+  const j = Math.floor(+autoSet().jobs) || 0; return j > 0 ? Math.min(JOBS_MAX, j) : autoJobs();
+}
 // (v185) a background run while analyze.sh's own run is going: left for the next time
 if (AUTO) {
   if (opt('BF2R_HINTS', '1') === '0') { const m = 'BF2R_HINTS=0 (/etc/bf2replay.conf): the background analysis is off'; console.log(m); note('off', m); process.exit(0); }
@@ -274,39 +294,54 @@ if (!chromium) {
 }
 
 // ---------- what to do ----------
-const idx = readRoundList(fs, path, DATA);
 const MIN_P = +val('--min-players', 6), MAPS = val('--maps', '') ? new Set(val('--maps').split(',').map(s => s.trim().toLowerCase())) : null, SINCE = val('--since', '');
 const LIMIT = +val('--limit', 0) || Infinity, TIMEOUT = (+val('--timeout', 900) || 900) * 1000, FRESH = has('--fresh');
 const soldiers = r => r.sum?.players ?? (r.sum?.teams || []).reduce((s, t) => s + (t.players || 0), 0);
-let todo = (idx.rounds || []).filter(r => !r.empty && r.bfr && (!MAPS || MAPS.has(String(r.sum?.map || '').toLowerCase())) && (!SINCE || String(r.sum?.date || '') >= SINCE) && !(soldiers(r) < MIN_P));
-todo.sort((a, b) => String(b.sum?.date || '').localeCompare(String(a.sum?.date || '')));   // (the newest first)
+const mapOf = r => String(r.sum?.map || '').toLowerCase();
+// the rounds that may be looked at (the list read again each time: v248 - a background run goes on over new rounds too),
+// the newest first
+function listed() {
+  const L = (readRoundList(fs, path, DATA).rounds || []).filter(r => !r.empty && r.bfr && (!MAPS || MAPS.has(mapOf(r))) && (!SINCE || String(r.sum?.date || '') >= SINCE) && !(soldiers(r) < MIN_P));
+  return L.sort((a, b) => String(b.sum?.date || '').localeCompare(String(a.sum?.date || '')));
+}
 fs.mkdirSync(RDIR, { recursive: true });
 const pageVer = (/const APP_VERSION = '(v\d+)'/.exec(fs.readFileSync(path.join(SITE, 'index.html'), 'utf8')) || [])[1] || '?';
-if (AUTO) {   // (v185) not done yet first, then done by older hint rules; the copies of other rounds never, nor a round
-  // that failed with this page (it would be tried every 15 minutes: again after the next update of the site)
+const failedPath = path.join(OUT, 'failed.json'); let failed = {}; try { failed = JSON.parse(fs.readFileSync(failedPath, 'utf8')); } catch (e) { /* none yet */ }
+// (v185) the background run's list: not done yet first, then done by older hint rules; the copies of other rounds never,
+// nor a round that failed with this page (it would be tried again and again: again after the next update of the site),
+// nor one being done now (busy: v248, the list is looked at again between batches)
+function autoList(busy) {
   let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
-  let fl = {}; try { fl = JSON.parse(fs.readFileSync(path.join(OUT, 'failed.json'), 'utf8')); } catch (e) {}
   const HV = pageHv(), none = [], old = [];
   let skipF = 0;
-  for (const r of todo) { if (copies[r.name]) continue; if (fl[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); }
+  for (const r of listed()) { if (copies[r.name] || busy.has(r.name)) continue; if (failed[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); }
   // (v225) while ingest.mjs decodes the rounds again for a new decoder (data/reprocess.json), the rounds it has done come
   // first: one not done yet would be looked at now and again once it is
   { let P = null; try { P = JSON.parse(fs.readFileSync(path.join(DATA, 'reprocess.json'), 'utf8')); } catch (e) {}
     if (P && P.hash && !P.end) { const L = r => r.decoder === P.hash ? 0 : 1; for (const A of [none, old]) A.sort((a, b) => L(a) - L(b)); } }
-  hvSave(); todo = none.concat(old);
-  if (!todo.length) {
-    const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); }   // (all done: the boost is over)
-    aggHints(); const m = `nothing to do: every round is done with the hint rules now${skipF ? ` (${skipF} failed with this version of the site: tried again after its next update)` : ''}`; log(m); note('done', m, { queued: 0, failed: skipF }); process.exit(0);
+  hvSave(); return { none, old, skipF };
+}
+// (v248) the background run goes batch by batch: BATCH rounds a page at once, then the players' hint cards are written
+// and the list is looked at again (rounds decoded meanwhile come first) - until none are left or the run's time is up
+const BATCH = +val('--batch', 0) || 40;   // (--batch N: another size, for tests)
+let queue;
+if (AUTO) {
+  { const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); } }   // (v248: All rounds now is no more)
+  const L = autoList(new Set());
+  if (!L.none.length && !L.old.length) {
+    aggHints(); const m = `nothing to do: every round is done with the hint rules now${L.skipF ? ` (${L.skipF} failed with this version of the site: tried again after its next update)` : ''}`; log(m); note('done', m, { queued: 0, failed: L.skipF }); process.exit(0);
   }
-  log(`${none.length} rounds not looked at yet, ${old.length} done with older hint rules${BOOST ? ' (all rounds now: the admin page)' : ''}`);
-  var QUEUED = todo.length;
-} else if (!FRESH) todo = todo.filter(r => { try { return !fs.statSync(fileOf(r.name)).size; } catch (e) { return true; } });
-todo = todo.slice(0, AUTO ? (BOOST ? Infinity : +val('--limit', 0) || 40) : LIMIT);
-const failedPath = path.join(OUT, 'failed.json'); let failed = {}; try { failed = JSON.parse(fs.readFileSync(failedPath, 'utf8')); } catch (e) { /* none yet */ }
-const memJobs = Math.max(1, Math.floor(os.totalmem() / (1.5 * 2 ** 30))), JOBS = Math.max(1, Math.min(16, +val('--jobs', 0) || (AUTO && !BOOST ? 1 : Math.min(3, Math.max(1, os.cpus().length - 1), memJobs))));
-log(`${todo.length} rounds to analyse (page ${pageVer}, ${JOBS} at once; ${MIN_P}+ soldiers${MAPS ? ', maps ' + [...MAPS].join(',') : ''}${SINCE ? ', since ' + SINCE : ''}) -> ${RDIR}`);
+  log(`${L.none.length} rounds not looked at yet, ${L.old.length} done with older hint rules`);
+  queue = L.none.concat(L.old).slice(0, BATCH * jobsWanted());
+} else {
+  queue = listed();
+  if (!FRESH) queue = queue.filter(r => { try { return !fs.statSync(fileOf(r.name)).size; } catch (e) { return true; } });
+  queue = queue.slice(0, LIMIT);
+}
+const JOBS = jobsWanted();
+log(`${queue.length} rounds to analyse${AUTO ? ' in the first batch' : ''} (page ${pageVer}, ${JOBS} at once${ARG_JOBS ? ' (--jobs)' : CONF_JOBS ? ' (BF2R_ANALYZE_JOBS)' : ''}; ${MIN_P}+ soldiers${MAPS ? ', maps ' + [...MAPS].join(',') : ''}${SINCE ? ', since ' + SINCE : ''}) -> ${RDIR}`);
 try { os.setPriority(15); } catch (e) { /* not allowed: as it is */ }
-if (!todo.length) { if (!has('--no-pack')) pack(); process.exit(0); }
+if (!queue.length) { if (!has('--no-pack')) pack(); process.exit(0); }
 const RUNF = path.join(OUT, AUTO ? 'auto.json' : 'run.json');   // (v185: the background run its own, so a manual run is told apart)
 
 // ---------- the site's files, served to the browser here ----------
@@ -342,29 +377,71 @@ async function newPage(first) {
   page.on('pageerror', e => { page._errs = (page._errs || []).concat(String(e.message || e).slice(0, 200)); });
   await page.goto(BASE + '?analyze#round=' + encodeURIComponent(linkId(first)), { waitUntil: 'load', timeout: 120000 });
   await page.waitForFunction(() => window.__bf2analyze && window.__bf2analyze.ready(), null, { timeout: 120000 });
-  page._n = 0; return page;
+  page._n = 0; page._map = ''; return page;
 }
 // (v182: the timer cleared when the round is done - before, each one held the run open for up to --timeout after the last
 // round, past systemd's time to stop: "State 'stop-sigterm' timed out. Killing")
 const withTimeout = (p, ms, what) => { let tm; return Promise.race([p, new Promise((_, rej) => { tm = setTimeout(() => rej(new Error(what + ': over ' + Math.round(ms / 1000) + ' s')), ms); })]).finally(() => clearTimeout(tm)); };
-let done = 0, kills = 0, hints = 0; const started = Date.now(), total = todo.length;
-const runInfo = { started: new Date().toISOString(), pid: process.pid, page: pageVer, jobs: JOBS, rounds: total, host: os.hostname(), mem: os.totalmem(), cpus: os.cpus().length, ...(AUTO ? { boost: BOOST, queued: QUEUED } : {}), done: 0 };
-fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1));
-let stopping = false, outOfTime = false, told = '';
+// (v248) how fast each number of rounds at once went on this machine (the admin page: pick the best) - per number, the
+// rounds done while that many pages ran side by side from their start to their end (the start and end of a run, and a
+// change of the number, left out) and the seconds each took; the machine's cores and memory with it (another machine:
+// counted from scratch). analysis/.jobs-stats.json, as ingest.mjs's data/.ingest-stats.json for the decoding
+const STATSF = path.join(OUT, '.jobs-stats.json'), MACHINE = `${os.cpus().length} cores, ${Math.round(os.totalmem() / 2 ** 30)} GB`;
+function speedAdd(jobs, secs) {
+  let S = null; try { S = JSON.parse(fs.readFileSync(STATSF, 'utf8')); } catch (e) {}
+  if (!S || S.machine !== MACHINE) S = { machine: MACHINE, by: {}, since: new Date().toISOString() };
+  const o = S.by[jobs] || (S.by[jobs] = { n: 0, secs: 0 }); o.n++; o.secs = +(o.secs + secs).toFixed(2); o.last = new Date().toISOString();
+  try { fs.writeFileSync(STATSF + '.tmp', JSON.stringify(S)); fs.renameSync(STATSF + '.tmp', STATSF); } catch (e) {}
+}
+let done = 0, kills = 0, hints = 0, total = queue.length, batch = 1, running = 0, hvSavedAt = Date.now(); const started = Date.now();
+const busy = new Set();   // (the rounds being done now: left out when the list is looked at again)
+const runInfo = { started: new Date().toISOString(), pid: process.pid, page: pageVer, jobs: JOBS, running: 0, rounds: total, batch, host: os.hostname(), mem: os.totalmem(), cpus: os.cpus().length, done: 0 };
+const writeRun = () => { try { fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); } catch (e) {} };   // (v193: how far, for the admin page)
+writeRun();
+let stopping = false, outOfTime = false, told = '', updated = false;
+// (v248) a background run that sees the site updated (git pull: a new page, new hint rules, a new analyze.mjs) takes no
+// more rounds: those being done are finished, and the next run - 5 minutes later - is the new code (a run now goes on
+// for up to 95 minutes, batch after batch)
+const SELF = new URL(import.meta.url).pathname;
+const stamp = () => [path.join(SITE, 'index.html'), path.join(HERE_DIR, 'admin-round.js'), SELF].map(f => { try { return fs.statSync(f).mtimeMs; } catch (e) { return 0; } }).join(':');
+const STAMP0 = stamp();
 // (v193) a background run takes new rounds while the admin page says nothing else and its time is not up
 const goOn = () => {
+  if (stopping) return false;
   if (!AUTO) return true;
+  if (updated || stamp() !== STAMP0) { if (!updated) log('the site was updated: no more rounds this run (the next one has the new code)'); updated = true; return false; }
   if (Date.now() - started > RUN_BUDGET) { if (!outOfTime) log(`${Math.round(RUN_BUDGET / 60e3)} minutes: the rest in the next run`); outOfTime = true; return false; }
   const S = autoSet();
   if (S.paused) { if (told !== 'p') log('paused on the admin page: the rounds being done are finished first'); told = 'p'; return false; }
-  if (!!S.boost !== BOOST) { if (told !== 'b') log(S.boost ? 'all rounds now (the admin page): from the next run, in 5 minutes' : 'back to a few rounds a run (the admin page)'); told = 'b'; return false; }
   return true;
 };
+// (v248) the background run's next batch: the players' hint cards written with what is done so far, the list looked at
+// again (rounds decoded meanwhile first), BATCH rounds a page at once
+function refill() {
+  if (!AUTO || !goOn() || done + busy.size >= LIMIT) return false;
+  const L = autoList(busy), all = L.none.concat(L.old); if (!all.length) return false;   // (the last pages finish theirs; the cards are written at the end)
+  try { aggHints(); } catch (e) { log('hints not written:', e.message); }
+  queue = all.slice(0, Math.min(BATCH * jobsWanted(), LIMIT - done - busy.size)); batch++; total += queue.length;
+  runInfo.rounds = total; runInfo.batch = batch; writeRun();
+  log(`batch ${batch}: ${queue.length} round${queue.length === 1 ? '' : 's'} (${L.none.length} not looked at yet, ${L.old.length} with older hint rules)`);
+  return true;
+}
+// (v248) a page takes the next round of the map it has open when the batch has one: the map's sight lines, shapes and
+// trees are loaded and worked out once a page, not again for each other map in between
+function take(map) {
+  if (!queue.length && !refill()) return null;
+  const k = map ? queue.findIndex(r => mapOf(r) === map) : -1;
+  return queue.splice(k < 0 ? 0 : k, 1)[0];
+}
 process.on('SIGTERM', () => { stopping = true; log('stopping after the rounds being done (SIGTERM)'); }); process.on('SIGINT', () => { stopping = true; log('stopping after the rounds being done'); });
-async function worker(w) {
-  let page = null;
-  while (todo.length && !stopping && goOn()) {
-    const r = todo.shift(), t0 = Date.now();
+// one page: round after round while there are rounds and the run goes on; (v248) it closes when more pages are open than
+// are wanted now
+async function worker() {
+  running++; runInfo.running = running; let page = null;
+  for (;;) {
+    if (!goOn() || running > jobsWanted()) break;
+    const r = take(page?._map); if (!r) break;
+    const t0 = Date.now(), n0 = running, full = n0 === jobsWanted(); busy.add(r.name);
     try {
       if (!page || page._n >= PER_PAGE) { if (page) await page.context().close().catch(() => {}); page = await newPage(r.name); }
       page._errs = [];
@@ -372,35 +449,50 @@ async function worker(w) {
       if (ok !== true) throw new Error('open: ' + ok);
       const d = await withTimeout(page.evaluate(s => window.__bf2analyze.dump(s), Math.round(TIMEOUT / 1000) - 30), TIMEOUT, 'analysing');
       if (!d || d.error) throw new Error(d ? d.error : 'no numbers');
-      d.round = { name: r.name, decoder: r.decoder || null, bytes: r.bytes || null, sum: r.sum ? { ...r.sum, P: undefined, top: undefined } : null }; d.pageErrors = page._errs; d.wallMs = Date.now() - t0;
+      d.round = { name: r.name, decoder: r.decoder || null, bytes: r.bytes || null, sum: r.sum ? { ...r.sum, P: undefined, top: undefined } : null }; d.pageErrors = page._errs; d.wallMs = Date.now() - t0; d.jobs = n0;
       fs.writeFileSync(fileOf(r.name) + '.part', zlib.gzipSync(JSON.stringify(d), { level: 9 })); fs.renameSync(fileOf(r.name) + '.part', fileOf(r.name));
       hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0; hvLoad()['@' + path.basename(fileOf(r.name))] = r.decoder || '';
       await alertRound(d);   // (v214: its hints to the server's admin channel, when it has one and the round is new)
-      delete failed[r.name]; page._n++; done++; kills += d.K.length; hints += d.H.length;
-      runInfo.done = done; try { fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); } catch (e) {}   // (v193: how far, for the admin page)
-      const el = (Date.now() - started) / 1000, left = el / done * todo.length;
-      log(`[${done}/${total} ${Math.round(done / total * 100)}%, ~${left > 3600 ? Math.floor(left / 3600) + ' h ' : ''}${Math.round(left % 3600 / 60)} min left] ${r.name} ${(d.wallMs / 1000).toFixed(1)} s, ${d.K.length} kills, ${d.H.length} hints${d.errs.length ? ', ' + d.errs.length + ' errors' : ''}`);
+      delete failed[r.name]; page._n++; page._map = mapOf(r); done++; kills += d.K.length; hints += d.H.length;
+      if (full && running === n0 && jobsWanted() === n0) speedAdd(n0, d.wallMs / 1000);   // (ran with that many beside it to the end)
+      runInfo.done = done; writeRun();
+      if (Date.now() - hvSavedAt > 10e3) { hvSave(); hvSavedAt = Date.now(); }   // (v248: the admin page's bar goes on during a run of 95 min, not batch by batch)
+      const left = (Date.now() - started) / 1000 / done * (queue.length + busy.size - 1), of = AUTO ? `batch ${batch}, ${queue.length} left in it` : `${done}/${total} ${Math.round(done / total * 100)}%`;
+      log(`[${AUTO ? done + ' done, ' + of : of}${!AUTO ? `, ~${left > 3600 ? Math.floor(left / 3600) + ' h ' : ''}${Math.round(left % 3600 / 60)} min left` : ''}] ${r.name} ${(d.wallMs / 1000).toFixed(1)} s, ${d.K.length} kills, ${d.H.length} hints${d.errs.length ? ', ' + d.errs.length + ' errors' : ''}${n0 > 1 ? ` (${n0} at once)` : ''}`);
     } catch (e) {
-      if (stopping && !fs.existsSync(fileOf(r.name))) { log(`left for the next run: ${r.name}`); break; }
+      if (stopping && !fs.existsSync(fileOf(r.name))) { log(`left for the next run: ${r.name}`); busy.delete(r.name); break; }
       failed[r.name] = { at: new Date().toISOString(), page: pageVer, error: String(e.message || e).slice(0, 500) };
       log(`failed ${r.name}: ${failed[r.name].error}`);
       if (page) { await page.context().close().catch(() => {}); page = null; }
     }
-    fs.writeFileSync(failedPath, JSON.stringify(failed, null, 1));
+    busy.delete(r.name);
+    try { fs.writeFileSync(failedPath, JSON.stringify(failed, null, 1)); } catch (e) {}
   }
+  running--; runInfo.running = running;
   if (page) await page.context().close().catch(() => {});
 }
-await Promise.all(Array.from({ length: JOBS }, (_, w) => worker(w)));
+// (v248) the pages: as many as wanted (looked at again every 5 s - more are opened at once when the number goes up), until
+// the last one has closed
+await new Promise(resolve => {
+  const live = new Set(); let tick = null;
+  const spawn = () => { const p = worker().catch(e => log('a page stopped:', e.message)).finally(() => { live.delete(p); if (!live.size) { pump(); if (!live.size) { clearInterval(tick); resolve(); } } }); live.add(p); };
+  const pump = () => {
+    const want = jobsWanted();
+    if (want !== runInfo.jobs) { log(`${want} at once now (was ${runInfo.jobs})`); runInfo.jobs = want; writeRun(); }
+    while (running < want && queue.length && goOn()) spawn();
+  };
+  pump(); if (!live.size) { resolve(); return; } tick = setInterval(pump, 5000);
+});
 await browser.close().catch(() => {}); server.closeAllConnections?.(); server.close();
-runInfo.ended = new Date().toISOString(); runInfo.done = done; runInfo.failed = Object.keys(failed).length; runInfo.kills = kills; runInfo.hints = hints;
-fs.writeFileSync(RUNF, JSON.stringify(runInfo, null, 1)); hvSave();
+runInfo.ended = new Date().toISOString(); runInfo.done = done; runInfo.failed = Object.keys(failed).length; runInfo.kills = kills; runInfo.hints = hints; runInfo.running = 0;
+writeRun(); hvSave();
 log(`done: ${done} rounds (${kills} kills, ${hints} hints), ${Object.keys(failed).length} failed, ${Math.round((Date.now() - started) / 60000)} min`);
 if (AUTO) {
-  const failedNow = Object.values(failed).filter(f => f.at >= runInfo.started).length, rest = QUEUED - done - failedNow;
-  if (BOOST && !todo.length && !stopping) { const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); } }
+  const failedNow = Object.values(failed).filter(f => f.at >= runInfo.started).length;
+  let rest = 0; try { const L = autoList(new Set()); rest = L.none.length + L.old.length; } catch (e) {}
   const ms = Date.now() - started, took = ms >= 60e3 ? `${Math.round(ms / 60e3)} min` : `${Math.round(ms / 1e3)} s`;
-  const why = outOfTime ? ' (the time of a run was up: the next run goes on)' : told === 'p' ? ' (paused on the admin page)' : told === 'b' ? (BOOST ? ' (the next run: 40 again)' : ' (the next run: all rounds)') : stopping ? ' (stopped)' : '';
-  note('ran', `${done} round${done === 1 ? '' : 's'} done${failedNow ? `, ${failedNow} failed` : ''} in ${took}${rest > 0 ? ` · ${rest} to go${why}` : ' · all done'}`, { done, failed: failedNow, queued: Math.max(0, rest), boost: BOOST, stopped: stopping || undefined });
+  const why = updated ? ' (the site was updated: the next run, with the new code, goes on)' : outOfTime ? ' (the time of a run was up: the next run goes on)' : told === 'p' ? ' (paused on the admin page)' : stopping ? ' (stopped)' : '';
+  note('ran', `${done} round${done === 1 ? '' : 's'} done${failedNow ? `, ${failedNow} failed` : ''} in ${took}, ${runInfo.jobs} at once${rest > 0 ? ` · ${rest} to go${why}` : ' · all done'}`, { done, failed: failedNow, queued: rest, jobs: runInfo.jobs, secs: Math.round(ms / 1000), stopped: stopping || undefined });
   try { aggHints(); } catch (e) { log('hints not written:', e.message); }
   process.exit(0);
 }

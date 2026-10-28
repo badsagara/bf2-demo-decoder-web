@@ -5,6 +5,35 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v248
+
+**The background analysis: each round ~5x faster, several at once, no breaks** (Sagara: "Background analysis — can it be
+made faster, or in more threads?"; the VPS: 16 cores, 31 GB) (2026-10-28):
+
+- **Each round ~5x faster, the same results.** While the page waited for Wall tracking and the scan of the shapes it
+  worked the whole list of hints out again every 400 ms — on a big round that list takes seconds, on the same thread, so
+  ~90% of a round's time went into it (a Karkand round of 58 men: 17 times, 72 of its 80 s). Now it is worked out once,
+  when everything it waits for is in; the two scans start as soon as the map's files are in, and in the server's page
+  they run without the pauses kept for an admin who has the round open. 16 real rounds of the site, one at a time: 512 s
+  with v246, 90 s now (Karkand 95 → 11 s, Dragon Valley 57 → 7 s, Wake 6 → 2 s); on top of v247 again, on a slower
+  machine: 1281 → 208 s (6.2x). Every number in the files the same (only `_ff`, the admin tab's own note of the nearest
+  flag, no longer slips into some hints).
+- **Several rounds at once, in the background too** — the Background analysis card has **Rounds at once**: automatic
+  (the cores less two, the memory at ~1.5 GB a page, at most 12 — 12 on this VPS) or 1–16, with a table of how fast each
+  number went here (*Rounds a min*, *Each took*; the fastest in green), as *Demos at once* for the decoding. A change
+  takes effect within seconds, also during a run. `BF2R_ANALYZE_JOBS` in `/etc/bf2replay.conf` wins; `analyze.sh start`
+  takes the same number unless `--jobs`. Before: the background 1 at once, *All rounds now* up to 3.
+- **No 5 minutes between batches**: a run goes through every round that needs it — batches of 40 a page, the players'
+  hint cards written after each, rounds decoded meanwhile first — for up to 95 minutes; the next run starts 5 minutes
+  after it ends. The card's bar moves during a run. *All rounds now* / *Back to 40 a run* are gone: every run does that
+  now. A run that sees the site updated takes no more rounds (the next one is the new code).
+- Together: a full pass over a few thousand rounds after a change of the hint rules — about an hour or two instead of
+  1–2 days.
+- On the server: nothing to do — the update brings the new `analyze.mjs` and unit; the decoder (`18e8999d15`), the round
+  summaries (18) and the hint rules (15) are as in v247, so nothing is decoded or analysed again. If v247's pass over
+  every round (its new hint rules) is still going, it goes on with the new code after this update — several at once,
+  without the breaks: a good moment to try a few numbers on the card (§20, "Faster, several at once").
+
 ## v247
 
 **The engine's own rules for the score, the time outside the combat area and the spawns** (Sagara: "another pass over

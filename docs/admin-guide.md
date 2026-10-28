@@ -88,18 +88,25 @@ in **Log**), its last run and next run, and a button that starts it now:
 | Download new demos | Fetch now | reads every demo page and game server now (each is also read at its own interval) |
 | Update from GitHub | Update now | the site and the server scripts (it looks every minute by itself) |
 | Back up | Back up now | the round list, logs and settings into `/srv/bf2replay/backup` (Sundays by itself) |
-| Hints over all rounds | Run now | Glitch spot, a few rounds in the page, the players' hint cards |
+| Hints over all rounds | Run now | Glitch spot, the rounds in the page (several at once), the players' hint cards |
 
 ### Background analysis
 
 How far the analysis is: rounds done with the current hint rules (and how many with older rules or not yet), the last
-run, when everything will be done, how many maps already have 30+ rounds in their Glitch spot grid. "running now: 12 of
-40 rounds" and what the last run did (rounds done, left, whether it waited for a manual `analyze.sh start`, whether
-Playwright is missing, whether everything is done).
+run, when everything will be done (at the pace measured here), how many maps already have 30+ rounds in their Glitch spot
+grid. "running now: 312 rounds done this run (batch 2), 12 at once" and what the last run did (rounds done, left, whether
+it waited for a manual `analyze.sh start`, whether Playwright is missing, whether everything is done). A run goes through
+every round that needs it — batches of 40 a page, the players' cards written after each, new rounds first — for up to
+95 minutes; the next one starts 5 minutes after it ends.
 
 - **Run now** — a run at once instead of waiting 5 minutes (it also lifts a pause).
-- **All rounds now** — no 40-round limit, several rounds at once (up to 3, by cores and memory), run after run until all
-  are done — after an update that changes the hint rules. **Back to 40 a run** ends it.
+- **Rounds at once** (v248) — how many rounds it opens side by side, each in a browser page of its own (a core each).
+  *Automatic*: the cores less two, the memory at ~1.5 GB a page, at most 12. A change takes effect within seconds, also
+  during a run. Under it: the VPS's cores and memory, and a table of how fast each number went here — **Rounds a min**
+  (higher is faster) and **Each took**; the fastest so far in green, **Clear** measures again. To find the best number,
+  choose one while there are many rounds to do (after an update that changes the hint rules), let it run 15–30 minutes,
+  then try the next. More than the cores rarely helps. `BF2R_ANALYZE_JOBS` in `/etc/bf2replay.conf` overrides it (shown
+  as a tag). (*All rounds now* / *Back to 40 a run* of earlier versions are gone: every run does all the rounds now.)
 - **Pause** / **Go on** — the rounds in progress finish, then nothing until Go on (e.g. while the VPS is busy decoding).
 - **Its log** — its lines in the Log card.
 - **Highest suspicion scores** — the players to look at first, with links to their pages and to the Admin tab of their

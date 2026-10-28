@@ -1,12 +1,13 @@
 [Unit]
-Description=BF2 Round Replay: the hints over every player's rounds (analyze.mjs --auto: a few rounds a time in the site's page, then data/stats/hints)
+Description=BF2 Round Replay: the hints over every player's rounds (analyze.mjs --auto: the rounds in the site's page, several at once, then data/.admin/hints)
 After=network.target
 
 [Service]
 Type=oneshot
 User=bf2replay
 Group=bf2replay
-# (low priority: the site and the decoding of new demos go first; one round at a time)
+# (low priority: the site and the decoding of new demos go first; v248: several rounds at once - the admin page's
+# Rounds at once, or BF2R_ANALYZE_JOBS in /etc/bf2replay.conf)
 Nice=15
 IOSchedulingClass=idle
 CPUWeight=20

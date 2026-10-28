@@ -444,6 +444,16 @@ function pageHintsV() {   // (v196: HINTS_V is in the admins' part of the page, 
   // (v227) with the site's hint thresholds: HINTS_V.<hash> while they differ from the recommended (hintcfg.mjs)
   return hvPage.v ? htSiteHv(hvPage.v, DATA, HT_ADM()) : hvPage.v;
 }
+// (v248) how many rounds the analysis does at once - as analyze.mjs works it out: BF2R_ANALYZE_JOBS from
+// /etc/bf2replay.conf when set (it wins), else the number chosen here (analysis/.auto-set.json jobs; 0 = automatic), else
+// automatic: the cores less two, the memory at ~1.5 GB a page (60% of it), at most 12. With the machine and how fast each
+// number went (analysis/.jobs-stats.json, written by analyze.mjs)
+const AN_JOBS_MAX = 16, AN_PAGE_GB = 1.5;
+const anAutoJobs = () => Math.max(1, Math.min(12, (os.cpus().length || 1) - 2, Math.floor(os.totalmem() * 0.6 / (AN_PAGE_GB * 2 ** 30))));
+function anJobsState(OUTD) {
+  const conf = Math.max(0, Math.floor(+opt('BF2R_ANALYZE_JOBS', '0')) || 0), set = Math.max(0, Math.floor(+(readJson(path.join(OUTD, '.auto-set.json'), {}) || {}).jobs) || 0), auto = anAutoJobs();
+  return { conf: conf || null, set, auto, jobs: Math.min(AN_JOBS_MAX, conf || set || auto), max: AN_JOBS_MAX, pageGb: AN_PAGE_GB, cpus: os.cpus().length, mem: os.totalmem(), avail: memAvailable(), load: os.loadavg().map(x => +x.toFixed(2)), stats: readJson(path.join(OUTD, '.jobs-stats.json'), null) };
+}
 function analysisState() {
   if (anCache.v && Date.now() - anCache.at < (anCache.v.pack?.on || anCache.v.running ? 5e3 : 30e3)) return anCache.v;
   const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
@@ -453,17 +463,20 @@ function analysisState() {
   const auto = readJson(path.join(OUTD, 'auto.json'), null), run = readJson(path.join(OUTD, 'run.json'), null);
   const runOn = !!(run && !run.ended && alive(run.pid)), autoOn = !!(auto && !auto.ended && alive(auto.pid));
   const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
-  const left = Math.max(0, R.length - cur), perRun = auto?.rounds || 40, cycle = secs != null ? secs / Math.max(1, auto.done) * perRun + 300 : null;
+  // (v248) when all is done: at the pace measured for the number at once now (analysis/.jobs-stats.json), else the last
+  // run's (its rounds over its time) - a run goes on batch after batch now, with 5 minutes between runs of 95
+  const J = anJobsState(OUTD), sp = J.stats?.by?.[J.jobs], left = Math.max(0, R.length - cur);
+  const rate = sp && sp.n >= 3 && sp.secs ? sp.n / sp.secs * J.jobs : secs && auto.done ? auto.done / secs : null;
   const pw = fs.existsSync(path.join(ROOT, 'analyze', 'node_modules', 'playwright', 'package.json'));
   const gl = readJson(path.join(OUTD, 'glitch', 'summary.json'), null), hc = readJson(path.join(DATA, '.admin', 'hints.json'), null);
   const set = readJson(path.join(OUTD, '.auto-set.json'), {}) || {}, note = readJson(path.join(OUTD, 'auto-note.json'), null);
   const pk = readJson(path.join(OUTD, '.pack.json'), null), packing = !!(pk && !pk.ended && alive(pk.pid));
-  const v = { hv: HV, total: R.length, cur, old, none: Math.max(0, R.length - cur - old), failed: Object.keys(failed).length, auto: auto ? { started: auto.started, ended: auto.ended || null, done: auto.done || 0, rounds: auto.rounds || 0, jobs: auto.jobs || 1, boost: !!auto.boost, failed: auto.failed || 0, secs } : null,
-    set: { paused: set.paused || null, boost: set.boost || null }, note, site: pageVer(),
+  const v = { hv: HV, total: R.length, cur, old, none: Math.max(0, R.length - cur - old), failed: Object.keys(failed).length, auto: auto ? { started: auto.started, ended: auto.ended || null, done: auto.done || 0, rounds: auto.rounds || 0, jobs: auto.jobs || 1, running: auto.running ?? null, batch: auto.batch || null, failed: auto.failed || 0, secs } : null,
+    set: { paused: set.paused || null }, jobs: J, note, site: pageVer(),
     pack: pk ? { started: pk.started, ended: pk.ended || null, file: pk.file || null, bytes: pk.bytes || 0, error: pk.error || null, on: packing, dead: !pk.ended && !packing } : null,
     archives: archives(), roundsBytes: dirBytes(path.join(OUTD, 'rounds')),
     manual: run ? { started: run.started, ended: run.ended || null, on: runOn, done: run.done || 0, rounds: run.rounds || 0 } : null,
-    running: autoOn ? 'auto' : runOn ? 'manual' : null, eta: left && cycle ? Math.round(left / perRun * cycle) : left ? null : 0, playwright: pw, off: opt('BF2R_HINTS', '1') === '0',
+    running: autoOn ? 'auto' : runOn ? 'manual' : null, eta: left && rate ? Math.round(left / rate * (1 + 300 / (95 * 60))) : left ? null : 0, rate, playwright: pw, off: opt('BF2R_HINTS', '1') === '0',
     glitch: gl ? { at: gl.at, minRounds: gl.minRounds, maps: gl.maps, left: gl.left, stays: gl.stays, hints: gl.hints } : null, cards: hc ? { at: hc.at, rounds: hc.rounds, players: hc.players, scores: hc.scores || null } : null };   // (v214: + the suspicion scores' top)
   anCache = { at: Date.now(), v }; return v;
 }
@@ -709,9 +722,10 @@ async function startUnit(u) {
   return { ok: false, msg: `could not start bf2replay-${u}: ${why || 'error ' + r.code}${/password|sudoers|not allowed/i.test(why) ? ' (the permission comes with units.sh: wait a minute after the update, or run sudo bash /srv/bf2replay/repo/server/units.sh)' : ''}` };
 }
 // (v193) the background analysis from the admin page (analysis/.auto-set.json, read by analyze.mjs --auto before and
-// between rounds): run now; all rounds now (no 40 a run; as many at once as analyze.sh would) until all are done; pause
-// (the rounds being done are finished first) and go on; make the archive (analyze.mjs --pack, in the background: a few
-// minutes) and remove one
+// between rounds): run now; pause (the rounds being done are finished first) and go on; (v248) how many rounds at once
+// (read again by a run every 5 s) and clearing the speeds measured (all rounds now - v193-v246 - is no more: a run does
+// them all by itself now, batch after batch); make the archive (analyze.mjs --pack, in the background: a few minutes)
+// and remove one
 const AND = () => path.join(ROOT, 'analysis');
 function anSet(f) { const F = path.join(AND(), '.auto-set.json'), o = readJson(F, {}) || {}; f(o); for (const k of Object.keys(o)) if (o[k] == null) delete o[k]; fs.mkdirSync(AND(), { recursive: true }); writeJson(F, o); anCache.at = 0; return o; }
 async function analysisAct(b) {
@@ -723,15 +737,14 @@ async function analysisAct(b) {
     const r = await startUnit('hints'); if (!r.ok) return r;
     return { ok: true, msg: busy ? 'it is running already: it goes on' : 'started: first the glitch grids (a minute or two), then the rounds in the page' };
   }
-  if (what === 'boost') {
-    if (!A.playwright) return { ok: false, msg: 'the page part needs its browser first: sudo bash /srv/bf2replay/repo/server/analyze.sh start (installs it once)' };
-    anSet(o => { o.boost = now; o.paused = null; });
-    if (A.running === 'manual') return { ok: true, msg: 'all rounds now: after the analyze.sh run that is going' };
-    if (busy && !A.auto?.boost) return { ok: true, msg: 'all rounds now: the run going now stops after its round, the next one (in 5 minutes) does all of them, several at once' };
-    const r = await startUnit('hints'); if (!r.ok) return r;
-    return { ok: true, msg: 'all rounds now: started, several at once; it goes on run after run (up to 95 min each, 5 min apart) until all are done, then back to 40 a run' };
+  if (what === 'jobs') {
+    if (b.reset) { const S = readJson(path.join(AND(), '.jobs-stats.json'), null); fs.mkdirSync(AND(), { recursive: true }); writeJson(path.join(AND(), '.jobs-stats.json'), { machine: S?.machine || '', by: {}, since: now }); log('analysis speeds cleared'); anCache.at = 0; return { ok: true, msg: 'speeds cleared: they are measured again from the next rounds' }; }
+    const n = Math.floor(+b.jobs); if (!(n >= 0 && n <= AN_JOBS_MAX)) return { ok: false, msg: `0 (automatic) to ${AN_JOBS_MAX}` };
+    anSet(o => { o.jobs = n || null; }); log('rounds analysed at once:', n || 'automatic');
+    const conf = Math.max(0, Math.floor(+opt('BF2R_ANALYZE_JOBS', '0')) || 0);
+    return { ok: true, msg: (n ? `${n} at once` : `automatic (${anAutoJobs()} at once here)`) + (conf ? ` - but BF2R_ANALYZE_JOBS=${conf} in /etc/bf2replay.conf wins: remove it there` : busy ? ': the run going now follows it within seconds' : ': from the next run on') };
   }
-  if (what === 'unboost') { anSet(o => { o.boost = null; }); return { ok: true, msg: 'back to 40 rounds a run, one at a time' + (busy ? ' (the run going now stops after its rounds)' : '') }; }
+  if (what === 'boost' || what === 'unboost') { anSet(o => { o.boost = null; }); return { ok: true, msg: 'no longer needed (v248): every run does all the rounds that need it, several at once' }; }
   if (what === 'pause') { anSet(o => { o.paused = now; }); return { ok: true, msg: 'paused' + (busy ? ': the run going now finishes the round it is on and stops' : '') + '; nothing more until "Go on"' }; }
   if (what === 'pack') {
     if (A.pack?.on) return { ok: false, msg: 'an archive is being made already' };

@@ -1,6 +1,6 @@
-// BF2 Round Replay v247 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v248 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v247';
+const ADM_V = 'v248';
 // ---- part 1 (page line 7094) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
@@ -534,6 +534,11 @@ function sideKnew(R, j, tt, tm) {
   if ((S.get(j) || []).some(([ts, side]) => ts <= tt && tt - ts <= SPOT_SHOW && (side == null || side === tm))) return 'spot';
   return uavShows(j, tt, tm) ? 'uav' : null;
 }
+// (v248) Wall tracking and the scan of the shapes go through a round in slices, with a pause after each, so that the page
+// stays smooth for an admin who has it open (25 ms of work, 15 ms for the page). In the server's analysis (?analyze: a
+// headless page no one looks at) the pauses are only time lost - there each slice is longer and nothing waits after it
+// (the same hints, ~a third sooner: while only one of the two ran, the page worked 25 ms of each 40)
+const AN_RUN = /[?&]analyze\b/.test(location.search), SLICE_MS = AN_RUN ? 250 : 25, SLICE_GAP = AN_RUN ? 0 : 15, SLICE_FIRST = AN_RUN ? 0 : 50;
 function wallTracks(R, done) {
   const D = losData(); if (!D) { done([]); return; }
   const G = geoData(true);   // (v180: loaded before this runs - adminHints waits for it)
@@ -623,7 +628,7 @@ function wallTracks(R, done) {
   const work = () => {
     if (R !== round) return;
     const t0 = performance.now();
-    for (; k < steps && performance.now() - t0 < 25; k++) {
+    for (; k < steps && performance.now() - t0 < SLICE_MS; k++) {
       const tt = T0 + k * TRACK_STEP, P = new Map();
       for (const i of sol) { const q = playerAt(i, tt); if (q.alive && !q.down && !q.veh && Number.isFinite(q.x) && q.h != null) P.set(i, q); }
       fovStep(tt, P);
@@ -653,13 +658,13 @@ function wallTracks(R, done) {
         else { close(i); runs.set(i, { j: best.j, t0: tt, t1: tt, b0: best.b, b1: best.b, y0: q.yaw, y1: q.yaw, dmin: best.d, x: q.x, y: q.y }); }
       }
     }
-    if (k < steps) { R._trackP = k / steps; setTimeout(work, 15); return; }
+    if (k < steps) { R._trackP = k / steps; setTimeout(work, SLICE_GAP); return; }
     for (const i of [...runs.keys()]) close(i);
     for (const i of [...fires.keys()]) closeF(i);
     wfHints(); fovHints();
     done(out);
   };
-  setTimeout(work, 50);
+  setTimeout(work, SLICE_FIRST);
 }
 // A soldier on foot runs at most 6.93 m/s (sprinting: 6 Karkand / Dalian rounds, 1.06 million one-second stretches on foot,
 // p99.9 and nearly every top 6.93). Faster than SPEED_V over each second for SPEED_T s on end, where nothing else can
@@ -1027,7 +1032,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 let CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 8164) ----
+// ---- part 4 (page line 8169) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -1084,11 +1089,11 @@ function geoScan(R, done) {
   const work = () => {
     if (R !== round) return;
     const t0 = performance.now();
-    while (si < sold.length && performance.now() - t0 < 25) one(sold[si++]);
-    if (si < sold.length) { R._geoP = si / sold.length; setTimeout(work, 15); return; }
+    while (si < sold.length && performance.now() - t0 < SLICE_MS) one(sold[si++]);
+    if (si < sold.length) { R._geoP = si / sold.length; setTimeout(work, SLICE_GAP); return; }
     done(out);
   };
-  setTimeout(work, 50);
+  setTimeout(work, SLICE_FIRST);
 }
 // ---------- hints from the UnknownCheats list (v128) ----------
 // Made for named hacks of the "Battlefield 2 | Complete Hack & Tool List" (UnknownCheats, 2021): what each of them
@@ -1124,7 +1129,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 let SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 8419) ----
+// ---- part 5 (page line 8424) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1415,7 +1420,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 8712) ----
+// ---- part 6 (page line 8717) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1463,6 +1468,17 @@ function glitchData() {
   fetch('/admin/api/data/glitch/' + f + '.json', { cache: 'no-cache', credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null)
     .then(d => { GLITCH.set(f, d && d.gv === GLITCH_V && d.hits ? d : null); if (round === R) { R._adm = null; renderAdmin(); } });
   return undefined;
+}
+// (v248) Wall tracking (once the map's exact shapes are in) and the scan of the shapes start in the background, the first
+// time the hints are worked out with the map's sight lines - and from the analysis's dump(), which so need not work the
+// whole list out to start them
+function admStartTracks(R, D) {
+  if (R._trackRun || !D || geoData(true) === undefined) return;
+  R._trackRun = true; const g = HT_GEN; wallTracks(R, L => { if (R !== round || g !== HT_GEN) return; R._tracks = L; R._trackP = 1; R._adm = null; renderAdmin(); });
+}
+function admStartGeo(R, D) {
+  if (R._geoRun || !D) return;
+  const tok = R._geoRun = {}, g = HT_GEN; geoScan(R, L => { if (R !== round || R._geoRun !== tok || g !== HT_GEN) return; R._geo = L; R._adm = null; renderAdmin(); });
 }
 function adminHints() {
   if (round._adm) return round._adm;
@@ -1536,13 +1552,13 @@ function adminHints() {
   for (const h of cheatHints(R)) out.push(h);
   for (const h of macroHints(R)) out.push(h);   // (v214)
   if (R._tracks) for (const h of R._tracks) out.push(h);
-  else if (!R._trackRun && D && geoData(true) !== undefined) { R._trackRun = true; const g = HT_GEN; wallTracks(R, L => { if (R !== round || g !== HT_GEN) return; R._tracks = L; R._trackP = 1; R._adm = null; renderAdmin(); }); }
+  else admStartTracks(R, D);
   for (const h of moreHints(R)) out.push(h);
   for (const h of objHints(R)) out.push(h);
   for (const h of aimHints(R)) out.push(h);
   for (const h of clayCapHints(R)) out.push(h);
   if (R._geo) for (const h of R._geo) out.push(h);
-  else if (!R._geoRun && D) { const tok = R._geoRun = {}, g = HT_GEN; geoScan(R, L => { if (R !== round || R._geoRun !== tok || g !== HT_GEN) return; R._geo = L; R._adm = null; renderAdmin(); }); }
+  else admStartGeo(R, D);
   for (const r of speedRuns(R)) if (r.t0 >= (R.times[0] || 0) + SPAWN_START && !atSpot('speed', (r.x + r.x1) / 2, (r.y + r.y1) / 2)) out.push({ t: r.t0, kind: 'speed', adm: true, actor: R.players[r.i].id, v: r.vmax, vavg: r.vavg, dur: r.dur, n: r.n, span: r.t1 - r.t0, dist: r.dist, x: (r.x + r.x1) / 2, y: (r.y + r.y1) / 2 });   // (v184: not in the round's first SPAWN_START s - the soldiers being put in place: 11 of 40 in 675 rounds)
   for (const r of stanceRuns(R)) if (r.t0 >= (R.times[0] || 0) + SPAWN_START) out.push({ t: r.t0, kind: 'stancespeed', adm: true, actor: R.players[r.i].id, st: r.st, v: r.v, vmax: r.vmax, dur: r.dur, n: r.n, x: (r.x + r.x1) / 2, y: (r.y + r.y1) / 2 });   // (v237)
   // (v185, todo 185) glitch spots: the server's grids of the places soldiers stood over the map's rounds (glitchData)
@@ -1825,18 +1841,24 @@ if (/[?&]analyze\b/.test(location.search)) window.__bf2analyze = {
     await openServerRound(r);
     return round && $('#srcLabel').textContent === r.name ? true : ($('#notice').textContent || 'did not open').slice(0, 300);
   },
-  // wait (at most maxS s) until the map's files are in and the hints done, then the numbers
+  // wait (at most maxS s) until the map's files are in and the hints done, then the numbers. (v248) The whole list of hints
+  // is worked out once, when all it waits for is in - the map's sight lines, trees and shapes, its glitch grid, Wall
+  // tracking and the scan of the shapes (started here as soon as they can be) - and not each time it looks: on a big
+  // round the list costs seconds, on the same thread as Wall tracking, and it was worked out every 400 ms while it ran
+  // (~90% of a round's time: 17 times on a Karkand round of 58 men). It looks every 50 ms
   async dump(maxS = 600) {
-    const R = round, t0 = performance.now(), sleep = ms => new Promise(r => setTimeout(r, ms)); let waited = false;
+    const R = round, t0 = performance.now(), sleep = ms => new Promise(r => setTimeout(r, ms)); let waited = false, A = null;
+    const k = mapKey();
     for (;;) {
       losData(); vegData(); if (round !== R) return { error: 'the round changed' };
-      const k = mapKey(), D = LOS.get(k) && LOS.get(k) !== 'loading' ? LOS.get(k) : null;
-      if (D) geoData(true);
-      R._adm = null; const A = adminHints();
-      const busy = LOS.get(k) === 'loading' || VEG.get(k) === 'loading' || (D && (GEO.get(k) === 'loading' || !R._tracks || !R._geo)) || A.wait > 0 || A.glWait;
-      if (!busy) break;
+      const D = LOS.get(k) && LOS.get(k) !== 'loading' ? LOS.get(k) : null;
+      if (D) { geoData(true); admStartGeo(R, D); admStartTracks(R, D); }
+      const GL = glitchData();
+      if (!(LOS.get(k) === 'loading' || VEG.get(k) === 'loading' || (D && (GEO.get(k) === 'loading' || !R._tracks || !R._geo)) || GL === undefined)) {
+        R._adm = null; A = adminHints(); if (!(A.wait > 0 || A.glWait)) break;
+      }
       if (performance.now() - t0 > maxS * 1000) { waited = true; break; }
-      await sleep(400);
+      await sleep(50);
     }
     const out = analysisDump(R); out.waitMs = Math.round(performance.now() - t0 - out.ms); if (waited) out.errs.push('timed out waiting for the hints'); return out;
   }
@@ -1936,6 +1958,7 @@ function admDescribe0(h) {
 }
 function renderAdmin() {
   const box = $('#admBox'); if (!box || !round) return;
+  if (AN_RUN) return;   // (v248: the server's analysis - no one sees the list; dump() works the hints out when it needs them)
   if (!admCan()) { $('#fTab2').textContent = 'For admins'; box.innerHTML = `<p class="empty">${esc(admOutOfScope())}</p>`; return; }   // (v196)
   const A = adminHints(), AP = A.filter(ffOk), AF = AP.filter(ffFlagOk), cnt = k => AF.filter(h => h.kind === k).length, nAll = AF.filter(h => !h.info).length;   // (v169: lists - Claymore kills - not in All; v171: AF - the player and flag filters)
   $('#fTab2').innerHTML = `For admins <span class="w">${A.filter(h => !h.info).length}</span>`;
@@ -1958,7 +1981,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
   box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 12187) ----
+// ---- part 7 (page line 12210) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -2827,7 +2850,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 16798) ----
+// ---- part 8 (page line 16821) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2845,7 +2868,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 16834) ----
+// ---- part 9 (page line 16857) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

@@ -801,7 +801,9 @@ sudo bash /srv/bf2replay/repo/server/analyze.sh start
 
 The analysis runs in the background (the service `bf2replay-analyze`, at low CPU and disk priority: the site and the
 decoding of new demos come first) and doesn't stop when you leave SSH. Rounds with 6+ soldiers, newest first, 1-3 at once
-(by cores and memory: ~1.5 GB each). 5-30 s a round, so 5,000 rounds take a few hours. Best started when decoding again
+(by cores and memory: ~1.5 GB each). 5-30 s a round, so 5,000 rounds take a few hours. (v248: as many at once as the
+admin page's *Rounds at once* — automatic: the cores less two, at most 12 — or `--jobs`; 2-15 s a round: §20, "Faster,
+several at once".) Best started when decoding again
 after an update is done (`sudo bf2replay-status`): otherwise rounds being decoded again end up in `failed.json` and go
 into the next run.
 
@@ -840,7 +842,7 @@ scp 'root@VPS:/srv/bf2replay/analysis/bf2-analysis-*.tar' .     # on your comput
 ## 20. The hints over all of a player's rounds and "Glitch spot" — in the background (v185)
 
 A new service, `bf2replay-hints.timer` (installed and turned on by itself with the update, `units.sh`). 5 min after the
-end of each of its runs it starts `analyze.mjs --auto` at low priority, one round at a time:
+end of each of its runs it starts `analyze.mjs --auto` at low priority (since v248 several rounds at once, see below):
 
 1. **Glitch spot** (`server/glitch.mjs`, no browser needed). 150 newly decoded rounds (`data/rounds/*.bfr`, ~0.5 s a
    round) go into each map's grid: where living soldiers stood on foot, cells 2 × 2 m and 2.5 m high, and who exactly.
@@ -854,8 +856,8 @@ end of each of its runs it starts `analyze.mjs --auto` at low priority, one roun
    ```bash
    sudo bash /srv/bf2replay/repo/server/analyze.sh glitch
    ```
-2. **40 rounds in the page** (as `analyze.sh start`, so Playwright is needed: if `start` has never run, this step is
-   skipped with a line in the log). First those not yet in `analysis/rounds`, then those done by older hint rules
+2. **The rounds in the page** (as `analyze.sh start`, so Playwright is needed: if `start` has never run, this step is
+   skipped with a line in the log; since v248 every round that needs it, in batches — below). First those not yet in `analysis/rounds`, then those done by older hint rules
    (`HINTS_V` in the page) or from a `.bfr` that has since been decoded again by a new decoder (v225), newest first;
    while the rounds are being decoded again (`data/reprocess.json`), those already done come first. A round that failed
    with this version of the page is not tried again until the next site update.
@@ -864,9 +866,42 @@ end of each of its runs it starts `analyze.mjs --auto` at low priority, one roun
    files `data/.admin/hints.json` and `data/.admin/hints/<nick>.json` (since v196 — for admins only). Only rounds done by
    the current rules count.
 
-In the page 10-30 s a round, so 40 rounds take 10-20 min, and all of a few thousand — 1-2 days in the background. Faster —
-once `sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh` (1-3 at once; the background service waits while it
-runs).
+Before v248: in the page 10-30 s a round, one at a time, 40 a run with 5 min between runs, so all of a few thousand
+rounds took 1-2 days in the background. **Since v248** (see "Faster, several at once" below) a round takes ~5x less, a
+run does several at once and goes on batch after batch without the 5-min breaks: a few thousand rounds in about an hour
+or two on a VPS with 16 cores. `sudo bash /srv/bf2replay/repo/server/analyze.sh start --fresh` (all rounds again, the same
+number at once; the background service waits while it runs) is no faster than the background run any more.
+
+### Faster, several at once (v248)
+
+- **Each round ~5x faster.** The page worked the whole list of hints out again every 400 ms while it waited for Wall
+  tracking and the scan of the shapes — on a big round the list takes seconds, on the same thread, so ~90% of a round's
+  time went into working out the same list again (a Karkand round of 58 men: 17 times, 72 of its 80 s). Now it is worked
+  out once, when all it waits for is in; Wall tracking and the scan of the shapes start as soon as the map's files are in
+  and run without the pauses they keep for an admin who has the round open (25 ms of work, 15 ms for the page). On 16
+  real rounds of the site (Karkand, Wake, Dragon Valley, Jalalabad, Fushe, Oman, Blue Pearl, Kubra), one at a time: 512 s
+  with v246, 90 s with v248 (Karkand 95 → 11 s, Wake 6 → 2 s), the same numbers in every file. (Files made before have
+  a field `_ff` in some hints — the admin tab's own note of which flag a hint is near; it is no more, nothing else differs.)
+- **Several rounds at once, also in the background** — each in a browser page of its own (one core each). How many:
+  card **Background analysis** → **Rounds at once**: `automatic` (the cores less two, the memory at ~1.5 GB a page —
+  60% of it —, at most 12: 12 on 16 cores and 31 GB) or 1–16. `BF2R_ANALYZE_JOBS` in `/etc/bf2replay.conf` (if set, not
+  0) wins, as `BF2R_JOBS` does for the decoding; `analyze.sh start` takes the same number unless `--jobs`. A run reads it
+  again every 5 s: a change takes effect at once (more pages are opened, or as many as are too many close after their
+  round). Under the choice, as for Demos at once (§16): the VPS's cores, memory, free memory and load, and a table of how
+  fast each number went here — **Rounds a min** (the more the better), **Each took** — from the rounds done while that
+  many ran side by side (`analysis/.jobs-stats.json`; **Clear** starts it again). Compare over many rounds: a Karkand
+  round of 60 men takes ten times as long as a quiet Wake one. A page took 0.5-1 GB in the tests.
+- **No 5 minutes between batches.** A run goes on while rounds are left and its time (95 min) is not up: batches of 40 a
+  page at once (480 with 12 at once); after each, the players' hint cards are written and the list is looked at again,
+  so rounds decoded meanwhile come first. "Running now: 312 rounds done this run (batch 2), 12 at once". The admin page's
+  bar moves on during the run (every 10 s), not only when it ends. When everything is done the run ends, and the next one
+  starts 5 min later as before (it then does only the new rounds).
+- **All rounds now / Back to 40 a run are gone** — every run now does what "All rounds now" did, and faster. A run that
+  sees the site updated (a new page, hint rules or `analyze.mjs`) takes no more rounds: those being done are finished, and
+  the next run, 5 min later, is the new code.
+- The memory: 12 at once take up to ~12-18 GB with the browser; the service's `MemoryMax=80%` stays. With less memory,
+  choose fewer (the card warns when the number × 1.5 GB is more than the free memory).
+
 
 ```bash
 journalctl -u bf2replay-hints -n 20 --no-pager           # what the last run did
@@ -881,12 +916,11 @@ the Glitch spot grid.
 (v193) Control it there too (the settings — `analysis/.auto-set.json`, `analyze.mjs --auto` reads it before each round):
 
 - **Run now** — a run now, not waiting for the timer (if paused — lifts the pause).
-- **All rounds now** — without the 40-round limit, several at once (as `analyze.sh start`: by cores and memory, up to 3),
-  at the same low priority. A run takes new rounds for up to 95 min (the service has a 2 h limit), the next one 5 min
-  later, and so on until everything is done; then back to 40 a run. **Back to 40 a run** — go back at once.
+- **Rounds at once** (v248) — how many pages side by side (above). (**All rounds now** of v193-v246 is no more: every run
+  goes through all the rounds that need it.)
 - **Pause** / **Go on** — the rounds in progress are finished, then nothing until Go on (the timer starts a run, and it
   exits at once).
-- The line "running now: 12 of 40 rounds", and what the last run did (`analysis/auto-note.json`): how many rounds, how
+- The line "running now: 312 rounds done this run (batch 2), 12 at once", and what the last run did (`analysis/auto-note.json`): how many rounds, how
   many left, whether it waited for `analyze.sh start`, whether Playwright is missing, whether everything is done. **Its
   log** — the service's log below.
 
@@ -984,6 +1018,10 @@ version. Nothing decoded or analysed again, nothing to do.
 (v247) The hint rules become version 15 (Outside the map and Spawn by the game's own rules): the background analysis
 goes over every round again by itself. The decoder (`18e8999d15`), the round summaries (18) and the statistics stay:
 nothing decoded or summed up again, nothing to do.
+(v248) The background analysis ~5x faster a round, several rounds at once (card Background analysis → **Rounds at
+once**; `BF2R_ANALYZE_JOBS`), batch after batch without the 5-minute breaks; *All rounds now* is gone ("Faster, several
+at once" above). The hint rules (15), the decoder and the summaries stay: nothing to do. A pass of v247 still going goes
+on with the new code after the update (the run going then finishes its rounds and stops; the next, 5 min later, is v248).
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 
@@ -997,7 +1035,7 @@ admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/a
   Users and access; it needs the Admin tab too). The background analysis, the players' hint cards, the suspicion score
   and the alerts use it. The hint rules become `HINTS_V.<code>` (`7.2ea50c81`) while the site's set differs from the
   recommended, so saving it sends **every round** through the background analysis again (as an update that changes the
-  hint rules: hours to a day; **All rounds now** on the Background analysis card makes it faster). The Log card says
+  hint rules: since v248 about an hour or two on a big site, several rounds at once). The Log card says
   who changed it: `hint thresholds (the site's) by owner: 3 changed, off: clay (were 0) - hint rules 7.2ea50c81`.
 - **Each admin's own** — `data/.admin/hint-mine.json` (one entry per account; removed with the account): over the
   site's, only in the rounds he opens, only while he has "Use mine" on; the server's analysis never uses it.
