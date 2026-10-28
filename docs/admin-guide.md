@@ -583,6 +583,18 @@ what differs from the recommended. A value outside its bounds is refused with th
 Tips: change one threshold at a time and watch what it does on a few rounds with *Mine* before changing the site's; a
 looser threshold gives more hints and more false ones.
 
+**Hints in shadow (v254).** A new detector starts **in shadow**: it is worked out and kept like every other hint, but only
+the site's owner (and the accounts with the right *Hint thresholds: the site's*) sees it — each such hint says "in
+shadow" — no alert goes out for it, and it is left out of the players' hint cards and the suspicion score. The other
+admins don't see it at all. The **shadow** tick by each hint's name in the editor puts any hint in shadow or takes it out
+(the owner's, or that right's; the file `data/.admin/hint-shadow.json`). Nothing is analysed again: the alerts follow at
+once, the cards and the score at the background analysis's next pass. v254's two new hints, *Ready for contact* and
+*Recoil script*, are in shadow; take one out once the archive and your marks bear it out.
+
+**What your marks say (v254).** Next to each hint's name the editor shows how the admins marked its hints so far:
+"marked 12: ⚑2 ✗7 ✓3" — suspicious, false alarm, checked — over the rounds of the servers you may see. Many ✗ against few
+⚑ is a reason to tighten that hint's thresholds (or put it in shadow); a hint that is mostly ⚑ is pulling its weight.
+
 ### A suggested routine
 
 1. Open the round → **Review ↗** → **Hints**, **Filters ▾**: Strength *strong only*, Review *not reviewed, not trusted*.

@@ -19,17 +19,30 @@ export const htHvOf = (base, S) => S && (Object.keys(S.values || {}).length || (
 // the site's set as saved (data/.admin), or the recommended one (empty)
 export function siteSet(DATA) { const j = readJson(path.join(DATA, '.admin', SITE_FILE), null); return j && typeof j === 'object' ? { values: j.values || {}, off: Array.isArray(j.off) ? j.off : [], at: j.at || null, by: j.by || null } : { values: {}, off: [], at: null, by: null }; }
 
+// (v254) the hints in shadow: worked out and kept in the analysis, but shown to nobody but the site's owner (and the
+// accounts with the right 'hints'), left out of the alerts, the players' hint cards and the suspicion score - new
+// detectors until the archive and the admins' marks bear them out. The page's ADM_SHADOW (its admins' part: the
+// recommended), with data/.admin/hint-shadow.json ({ shadow: [kinds put in], live: [kinds taken out], at, by }) over it
+export const SHADOW_FILE = 'hint-shadow.json';
+export function shadowSet(DATA) { const j = readJson(path.join(DATA, '.admin', SHADOW_FILE), null) || {}; return { shadow: Array.isArray(j.shadow) ? j.shadow : [], live: Array.isArray(j.live) ? j.live : [], at: j.at || null, by: j.by || null }; }
+export function shadowKinds(DATA, admFile) {
+  const P = pageSpec(admFile), S = shadowSet(DATA), out = new Set([...(P.shadow || []), ...S.shadow]);
+  for (const k of S.live) out.delete(k);
+  return out;
+}
+
 // from the admins' part of the page: HT_SPEC (one line of JSON) and the hint kinds (ADM_KINDS)
 let specCache = { mt: -1, spec: null, kinds: null };
 export function pageSpec(admFile) {
   let mt = 0; try { mt = fs.statSync(admFile).mtimeMs; } catch (e) { return { spec: null, kinds: null }; }
   if (mt === specCache.mt) return specCache;
-  let spec = null, kinds = null;
+  let spec = null, kinds = null, shadow = [];
   try {
     const a = fs.readFileSync(admFile, 'utf8'), m = /^const HT_SPEC = (\[.*\]);$/m.exec(a); if (m) spec = JSON.parse(m[1]);
     const k = /^const ADM_KINDS = (\[.*\]);$/m.exec(a); if (k) kinds = [...k[1].matchAll(/\['([a-z]+)',/g)].map(x => x[1]);
+    const sh = /^const ADM_SHADOW = (\[.*\]);/m.exec(a); if (sh) shadow = JSON.parse(sh[1].replace(/'/g, '"'));   // (v254)
   } catch (e) { spec = null; }
-  return (specCache = { mt, spec, kinds });
+  return (specCache = { mt, spec, kinds, shadow });
 }
 
 // the hint rules with the site's set as the page takes it (cleaned by the page's spec the same way: a name no longer

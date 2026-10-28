@@ -140,7 +140,7 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-// SUM_V = 18 (server/roundsidx.mjs since v231): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
+// SUM_V = 19 (server/roundsidx.mjs since v231; 19, v254: the squad's leader the one made so last; kills from a vehicle's seat from the vehicle): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
 // (17, v231: the players' score again - v221 had lost it; every round is summed up again from its .bfr, nothing decoded)
 // (18, v234: through the sights the zoom factor is the view's height itself, not a share of the 1.1 rad - Player::setFov in
 // OpenBF2; the kills' unseen flag - again from the .bfr, nothing decoded)
@@ -379,15 +379,18 @@ function extraStats(tl, C, P0, pidx, team, at, ev, kills, sold, P, dur) {
     for (const [ts] of p.kits || []) { sp++; let g = null; for (const [t1, v] of sg) { if (t1 > ts + 0.05) break; g = v; } if (g != null && g >= 192) sq++; }
     if (sp) { inc(i, 'sp', sp); if (sq) inc(i, 'sq', sq); }
   }
-  const sqAt = (i, t) => { let o = null; for (const q of P0[i].squad || []) { if (q[0] > t + 0.05) break; o = q; } return o ? [o[1], !!o[2]] : [0, false]; };
+  // (v254, SUM_V 19) a squad's leader: of the men of a side the demo has as its leader then, the one made so last (the demo
+  // keeps a man's leader flag when he has left the server or the squad; the page's squadLeaderAt); a leader's flag given
+  // since to another man is a squad he left
+  const sqAt = (i, t) => { let o = null; for (const q of P0[i].squad || []) { if (q[0] > t + 0.05) break; o = q; } return o ? [o[1], !!o[2], o[0]] : [0, false, 0]; };
   const flags = (tl.flags || []).filter(f => !f.main && Number.isFinite(f.x) && Number.isFinite(f.y));
   const step = Math.max(1, Math.round(1 / ((T[1] - T[0]) || 0.1)));
   for (let k = 0; k < F; k += step) {
     const t = T[k], dt = k + step < F ? T[k + step] - t : 0; if (dt <= 0) continue;
-    const lead = new Map(); for (const i of sold) { if (!C.L[k * n + i]) continue; const [s2, l] = sqAt(i, t); if (s2 > 0 && l) lead.set(team(i, t) + '|' + s2, i); }
+    const lead = new Map(); for (const i of sold) { const [s2, l, since] = sqAt(i, t); if (s2 > 0 && l) { const kk = team(i, t) + '|' + s2, o = lead.get(kk); if (!o || since > o[1]) lead.set(kk, [i, since]); } }
     for (const i of sold) {
       const e = k * n + i; if (!C.L[e]) continue; const x = C.X[e], y = C.Y[e];
-      const [s2, l] = sqAt(i, t); if (s2 > 0 && !l) { inc(i, 'ss', dt); const li = lead.get(team(i, t) + '|' + s2); if (li !== undefined) { const f = k * n + li; if (Math.hypot(C.X[f] - x, C.Y[f] - y) <= 50) inc(i, 'sl', dt); } }
+      const [s2, l] = sqAt(i, t); if (s2 > 0 && !l) { inc(i, 'ss', dt); const li = lead.get(team(i, t) + '|' + s2)?.[0]; if (li !== undefined && C.L[k * n + li]) { const f = k * n + li; if (Math.hypot(C.X[f] - x, C.Y[f] - y) <= 50) inc(i, 'sl', dt); } }
       for (const f of flags) if (Math.hypot(f.x - x, f.y - y) <= (f.r || 10) + 2) { inc(i, 'fz', dt); break; }
       if (C.VT[e]) { const v = kind(C.VTN[C.VT[e]]); if (v) { const o = Y.get(i); const vt = o.vt || (o.vt = {}); (vt[v] || (vt[v] = [0, 0, 0]))[0] += dt; } }
     }

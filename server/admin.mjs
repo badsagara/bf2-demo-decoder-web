@@ -38,7 +38,7 @@ import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_I
 import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
 import { expandIndex } from './roundsidx.mjs';
 import { statqKeeper, statqMeta, statqNicks, statqAsk } from './statq.mjs';   // (v244: the admins' statistics)
-import { SITE_FILE as HT_SITE_FILE, MINE_FILE as HT_MINE_FILE, siteSet as htSiteSet, pageSpec as htPageSpec, checkSet as htCheckSet, siteHv as htSiteHv } from './hintcfg.mjs';   // (v227)
+import { SITE_FILE as HT_SITE_FILE, MINE_FILE as HT_MINE_FILE, siteSet as htSiteSet, pageSpec as htPageSpec, checkSet as htCheckSet, siteHv as htSiteHv, SHADOW_FILE as HT_SHADOW_FILE, shadowSet as htShadowSet, shadowKinds as htShadowKinds } from './hintcfg.mjs';   // (v227; v254 the hints in shadow)
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, oldRounds, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
 import { ACCESS_FILE, GATE_FILE, SITE as ACC_SITE, GUEST_EXTRA as ACC_GUEST, CARDS as ACC_CARDS, guestsOf, userRights, normRights, normGuests, gateNeeded, siteRights, needOf, allowed, openPlaces } from './access.mjs';   // (v224)
 
@@ -418,7 +418,7 @@ function pageVer() { pageHintsV(); return hvPage.ver; }
 const HT_ADM = () => path.join(HERE, 'admin-round.js'), htMineF = () => path.join(DATA, '.admin', HT_MINE_FILE);
 function htState() {
   const S = htSiteSet(DATA), P = htPageSpec(HT_ADM()), by = new Map((P.spec || []).map(s => [s.k, s]));
-  return { n: (P.spec || []).length, changed: Object.entries(S.values).map(([k, v]) => ({ k, v, d: by.get(k)?.d ?? null, h: by.get(k)?.h || '', l: by.get(k)?.l || '' })), off: S.off, at: S.at, by: S.by, hv: pageHintsV() };
+  return { n: (P.spec || []).length, changed: Object.entries(S.values).map(([k, v]) => ({ k, v, d: by.get(k)?.d ?? null, h: by.get(k)?.h || '', l: by.get(k)?.l || '' })), off: S.off, at: S.at, by: S.by, hv: pageHintsV(), shadow: [...htShadowKinds(DATA, HT_ADM())].sort() };   // (v254: the hints in shadow)
 }
 function htSiteSave(b, s) {
   const P = htPageSpec(HT_ADM()), c = htCheckSet(b, P, false); if (c.bad.length) return { ok: false, msg: c.bad.slice(0, 5).join('; ') };
@@ -428,6 +428,35 @@ function htSiteSave(b, s) {
   anCache.at = 0;   // (the analysis card: the new rules at once)
   log(`hint thresholds (the site's) by ${whoOf(s)}: ${Object.keys(v.values).length} changed${v.off.length ? ', off: ' + v.off.join(' ') : ''} (were ${Object.keys(was.values).length}${was.off.length ? ' + ' + was.off.length + ' off' : ''}) - hint rules ${pageHintsV()}`);
   return { ok: true, site: htSiteSet(DATA) };
+}
+// (v254) a hint kind put in shadow or taken out of it (the owner, or the right 'hints'): data/.admin/hint-shadow.json -
+// nothing analysed again: the alerts, the players' cards and the score leave the kinds in shadow out when they are made
+function htShadowSave(b, s) {
+  const P = htPageSpec(HT_ADM()), kinds = new Set(P.kinds || []), k = String(b?.kind || ''); if (!kinds.has(k)) return { ok: false, msg: 'no such hint' };
+  const rec = new Set(P.shadow || []), S = htShadowSet(DATA), sh = new Set(S.shadow), live = new Set(S.live), on = !!b.on;
+  sh.delete(k); live.delete(k); if (on && !rec.has(k)) sh.add(k); if (!on && rec.has(k)) live.add(k);
+  const f = path.join(DATA, '.admin', HT_SHADOW_FILE), v = { shadow: [...sh].sort(), live: [...live].sort(), at: new Date().toISOString(), by: whoOf(s) };
+  fs.mkdirSync(path.dirname(f), { recursive: true }); if (!v.shadow.length && !v.live.length) { try { fs.unlinkSync(f); } catch (e) {} } else writeJson(f, v);
+  log(`hints in shadow: ${whoOf(s)} ${on ? 'put' : 'took'} ${k} ${on ? 'in' : 'out'}`);
+  return { ok: true, shadow: htShadowSet(DATA), msg: `${k}: ${on ? 'in shadow - shown only to the owner and the accounts with the right for the site\'s thresholds, no alerts, not on the players\' cards' : 'out of shadow - shown to every admin, in the alerts and the cards'} (the cards and the score follow at the next pass of the background analysis)` };
+}
+// (v254) what the admins' review marks say of each kind of hint: checked (nothing there), a false alarm, suspicious -
+// over the rounds of the servers the account may see; a mark is "kind|soldier|second[|victim]" (the page's admKey)
+let rsCache = { at: 0, by: new Map() };
+function reviewStats(s) {
+  const own = isOwner(s), key = own ? '*' : (s.servers || []).join('\n');
+  if (Date.now() - rsCache.at > 60e3) rsCache = { at: Date.now(), by: new Map() };
+  if (rsCache.by.has(key)) return rsCache.by.get(key);
+  const kinds = {}; let marks = 0, rounds = 0;
+  for (const r of index().rounds || []) {
+    if (!r.sum || (!own && !srvOk(s, r.sum.server))) continue;
+    const f = revRoundFile(r.name); if (!fs.existsSync(f)) continue;
+    const M = readJson(f, {})?.marks || {}; let any = false;
+    for (const [k, m] of Object.entries(M)) { const kind = k.split('|')[0]; if (!REV_STATES.includes(m?.state)) continue; const o = kinds[kind] || (kinds[kind] = { ok: 0, false: 0, sus: 0, last: null }); o[m.state]++; if (!o.last || String(m.at) > o.last) o.last = m.at || null; marks++; any = true; }
+    if (any) rounds++;
+  }
+  const out = { ok: true, kinds, marks, rounds, scope: own ? 'every server' : (s.servers || []).join(', ') };
+  rsCache.by.set(key, out); return out;
 }
 function htMineGet(s) { const all = readJson(htMineF(), {}) || {}, m = all[whoOf(s)] || null; return { ok: true, mine: m }; }
 function htMineSave(b, s) {
@@ -1082,6 +1111,7 @@ const server = http.createServer(async (req, res) => {
     // (v224: the accounts with the Admin tab among their rights, while their admin powers last)
     const tab = (what === 'admin.js' || what === 'round') && req.method === 'GET' || what.startsWith('data/') && req.method === 'GET' || req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what)
       || what === 'hints-mine' || what === 'hints-site' && req.method === 'POST'   // (v227: the hints' thresholds)
+      || (what === 'hints-shadow' || what === 'review-stats') && req.method === 'POST'   // (v254)
       || (what === 'statq-meta' || what === 'statq-nicks') && req.method === 'GET' || what === 'statq' && req.method === 'POST'   // (v244)
       || what === 'choices' && req.method === 'GET' || what === 'choices-run' && req.method === 'POST';   // (v250)
     if (tab) {
@@ -1108,6 +1138,8 @@ const server = http.createServer(async (req, res) => {
       if (what === 'hints-mine') return send(res, 200, htMineSave(b, s));
       if (what === 'hints-site') return R.owner || R.cards.hints ? send(res, 200, htSiteSave(b, s)) : send(res, 403, { ok: false, msg: "the site's thresholds: the owner's, or an account's with that right", error: 'not for this account' });
       if (what === 'choices-run') return send(res, 200, choicesRun(s, R));   // (v250)
+      if (what === 'review-stats') return send(res, 200, reviewStats(s));   // (v254)
+      if (what === 'hints-shadow') return R.owner || R.cards.hints ? send(res, 200, htShadowSave(b, s)) : send(res, 403, { ok: false, msg: "the hints in shadow: the owner's, or an account's with the right for the site's thresholds", error: 'not for this account' });
       return send(res, 200, what === 'review-get' ? revGet(b, s) : what === 'review-mark' ? revMark(b, s) : what === 'review-note' ? revNote(b, s) : revTrusted(b, s));
     }
     // this page: the owner's - or (v224) an account's cards

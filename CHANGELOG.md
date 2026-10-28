@@ -5,6 +5,84 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v254
+
+**The list after v253** (Sagara: "Давай всі пункти"). The decoder changes (grappling ropes): the server
+decodes every round again by itself; the round summaries become version 19 (the squad leader) and the hint rules
+version 17. All of it in [docs/admin-hints.md](docs/admin-hints.md) and admin-hints.md.
+
+- **One squad-leader rule for the whole site** — the player's card, the scoreboard, the squads on the map, Flag choices
+  and the Spawn hint: of the men of his side the demo names leader of a squad, the one made leader **last**. A leader
+  who left or lost the post keeps his flag in the demo for a while (orther1s led squad 2 from the round's start,
+  MicrosoftExcel took it over at 3:13, both "leader" to the end). The test demos: no squad with two leaders any more; no
+  Spawn hint more or less.
+- **A kill from a vehicle's seat is measured from the vehicle.** The demo keeps no soldier for a gunner or a passenger,
+  so such a kill was measured from his last place on foot (or the map's middle): now from a manned vehicle on the
+  bullet's own line ("from his seat in Vodnik 4, 25 m"; a guess of where he was, so never a record); with none, not
+  measured at all. A killer who died a moment before (traded shots, his grenade after him): from where he last stood,
+  as before. The 49 test demos (7,849 kills): 2 from a seat, 3 not measured — two players. Two *Beyond fog* hints of the test demos were such kills; the map draws no kill line from a man
+  the demo hasn't there.
+- **The "2, 1 … 2, 1" magazine counts** (TapakaH's L96A1 in v253): in 6 of the 49 test demos, ~50 small rises each, a man
+  standing still, not scoped, firing at nobody, every ~7 s. Nothing in the game's files we know of explains them; since
+  v253 they are no reload, so they can no longer make *Endless ammo*.
+- **Ready for contact** (new, in shadow): the crosshair already on an enemy as he steps out of cover — hidden 1.5 s or
+  more, within 70° of his view, 8–150 m, not spotted, not firing; within 5° is "ready". Honest players: 25% of such
+  moments (they hold corners too); the hint at 6 or more and chance < 1 in 10,000 against the round's others. The 49 test
+  demos: two hints (rambow2 14 of 21 against 13%, MicrosoftExcel 20 of 37 against 23%). A made-up wallhacker aiming at
+  whoever comes out next: 41 of 55. The background analysis: a quarter to a half longer
+  (the 49 test demos +45%, the biggest round +27%).
+- **Recoil script** (new, in shadow): a burst of an automatic weapon (1 s or more, 8 or more rounds) during which his
+  view's pitch didn't move — 0.03° a 0.1 s record or less; the hand's bursts in 44 demos (152) never under 0.05°. The
+  hint at 3 such bursts in a round. The test demos: none; a made-up one: 6 of 6.
+- **Hints in shadow** and **what the marks say**: the thresholds editor has a *shadow* tick by each hint (the owner's,
+  or the right for the site's thresholds): such a hint is worked out and kept, shown only to them ("in shadow"), no
+  alert, not on the players' cards nor in the score (`data/.admin/hint-shadow.json`, in the weekly copy). By each hint
+  the editor shows how the admins marked its hints (⚑ ✗ ✓) over the servers you may see. The admin page's card lists
+  the hints in shadow.
+- **No line of sight with the server's latency compensation** (OpenBF2's, as knowledge): the server hits the victim
+  where the killer's screen had him — half the killer's ping and 0.1 s before (`LAGC_WIN`, at most 0.3 s); the lines go
+  to him there. The 49 test demos (7,761 kills): 12 kills unseen without it, 11 with it — one *Through thin walls* kill
+  of Vo1k[rus] was in sight from the killer's screen.
+- **Grappling ropes** (OpenBF2's GrapplingHook events, as knowledge): the decoder keeps the hook thrown, each man taking
+  the rope and getting off it; the map draws them (Show ▾ → *Grappling ropes*): from where it was thrown at to where the
+  last man got off, with how far up. A Mass Destruction round: 19 ropes, 24 climbs. *Floating*, *Through walls* and
+  *Teleport* leave a man on a rope out. (Medals: the demo's medal levels are always 0 — nothing to show.)
+
+The thresholds: 184 of 59 hints (12 new: `LAGC_WIN`, `CT_*`, `AR_*`). The test demos: 49 (the 43 and six of the archive's
+rounds); every hint as v253 but those named here.
+
+## v253
+
+**The new hints checked on the archive of v251 (3,449 rounds) and on five of its rounds' demos** (Sagara: "перевірити на
+тисячах раундів нові підказки"). The hint rules become version 16: the background analysis goes over every round again by
+itself. All of it in [docs/admin-hints.md](docs/admin-hints.md) and admin-hints.md → the archive of v251.
+
+- **Spawn** (1,984 hints in the archive, 1,863 of them so): the demo can name two men of his side as his squad's leader
+  at once (one who left, or the leader of another squad of that number); v247 took the last of them — mostly a dead or a
+  far one. Now the nearest living one; with none alive the team mates' rule (the game's squad spawn point goes with its
+  leader). Five demos: all 278 spawns away from the flags within 12 m of a living leader — 34 hints by v252, none now.
+- **No recoil** (1,021 strong hints, 501 on SiC's Karkand Infantry Only): 324 of the 356 flat shots in the demos came
+  less than 0.5 s after his last press — an SVD / Type 88 fired as fast as he clicks, a bolt-action pressed again while it
+  cycles: his view still coming down from the last kick. Now only shots 0.5 s or more after his last press
+  (`NOREC_GAP`): 1.8% flat there, 1.9% in the 43 demos, no hint left.
+- **Endless ammo** (124 strong hints): each kit he had in a life on its own (a kit picked up from the dead brings its own
+  magazines — a sniper who went on as a medic, then an assault); a reload only where the count went up to 60% of the most
+  the gun held (`INF_FULL`; TapakaH's L96A1 went 2, 1 … 2, 1 every 7 s: 28 "magazines"); no press with a launch of his in
+  it or at a manned emplacement (a man at a TOW the demo keeps on foot with his rifle: 1 in the count, the trigger held
+  2–4 s as he guides it).
+- **Shot from elsewhere** (19 hints): 15 were kills by a man the demo had not alive then — his place the map's middle, a
+  shotgun's victim "1 km away": he fired from a vehicle's seat and the demo kept no soldier for him. Now only a killer
+  alive there, not in a vehicle in the second before, and a victim not in a vehicle.
+- **Outside the map** (12 strong hints): each life in a stretch on its own (two were men killed outside and revived — the
+  round's health bears the game's rule out: 20 a second from 10 s, 80 from 20 s), and no hint when the game's damage took
+  him down at last.
+- **Glitch spot** (98 hints, 63 places): a soldier's stays within 25 m of each other in a round are one hint (the time
+  is all of them, how many times, till when).
+
+**Flag choices on the real data**: the placebo stays clean (0 flagged in 20 shuffles, spread 0.98); the archive has no
+list of trusted players, so a stand-in — 593 ranked players with no hint at all: none at q < 0.05, 10 beyond 2 (13 by
+chance), +0.03 in the middle. Nothing changed in choices.mjs.
+
 ## v252
 
 **Flag choices: "known" is what his side knew when he set off** (Sagara sent the analysis archive of v251, 2026-10-28):

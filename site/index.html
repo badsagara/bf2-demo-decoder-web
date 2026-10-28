@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v252';
+const APP_VERSION = 'v254';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1562,13 +1562,13 @@ function killFix(events, pidx, C, players, again, fog) {
   const REACH = { 5370: 500, 5372: 300, 5374: 300, 5376: 500, 5378: 500, 5380: 150, 5382: 150, 5384: 1000, 5388: 1000, 5390: 1000, 5392: 500, 5394: 500, 5398: 150, 5400: 1000, 5402: 500, 5413: 500, 5415: 500, 5417: 300, 5419: 300, 5425: 500, 5427: 500, 5429: 500, 5431: 1000, 5433: 500, 5435: 500, 5437: 500, 5439: 1000, 5444: 1000, 5446: 1000, 5448: 500, 5450: 1000, 5458: 500, 5462: 300, 5464: 300, 5468: 1000, 5470: 500, 5472: 500, 5474: 500, 5476: 500, 5478: 1000, 5480: 500, 5482: 500, 5483: 150, 5485: 500, 5487: 150, 5489: 1000, 5491: 1000, 5455: 450, 5369: 450,
     5406: 10, 5386: 10, 5456: 120, 5421: 260, 5423: 260, 5466: 260, 5396: 260, 5441: 260 };   // (the knife and the paddles 10 m; a hand grenade 120 - the archive's 99.9% 89 m; a grenade launcher's 50 m/s: 255 m at most)
   const A2A = /Sidewinder|Archer missile|^Eurofighter missiles$/i, A2A_V = 400, A2A_T = 12;
-  const { times: T, n, X, Y, HH, VT } = C, F = T.length, hh = e => HH ? HH[e] || 0 : 0;
+  const { times: T, n, X, Y, HH, VT, L: LV } = C, F = T.length, hh = e => HH ? HH[e] || 0 : 0;
   const frameAt = tt => { if (!F || T[0] > tt) return -1; let lo = 0, hi = F - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (T[m] <= tt) lo = m; else hi = m - 1; } return lo; };
   const hand = w => w >= 5357 && w <= 5493, vehW = w => w >= 4200 && w <= 5300;
   const blasts = events.filter(e => e.type === 'blast' && CHARGE[e.kind] && e.x != null), thrown = events.filter(e => e.type === 'throw' && e.path?.length && TF[e.kind]);
   for (const e of events) {
     if (e.type !== 'kill') continue;
-    if (again) { delete e.dist; delete e.noDist; delete e.noRec; delete e.from; if (Array.isArray(e.via)) { [e.weapon, e.wid] = e.via; delete e.via; } }
+    if (again) { delete e.dist; delete e.noDist; delete e.noRec; delete e.from; delete e.seat; if (Array.isArray(e.via)) { [e.weapon, e.wid] = e.via; delete e.via; } }
     if (e.dist !== undefined || e.killer === e.victim || !(e.wid || e.weapon)) continue;
     const ki = pidx.get(e.killer), vi = pidx.get(e.victim), k = frameAt(e.t); if (ki === undefined || vi === undefined || k < 0) continue;
     const a = k * n + ki, b = k * n + vi, kVeh = !!(VT && VT[a]), vVeh = !!(VT && VT[b]), dNow = Math.hypot(X[a] - X[b], Y[a] - Y[b], hh(a) - hh(b));
@@ -1588,7 +1588,21 @@ function killFix(events, pidx, C, players, again, fog) {
     const endOff = w => { const q = w.path[w.path.length - 1]; return Math.hypot(q[1] - X[b], q[2] - Y[b]); };   // (of several - shells - the one that came down by the victim)
     let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && TF[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
     if (th && !/shell/i.test(th.kind)) { const k0 = frameAt(th.path[0][0]), a0 = k0 * n + ki; if (k0 < 0 || !(Math.hypot(th.path[0][1] - X[a0], th.path[0][2] - Y[a0]) <= 30)) th = null; }
-    const dist = Math.round(th ? Math.hypot(th.path[0][1] - X[b], th.path[0][2] - Y[b]) : dNow);
+    // (v254, archive v251: 15 of 19 Shot from elsewhere hints) a hand weapon's kill by a man the demo has no soldier for
+    // then - he fired from a vehicle's seat it kept no ride of (spawned into it on his squad leader): his place the map's
+    // middle, a shotgun's victim "1 km" away. From the vehicle on the bullet's own line (the game's direction of the hit,
+    // within 5 m of it, back from the victim); none there - no distance
+    // (a killer who died a moment before the kill's record - the two shot each other, his grenade went off after him - is
+    // measured from where he last stood, as before: only a man the demo had no soldier for in the 5 s before)
+    let seat = null, ka = a; if (LV && !LV[a] && !kVeh) for (let k2 = k - 1; k2 >= 0 && T[k2] >= e.t - 5; k2--) if (LV[k2 * n + ki]) { ka = k2 * n + ki; break; }
+    if (!th && LV && !LV[ka] && !kVeh && e.wid && hand(e.wid)) {
+      const dr = e.dir, hl = dr ? Math.hypot(dr[0], dr[2]) : 0;
+      if (hl > 0.2) { const ux = dr[0] / hl, uy = dr[2] / hl;
+        for (let j = 0; j < players.length; j++) { if (!players[j]?.vehicle) continue; const f = k * n + j; if (!LV[f]) continue; const wx = X[f] - X[b], wy = Y[f] - Y[b], along = -(wx * ux + wy * uy), lat = Math.abs(wx * uy - wy * ux); if (along > 2 && lat <= 5 && (!seat || lat < seat.lat)) seat = { f, lat, name: players[j].name }; } }
+      if (!seat) { e.noDist = 'gone'; continue; }
+      e.from = [X[seat.f], Y[seat.f], hh(seat.f)].map(v => Math.round(v * 10) / 10); e.seat = seat.name; e.noRec = 'seat';   // (where he was is a guess: no record)
+    }
+    const dist = Math.round(th ? Math.hypot(th.path[0][1] - X[b], th.path[0][2] - Y[b]) : seat ? Math.hypot(X[seat.f] - X[b], Y[seat.f] - Y[b], hh(seat.f) - hh(b)) : ka !== a ? Math.hypot(X[ka] - X[b], Y[ka] - Y[b], hh(ka) - hh(b)) : dNow);
     if (REACH[e.wid] && dist > REACH[e.wid] * 1.05) { e.noDist = 'reach'; continue; }
     e.dist = dist;
     if (fog && e.wid && hand(e.wid) && dist > fog * 1.1 + 10) e.noRec = 'fog';   // (shown, but no record: past the map's fog limit - see the Beyond fog hint)
@@ -1747,7 +1761,7 @@ const LABELS = [['foot', 'Soldiers on foot', 'Their names, with the tool of thei
   ['spots', 'Who spotted', 'The spotter\'s name in the tag over a spotted enemy (the magnifying glass stays)'], ['flags', 'Flags', 'The control points\' names'],
   ['dist', 'Distances and weapons', 'How far a kill, a grenade or a rocket was, and what was fired'], ['brk', 'Broken objects', 'What broke a sign, a fence or a barrel (and who)']];
 const opts = { feed:true, kills:true, spots:true, medic:true, bodies:true, statics:true, blasts:true, fire:true, spawns:false, orders:true, view:true, walls:true, models:true, lift:true, sound:true, aimLn:false, cam3:false, relief:false, front:false, ahead:true, gameSol: true, gameHud: true, legend: true, relShade: true, relAbove: false, cursor: 'off', lab: Object.fromEntries(LABELS.map(([k]) => [k, true])) };
-Object.assign(opts, { kit: true, hp: true, zoomDot: true, moveMk: true, oob: true, emptyVeh: true, vhp: true, killTags: true, shotDir: true, deaths: true, smoke: true, down: true, uav: true, crates: true, cmdCam: true, fogLine: true, seen: true, cover: true, aimMark: true, hands: true, lastSeen: true, grid: true, flags: true, trees: true, mapName: true, topbar: true });   // (v239: Show ▾ switches every element)
+Object.assign(opts, { kit: true, hp: true, zoomDot: true, moveMk: true, oob: true, emptyVeh: true, vhp: true, killTags: true, shotDir: true, deaths: true, smoke: true, down: true, uav: true, crates: true, ropes: true, cmdCam: true, fogLine: true, seen: true, cover: true, aimMark: true, hands: true, lastSeen: true, grid: true, flags: true, trees: true, mapName: true, topbar: true });   // (v239: Show ▾ switches every element)
 try { const o = JSON.parse(localStorage.getItem('bf2rr.labels') || '{}'); for (const [k] of LABELS) if (typeof o[k] === 'boolean') opts.lab[k] = o[k]; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.soldiers') === 'figures') opts.gameSol = false; if (localStorage.getItem('bf2rr.hud') === 'page') opts.gameHud = false; } catch (e) {}
 try { if (localStorage.getItem('bf2rr.relief') === '1') opts.relief = true; if (localStorage.getItem('bf2rr.front') === '1') opts.front = true; if (localStorage.getItem('bf2rr.ahead') === '0') opts.ahead = false; } catch (e) {}
@@ -2175,7 +2189,20 @@ const ORDER_TYPE = { 4: ['defend', 'Defend'], 5: ['attack', 'Attack'], 6: ['move
 const orderImgs = {}; const orderImg = k => { if (!ORDER_ICON[k]) return null; if (!orderImgs[k]) { const im = new Image(); im.onload = () => refresh(true); im.src = ORDER_ICON[k]; orderImgs[k] = im; } return orderImgs[k].complete && orderImgs[k].naturalWidth ? orderImgs[k] : null; };
 // the squad's order at tt (the last one in ORDER_SHOW s; a newer one replaces it), and who led the squad then
 const ordersNow = tt => { const cur = new Map(); for (const o of round.raw?.orders || []) { if (o.t > tt) break; if (o.kind === 2) continue; cur.set(o.team + ':' + o.squad, o); } return [...cur.values()].filter(o => tt - o.t <= ORDER_SHOW); };
-const squadLeaderAt = (tm, sq, tt) => { for (let i = 0; i < round.players.length; i++) { const p = round.players[i]; if (p.vehicle || !p.squad || teamOf(i, tt) !== tm) continue; const q = seriesAt(p.squad, tt); if (q && q[1] === sq && q[2]) return i; } return null; };
+// (v254) a squad's leader at tt: of the men of side tm the demo has as squad sq's leader then, the one made so last. The
+// demo keeps a man's leader flag when he has left the server, or the squad, or the game gave it to another (SiC 24.10:
+// orther1s squad 2's leader from the start and MicrosoftExcel from 193 s on, both flagged to the end; X_01 gone at 368 s,
+// spazz5697 squad 3's leader from 378 s - archive v251: 1,863 Spawn hints came of the wrong one)
+const SQL_C = { r: null, m: new Map() };   // (asked for every soldier each frame: kept per round, side, squad and 0.05 s)
+const squadLeaderAt = (tm, sq, tt) => {
+  if (SQL_C.r !== round || SQL_C.m.size > 20000) { SQL_C.r = round; SQL_C.m = new Map(); }
+  const key = tm + '|' + sq + '|' + Math.round(tt * 20); if (SQL_C.m.has(key)) return SQL_C.m.get(key);
+  let best = null, bt = -Infinity; for (let i = 0; i < round.players.length; i++) { const p = round.players[i]; if (p.vehicle || !p.squad || teamOf(i, tt) !== tm) continue; const q = seriesAt(p.squad, tt); if (q && q[1] === sq && q[2] && q[0] > bt) { best = i; bt = q[0]; } }
+  SQL_C.m.set(key, best); return best;
+};
+// (v254) soldier i's squad at tt: [squad, its leader?]; a leader's flag the game has since given to another man of his
+// side is a squad he left: [0, false]
+const squadOf = (i, tt) => { const p = round.players[i]; if (!p || p.vehicle) return [0, false]; const q = seriesAt(p.squad, tt); if (!q || !q[1]) return [0, false]; if (!q[2]) return [q[1], false]; return squadLeaderAt(teamOf(i, tt), q[1], tt) === i ? [q[1], true] : [0, false]; };
 const orderName = o => (ORDER_TYPE[o.order] || [null, 'Order'])[1];
 const orderWhere = o => { let b = null, bd = 40; for (const f of round.flags) { const d = Math.hypot(f.x - o.x, f.y - o.y); if (d < bd) { bd = d; b = f; } } return b ? b.name : gridOf(o.x, o.y); };
 const squadName = (tm, sq, tt) => { let nm = null; for (const [ts, t2, s2, n] of round.raw?.squadNames || []) { if (ts > tt) break; if (t2 === tm && s2 === sq) nm = n; } return nm; };
@@ -2204,7 +2231,7 @@ function sbRows(p, tt) {
     const twTxt = tw.map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`).concat(rest ? [`<span title="What the demo doesn't show: ammo given (+1 a 100), defending a flag, spotting - and where the flags' estimate is off">rest ${rest > 0 ? '+' : ''}${rest}</span>`] : []).join(' · ');
     h += `<dt title="The game's own scoreboard (sent to every player, so it is in the demo): 2 a kill + teamwork${cmd ? ' + commander' : ''}">Score</dt><dd>${g[1]} <span class="w">K ${g[2]} · D ${g[3]} · teamwork ${g[5]}${g[4] ? ' · team kills ' + g[4] : ''}${cmd ? ` · <span title="Score less 2 a kill and teamwork: the commander's points">commander ${cmd > 0 ? '+' : ''}${cmd}</span>` : ''}</span>${twTxt ? `<br><span class="w" title="His teamwork by the game's rules: +1 a kill assist, +2 a revive, +1 a heal or repair point (each 100% healed or repaired), flags +2 / +1, -4 a team kill, -2 a suicide">teamwork: ${twTxt}</span>` : ''}</dd>`;
   }
-  const c = seriesAt(p.cmdr, tt), q = seriesAt(p.squad, tt);
+  const c = seriesAt(p.cmdr, tt), q0 = seriesAt(p.squad, tt), so = q0 ? squadOf(round.pidx.get(p.id), tt) : null, q = q0 ? [q0[0], so[0], so[1]] : null;
   if (c && c[1]) h += `<dt>Commander</dt><dd>since ${fmt(c[0])}</dd>`;
   else if (q) { const tm = teamOf(round.pidx.get(p.id), tt), nm = q[1] ? squadName(tm, q[1], tt) : null, od = q[1] ? ordersNow(tt).find(o => o.team === tm && o.squad === q[1]) : null; h += `<dt>Squad</dt><dd>${q[1] ? `Squad ${q[1]}${nm ? ' · ' + esc(nm) : ''}${q[2] ? ' · its leader' : ''}` : '<span class="w">none</span>'}${od ? `<br><span class="w" title="The squad's current order (the type is read from where leaders put orders: see the layer's note)">order: ${esc(orderName(od))} ${esc(orderWhere(od))} · ${fmt(od.t)}</span>` : ''}</dd>`; }
   { const C = {}; for (const e of round.events) { if (e.t > tt) break; if (e.type === 'call' && e.player === p.id) C[e.what] = (C[e.what] || 0) + 1; }
@@ -2267,7 +2294,7 @@ const teamColor = tm => tm===0 ? css('--team0') : tm===1 ? css('--team1') : css(
 const SQ_PAL = { warm: ['#fba952', '#f41ced', '#f19fd6', '#f53c41', '#ae6aa8'], cool: ['#34dbb9', '#bc48fe', '#9babfd', '#05a388', '#5480c7'] };
 const sqPal = tm => SQ_PAL[teamColor(tm) === css('--us') ? 'cool' : 'warm'];
 // his squad's number at tt (0: in none, the commander, a vehicle row)
-function sqOf(i, tt) { const p = round.players[i]; if (!p || p.vehicle) return 0; const c = seriesAt(p.cmdr, tt); if (c && c[1]) return 0; const q = seriesAt(p.squad, tt); return q && q[1] ? q[1] : 0; }
+function sqOf(i, tt) { const p = round.players[i]; if (!p || p.vehicle) return 0; const c = seriesAt(p.cmdr, tt); if (c && c[1]) return 0; return squadOf(i, tt)[0]; }
 // a soldier's colour on the map: his side's, or (Colour: Squad) his squad's
 function solColor(i, tt) { const tm = teamOf(i, tt); if (!opts.sqCol || (tm !== 0 && tm !== 1)) return teamColor(tm); const n = sqOf(i, tt); return n >= 1 && n <= SQ_PAL.warm.length ? sqPal(tm)[n - 1] : teamColor(tm); }
 // the squad's number on a disc of its colour, at the lower right of his mark
@@ -5110,7 +5137,9 @@ function draw() {
     // none when the charge wasn't seen being laid
     const placedKill = PLACED_W.has(e.wid);
     if (opts.kills && age < 3 && ki!==undefined && (!placedKill || e.cx !== undefined) && povKnewAt(ki, e.t - 0.05)) {
-      const kp = placedKill ? { x: e.cx, y: e.cy } : playerAt(ki, e.t); const [qx,qy] = toC(kp.x,kp.y);
+      // (v254) a man the demo has no soldier for then (a vehicle's seat): from where killFix put him, else no line
+      const kp0 = placedKill ? { x: e.cx, y: e.cy } : playerAt(ki, e.t), kp = !placedKill && !kp0.alive ? (e.from ? { x: e.from[0], y: e.from[1], alive: true } : null) : kp0;
+      if (kp) { const [qx,qy] = toC(kp.x,kp.y);
       cx.strokeStyle = teamColor(teamOf(ki, e.t)); cx.globalAlpha = 1-age/3; cx.lineWidth = 2;
       cx.beginPath(); cx.moveTo(qx,qy); cx.lineTo(px,py); cx.stroke();
       // (v237, todo 286 a) where the killing shot really came from (the demo's own direction of the hit): dashed back from
@@ -5124,7 +5153,7 @@ function draw() {
         cx.font = '600 10px ' + css('--font-data'); cx.textAlign = 'center'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3;
         cx.strokeText(lb, mx, my - 4); cx.fillStyle = css('--fg'); cx.fillText(lb, mx, my - 4); cx.textAlign = 'start';
       }
-      cx.globalAlpha = 1;
+      cx.globalAlpha = 1; }
     }
   }
 
@@ -5394,7 +5423,7 @@ function draw() {
       cx.globalAlpha = 1;
     }
     // (v246) Colour: Squad - the squad's number by each of its men (a squad leader's mark in Game shows it already)
-    if (opts.sqCol && !p.vehicle && q.alive && !q.veh) { const n = sqOf(i, t); if (n && !(opts.gameSol && seriesAt(p.squad, t)?.[2])) { cx.globalAlpha = ca; sqBadge(px + 9, py + 9, n, col); cx.globalAlpha = 1; } }
+    if (opts.sqCol && !p.vehicle && q.alive && !q.veh) { const n = sqOf(i, t); if (n && !(opts.gameSol && squadOf(i, t)[1])) { cx.globalAlpha = ca; sqBadge(px + 9, py + 9, n, col); cx.globalAlpha = 1; } }
     const vr = vehRad.get(p.name);
     { const o = opts.oob ? outside.get(p.vehicle ? p.name : i) : undefined; if (o !== undefined && !(p.vehicle ? wreck : q.veh)) {
       const r = p.vehicle ? Math.max(18, (vr || 0) + 6) : 21, oc = css('--outside');
@@ -5757,6 +5786,20 @@ function draw() {
     if (!drawIcon('mammo', px, py, 14)) { cx.fillStyle = css('--bg'); cx.fillRect(px - 6, py - 6, 12, 12); cx.strokeStyle = css('--accent'); cx.lineWidth = 1.5; cx.strokeRect(px - 6, py - 6, 12, 12); }
     if (view.span < 400) { const lb = 'Supply crate' + (hp < 100 ? ' · ' + Math.max(0, Math.round(hp)) + '%' : ''); cx.font = '700 10px ' + css('--font-data'); cx.lineWidth = 3; cx.strokeStyle = css('--bg'); cx.strokeText(lb, px + 10, py + 4); cx.fillStyle = css('--accent'); cx.fillText(lb, px + 10, py + 4); }
   }
+  // (v254) Special Forces' grappling ropes (raw.ropes, from the game's GrapplingHook* events): from where it was thrown to
+  // where the last man got off it, else ROPE_SHOW_L m along its way; from its throw to 30 s after its last use
+  if (opts.ropes) for (const r of round.raw?.ropes || []) {
+    const last = r.climbs.reduce((a, c) => Math.max(a, c[1] ?? c[0]), r.t); if (t < r.t || t > last + 30) continue;
+    if (POV && !povSeesPoint(r.x, r.y, null, t, 15)) continue;
+    const off = [...r.climbs].reverse().find(c => c[0] <= t && c[2] != null) || r.climbs.find(c => c[2] != null), hl = Math.hypot(r.dx, r.dy) || 1;
+    const ex = off ? off[2] : r.x + r.dx / hl * ROPE_SHOW_L, ey = off ? off[3] : r.y + r.dy / hl * ROPE_SHOW_L;
+    const ki = r.by ? round.pidx.get(r.by) : undefined, col = ki !== undefined ? teamColor(teamOf(ki, r.t)) : css('--muted'), on = r.climbs.some(c => c[0] <= t && (c[1] == null ? t - c[0] < 20 : t <= c[1]));
+    const [ax, ay] = toC(r.x, r.y), [bx, by] = toC(ex, ey);
+    cx.globalAlpha = on ? 1 : 0.6; cx.strokeStyle = css('--bg'); cx.lineWidth = on ? 4.5 : 3.5; cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(bx, by); cx.stroke();
+    cx.strokeStyle = col; cx.lineWidth = on ? 2.5 : 1.5; cx.setLineDash(off ? [] : [3, 3]); cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(bx, by); cx.stroke(); cx.setLineDash([]);
+    cx.beginPath(); cx.arc(bx, by, 3, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.globalAlpha = 1;
+    if (view.span < 300) { const lb = 'Rope' + (off && off[4] != null ? ' · ' + Math.round(off[4] - r.h) + ' m up' : ''); cx.font = '700 10px ' + css('--font-data'); cx.lineWidth = 3; cx.strokeStyle = css('--bg'); cx.strokeText(lb, bx + 6, by - 6); cx.fillStyle = col; cx.fillText(lb, bx + 6, by - 6); }
+  }
   // (v170) where each commander's overhead (satellite) camera looks - its middle, while it moved in the last 20 s
   if (opts.cmdCam) for (const c of round.raw?.cams || []) {
     if (POV && c.team !== POV.tm) continue;
@@ -6044,7 +6087,7 @@ function panels(force) {
   const hasScore = exactSb || !!round.meta.scoreEstimate || round.events.some(e => e.type === 'score');
   const hasHs = !!round.meta.hits, hasSq = round._hasSq ??= round.players.some(p => p.squad || p.cmdr);
   // (his squad after the name: 2★ = squad 2, its leader; C = the commander)
-  const sqTag = p => { const c = seriesAt(p.cmdr, t); if (c && c[1]) return ' <span class="w lbsq" title="Commander">C</span>'; const q = seriesAt(p.squad, t); return q && q[1] ? ` <span class="w lbsq" title="Squad ${q[1]}${q[2] ? ', its leader' : ''}">${opts.sqCol ? `<i class="sqdot" style="background:${solColor(round.players.indexOf(p), t)}"></i>` : ''}${q[1]}${q[2] ? '★' : ''}</span>` : ''; };   // (v246: Colour: Squad - its colour)
+  const sqTag = p => { const c = seriesAt(p.cmdr, t); if (c && c[1]) return ' <span class="w lbsq" title="Commander">C</span>'; const q = squadOf(round.players.indexOf(p), t); return q[0] ? ` <span class="w lbsq" title="Squad ${q[0]}${q[1] ? ', its leader' : ''}">${opts.sqCol ? `<i class="sqdot" style="background:${solColor(round.players.indexOf(p), t)}"></i>` : ''}${q[0]}${q[1] ? '★' : ''}</span>` : ''; };   // (v246: Colour: Squad - its colour)
   const rows = round.players.map((p,i)=>{ const g = exactSb && sbNow(p, t); return {p,i,k:g ? g[2] : K.get(p.id)||0,d:g ? g[3] : Dd.get(p.id)||0,hs:HS.get(p.id)||0,s:scoreNow(p, t)}; }).filter(r=>!r.p.vehicle && teamOf(r.i, t)===tab).sort((a,b)=>(hasScore ? b.s-a.s : 0)||b.k-a.k||a.d-b.d);
   const hasKits = round.players.some(p => p.kits);
   const scoreTitle = exactSb ? "The game's own score: its scoreboard is sent to every player and so is in the demo" : round.meta.scoreEstimate ? 'Score by the game rules from what the demo shows (kills, team kills, suicides, revives, heals, repairs, flags, vehicle assists). The demo holds no kill assists, ammo or team damage, so it can differ from the game by a few points' : 'Score';
@@ -7496,11 +7539,11 @@ function drawHud(key, color, px, x, y, rot) {
 }
 // soldier i as the game's minimap draws him; false while the textures load (the disc is drawn then)
 // (sizes: the game's 16 px soldier dot is ~8 px across - drawn bigger here, as the map is read close up, ~ the size of the old disc)
-const SOL_K = 2.3, LEAD_K = 1.6, CMD_K = 1.3;
+const SOL_K = 2.3, LEAD_K = 1.6, CMD_K = 1.3, ROPE_SHOW_L = 8;
 function gameSoldier(i, p, q, px, py, col) {
-  const c = seriesAt(p.cmdr, t), sq = seriesAt(p.squad, t), cmd = !!(c && c[1]), lead = !cmd && !!(sq && sq[1] && sq[2]);
+  const c = seriesAt(p.cmdr, t), so = squadOf(i, t), sq = so[0] ? [t, so[0], so[1]] : null, cmd = !!(c && c[1]), lead = !cmd && !!(sq && sq[2]);
   let colour = col;
-  if (!opts.sqCol && sel !== null && sq && sq[1] && round.players[sel] && !round.players[sel].vehicle) { const s2 = seriesAt(round.players[sel].squad, t); if (s2 && s2[1] === sq[1] && teamOf(sel, t) === teamOf(i, t)) colour = SQUAD_GREEN; }
+  if (!opts.sqCol && sel !== null && sq && sq[1] && round.players[sel] && !round.players[sel].vehicle) { const s2 = squadOf(sel, t); if (s2[0] === sq[1] && teamOf(sel, t) === teamOf(i, t)) colour = SQUAD_GREEN; }
   if (cmd) { if (!drawHud('arrow', null, 32 * CMD_K, px, py, q.yaw)) return false; return drawHud(col === css('--mec') ? 'cmd1' : 'cmd2', null, 32 * CMD_K, px, py, 0); }
   if (lead) { if (!drawHud('arrow', null, 32 * LEAD_K, px, py, q.yaw)) return false; return drawHud('sq' + Math.min(9, sq[1]), colour, 16 * LEAD_K, px, py, q.yaw); }
   return drawHud('sol', colour, 16 * SOL_K, px, py, q.yaw);
@@ -7689,8 +7732,8 @@ function drawGameTab(box, kd, seen, tk) {
     const bt = hudTex('sbBottom'); if (bt) g.drawImage(bt, x0, 536);
     // the rows (and, on the squads tab, a band before each squad)
     const ids = round.players.map((p, i) => i).filter(i => !round.players[i].vehicle && teamOf(i, t) === tm && seen(i));
-    const info = i => { const p = round.players[i], [sc, k, dd] = kd(p), sb = round.players.some(q => q.sb) ? sbNow(p, t) : null, pg = seriesAt(p.ping, t), rk = seriesAt(p.rank, t), q = playerAt(i, t), sq = seriesAt(p.squad, t), cm = seriesAt(p.cmdr, t);
-      return { i, sc, tw: sb ? sb[5] : null, k, d: dd, ping: pg ? pg[1] : null, rank: rk ? rk[1] : null, dead: !q.alive, veh: q.alive && q.veh ? q.veh : null, kit: kitNow(p, t), squad: sq ? sq[1] : 0, lead: !!(sq && sq[1] && sq[2]), cmd: !!(cm && cm[1]) }; };
+    const info = i => { const p = round.players[i], [sc, k, dd] = kd(p), sb = round.players.some(q => q.sb) ? sbNow(p, t) : null, pg = seriesAt(p.ping, t), rk = seriesAt(p.rank, t), q = playerAt(i, t), sq = squadOf(i, t), cm = seriesAt(p.cmdr, t);
+      return { i, sc, tw: sb ? sb[5] : null, k, d: dd, ping: pg ? pg[1] : null, rank: rk ? rk[1] : null, dead: !q.alive, veh: q.alive && q.veh ? q.veh : null, kit: kitNow(p, t), squad: sq[0], lead: sq[1], cmd: !!(cm && cm[1]) }; };
     const R = ids.map(info), lines = [];
     if (sbTab === 'squad') {
       const cmd = R.filter(o => o.cmd); if (cmd.length) { lines.push({ band: 'COMMANDER' }); lines.push(...cmd); }
@@ -8122,11 +8165,11 @@ function renderTab(force) {
   box.innerHTML = [0, 1].map(tm => {
     const ids = round.players.map((p, i) => i).filter(i => !round.players[i].vehicle && teamOf(i, t) === tm && seen(i));
     const byS = new Map(); let cm = null;
-    for (const i of ids) { const p = round.players[i], c = seriesAt(p.cmdr, t); if (c && c[1]) { cm = i; continue; } const q = seriesAt(p.squad, t), sq = q ? q[1] : 0; if (!byS.has(sq)) byS.set(sq, []); byS.get(sq).push(i); }
+    for (const i of ids) { const p = round.players[i], c = seriesAt(p.cmdr, t); if (c && c[1]) { cm = i; continue; } const sq = squadOf(i, t)[0]; if (!byS.has(sq)) byS.set(sq, []); byS.get(sq).push(i); }
     const sc = i => kd(round.players[i])[0];
     let body = cm !== null ? `<tr class="sq"><td colspan="6">Commander</td></tr>${row(cm, false)}` : '';
     for (const sq of [...byS.keys()].filter(x => x).sort((a, b) => a - b).concat(byS.has(0) ? [0] : [])) {
-      const L = byS.get(sq).sort((a, b) => { const la = sq && seriesAt(round.players[a].squad, t)?.[2] ? 1 : 0, lb = sq && seriesAt(round.players[b].squad, t)?.[2] ? 1 : 0; return lb - la || sc(b) - sc(a); });
+      const L = byS.get(sq).sort((a, b) => { const la = sq && squadOf(a, t)[1] ? 1 : 0, lb = sq && squadOf(b, t)[1] ? 1 : 0; return lb - la || sc(b) - sc(a); });
       const nm = sq ? squadName(tm, sq, t) : null, od = sq ? ordersNow(t).find(o => o.team === tm && o.squad === sq) : null;
       body += `<tr class="sq"><td colspan="6">${sq ? `Squad ${sq}${nm ? ' · ' + esc(nm) : ''}${od ? ` <span class="w">· ${esc(orderName(od))} ${esc(orderWhere(od))}</span>` : ''}` : 'No squad'}</td></tr>` + L.map(i => row(i, sq && seriesAt(round.players[i].squad, t)?.[2])).join('');
     }
@@ -9971,6 +10014,7 @@ const MC = [];
   N('downNames', 'team', 'down', 'Wounded names', 'The name by a wounded soldier waiting for a medic');
   B('uav', 'team', true, 'UAV', "The commander's UAV while it is up: where it flies, its last 6 s as a trail");
   B('crates', 'team', true, 'Supply crates', "The commander's supply crates where they land, with their 5 m reach and how much is left");
+  B('ropes', 'team', true, 'Grappling ropes', "Special Forces' grappling ropes: from where it was thrown up to where a man got off it (or which way it went), while it is used and 30 s after; the one climbing it bold");
   B('cmdCam', 'team', true, "Commander's camera", "Where each commander's overhead camera looks, while it moved in the last 20 s");
   B('view', 'his', true, 'Field of view', "What he sees: 95° across (a 16:9 screen; narrower through his sights or scope), out to the fog - the ground he sees strong, where only a standing man would be seen light, fading as the map's fog does");
   B('fogLine', 'his', true, 'Fog line', "Dashed across his field of view where the map's fog leaves nothing of a man (Karkand 99.5 m)", { sub: 'view' });
@@ -10797,10 +10841,10 @@ function readEvents(B) {
         case 57: e = { g: u(8), team: u(4), on: u(1), ai: u(1), pts: u(1), mx: u(8), mz: u(8), oid: u(16) }; break;   // CreateSpawnGroup
         case 58: e = { g: u(8), oid: u(16) }; break;                            // RemoveSpawnGroup
         case 59: sk(48); sk(192); sk(16); break;                                // UpdateTrigger
-        case 60: sk(32); sk(32); break;                                         // GrapplingHookContainerCreate
+        case 60: e = { pl: u(8), rope: u(16) }; sk(8); sk(32); break;           // GrapplingHookContainerCreate (v254: he takes the rope)
         case 61: sk(16); sk(64); break;                                         // GrapplingHookContainerUpdate
-        case 62: sk(8); sk(96); break;                                          // GrapplingHookContainerDetach
-        case 63: sk(56); sk(192); break;                                        // GrapplingHookCreate
+        case 62: e = { pl: u(8), pos: v3() }; break;                            // GrapplingHookContainerDetach (v254: he leaves it there)
+        case 63: e = { rope: u(16), pl: u(8) }; sk(32); e.a = v3(); e.dir = v3(); break;   // GrapplingHookCreate (v254: from a, thrown along dir)
         case 64: sk(24); cvec(); cvec(); sk(1); break;                          // GrapplingHookUpdate
         case 65: sk(8); sk(96); break;                                          // PlayerTearGassed
         case 66: sk(9); break;                                                  // SetNightVision
@@ -11569,6 +11613,11 @@ async function decodeDemo(data, progress, opt) {
           else if (e.id === 19 && e.act === 3) xev.push({ t, k: 'cmdr', team: e.team, pl: e.pl });
           else if (e.id === 22) xev.push({ t, k: 'sqname', team: e.team, squad: e.squad, pl: e.pl, name: e.name });
           else if (e.id === 41) xev.push({ t, k: 'medal', pl: e.pl, award: e.award, level: e.level });
+          // (v254, OpenBF2's GrapplingHook* events, as knowledge) Special Forces' grappling hooks: thrown (the rope's id, its
+          // thrower, where from and which way), a man taking a rope, a man leaving one (where he got off)
+          else if (e.id === 63) xev.push({ t, k: 'hook', pl: e.pl, rope: e.rope, a: e.a, dir: e.dir });
+          else if (e.id === 60) xev.push({ t, k: 'climb', pl: e.pl, rope: e.rope });
+          else if (e.id === 62) xev.push({ t, k: 'unclimb', pl: e.pl, pos: e.pos });
           // (v136) a squad leader's order (IssueSquadOrder: team, squad, type, the point - a matrix whose first column is
           // x, y, z, the other two -4000 - or an object; kind 0 squad leader, 1 commander, 2 a request)
           else if (e.id === 24) xev.push({ t, k: 'order', team: e.team, squad: e.squad, order: e.order, kind: e.kind, ...(e.target ? { on: oid2(e.target) } : { x: e.x, z: e.z }) });
@@ -12896,7 +12945,7 @@ async function buildTimeline(r) {
   // (and after a revive), or one lying on the ground: HandleDrop left it where its owner died. =FL= 20:37: 362 pick-ups,
   // all of a made kit; one of another man's dropped kit is a kit picked up (pk; his kit from then on)
   const entAt = (idx, tt) => { let nm = null; for (const [ts, n] of epochs.get(idx) || []) if (ts <= tt) nm = n; const k = entKey.get(nm ? 'n:' + nm : 'i:' + idx); return k !== undefined && P.has(k) ? k : null; };
-  const pickOf = new Map(), squadNames = [], kitObj = new Map(), uavs = [], drops = [], sgroups = [], orders = [];
+  const pickOf = new Map(), squadNames = [], kitObj = new Map(), uavs = [], drops = [], sgroups = [], orders = [], ropes = new Map(), ropeList = [], onRope = new Map();
   for (const e of r.xev || []) {
     const t2 = +e.t.toFixed(2);
     if (e.k === 'kit') kitObj.set(e.id, { tpl: e.tpl, dropped: null, by: null });
@@ -12905,6 +12954,11 @@ async function buildTimeline(r) {
     else if (e.k === 'kick') { const pl = entAt(e.pl, e.t); if (pl !== null) events.push({ t: t2, type: 'kick', player: 'p' + pl, ...(e.ban ? { ban: true } : {}) }); }
     else if (e.k === 'cmdr') { const pl = e.pl >= 0 ? entAt(e.pl, e.t) : null; if (vt(e.team) >= 0) events.push({ t: t2, type: 'cmdr', team: vt(e.team), player: pl === null ? null : 'p' + pl }); }
     else if (e.k === 'medal') { const pl = entAt(e.pl, e.t); if (pl !== null) events.push({ t: t2, type: 'medal', player: 'p' + pl, award: e.award }); }
+    // (v254) the grappling ropes: { id, by, t, x, y, h (whence thrown), dx, dy, dh (which way), climbs: [[t0, t1, x, y, h
+    // where he got off, who]] } - a rope's id is the game's and comes back for later ropes
+    else if (e.k === 'hook' && okPos(e.a[0], e.a[1], e.a[2])) { const pl = entAt(e.pl, e.t); ropes.set(e.rope, { id: e.rope, by: pl === null ? null : 'p' + pl, t: t2, x: +e.a[0].toFixed(2), y: +e.a[2].toFixed(2), h: +e.a[1].toFixed(2), dx: +e.dir[0].toFixed(3), dy: +e.dir[2].toFixed(3), dh: +e.dir[1].toFixed(3), climbs: [] }); ropeList.push(ropes.get(e.rope)); }
+    else if (e.k === 'climb') { const pl = entAt(e.pl, e.t), r0 = ropes.get(e.rope); if (pl !== null && r0) { const c = [t2, null, null, null, null, 'p' + pl]; r0.climbs.push(c); onRope.set(pl, c); } }
+    else if (e.k === 'unclimb') { const pl = entAt(e.pl, e.t), c = pl === null ? null : onRope.get(pl); if (c && okPos(e.pos[0], e.pos[1], e.pos[2])) { c[1] = t2; c[2] = +e.pos[0].toFixed(2); c[3] = +e.pos[2].toFixed(2); c[4] = +e.pos[1].toFixed(2); onRope.delete(pl); } }
     else if (e.k === 'sqname') squadNames.push([t2, vt(e.team), e.squad, e.name]);
     else if (e.k === 'uav' && e.id != null) {   // (v134: from PostRemote - its flight from its own records)
       if (e.on) uavs.push({ id: e.id, team: vt(e.team), t0: t2, t1: null, path: [] });
@@ -12994,7 +13048,7 @@ async function buildTimeline(r) {
     for (const tm of [0, 1]) sides[tm] = [...c[tm]].sort((a, b) => b[1] - a[1])[0]?.[0] || null; }
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', ...(r.settings ? { settings: r.settings } : {}), scoreEstimate: !ents.some(e => e.sb), ...(r.packets?.events ? { exactEvents: true } : {}), manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: sides[0] || (mi ? mi.teams[0] : 'Team 1'), tickets: tkStart[0] ?? 0 }, { id: 1, name: sides[1] || (mi ? mi.teams[1] : 'Team 2'), tickets: tkStart[1] ?? 0 }],
-    players: ents, flags, frames: [], cols, events, emplacements, ...(bodies.length ? { bodies } : {}), ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(crates.length ? { crates } : {}), ...(cams.length ? { cams: cams.map(({ id, ...c }) => c) } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
+    players: ents, flags, frames: [], cols, events, emplacements, ...(bodies.length ? { bodies } : {}), ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(crates.length ? { crates } : {}), ...(ropeList.length ? { ropes: ropeList } : {}), ...(cams.length ? { cams: cams.map(({ id, ...c }) => c) } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
     // the map's destroyable objects that were hit: where (x east, y north, h), template, [time, hit points (-1 back after a
     // respawn, -2 gone), flag]
     breaks: (r.objs || []).map(o => ({ x: +o.x.toFixed(2), y: +o.z.toFixed(2), h: +o.y.toFixed(2), tpl: o.tpl, hits: o.hits })),

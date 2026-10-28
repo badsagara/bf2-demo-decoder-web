@@ -9,6 +9,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { notifySettings, saveNotify, serverOf, mapName, DOMAIN, DATA, log, escDc, cut, send } from './notify.mjs';
+import { shadowKinds } from './hintcfg.mjs';   // (v254: the hints in shadow are not sent)
+const ADM_FILE = path.join(path.dirname(new URL(import.meta.url).pathname), 'admin-round.js');
 
 export const ALERT_HOURS = 48;
 const SENT = path.join(DATA, '.admin', 'alerts.json');
@@ -19,7 +21,7 @@ const idOf = name => String(name || '').replace(/\.bf2demo(\.gz)?$/i, '');
 
 // the post: { embeds: [card] } - each hint a line: what, who, when (a link to the moment)
 export function alertPost(d, min = 'strong') {
-  const need = min === 'hint' ? 1 : 2, H = (d.H || []).filter(h => (h.s ?? 0) >= need && h.tx);
+  const SH = shadowKinds(DATA, ADM_FILE), need = min === 'hint' ? 1 : 2, H = (d.H || []).filter(h => (h.s ?? 0) >= need && h.tx && !SH.has(h.kind));
   if (!H.length) return null;
   const P = new Map((d.P || []).map(r => [r[0], r[1]])), sum = d.round?.sum || {}, id = idOf(d.round?.name || d.name);
   const at = t => DOMAIN ? `https://${DOMAIN}/#round=${encodeURIComponent(id)}&t=${Math.max(0, Math.round(t - 2))}` : '';

@@ -56,7 +56,7 @@ import { execFileSync } from 'node:child_process';
 import { readRoundList } from './roundsidx.mjs';
 import { aggGlitch } from './glitch.mjs';
 import { alertRound } from './alerts.mjs';   // (v214)
-import { siteHv as htSiteHv } from './hintcfg.mjs';   // (v227)
+import { siteHv as htSiteHv, shadowKinds } from './hintcfg.mjs';   // (v227; v254 the hints in shadow)
 import { sameAs as decSame } from './decoders.mjs';   // (v229)
 import { runChoices } from './choices.mjs';   // (v249)
 
@@ -202,7 +202,9 @@ function aggHints() {
   try { fs.writeFileSync(CF + '.tmp', JSON.stringify(cache)); fs.renameSync(CF + '.tmp', CF); } catch (e) {}
   hvSave();
   // count
-  const kinds = {}, P = new Map(); let rounds = 0, sr = 0;
+  // (v254) the hints in shadow (hintcfg.mjs shadowKinds): counted on their own (shadow: { kind: [soldier-rounds, of] }),
+  // not on the players' cards nor in the score
+  const kinds = {}, P = new Map(), SH = shadowKinds(DATA, path.join(path.dirname(new URL(import.meta.url).pathname), 'admin-round.js')), shadow = {}; let rounds = 0, sr = 0;
   const R = Object.values(out).filter(c => c.hv === HV).sort((a, b) => String(b.date).localeCompare(String(a.date)));
   for (const c of R) {
     rounds++; sr += c.pl.length;
@@ -211,18 +213,20 @@ function aggHints() {
       const nick = F.nickOf(name); if (/^Player \d+$/.test(nick)) return;
       let o = P.get(nick); if (!o) P.set(nick, o = { name, rounds: 0, k: {}, ex: {}, mon: {} }); o.rounds++;
       // (v214) by month: his rounds, and those with a hint that counts (not the rules' ones)
-      const ym = String(c.date || '').slice(0, 7); if (ym) { const m = o.mon[ym] || (o.mon[ym] = [0, 0]); m[0]++; if (c.h.some(([j2, kind]) => j2 === j && !NOT_SCORED.has(kind))) m[1]++; }
+      const ym = String(c.date || '').slice(0, 7); if (ym) { const m = o.mon[ym] || (o.mon[ym] = [0, 0]); m[0]++; if (c.h.some(([j2, kind]) => j2 === j && !NOT_SCORED.has(kind) && !SH.has(kind))) m[1]++; }
     });
     const done = new Set();
     for (const [j, kind, n] of c.h) {
       const nick = F.nickOf(c.pl[j]); const o = P.get(nick); if (!o) continue;
       const kk = nick + '|' + kind; if (done.has(kk)) continue; done.add(kk);
+      if (SH.has(kind)) { if (!shadow[kind]) shadow[kind] = [0, 0]; shadow[kind][0]++; continue; }
       if (!kinds[kind]) kinds[kind] = [0, 0]; kinds[kind][0]++;
       const a = o.k[kind] || (o.k[kind] = [0, 0]); a[0]++; a[1] += n;
       const L = o.ex[kind] || (o.ex[kind] = []); if (L.length < 5) L.push([c.name, n]);
     }
   }
   for (const k of Object.keys(kinds)) kinds[k][1] = sr;
+  for (const k of Object.keys(shadow)) shadow[k][1] = sr;
   // (v214) the suspicion score: over each kind of hint he had, how unlikely his share of rounds with it is at everyone's
   // (log10 odds, the same as the card's lines), at most SCORE_KIND_MAX a kind, kinds under 1 in 10 left out; where he
   // stands among the players with SCORE_MIN_ROUNDS rounds or more
@@ -240,7 +244,7 @@ function aggHints() {
   let wrote = 0; const keep = new Set();
   for (const [nick, o] of P) { if (!Object.keys(o.k).length) continue; const fn = F.nickSlug(nick) + '.json'; keep.add(fn); wrote += put(path.join(HD, fn), { hv: HV, nick, name: o.name, rounds: o.rounds, k: o.k, ex: o.ex, score: { v: o.score, pct: o.rounds >= SCORE_MIN_ROUNDS ? pctOf(o.score) : null, of: ranked.length, top: o.top, mon: Object.entries(o.mon).sort().map(([k, v]) => [k, ...v]) } }); }
   for (const f of fs.readdirSync(HD)) if (f.endsWith('.json') && !keep.has(f)) { try { fs.unlinkSync(path.join(HD, f)); } catch (e) {} }
-  put(path.join(SD, 'hints.json'), { hv: HV, at: new Date().toISOString(), rounds, soldierRounds: sr, players: P.size, kinds, scores: { n: ranked.length, minRounds: SCORE_MIN_ROUNDS, p50: qs(0.5), p90: qs(0.9), p99: qs(0.99), top: topList } });
+  put(path.join(SD, 'hints.json'), { hv: HV, at: new Date().toISOString(), rounds, soldierRounds: sr, players: P.size, kinds, shadow, scores: { n: ranked.length, minRounds: SCORE_MIN_ROUNDS, p50: qs(0.5), p90: qs(0.9), p99: qs(0.99), top: topList } });
   // (v186) every round looked at, with its hints for admins: which demos to keep (demos.mjs; ingest.mjs, the admin page)
   { const HR = {}; for (const c of Object.values(out)) if (c.name) HR[c.name] = c.sus || [];
     const t = path.join(DATA, '.hint-rounds.json'); try { fs.writeFileSync(t + '.tmp', JSON.stringify({ at: new Date().toISOString(), rounds: HR })); fs.renameSync(t + '.tmp', t); } catch (e) { log('hint rounds not written:', e.message); } }

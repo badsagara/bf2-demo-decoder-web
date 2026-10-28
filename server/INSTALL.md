@@ -1049,10 +1049,25 @@ the daily check again (the model changed). The background analysis now tries aga
 that was decoded while its run went on ("open: not in the list" — such rounds waited for the next version of the site
 before), and tries such a failure again after an hour. Nothing to do. Another rule for which enemies count as known
 can be tried with `choices.mjs --known ...` and then set (below, "Flag choices"); nothing to do otherwise.
+(v253) The hint rules become version 16 (Spawn, No recoil, Endless ammo, Shot from elsewhere, Outside the map and Glitch
+spot set right by the archive of v251 — admin-hints.md): the background analysis goes over every round again by itself,
+and the players' hint cards and the alerts follow. Two new thresholds (`NOREC_GAP`, `INF_FULL`) — a site's own set keeps
+what it changed. The decoder (`18e8999d15`), the round summaries and the statistics stay: nothing decoded or summed up
+again, nothing to do.
+
+(v254) **The decoder changes** (`a6a4d55e6a`: it keeps the Special Forces' grappling ropes): the server decodes every
+round again by itself (as after v235: on a big site some hours, the newest rounds first; the site works meanwhile, a
+round not yet decoded again shows as before). The round summaries become version 19 (the squad leader: one rule for the
+site) and are summed up again, and the hint rules become version 17 (two new hints, *Ready for contact* and *Recoil
+script*, in shadow; *No line of sight* with the server's latency compensation; a kill from a vehicle's seat measured
+from the vehicle): the background analysis goes over every round again after the decoding. *Ready for contact* makes
+the background analysis a quarter to a half longer. 12 new thresholds (184 in all) — a site's own set keeps what it changed. New:
+the **hints in shadow** (`data/.admin/hint-shadow.json`, below) and the admins' marks per hint in the thresholds editor.
+Nothing to do.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (170 of 57 hints since v247: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (184 of 59 hints since v254: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 
@@ -1066,12 +1081,17 @@ admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/a
   who changed it: `hint thresholds (the site's) by owner: 3 changed, off: clay (were 0) - hint rules 7.2ea50c81`.
 - **Each admin's own** — `data/.admin/hint-mine.json` (one entry per account; removed with the account): over the
   site's, only in the rounds he opens, only while he has "Use mine" on; the server's analysis never uses it.
+- **In shadow** (v254) — `data/.admin/hint-shadow.json`: the hints put in shadow (or taken out of it) by the owner or an
+  account with that right, over ours (v254: `contact`, `autorec`). A hint in shadow is worked out and kept, shown only
+  to them, no alert, not on the players' hint cards nor in the score; nothing is analysed again (the alerts follow at
+  once, the cards at the analysis's next pass). No file — ours.
 
-Both files are in the weekly copy (`backup.sh`). A new version of the site that renames or drops a threshold simply
+The files are in the weekly copy (`backup.sh`). A new version of the site that renames or drops a threshold simply
 leaves it out of the set (the page and the server agree on what is left). To go back to ours at once:
 
 ```bash
 sudo rm /srv/bf2replay/data/.admin/hint-thresholds.json   # the site's: all recommended (the analysis goes over the rounds again)
+sudo rm /srv/bf2replay/data/.admin/hint-shadow.json       # (v254) the hints in shadow: ours (contact, autorec)
 ```
 
 ### Flag choices: who is lucky at flags (v249)

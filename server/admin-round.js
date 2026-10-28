@@ -1,7 +1,7 @@
-// BF2 Round Replay v252 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v254 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v252';
-// ---- part 1 (page line 7094) ----
+const ADM_V = 'v254';
+// ---- part 1 (page line 7137) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
 // Small-arms kills of a soldier on foot (knife and defibrillator left out) for the first three:
@@ -41,7 +41,7 @@ const ADM_V = 'v252';
 // - wall tracking: his view following an enemy hidden behind walls or hills (wallTracks).
 // v122 (the rest of todo 136): reaction time, stamina, teleport, spawn, damage, idle, kill farming, vehicle speed
 // (moreHints), through walls and floating (geoScan).
-const ADM_KINDS = [['wall', 'No line of sight'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['glitch', 'Glitch spot'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map'], ['hssn', 'Sniper headshots'], ['clicker', 'Clicker'], ['brate', 'Bullet rate'], ['spotbot', 'Spot rhythm'], ['lagsw', 'Lag switch'], ['onehit', 'One-hit kills'], ['silent', 'Silent aim'], ['vlock', 'Aim lock'], ['spin', 'Spin'], ['sidesprint', 'Sideways sprint'], ['stancespeed', 'Speed by stance'], ['airspeed', 'Speed in the air'], ['jumpfire', 'Shot in a jump'], ['afkbot', 'Anti-AFK script'], ['teamsw', 'Side switch'], ['tkrev', 'TK + revive'], ['prone', 'Prone spam'], ['bhop', 'Bunny hop'], ['shotfrom', 'Shot from elsewhere'], ['norecoil', 'No recoil'], ['infammo', 'Endless ammo']];
+const ADM_KINDS = [['wall', 'No line of sight'], ['contact', 'Ready for contact'], ['autorec', 'Recoil script'], ['thru', 'Through thin walls'], ['track', 'Wall tracking'], ['wallfire', 'Fired at a wall'], ['fov', 'Wide view'], ['snap', 'Aim snaps'], ['react', 'Reaction'], ['hs', 'Headshots'], ['smoke', 'Through smoke'], ['fog', 'Beyond fog'], ['speed', 'Speed'], ['stam', 'Stamina'], ['tele', 'Teleport'], ['clip', 'Through walls'], ['fly', 'Floating'], ['chute', 'Parachute'], ['spawn', 'Spawn'], ['respawn', 'Early spawn'], ['vspeed', 'Vehicle speed'], ['dmg', 'Damage'], ['reach', 'Melee reach'], ['rate', 'Fire rate'], ['ammo', 'Ammo'], ['farm', 'Kill farming'], ['trigger', 'Triggerbot'], ['smooth', 'Smooth aim'], ['switch', 'Target switch'], ['preaim', 'Pre-aim'], ['spread', 'No spread'], ['blindspot', 'Spots unseen'], ['under', 'Under the map'], ['glitch', 'Glitch spot'], ['guided', 'Guided missiles'], ['arty', 'Artillery'], ['fastcap', 'Fast flag'], ['spotspam', 'Spot spam'], ['idle', 'Idle'], ['tk', 'Team kills'], ['claycap', 'Claymore at a flag'], ['clay', 'Claymore kills'], ['nofire', 'No trigger'], ['outside', 'Outside the map'], ['hssn', 'Sniper headshots'], ['clicker', 'Clicker'], ['brate', 'Bullet rate'], ['spotbot', 'Spot rhythm'], ['lagsw', 'Lag switch'], ['onehit', 'One-hit kills'], ['silent', 'Silent aim'], ['vlock', 'Aim lock'], ['spin', 'Spin'], ['sidesprint', 'Sideways sprint'], ['stancespeed', 'Speed by stance'], ['airspeed', 'Speed in the air'], ['jumpfire', 'Shot in a jump'], ['afkbot', 'Anti-AFK script'], ['teamsw', 'Side switch'], ['tkrev', 'TK + revive'], ['prone', 'Prone spam'], ['bhop', 'Bunny hop'], ['shotfrom', 'Shot from elsewhere'], ['norecoil', 'No recoil'], ['infammo', 'Endless ammo']];
 // (v227) thresholds that were figures in the code, named so that the admins can set them (HT_SPEC); HT_OFF: the hints
 // turned off (the site's, or an admin's own)
 let WALL_T = 0.7, SNAP_FROM = 30, SNAP_TO = 5, HS_KMIN = 6, HSSN_MIN = 6, FOG_SLACK = 10, TEAMSW_TK = 50, TEAMSW_T = 60, HT_OFF = new Set(), HT_GEN = 0;
@@ -84,7 +84,7 @@ function kitSpots(R) {
 // most (rounds decoded before v124 only have where it was thrown: 15 m round that, as before); a support holding his
 // ammo bag (kit item, slot 5) fills up everyone within 4 m (ammo.abilityRadius) - each time one comes that near counts.
 // (v170: the commander's supply crates are counted too - crateVisits)
-// ---- part 2 (page line 7179) ----
+// ---- part 2 (page line 7222) ----
 function ammoBags(R, i, t0, t1) {
   let n = 0;
   for (const b of R.events) {
@@ -94,7 +94,7 @@ function ammoBags(R, i, t0, t1) {
   }
   return n;
 }
-// ---- part 3 (page line 7226) ----
+// ---- part 3 (page line 7269) ----
 const slotAt = (p, tt) => { let v = null; for (const [ts, s] of p.items || []) { if (ts > tt) break; v = s; } return v; };
 // (v170) the commander's supply crates (raw.crates: where each landed, until it broke or emptied): every 20 s soldier
 // i spent within CRATE_R of one (the crate's radius 5 m, Weapons/Handheld/supply_crate: it refills ammo and heals,
@@ -185,7 +185,8 @@ function cheatHints(R) {
     if (e.type !== 'kill' || e.killer === e.victim) continue;
     const ki = pid(e.killer), vi = pid(e.victim); if (ki === undefined || vi === undefined || R.players[ki].vehicle) continue;
     const q = playerAt(ki, e.t - 0.05), o = playerAt(vi, e.t - 0.05); if (!Number.isFinite(q.x) || !Number.isFinite(o.x) || teamOf(ki, e.t) === teamOf(vi, e.t)) continue;
-    const small = !q.veh && killCause(e, false) === 'small', d = Math.hypot(o.x - q.x, o.y - q.y);
+    if (!q.alive && e.noDist === 'gone') continue;   // (v254: no soldier of his then - a vehicle's seat, no place to measure from)
+    const small = !q.veh && killCause(e, false) === 'small', d = e.seat && e.dist !== undefined ? e.dist : Math.hypot(o.x - q.x, o.y - q.y);
     if (fogKnown && fogKill(e, vi)) {
       const up = air.has(q.veh), df = up && Number.isFinite(q.h) && Number.isFinite(o.h) ? Math.hypot(d, o.h - q.h) : d;
       if (df > fog + FOG_SLACK) out.push({ t: e.t, kind: 'fog', adm: true, actor: e.killer, kill: e, d: df, fog, x: e.x, y: e.y, ...(q.veh ? { veh: q.veh } : {}), ...(small ? {} : { other: 1 }) });
@@ -248,7 +249,12 @@ let ONEHIT_D = 15, ONEHIT_HP = 95, ONEHIT_N = 4, ONEHIT_P = 1e-4, ONEHIT_BASE = 
 // hack, or a macro pulling the mouse down as he fires.
 // (Automatic weapons in a burst don't tell it: 15 shots a second and his hand pulling down come out netted in each
 // 0.1 s record - a steady hand's burst is as flat as a hack's)
-let NOREC_N = 8, NOREC_F = 0.1, NOREC_BASE = 0.03, NOREC_P = 1e-4;
+// (v253, archive v251: 1,021 hints in 3,449 rounds, 501 of them on SiC's Karkand Infantry Only - five of its rounds' demos:
+// of 356 flat shots of 2,616, 324 came less than 0.5 s after his last press: the SVD / Type 88 fired as fast as he
+// clicks, or a bolt-action pressed again as it cycles - his view still coming down from the last kick when the next
+// one goes up. A shot NOREC_GAP s or more after his last press: 1.8% flat there, 1.9% in the 43 demos, no hint left)
+let NOREC_N = 8, NOREC_F = 0.1, NOREC_BASE = 0.03, NOREC_P = 1e-4, NOREC_GAP = 0.5;
+let AR_HOLD = 1, AR_SHOTS = 8, AR_FLAT = 0.03, AR_N = 3;   // (v254) Recoil script
 const REC_SNIPER = { 5400: 1.15, 5478: 1.15, 5491: 1.15, 5384: 1.312, 5431: 1.312 };
 // (v245, todo 286 c) Endless ammo: each press's magazine count (the game's own, kept by the decoder since v214) against
 // the next press of the same weapon in the same life. A press of 0.3 s or more fires (the count falls) unless he
@@ -259,11 +265,23 @@ const REC_SNIPER = { 5400: 1.15, 5478: 1.15, 5491: 1.15, 5384: 1.312, 5431: 1.31
 // his magazines (one more lot for each bag, crate, support or kit he could have taken them from). Light machine guns
 // (the box's count stays as it was in the data), shotguns' reloads (a shell at a time), launchers, grenades and tools
 // left out
-let INF_ZERO = 8, INF_X = 1.5;
+let INF_ZERO = 8, INF_X = 1.5, INF_FULL = 0.6;
 const INF_MAGS = { 5372: 8, 5374: 8, 5376: 5, 5378: 5, 5380: 25, 5382: 60, 5384: 7, 5388: 5, 5390: 3, 5394: 5, 5398: 24, 5400: 7, 5402: 5, 5417: 8, 5419: 8, 5425: 5, 5427: 5, 5429: 3, 5431: 7, 5433: 5, 5435: 5, 5437: 5, 5439: 8, 5444: 5, 5446: 5, 5450: 3, 5462: 8, 5464: 8, 5468: 5, 5470: 5, 5472: 5, 5474: 5, 5476: 7, 5478: 7, 5480: 5, 5482: 5, 5483: 25, 5485: 5, 5487: 6, 5489: 5, 5491: 7 };
 const INF_SHOTGUN = new Set([5380, 5382, 5398, 5439, 5483, 5487]);
 // a bot (the server's own players): his ping 0 all through
 const aiLike = p => !!(p && p.ping && p.ping.length && p.ping.every(q => q[1] === 0));
+// (v253) soldier i at tt the gunner of a manned emplacement (a TOW, an HJ-8, a machine gun): within 2.5 m of one its crew
+// of his side, nobody of his side nearer (as empSight) - the demo keeps him on foot with his own weapon then
+function empMan(i, tt) {
+  const E = round._empC || (round._empC = (round.emplacements || []).filter(e => e.crew && e.crew.length)); if (!E.length) return false;
+  const q = playerAt(i, tt); if (!q.alive || q.veh || !Number.isFinite(q.x)) return false;
+  const tm = teamOf(i, tt);
+  return E.some(e => {
+    const c = e.crew.find(c => c[0] <= tt && tt < c[1]); if (!c || c[2] !== tm) return false;
+    const d = Math.hypot(e.x - q.x, e.y - q.y); if (d >= 2.5) return false;
+    return !round.players.some((o, j) => { if (j === i || o.vehicle) return false; const w = playerAt(j, tt); return w.alive && !w.veh && Number.isFinite(w.x) && teamOf(j, tt) === tm && Math.hypot(e.x - w.x, e.y - w.y) < d; });
+  });
+}
 // (v245, todo 286 a) Shot from elsewhere: the kill's own bullet (the game's direction of the last hit, kept by the decoder
 // since v235: shotOff) SHOTF_DEG deg or more off the line from where the killer stood, SHOTF_LAT m or more to the side
 // at his distance, and not from where his screen had the two of them a moment before (it runs ~0.1 s and half his ping
@@ -343,6 +361,7 @@ function macroHints(R) {
       for (let j = 0; j + 1 < pr.length; j++) {
         const a = pr[j], b = pr[j + 1], kickE = REC_SNIPER[a.wid];
         if (!kickE || a.ammo == null || b.ammo == null || a.w !== b.w || a.ammo - b.ammo < 1 || b.t - a.t > 20 || !zoomNow(p, a.t + 0.05)) continue;
+        if (j > 0 && a.t - pr[j - 1].t < NOREC_GAP) continue;   // (v253) his view still on its way back from the last kick
         const qa = playerAt(i, a.t - 0.2), q0 = playerAt(i, a.t), q1 = playerAt(i, a.t + 0.1), q2 = playerAt(i, a.t + 0.2);
         if (!qa.alive || !q2.alive || q2.veh || qa.pitch == null || q0.pitch == null || q1.pitch == null || q2.pitch == null) continue;   // (not "held": a sniper lying still has the same place and yaw step after step)
         const kick = (Math.max(q0.pitch, q1.pitch, q2.pitch) - qa.pitch) / DEG;
@@ -351,17 +370,43 @@ function macroHints(R) {
       }
       if (first && nS >= NOREC_N && binTail(kS, nS, NOREC_BASE) < NOREC_P) out.push({ t: first.t, kind: 'norecoil', adm: true, actor: id, q: kS, n: nS, others: NOREC_BASE, w: [...W], kick: first.kick, kickE: first.kickE, ...at(i, first.t) });
     }
+    // ---- (v254, todo 286 b) Recoil script on automatic weapons: a burst (a press held AR_HOLD s or more that fired AR_SHOTS
+    // or more - the magazine's count to the next press of the gun), on foot, not at an emplacement: his view's pitch step
+    // to step (0.1 s records) - the game adds the gun's kick to it every shot, his hand pulls down against it: 44 demos,
+    // 152 such bursts of 105 players, 0.56 deg a record in the middle, 0.05 at the least (one in a thousand). A burst
+    // under AR_FLAT a record: his view held still while the gun kicked - a recoil script (or a no-recoil hack). The hint:
+    // AR_N or more such bursts in a round. In shadow while new
+    if (!aiLike(p)) {
+      const B = []; let flat = 0, first = null;
+      for (let j = 0; j + 1 < pr.length; j++) {
+        const a = pr[j], b = pr[j + 1], hold = a.up - a.t; if (hold < AR_HOLD || a.w !== b.w || a.ammo == null || b.ammo == null || !a.wid) continue;
+        const shots = a.ammo - b.ammo; if (shots < AR_SHOTS || SNIPER_W.test(a.w) || wClass(a.wid) === 'shotgun' || empMan(i, a.t + 0.05)) continue;
+        let pp = 0, nr = 0, prev = null;
+        for (let tt = a.t + 0.05; tt <= a.up - 0.05; tt += 0.1) { const q = playerAt(i, tt); if (!q.alive || q.veh || q.pitch == null) { prev = null; continue; } if (prev !== null) { pp += Math.abs(q.pitch - prev) / DEG; nr++; } prev = q.pitch; }
+        if (nr < 8) continue;
+        const per = pp / nr; B.push(per); if (per <= AR_FLAT) { flat++; if (!first) first = { t: a.t, w: a.w, per, hold, shots }; }
+      }
+      if (flat >= AR_N) out.push({ t: first.t, kind: 'autorec', adm: true, actor: id, q: flat, n: B.length, w: first.w, per: first.per, hold: first.hold, shots: first.shots, ...at(i, first.t) });
+    }
     // ---- (v245) Endless ammo: per life and gun, presses that took nothing from the magazine, and magazines changed
+    // (v253, archive v251: 124 hints - five demos of them: a kit picked up from the dead in the same life (SiC: a sniper
+    // who went on as a medic, then an assault - each kit with its own magazines); the count going up by one or two, not
+    // to a full magazine (TapakaH's L96A1: 2, 1 ... 2, 1 every 7 s - 28 "magazines"; 91 of the archive's 100 such hints
+    // by a full magazine's rule are gone); the presses of a man at a TOW / HJ-8 launcher the demo has on foot with his
+    // rifle (1 in the count, the trigger held 2-4 s as he guides it: zielonka., and 24 hints of the archive so) - each kit
+    // he had in a life on its own, a reload only where the count went up to INF_FULL of the most it held, no press with
+    // a launch of his in it or at an emplacement
     {
-      const lifeOf = tt => { let s0 = 0; for (const [ts] of p.kits || []) { if (ts > tt + 0.05) break; s0 = ts; } return s0; };
-      const G = new Map();
-      for (const q of pr) { if (q.ammo == null || q.ammo >= 60 || !INF_MAGS[q.wid] || !q.w) continue; const k = lifeOf(q.t) + '|' + q.wid; let o = G.get(k); if (!o) G.set(k, o = { t0: lifeOf(q.t), wid: q.wid, w: q.w, P: [] }); o.P.push(q); }
+      const lotOf = tt => { let s0 = 0; for (const [ts] of p.kits || []) { if (ts > tt + 0.05) break; s0 = ts; } for (const [ts] of p.pk || []) { if (ts > tt + 0.05) break; if (ts > s0) s0 = ts; } return s0; };
+      const thr = R.events.filter(e => e.type === 'throw' && e.by === id).map(e => e.t), launched = q => thr.some(t => t >= q.t - 0.1 && t <= q.up + 0.3);
+      const G = new Map(), top = new Map();
+      for (const q of pr) { if (q.ammo == null || q.ammo >= 60 || !INF_MAGS[q.wid] || !q.w || launched(q) || empMan(i, q.t + 0.05)) continue; const k = lotOf(q.t) + '|' + q.wid; let o = G.get(k); if (!o) G.set(k, o = { t0: lotOf(q.t), wid: q.wid, w: q.w, P: [] }); o.P.push(q); top.set(q.wid, Math.max(top.get(q.wid) || 0, q.ammo)); }
       let best = null;
       for (const o of G.values()) {
-        let zero = 0, rel = 0, fired = 0, z0 = null;
+        let zero = 0, rel = 0, fired = 0, z0 = null; const full = Math.max(3, Math.round(INF_FULL * (top.get(o.wid) || 0)));
         for (let j = 0; j + 1 < o.P.length; j++) {
           const a = o.P[j], b = o.P[j + 1], d = a.ammo - b.ammo;
-          if (d > 0) fired += d; else if (d < 0) { rel++; fired += a.ammo; } else if (a.ammo > 0 && a.up - a.t >= 0.3) { zero++; if (z0 === null) z0 = a.t; }
+          if (d > 0) fired += d; else if (d < 0) { if (b.ammo >= full) { rel++; fired += a.ammo; } } else if (a.ammo > 0 && a.up - a.t >= 0.3) { zero++; if (z0 === null) z0 = a.t; }
         }
         const last = o.P[o.P.length - 1].t, lots = 1 + ammoBags(R, i, o.t0, last) + supportNear(R, i, o.t0, last) + crateVisits(R, i, o.t0, last);
         const mags = INF_MAGS[o.wid] * lots, tooMany = !INF_SHOTGUN.has(o.wid) && rel > mags * INF_X;
@@ -523,6 +568,11 @@ let WF_T = 1.4, WF_T0 = 0.6, WF_N = 6,   // (v213: 4 -> 6 - SiC's infantry-only 
 // real round's soldier 0.03-0.05 (4 of 5, 3 of 4, 7 of 11), no hint - with 79° none either.
 // (v219, 95°, the band 50-70°) the 26 rounds: 805 chances, 34% taken; the lowest odds of a real round's soldier
 // 0.026-0.06 (6 of 9, 3 of 3, 3 of 5), no hint.
+// (v254) the server's latency compensation for soldier i's shots at tt (s): half his ping + LAGC_WIN (the client's
+// interpolation window; phy-latencyComp-pingFactor 0.5, -useClientWindow 1, -max 0.3)
+let LAGC_WIN = 0.1;
+const lagComp = (i, tt) => { const pg = seriesAt(round.players[i]?.ping, tt); return Math.max(0, Math.min(0.3, (pg ? pg[1] : 0) * 0.0005 + LAGC_WIN)); };
+let CT_HID = 1.5, CT_CONE = 70, CT_NEAR = 8, CT_FAR = 150, CT_DEG = 5, CT_N = 6, CT_P = 1e-4;   // (v254) Ready for contact
 let FOV_HALF = 47.5, FOV_IN = 50, FOV_OUT = 70, FOV_FRESH = 1.5, FOV_HIT = 15, FOV_REACT = 1.2, FOV_FAR = 150, FOV_N = 5, FOV_P = 0.001;
 // (the upper tail of a binomial, in logs: n can run to hundreds here)
 const binTailLog = (k, n, p) => { if (k <= 0) return 1; if (p <= 0) return 0; if (p >= 1) return 1; let lc = 0, s = 0; const lp = Math.log(p), lq = Math.log(1 - p); for (let j = 1; j <= n; j++) { lc += Math.log((n - j + 1) / j); if (j >= k) s += Math.exp(lc + j * lp + (n - j) * lq); } return Math.min(1, s); };
@@ -592,6 +642,54 @@ function wallTracks(R, done) {
       }
     }
   };
+  // (v254, Sagara's todo 315/318: "готовий до контакту") every time an enemy comes out of cover in front of him - hidden
+  // from him CT_HID s or more, then in the open (the grid's lines to his head or chest, two steps on end) within CT_CONE
+  // deg of where he looks, CT_NEAR-CT_FAR m off, not one his side had spotted or had in its UAV ring, not firing, he not
+  // hit in the 2 s before: how far off his crosshair he was then. Ready: within CT_DEG. Honest players hold their sights
+  // on doors and corners too - the yardstick is the round's others' share (as Wide view); a wallhack holds them on the
+  // man behind the wall, every time
+  // (cost: every pair at every step more than doubled the tracks' time of a 64-player round) a check every CT_EVERY-th
+  // step (1 s) of the line to his head only; a pair out at a check and hidden at the one before: the steps between looked
+  // at again (head and chest) for the first he was out - his hiding is known a little late (hidden 1.5-2.3 s counts)
+  const ctPair = new Map(), ctBy = new Map(), CT_EVERY = 5; let ctK = 0;
+  const ctVis = (i, j, q, o, tt, head) => { const eye = q.h + EYE_H[poseNow(R.players[i], tt)];
+    return poseSets(R.players[j], tt).some(so => !losBlocked(D, q.x, q.y, eye, ...aimAt(o, so, 0), tt) || (!head && !losBlocked(D, q.x, q.y, eye, ...aimAt(o, so, 1), tt))) && !vegBlocks(q.x, q.y, eye, ...aimAt(o, poseNow(R.players[j], tt), 1)) && !smokeBlocks(q.x, q.y, o.x, o.y, tt); };
+  const ctAt = (i, j, tt) => { const q = playerAt(i, tt), o = playerAt(j, tt);
+    if (!q.alive || q.down || q.veh || !o.alive || o.down || o.veh || !Number.isFinite(q.x) || !Number.isFinite(o.x) || q.h == null || o.h == null || q.yaw == null) return null;
+    const dx = o.x - q.x, dy = o.y - q.y, d = Math.hypot(dx, dy), off = angOff(Math.atan2(dx, dy), q.yaw) / DEG;
+    return d < CT_NEAR || d > Math.min(CT_FAR, fog) || off > CT_CONE ? null : { q, o, d, off }; };
+  const ctStep = (tt, P) => {
+    if (ctK++ % CT_EVERY) return;
+    const S = TRACK_STEP * CT_EVERY;
+    for (const [i, q] of P) {
+      if (q.yaw == null || aiLike(R.players[i])) continue;   // (bots: their aim is the server's)
+      const tm = teamOf(i, tt);
+      for (const [j, o] of P) {
+        if (j === i || teamOf(j, tt) === tm) continue;
+        const key = i * 256 + j, dx = o.x - q.x, dy = o.y - q.y, d = Math.hypot(dx, dy), off = angOff(Math.atan2(dx, dy), q.yaw) / DEG;
+        if (d < CT_NEAR || d > Math.min(CT_FAR, fog) || off > CT_CONE) { ctPair.delete(key); continue; }
+        let st = ctPair.get(key); if (!st) ctPair.set(key, st = { hid: null, last: tt - S });
+        if (tt - st.last > S * 1.5) st.hid = null;   // (not watched on end: no telling)
+        const prev = st.last; st.last = tt;
+        if (!ctVis(i, j, q, o, tt, true)) { if (st.hid === null) st.hid = tt; continue; }
+        const h0 = st.hid; st.hid = null; if (h0 === null) continue;
+        let tf = tt, c = null;   // (the first step he was out since the check before)
+        for (let t2 = prev + TRACK_STEP; t2 < tt - 1e-6; t2 += TRACK_STEP) { const x = ctAt(i, j, t2); if (x && ctVis(i, j, x.q, x.o, t2)) { tf = t2; c = x; break; } }
+        if (!c) c = { q, o, d, off };
+        if (tf - h0 < CT_HID - 1e-6) continue;
+        const c2 = ctAt(i, j, tf + TRACK_STEP); if (!c2 || !ctVis(i, j, c2.q, c2.o, tf + TRACK_STEP)) continue;   // (out two steps on end)
+        const hit = (() => { const a = playerAt(i, tf - 2).hp, b = c.q.hp; return a != null && b != null && b < a - 1; })();
+        if (hit || firedNear(j, tf) || spottedNear(j, tf, tm) || uavShows(j, tf, tm)) continue;
+        if (!ctBy.has(i)) ctBy.set(i, { n: 0, q: 0, offs: [], first: null }); const B = ctBy.get(i); B.n++; B.offs.push(Math.round(c.off * 10) / 10);
+        if (c.off <= CT_DEG) { B.q++; if (!B.first) B.first = { t: tf, j, off: c.off, d: c.d, x: c.q.x, y: c.q.y }; }
+      }
+    }
+  };
+  const ctHints = () => {
+    let N = 0, Q = 0; for (const B of ctBy.values()) { N += B.n; Q += B.q; }
+    R._ctStat = [...ctBy].map(([i, B]) => { const p = (Q - B.q + 1) / (N - B.n + 20); return { name: R.players[i].name, n: B.n, q: B.q, others: +p.toFixed(4), tail: binTailLog(B.q, B.n, p), med: B.offs.slice().sort((a, b) => a - b)[B.offs.length >> 1] }; }).sort((a, b) => a.tail - b.tail);
+    for (const [i, B] of ctBy) { if (B.q < CT_N || !B.first) continue; const p = (Q - B.q + 1) / (N - B.n + 20), tail = binTailLog(B.q, B.n, p); if (tail < CT_P) out.push({ t: B.first.t, kind: 'contact', adm: true, actor: R.players[i].id, vs: R.players[B.first.j].id, q: B.q, n: B.n, others: p, tail, off: B.first.off, d: B.first.d, x: B.first.x, y: B.first.y }); }
+  };
   const fovHints = () => {
     let N = 0, Q = 0; for (const B of fovBy.values()) { N += B.n; Q += B.q; }
     R._fovStat = [...fovBy].map(([i, B]) => ({ name: R.players[i].name, n: B.n, q: B.q, others: (Q - B.q + 1) / (N - B.n + 6), tail: binTailLog(B.q, B.n, (Q - B.q + 1) / (N - B.n + 6)) })).sort((a, b) => a.tail - b.tail);
@@ -631,7 +729,7 @@ function wallTracks(R, done) {
     for (; k < steps && performance.now() - t0 < SLICE_MS; k++) {
       const tt = T0 + k * TRACK_STEP, P = new Map();
       for (const i of sol) { const q = playerAt(i, tt); if (q.alive && !q.down && !q.veh && Number.isFinite(q.x) && q.h != null) P.set(i, q); }
-      fovStep(tt, P);
+      fovStep(tt, P); ctStep(tt, P);
       for (const i of sol) {
         const q = P.get(i); if (!q || q.pitch == null) { close(i); closeF(i); continue; }
         const tm = teamOf(i, tt), eye = q.h + EYE_H[poseNow(R.players[i], tt)]; let best = null;
@@ -661,7 +759,7 @@ function wallTracks(R, done) {
     if (k < steps) { R._trackP = k / steps; setTimeout(work, SLICE_GAP); return; }
     for (const i of [...runs.keys()]) close(i);
     for (const i of [...fires.keys()]) closeF(i);
-    wfHints(); fovHints();
+    wfHints(); fovHints(); ctHints();
     done(out);
   };
   setTimeout(work, SLICE_FIRST);
@@ -897,7 +995,7 @@ function moreHints(R) {
       for (let q = k - 30; ok && q < k; q++) { const a = q * n + i; if (!L[a] || !L[a - n] || VT[a] || stepV(a, q) > 12) ok = false; else { pa += Math.hypot(X[a] - X[a - n], Y[a] - Y[a - n]); turn += angOff(A[a], A[a - n]); } }
       if (!ok || (pa < 0.3 && turn < 0.01)) continue;
       for (let q = k + 1; ok && q <= k + 10 && q < F; q++) { const a = q * n + i; if (!L[a] || VT[a] || stepV(a, q) > 12) ok = false; }
-      if (!ok || nearVeh(k, X[e], Y[e], 8) || nearVeh(k - 1, X[e0], Y[e0], 8) || atSpot('tele', X[e], Y[e])) continue;
+      if (!ok || nearVeh(k, X[e], Y[e], 8) || nearVeh(k - 1, X[e0], Y[e0], 8) || atSpot('tele', X[e], Y[e]) || (R.raw?.ropes && ropeAt(R, i, T[k], 3))) continue;   // (v254: nor off a grappling rope)
       J.push({ t: T[k], d, x0: X[e0], y0: Y[e0], x: X[e], y: Y[e] });
     }
     if (J.length) out.push({ t: J[0].t - 0.1, kind: 'tele', adm: true, actor: id, n: J.length, d: Math.max(...J.map(j => j.d)), d0: J[0].d, x: J[0].x, y: J[0].y, x0: J[0].x0, y0: J[0].y0 });
@@ -940,9 +1038,13 @@ function moreHints(R) {
     // spawn point rides on its leader, is offered only to the squad's other men and scatters them 3-9 m round him (43
     // demos: 654 of 663 squad spawns on foot within 9 m): with squads in the demo, only his own squad leader within
     // SPAWN_SQ explains a spawn away from his side's points; no leader of his squad then (or no squads): any team mate or
-    // vehicle within SPAWN_D, as before
-    const sq = hasSq ? seriesAt(R.players[i].squad, ts - 0.1) : null;
-    if (sq && sq[1] && !sq[2]) R.players.forEach((o, j) => { if (j === i || o.vehicle) return; const s2 = seriesAt(o.squad, ts - 0.1), ej = kb * n + j; if (s2 && s2[1] === sq[1] && s2[2] && teamOf(j, ts) === tm) lead = L[ej] ? Math.hypot(X[ej] - x, Y[ej] - y) : Infinity; });
+    // vehicle within SPAWN_D, as before. (v253, archive v251: 1,863 of its 1,984 Spawn hints - the demo can have two men
+    // as his squad's leader at once (one gone, or of another squad of that number): the last of them counted, mostly a
+    // dead or far one; the SiC round of 24.10: 39 of its 77 squad spawns so, its 32 hints all within 5 m of the other)
+    // the nearest living one; none alive - no squad spawn point (the game takes it away with him): the team mates' rule
+    // (v254: his squad's leader as squadLeaderAt has him - the one the game made so last)
+    const sq = hasSq ? squadOf(i, ts - 0.1) : [0, false];
+    if (sq[0] && !sq[1]) { const j = squadLeaderAt(tm, sq[0], ts - 0.1), ej = j == null ? -1 : kb * n + j; if (j != null && j !== i && L[ej]) lead = Math.hypot(X[ej] - x, Y[ej] - y); }
     if (lead !== null) { if (lead <= SPAWN_SQ) continue; md = lead; }
     else { R.players.forEach((o, j) => { const ej = kb * n + j; if (j === i || !L[ej] || (!o.vehicle && teamOf(j, ts) !== tm)) return; md = Math.min(md, Math.hypot(X[ej] - x, Y[ej] - y)); }); if (md <= SPAWN_D) continue; }
     out.push({ t: T[k], kind: 'spawn', adm: true, actor: R.players[i].id, sd, md, x, y, how, ...(lead !== null ? { lead: true } : {}) });
@@ -985,11 +1087,21 @@ function moreHints(R) {
   for (const P of pair.values()) if (P.length >= FARM_N) { const e = P[0]; out.push({ t: e.t, kind: 'farm', adm: true, actor: e.killer, vs: e.victim, n: P.length, all: ev.filter(x => x.type === 'kill' && x.killer === e.killer && x.victim === e.victim).length, span: P[P.length - 1].t - e.t, x: e.x, y: e.y }); }
   for (const i of sold) for (const o of R.players[i].out || []) {
     if (o[1] - o[0] < OOB_ALLOW) continue;
-    let up = null; for (let tt = o[0]; tt < o[1]; tt += 0.25) if (playerAt(i, tt).alive) up = tt;
-    if (up === null) continue;
-    const id = R.players[i].id; let heal = 0; for (const e of ev) { if (e.t > o[1]) break; if (e.type === 'heal' && e.player === id && e.t >= o[0] - 1) heal += e.gain || 0; }
-    const live = oobLive(100 + heal), dur = up - o[0];
-    if (dur >= live + OUT_T) { const k = fr(o[0] + 1), e = k * n + i; out.push({ t: o[0], kind: 'outside', adm: true, actor: id, dur, secs: o[2], live: +live.toFixed(1), heal, dmg: oobDmg(), x: X[e], y: Y[e] }); }
+    // (v253, archive v251: 2 of its 12 hints were men killed outside, revived and killed again - one stretch of the game's
+    // count over three lives) each life on his feet in it on its own, from where it began (the stretch's start, or a revive)
+    const segs = []; let s0 = null, up = null;
+    for (let tt = o[0]; tt < o[1]; tt += 0.25) { if (playerAt(i, tt).alive) { if (s0 === null) s0 = tt; up = tt; } else if (s0 !== null) { segs.push([s0, up]); s0 = null; } }
+    if (s0 !== null) segs.push([s0, up]);
+    if (!segs.length) continue;
+    const id = R.players[i].id; let best = null;
+    for (const [a, b] of segs) {
+      // (the game's damage took him down at last - the kill with no weapon to it, still outside: it worked, slow or not)
+      if (b + 0.3 < o[1] && ev.some(e => e.type === 'kill' && e.victim === id && !e.wid && !e.weapon && Math.abs(e.t - b) < 0.8)) continue;
+      let heal = 0; for (const e of ev) { if (e.t > b) break; if (e.type === 'heal' && e.player === id && e.t >= a - 1) heal += e.gain || 0; }
+      const live = oobLive(100 + heal), dur = b - a;
+      if (dur >= live + OUT_T && (!best || dur - live > best.dur - best.live)) best = { a, dur, live, heal };
+    }
+    if (best) { const k = fr(best.a + 1), e = k * n + i; out.push({ t: best.a, kind: 'outside', adm: true, actor: id, dur: best.dur, secs: o[2], live: +best.live.toFixed(1), heal: best.heal, dmg: oobDmg(), ...(segs.length > 1 ? { lives: segs.length } : {}), x: X[e], y: Y[e] }); }
   }
   // vehicle speed
   const blasts = ev.filter(e => e.type === 'blast' && e.x != null);
@@ -1032,7 +1144,7 @@ function moreHints(R) {
 // some way of the game, not a hack; the other 6 were 15-120 s at 85-397 m up, 10-23 m/s across - two soldiers on SiC's
 // infantry-only Karkand, the same two with the most unlikely headshots - so FLY_T 8 s)
 let CLIP_N = 15, CLIP_P = 10, FLY_H = 5, FLY_T = 8, FLY_V = 2, FLY_VZ = -1;
-// ---- part 4 (page line 8169) ----
+// ---- part 4 (page line 8324) ----
 function solidAt(D, x, y, z, OFF) {
   const c = gridCell(D, x, y); if (c < 0) return false; const z10 = z * 10;
   for (let m = D.cs[c], b = D.cs[c + 1]; m < b; m++) if (D.sp[2 * m] <= z10 && D.sp[2 * m + 1] >= z10 && !(OFF && spanOut(OFF, m))) return true;
@@ -1053,6 +1165,12 @@ function onCarrier(x, y) {
   const C = round._carr || (round._carr = round.flags.filter(f => f.main && /carrier/i.test(f.name || '')));
   return C.some(f => Math.hypot(f.x - x, f.y - y) < 160);
 }
+// (v254) soldier i on a grappling rope at tt (raw.ropes' climbs: from taking it to getting off, pad s round them; one
+// that never got off: 20 s): he goes up a wall - neither Floating nor Through walls nor a Teleport
+function ropeAt(R, i, tt, pad = 1.5) {
+  const id = R.players[i]?.id; if (!id || !R.raw?.ropes) return false;
+  return R.raw.ropes.some(r => r.climbs.some(c => c[5] === id && tt >= c[0] - pad && tt <= (c[1] ?? c[0] + 20) + pad));
+}
 function geoScan(R, done) {
   const D = losData(); if (!D) { done([]); return; }
   const { times: T, n, X, Y, HH, L, VT, DN } = R, F = T.length, out = [], wl = WATER[mapKey()] ?? -1e9;
@@ -1064,7 +1182,7 @@ function geoScan(R, done) {
     for (let k = 3; k < F; k += 3) {
       const a = (k - 3) * n + i, b = k * n + i;
       if (VT[a] || VT[b]) lastVeh = T[k];
-      if (!L[a] || !L[b] || VT[a] || VT[b] || (DN && (DN[a] || DN[b]))) { flyEnd(); continue; }
+      if (!L[a] || !L[b] || VT[a] || VT[b] || (DN && (DN[a] || DN[b])) || (R.raw?.ropes && ropeAt(R, i, T[k]))) { flyEnd(); continue; }
       const OFF = brkOff(D, T[k]), dx = X[b] - X[a], dy = Y[b] - Y[a], dist = Math.hypot(dx, dy);
       if (dist > 0.4 && dist < 4 && Math.abs(HH[b] - HH[a]) < 1) {
         const ns = Math.ceil(dist / 0.05); let thru = true;
@@ -1129,7 +1247,7 @@ function geoScan(R, done) {
 //   fired, so many hits that the odds against the round's other TV gunners are under TV_P (v184: against every TV
 //   gunner's share, TV_RATE 0.383 of 5596 missiles in 168 rounds; TV_P 1e-5).
 let SPAM_60 = 30, SPAM_10 = 12, FLAG_X = 2, ART_GAP = 50, ART_BURST = 5, ART_ROF = 1.7, GUIDE_V = 5, GUIDE_N = 3, GUIDE_ERR = 0.5, GUIDE_NOSE = 0.25, TV_N = 8, TV_P = 1e-5, TV_RATE = 0.383;
-// ---- part 5 (page line 8424) ----
+// ---- part 5 (page line 8585) ----
 // (v149) did player i command his side at tt? The commander spots from his screen - anyone anywhere, many at a time, with
 // no line of sight (2F4Y Dalian 09:08: 309 of the round's 810 spots, both "Spot spam" hints were commanders' - Sagara:
 // "Враховувати що спот командером може бути більший ніж простого піхотинця і не заносити його в for admins")
@@ -1420,7 +1538,7 @@ function aimHints(R) {
   }
   return out;
 }
-// ---- part 6 (page line 8717) ----
+// ---- part 6 (page line 8878) ----
 let admFilter = 'all';
 // chance of k or more of n with rate p
 const binTail = (k, n, p) => { let s = 0, c = 1; for (let j = 0; j <= n; j++) { if (j > 0) c = c * (n - j + 1) / j; if (j >= k) s += c * Math.pow(p, j) * Math.pow(1 - p, n - j); } return s; };
@@ -1460,6 +1578,7 @@ let LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vsp
 // more where no one else ever stood, while 3 or more other players stood in those columns 5-40 m above or below him -
 // for maps with 30+ rounds looked at. Only on the site (a demo opened from a file: its round is not in the grids)
 const GLITCH_V = 1, GLITCH = new Map();
+const GL_JOIN = 25;   // (v253) m: a soldier's stays this close in a round are one Glitch spot hint
 function glitchData() {
   const nm = $('#srcLabel').textContent; if (!session?.server || !round || !srvRound(nm)) return null;
   const f = mapKey().replace(/[^a-z0-9_-]/g, '_'); if (!f) return null;
@@ -1480,7 +1599,22 @@ function admStartGeo(R, D) {
   if (R._geoRun || !D) return;
   const tok = R._geoRun = {}, g = HT_GEN; geoScan(R, L => { if (R !== round || R._geoRun !== tok || g !== HT_GEN) return; R._geo = L; R._adm = null; renderAdmin(); });
 }
+// (v254) the hints in shadow (ADM_SHADOW, the site's hint-shadow.json over it): new detectors, worked out and kept in
+// the analysis (marked shadow), shown only to the site's owner and the accounts with the right for the site's
+// thresholds - nobody else's list, chips or counts have them
+const ADM_SHADOW = ['contact', 'autorec'];
+let HT_SHADOW = new Set(ADM_SHADOW);
+const htShadowSee = () => typeof acc === 'undefined' || !acc || !acc.in || htCanSite();   // (not logged in: this computer's own copy of the whole page)
 function adminHints() {
+  const A = adminHints0();
+  if (AN_RUN || htShadowSee()) { for (const h of A) if (HT_SHADOW.has(h.kind)) h.shadow = true; else if (h.shadow) delete h.shadow; return A; }
+  if (!A.some(h => HT_SHADOW.has(h.kind))) return A;
+  const key = [...HT_SHADOW].join(','); if (A._noSh && A._noShK === key) return A._noSh;
+  const B = A.filter(h => !HT_SHADOW.has(h.kind)); for (const k of Object.keys(A)) if (!/^\d+$/.test(k) && !k.startsWith('_noSh')) B[k] = A[k];
+  Object.defineProperty(A, '_noSh', { value: B, configurable: true, writable: true }); Object.defineProperty(A, '_noShK', { value: key, configurable: true, writable: true });
+  return B;
+}
+function adminHints0() {
   if (round._adm) return round._adm;
   const R = round, pid = id => R.pidx.get(id), D = losData(), out = [], DEG = Math.PI / 180, hs = new Map(), hsS = new Map(), snaps = [], sfrom = new Map();
   for (const e of R.events) {
@@ -1496,15 +1630,22 @@ function adminHints() {
       let h = hsS.get(ki); if (!h) hsS.set(ki, h = { n: 0, head: 0, exp: 0, first: null, w: new Map() });
       h.n++; h.exp += (typeof HS_W !== 'undefined' && HS_W[e.weapon]) || HS_SNIPER; h.w.set(e.weapon, (h.w.get(e.weapon) || 0) + 1); if (e.hit === 'head') { h.head++; if (!h.first) h.first = e; }
     }
-    // (v245) the kill's own bullet from elsewhere (SHOTF_*)
-    { const qk = playerAt(ki, e.t), so = Number.isFinite(qk.x) && Number.isFinite(o.x) ? shotOff(e, qk) : null, d = so ? Math.hypot(e.x - qk.x, e.y - qk.y) : 0;
+    // (v245) the kill's own bullet from elsewhere (SHOTF_*); (v253, archive v251: 15 of its 19 hints were kills by a man
+    // the demo had not alive then - his place the map's middle (0, 0): one firing from a vehicle's seat, the demo keeping
+    // no soldier for him (two of them 1 km from a shotgun's victim, its bullet along a Black Hawk's flight); one a Little
+    // Bird's miniguns credited to a pilot the demo has on foot by then) only a killer alive there, not in a vehicle in the
+    // second before; nor a victim in a vehicle (2 more: men in a jeep, a Black Hawk and an F-35 - the vehicle's own way)
+    { const qk = playerAt(ki, e.t), inV = [0.3, 0.6, 1].some(b => playerAt(ki, e.t - b).veh), so = qk.alive && !inV && !o.veh && Number.isFinite(qk.x) && Number.isFinite(o.x) ? shotOff(e, qk) : null, d = so ? Math.hypot(e.x - qk.x, e.y - qk.y) : 0;
       if (so && d >= SHOTF_D && so.off >= SHOTF_DEG && so.lat >= SHOTF_LAT && !so.when) { let L = sfrom.get(ki); if (!L) sfrom.set(ki, L = []); L.push({ e, off: so.off, lat: so.lat, d }); } }
     if (!q.alive || !o.alive) continue;
     if (D && q.h != null && o.h != null) {
       let k = 0, clear = false;
+      // (v254, todo 286 c - OpenBF2's LatencyCompensation, as knowledge) the server hits the victim where the killer's
+      // screen had him: put back by half the killer's ping and his screen's window (phy-latencyComp: ping x 0.5 + the
+      // client's interpolation, at most 0.3 s) - him at tq, the victim at tq less that
       for (; k <= 50; k++) {
-        const tq = tt - k * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
-        if (bodyLines(D, eyeXY(a), eyeOf(ki, a, tq), vi, b, tq)[0] > 0) { clear = true; break; }   // (v233: from his eye)
+        const tq = tt - k * 0.1, bq = tq - lagComp(ki, tq), a = playerAt(ki, tq), b = playerAt(vi, bq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
+        if (bodyLines(D, eyeXY(a), eyeOf(ki, a, tq), vi, b, bq)[0] > 0) { clear = true; break; }   // (v233: from his eye)
       }
       // (the grid can't see through: checked again against the exact shapes; until they are loaded the kill waits)
       if (k >= Math.round(WALL_T * 10)) {
@@ -1514,8 +1655,8 @@ function adminHints() {
         else {
           let k2 = 0, clear2 = false;
           for (; k2 <= 50; k2++) {
-            const tq = tt - k2 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
-            if (bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, tq), vi, b, tq)) { clear2 = true; break; }
+            const tq = tt - k2 * 0.1, bq = tq - lagComp(ki, tq), a = playerAt(ki, tq), b = playerAt(vi, bq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
+            if (bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, tq), vi, b, bq)) { clear2 = true; break; }
           }
           // (v240) the kill's own shot clear from his eye to the victim: no hint (shotWay)
           if (k2 >= Math.round(WALL_T * 10) && !shotWay(D, G, e, eyeXY(q), eyeOf(ki, q, tt), o, tt, false)) {
@@ -1562,7 +1703,9 @@ function adminHints() {
   for (const r of speedRuns(R)) if (r.t0 >= (R.times[0] || 0) + SPAWN_START && !atSpot('speed', (r.x + r.x1) / 2, (r.y + r.y1) / 2)) out.push({ t: r.t0, kind: 'speed', adm: true, actor: R.players[r.i].id, v: r.vmax, vavg: r.vavg, dur: r.dur, n: r.n, span: r.t1 - r.t0, dist: r.dist, x: (r.x + r.x1) / 2, y: (r.y + r.y1) / 2 });   // (v184: not in the round's first SPAWN_START s - the soldiers being put in place: 11 of 40 in 675 rounds)
   for (const r of stanceRuns(R)) if (r.t0 >= (R.times[0] || 0) + SPAWN_START) out.push({ t: r.t0, kind: 'stancespeed', adm: true, actor: R.players[r.i].id, st: r.st, v: r.v, vmax: r.vmax, dur: r.dur, n: r.n, x: (r.x + r.x1) / 2, y: (r.y + r.y1) / 2 });   // (v237)
   // (v185, todo 185) glitch spots: the server's grids of the places soldiers stood over the map's rounds (glitchData)
-  { const GL = glitchData(), nm = $('#srcLabel').textContent;
+  // (v253, archive v251: its 98 hints were 63 places - one soldier back at the same spot again and again in a round,
+  // a hint each time) a soldier's stays within GL_JOIN m of each other in a round are one hint: dur all of them, n how many
+  { const GL = glitchData(), nm = $('#srcLabel').textContent, gl = [];
     if (GL === undefined) out.glWait = true;
     else if (GL) for (const [id, name, t0, t1, x, y, h, others, up, down] of GL.hits[nm] || []) {
       let i = pid(id); if (i === undefined || R.players[i].vehicle || R.players[i].name.trim() !== name) i = R.players.findIndex(p => !p.vehicle && p.name.trim() === name);
@@ -1578,8 +1721,14 @@ function adminHints() {
         else if (fl > g + 2) { where = 'top:' + Math.round(fl - g); info = up == null; }
         else { where = 'ground'; info = true; }   // (on the ground, others over him: under a bridge or a balcony)
       }
-      out.push({ t: t0, kind: 'glitch', adm: true, ...(info ? { info: true } : {}), actor: R.players[i].id, dur: t1 - t0, h, others, up, down, where, rounds: GL.rounds, x, y });
-    } }
+      const o = { t: t0, kind: 'glitch', adm: true, ...(info ? { info: true } : {}), actor: R.players[i].id, dur: t1 - t0, h, others, up, down, where, rounds: GL.rounds, x, y };
+      const j = gl.findIndex(g => g.actor === o.actor && Math.hypot(g.x - x, g.y - y) <= GL_JOIN);
+      if (j < 0) { gl.push(o); continue; }
+      const g = gl[j], n = (g.n || 1) + 1, dur = g.dur + o.dur, t1st = Math.min(g.t, o.t), last = Math.max(g.last ?? g.t + g.dur, t1);
+      gl[j] = { ...(g.info && !o.info ? o : g), t: t1st, dur, n, last };   // (the one that is not only information speaks for them)
+      if (!(g.info && o.info)) delete gl[j].info;
+    }
+    for (const g of gl) out.push(g); }
   // (v184, todo 146) hints one honest kill gives too, only for a soldier with HINT_N[kind] or more of them in the round
   { const cnt = new Map(), key = h => h.kind + '|' + h.actor; for (const h of out) if (HINT_N[h.kind]) cnt.set(key(h), (cnt.get(key(h)) || 0) + 1);
     for (let i = out.length - 1; i >= 0; i--) { const h = out[i], nn = HINT_N[h.kind]; if (!nn) continue; const c = cnt.get(key(h)); if (c < nn) out.splice(i, 1); else h.of = c; } }
@@ -1606,7 +1755,7 @@ const ANALYZE_V = 4;   // (v251: Cc's E - what his side could know of each enemy
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 15;   // (v247: Outside the map by the game's damage rule - alive on his feet past the moment it kills a man with full health, a man down left out; Spawn - away from his side's points only his own squad leader within 12 m explains it; v245: Shot from elsewhere, No recoil, Endless ammo - three new hints; Wall tracking, Fired at a wall, Pre-aim and Wide view leave out an enemy his side had spotted or had in its UAV ring; v241: a man lying down - his head 0.45 m over his feet and 0.4 m ahead, chest and hips along his body: every hint that asks if he could be seen; v240: No line of sight - not when the kill's own shot had its way; v237: Speed by stance, the stance now read right; v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
+const HINTS_V = 17;   // (v254: Ready for contact and Recoil script - new, in shadow; No line of sight with the server's latency compensation; a kill from a vehicle's seat measured from the vehicle; one squad leader rule for the site; no Floating, Through walls or Teleport on a grappling rope)  (v253: the archive of v251 - Spawn the nearest living leader of his squad (two men of his side his squad's leader at once), No recoil only shots 0.5 s after his last press, Endless ammo each kit apart, a reload only to a full magazine, no press of a TOW / HJ-8 gunner, Shot from elsewhere only a killer alive there and not just out of a vehicle, Outside the map each life on its own and not when the game's damage took him down, Glitch spot one hint a man and place in a round; v247: Outside the map by the game's damage rule - alive on his feet past the moment it kills a man with full health, a man down left out; Spawn - away from his side's points only his own squad leader within 12 m explains it; v245: Shot from elsewhere, No recoil, Endless ammo - three new hints; Wall tracking, Fired at a wall, Pre-aim and Wide view leave out an enemy his side had spotted or had in its UAV ring; v241: a man lying down - his head 0.45 m over his feet and 0.4 m ahead, chest and hips along his body: every hint that asks if he could be seen; v240: No line of sight - not when the kill's own shot had its way; v237: Speed by stance, the stance now read right; v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
 // (v227, Sagara: "налаштування всіх threshold'ів для кожної реакції на застереження ... щоб кожен адміністратор міг
 // налаштовувати собі все, що треба, сам. Але були наші рекомендовані thresholds") the hints' thresholds. HT_SPEC - one line
 // of JSON (admin.mjs reads it from server/admin-round.js to check what is saved): each one's name (k, the variable), hint
@@ -1615,7 +1764,7 @@ const HINTS_V = 15;   // (v247: Outside the map by the game's damage rule - aliv
 // right) - the background analysis, the players' cards and the alerts use it; an admin's own set (admin.mjs hints-mine)
 // over it for the rounds he opens, when he says so. HT_HV: the hint rules with the site's set - HINTS_V while it is the
 // recommended one, else HINTS_V.<hash of it> (the analysis goes over every round again when it changes).
-const HT_SPEC = [{"k":"LAG_PING","h":"common","d":250,"t":"ms","l":"ping from which a jump or lag stretch is put down to lag (Teleport, Lag switch)","mn":0,"mx":10000},{"k":"WALL_T","h":"wall","d":0.7,"t":"s","l":"no clear line to the victim for at least this long before the kill","mn":0.1,"mx":5},{"k":"HN_WALL","h":"wall","d":2,"t":"n","l":"such kills by one soldier in a round (one is often a gap of the map's shapes)","mn":1,"mx":100000},{"k":"HN_SMOKE","h":"smoke","d":2,"t":"n","l":"kills through a dense smoke cloud by one soldier in a round","mn":1,"mx":100000},{"k":"HN_FOG","h":"fog","d":2,"t":"n","l":"kills beyond the fog by one soldier in a round","mn":1,"mx":100000},{"k":"FOG_SLACK","h":"fog","d":10,"t":"m","l":"how far past the map's view distance the kill must be","mn":0,"mx":10000},{"k":"TRACK_DEG","h":"track","d":3,"t":"deg","l":"his view within this much across of the hidden enemy","mn":0,"mx":360},{"k":"TRACK_VDEG","h":"track","d":6,"t":"deg","l":"... and this much up or down","mn":0,"mx":360},{"k":"TRACK_T","h":"track","d":2,"t":"s","l":"on the same hidden enemy for this long on end","mn":0,"mx":3600},{"k":"TRACK_TURN","h":"track","d":10,"t":"deg","l":"the bearing to the enemy turning at least this much meanwhile (his view following)","mn":0,"mx":360},{"k":"TRACK_STEP","h":"track","d":0.2,"t":"s","l":"step of the scan (also Fired at a wall)","a":1,"mn":0.1,"mx":1},{"k":"WF_T","h":"wallfire","d":1.4,"t":"s","l":"one burst this long at an enemy hidden behind cover gives the hint","mn":0,"mx":3600},{"k":"WF_T0","h":"wallfire","d":0.6,"t":"s","l":"... or bursts of at least this long","mn":0,"mx":3600},{"k":"WF_N","h":"wallfire","d":6,"t":"n","l":"... this many of them in a round","mn":1,"mx":100000},{"k":"WF_PRE","h":"wallfire","d":3,"t":"s","l":"the enemy not seen by him in this long before","mn":0,"mx":3600},{"k":"WF_NEAR","h":"wallfire","d":8,"t":"deg","l":"no enemy he can see within this much of his crosshair","mn":0,"mx":360},{"k":"FOV_IN","h":"fov","d":50,"t":"deg","l":"the band just outside the view: from this far off where he looks","mn":0,"mx":360},{"k":"FOV_OUT","h":"fov","d":70,"t":"deg","l":"... to this far","mn":0,"mx":360},{"k":"FOV_FRESH","h":"fov","d":1.5,"t":"s","l":"the enemy not in his view for this long before","mn":0,"mx":3600},{"k":"FOV_HIT","h":"fov","d":15,"t":"deg","l":"taken: he turns to within this much of the enemy","mn":0,"mx":360},{"k":"FOV_REACT","h":"fov","d":1.2,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"FOV_FAR","h":"fov","d":150,"t":"m","l":"enemies at most this far count","mn":0,"mx":10000},{"k":"FOV_N","h":"fov","d":5,"t":"n","l":"chances taken in a round, at least","mn":1,"mx":100000},{"k":"FOV_P","h":"fov","d":0.001,"t":"p","l":"odds of taking so many at the round's others' rate, under","mn":1e-15,"mx":1},{"k":"FOV_HALF","h":"fov","d":47.5,"t":"deg","l":"half the honest view across (16:9 screen)","a":1,"mn":0,"mx":360},{"k":"SNAP_FROM","h":"snap","d":30,"t":"deg","l":"his view this far or more off the victim 0.1 s before ...","mn":0,"mx":360},{"k":"SNAP_TO","h":"snap","d":5,"t":"deg","l":"... and within this much one step later, in the 1.5 s before the kill","mn":0,"mx":360},{"k":"SNAP_N","h":"snap","d":3,"t":"n","l":"such snaps by one soldier in a round","mn":1,"mx":100000},{"k":"REACT_Q","h":"react","d":0.25,"t":"s","l":"a kill this soon after first seeing the victim is a quick one","mn":0,"mx":3600},{"k":"REACT_MIN","h":"react","d":4,"t":"n","l":"quick kills, at least","mn":1,"mx":100000},{"k":"REACT_N","h":"react","d":8,"t":"n","l":"of at least this many kills measured","mn":1,"mx":100000},{"k":"REACT_P","h":"react","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"HS_KMIN","h":"hs","d":6,"t":"n","l":"kills with a hit place (no sniper rifles), at least","mn":1,"mx":100000},{"k":"HS_P","h":"hs","d":0.0001,"t":"p","l":"odds of so many in the head at the others' share (his weapons), under (also Sniper headshots)","mn":1e-15,"mx":1},{"k":"HSSN_MIN","h":"hssn","d":6,"t":"n","l":"sniper rifle kills with a hit place, at least","mn":1,"mx":100000},{"k":"HS_SNIPER","h":"hssn","d":0.47,"t":"f","l":"share in the head for a sniper rifle with no measured share of its own","a":1,"mn":0,"mx":1},{"k":"SPEED_V","h":"speed","d":8.7,"t":"mps","l":"on foot faster than this over each second","mn":-100,"mx":1000},{"k":"SPEED_T","h":"speed","d":2,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"SPAWN_START","h":"speed","d":10,"t":"s","l":"not in the round's first seconds (also Spawn: the start's spawns)","a":1,"mn":0,"mx":3600},{"k":"STAM_T","h":"stam","d":13,"t":"s","l":"one sprint this long (rounds without the stamina value)","mn":0,"mx":3600},{"k":"STAM_E","h":"stam","d":3.5,"t":"s","l":"sprinting with no stamina left for this long","mn":0,"mx":3600},{"k":"STAM_H","h":"stam","d":13,"t":"s","l":"sprinting with the stamina not going down for this long","mn":0,"mx":3600},{"k":"TELE_D","h":"tele","d":15,"t":"m","l":"a jump on foot of this much in one step","mn":0,"mx":10000},{"k":"TELE_GAP","h":"tele","d":13,"t":"mps","l":"not a gap in his records: over the gap no faster than this","mn":-100,"mx":1000},{"k":"CLIP_N","h":"clip","d":15,"t":"n","l":"steps through a wall in a round, at least","mn":1,"mx":100000},{"k":"CLIP_P","h":"clip","d":10,"t":"n","l":"... in at least this many places (5 m apart)","mn":1,"mx":100000},{"k":"FLY_H","h":"fly","d":5,"t":"m","l":"his feet this high over what is under him","mn":0,"mx":10000},{"k":"FLY_T","h":"fly","d":8,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"FLY_V","h":"fly","d":2,"t":"mps","l":"moving across this fast on average","mn":-100,"mx":1000},{"k":"FLY_VZ","h":"fly","d":-1,"t":"mps","l":"and not coming down faster than this (negative: down)","mn":-50,"mx":50},{"k":"CHUTE_H","h":"chute","d":15,"t":"mps","l":"under a parachute faster than this across","mn":-100,"mx":1000},{"k":"CHUTE_UP","h":"chute","d":1,"t":"mps","l":"... or rising this fast","mn":-100,"mx":1000},{"k":"UNDER_D","h":"under","d":1.5,"t":"m","l":"alive on foot this deep under the ground","mn":0,"mx":10000},{"k":"UNDER_T","h":"under","d":2,"t":"s","l":"... for this long","mn":0,"mx":3600},{"k":"SPAWN_D","h":"spawn","d":25,"t":"m","l":"appearing further than this from any spawn point his side held (rounds without squads: or team mate or vehicle)","mn":0,"mx":10000},{"k":"SPAWN_SQ","h":"spawn","d":12,"t":"m","l":"... and further than this from his own squad leader (the game scatters a squad's men 3-9 m round him)","mn":0,"mx":10000},{"k":"SG_NEAR","h":"spawn","d":150,"t":"m","l":"a map spawn point counts if within this of a spawn group his side held","a":1,"mn":0,"mx":10000},{"k":"SG_R","h":"spawn","d":150,"t":"m","l":"maps without spawn points: this far from a held group's middle","a":1,"mn":0,"mx":10000},{"k":"SPAWN_EARLY","h":"respawn","d":0.5,"t":"s","l":"spawned this much earlier than the game allows","mn":0,"mx":3600},{"k":"VSPD_X","h":"vspeed","d":1.35,"t":"x","l":"faster than this many times the most its type made","mn":0,"mx":100},{"k":"VSPD_T","h":"vspeed","d":3,"t":"s","l":"... over this long","mn":0,"mx":3600},{"k":"DMG_HP","h":"dmg","d":25,"t":"hp","l":"a closed vehicle killed through by small arms with this much health or more left","mn":0,"mx":100},{"k":"MELEE_SLACK","h":"reach","d":2.5,"t":"m","l":"knife / defibrillator kill further than its reach plus this","mn":0,"mx":10000},{"k":"AMMO_X","h":"ammo","d":2,"t":"x","l":"more launches in one life than this many times what he could have had","mn":0,"mx":100},{"k":"PICK_R","h":"ammo","d":2.5,"t":"m","l":"a kit may have been picked up within this of where its carrier died (also Fire rate)","a":1,"mn":0,"mx":10000},{"k":"PICK_T","h":"ammo","d":300,"t":"s","l":"... in this long after","a":1,"mn":0,"mx":3600},{"k":"CRATE_R","h":"ammo","d":6,"t":"m","l":"near a supply crate: within this","a":1,"mn":0,"mx":10000},{"k":"FARM_N","h":"farm","d":4,"t":"n","l":"one killer kills the same standing victim this many times","mn":1,"mx":100000},{"k":"IDLE_T","h":"idle","d":240,"t":"s","l":"alive on foot, not moving 1 m nor turning 2 deg for this long","mn":0,"mx":3600},{"k":"OUT_T","h":"outside","d":10,"t":"s","l":"alive on his feet outside the combat area this long past the moment the game's damage kills a man with full health (15 s; Highway Tampa 22.5 s)","mn":0,"mx":3600},{"k":"NOFIRE_T","h":"nofire","d":1.5,"t":"s","l":"a bullet kill with every fire button up for this long before","mn":0,"mx":3600},{"k":"TRIG_ON","h":"trigger","d":0.15,"t":"s","l":"the kill this soon after his aim landed (rounds without fire buttons)","mn":0,"mx":3600},{"k":"TRIG_PRESS","h":"trigger","d":0.12,"t":"s","l":"the trigger pressed within this after his aim landed","mn":0,"mx":3600},{"k":"TRIG_N","h":"trigger","d":6,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"TRIG_P","h":"trigger","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"SMOOTH_ERR","h":"smooth","d":0.5,"t":"deg","l":"the middle angle between his view and a moving target, at most","mn":0,"mx":360},{"k":"SMOOTH_N","h":"smooth","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SMOOTH_W","h":"smooth","d":4,"t":"dps","l":"the target crossing his view at least this fast","mn":0,"mx":10000},{"k":"SWITCH_DT","h":"switch","d":0.8,"t":"s","l":"two kills of two enemies this close in time","mn":0,"mx":3600},{"k":"SWITCH_A","h":"switch","d":40,"t":"deg","l":"... this far apart as he saw them","mn":0,"mx":360},{"k":"PRE_N","h":"preaim","d":5,"t":"n","l":"kills with his view already on the victim as he came out of cover, at least","mn":1,"mx":100000},{"k":"PRE_P","h":"preaim","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"PRE_SNIPER","h":"preaim","d":0.22,"t":"f","l":"snipers: the others' share, at least this","a":1,"mn":0,"mx":1},{"k":"NSD_SHOTGUN","h":"spread","d":40,"t":"m","l":"a shotgun kill further than this","mn":0,"mx":10000},{"k":"NSD_PISTOL","h":"spread","d":150,"t":"m","l":"a pistol kill further than this","mn":0,"mx":10000},{"k":"NSD_SMG","h":"spread","d":120,"t":"m","l":"an SMG kill further than this","mn":0,"mx":10000},{"k":"NSD_RIFLE","h":"spread","d":250,"t":"m","l":"a rifle / machine gun kill further than this","mn":0,"mx":10000},{"k":"BLIND_N","h":"blindspot","d":12,"t":"n","l":"spots of soldiers nobody of his side could see, at least","mn":1,"mx":100000},{"k":"BLIND_SHARE","h":"blindspot","d":0.75,"t":"f","l":"... and this share of his spots","mn":0,"mx":1},{"k":"GUIDE_V","h":"guided","d":5,"t":"mps","l":"the target moving at least this fast","mn":-100,"mx":1000},{"k":"GUIDE_N","h":"guided","d":3,"t":"n","l":"such hits of one gunner, at least","mn":1,"mx":100000},{"k":"GUIDE_ERR","h":"guided","d":0.5,"t":"deg","l":"the middle angle of the flight to the target, at most","mn":0,"mx":360},{"k":"GUIDE_NOSE","h":"guided","d":0.25,"t":"deg","l":"... for missiles whose nose the demo has","a":1,"mn":0,"mx":360},{"k":"TV_N","h":"guided","d":8,"t":"n","l":"TV missiles fired, at least","mn":1,"mx":100000},{"k":"TV_P","h":"guided","d":1e-05,"t":"p","l":"odds of so many TV hits, under","mn":1e-15,"mx":1},{"k":"TV_RATE","h":"guided","d":0.383,"t":"f","l":"the share of TV missiles that hit, measured","a":1,"mn":0,"mx":1},{"k":"ART_GAP","h":"arty","d":50,"t":"s","l":"a strike this soon after the last one of that side","mn":0,"mx":3600},{"k":"ART_BURST","h":"arty","d":5,"t":"n","l":"more shells than this from a gun","a":1,"mn":1,"mx":100000},{"k":"ART_ROF","h":"arty","d":1.7,"t":"s","l":"two shells of one gun closer than this","mn":0,"mx":3600},{"k":"FLAG_X","h":"fastcap","d":2,"t":"x","l":"a flag moving this many soldiers' worth faster than the men there","mn":0,"mx":100},{"k":"SPAM_60","h":"spotspam","d":30,"t":"n","l":"spots in 60 s, at least","mn":1,"mx":100000},{"k":"SPAM_10","h":"spotspam","d":12,"t":"n","l":"... or in 10 s","mn":1,"mx":100000},{"k":"CLK_GAP","h":"clicker","d":0.3,"t":"s","l":"a press this soon after the last","mn":0,"mx":3600},{"k":"CLK_N","h":"clicker","d":15,"t":"n","l":"such presses of one weapon, at least","mn":1,"mx":100000},{"k":"CLK_RATE","h":"clicker","d":12,"t":"ps","l":"... at this many a second or more","mn":0,"mx":100},{"k":"CLK_CVN","h":"clicker","d":20,"t":"n","l":"or this many presses ...","mn":1,"mx":100000},{"k":"CLK_CV","h":"clicker","d":0.03,"t":"f","l":"... their spacing varying this little","mn":0,"mx":1},{"k":"HID_REC","h":"clicker","d":3,"t":"n","l":"or presses too short for a tick in this many records ...","mn":1,"mx":100000},{"k":"HID_N","h":"clicker","d":6,"t":"n","l":"... this many in all","mn":1,"mx":100000},{"k":"BRATE_X","h":"brate","d":1.5,"t":"x","l":"bullets of one press at this many times the weapon's rate","mn":0,"mx":100},{"k":"BRATE_SHOTS","h":"brate","d":8,"t":"n","l":"... at least this many bullets","mn":1,"mx":100000},{"k":"BRATE_N","h":"brate","d":2,"t":"n","l":"... this many times in a round","mn":1,"mx":100000},{"k":"SPOTR_N","h":"spotbot","d":10,"t":"n","l":"spots in a row","mn":1,"mx":100000},{"k":"SPOTR_CV","h":"spotbot","d":0.1,"t":"f","l":"their spacing varying this little","mn":0,"mx":1},{"k":"SPOTR_MIN","h":"spotbot","d":1.5,"t":"s","l":"spaced at least this on average","mn":0,"mx":3600},{"k":"LAG_MIN","h":"lagsw","d":0.5,"t":"s","l":"his records held for at least this ...","mn":0,"mx":3600},{"k":"LAG_MAX","h":"lagsw","d":3,"t":"s","l":"... and at most this","mn":0,"mx":3600},{"k":"LAG_RUN","h":"lagsw","d":2.5,"t":"mps","l":"while he ran at least this fast","mn":-100,"mx":1000},{"k":"LAG_WARP","h":"lagsw","d":4,"t":"m","l":"then at least this far at once","mn":0,"mx":10000},{"k":"LAG_AFTER","h":"lagsw","d":1.5,"t":"s","l":"with his kill up to this long after","mn":0,"mx":3600},{"k":"LAG_N","h":"lagsw","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"ONEHIT_D","h":"onehit","d":15,"t":"m","l":"a rifle / SMG / pistol body kill from this far","mn":0,"mx":10000},{"k":"ONEHIT_HP","h":"onehit","d":95,"t":"hp","l":"of a man with this much health 0.2 s before","mn":0,"mx":100},{"k":"ONEHIT_N","h":"onehit","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"ONEHIT_P","h":"onehit","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"ONEHIT_BASE","h":"onehit","d":0.015,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"SIL_ERR","h":"silent","d":30,"t":"deg","l":"his view this far off the victim at the kill","mn":0,"mx":360},{"k":"SIL_D","h":"silent","d":10,"t":"m","l":"kills from this far","mn":0,"mx":10000},{"k":"SIL_N","h":"silent","d":5,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SIL_P","h":"silent","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"SIL_BASE","h":"silent","d":0.055,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"VLOCK_N","h":"vlock","d":10,"t":"n","l":"kills at 15-150 m, at least","mn":1,"mx":100000},{"k":"VLOCK_MED","h":"vlock","d":0.3,"t":"deg","l":"his view's height off the chest: the middle, at most","mn":0,"mx":360},{"k":"VLOCK_P90","h":"vlock","d":0.8,"t":"deg","l":"... and 9 in 10, at most","mn":0,"mx":360},{"k":"SPIN_DEG","h":"spin","d":60,"t":"deg","l":"his view turning this much in a step (0.1 s)","mn":0,"mx":360},{"k":"SPIN_N","h":"spin","d":28,"t":"n","l":"... this many times","mn":1,"mx":100000},{"k":"SPIN_T","h":"spin","d":3,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"AFKB_T","h":"afkbot","d":180,"t":"s","l":"alive on foot within a small area for this long","mn":0,"mx":3600},{"k":"AFKB_R","h":"afkbot","d":8,"t":"m","l":"... within this","mn":0,"mx":10000},{"k":"AFKB_D","h":"afkbot","d":0.5,"t":"m","l":"along the same path again and again: within this on average","mn":0,"mx":10000},{"k":"TEAMSW_TK","h":"teamsw","d":50,"t":"n","l":"over to the side this many tickets ahead","mn":1,"mx":100000},{"k":"TEAMSW_T","h":"teamsw","d":60,"t":"s","l":"not in the round's first seconds","mn":0,"mx":3600},{"k":"TKREV_N","h":"tkrev","d":3,"t":"n","l":"team kills revived by the same medic, at least","mn":1,"mx":100000},{"k":"TKREV_T","h":"tkrev","d":30,"t":"s","l":"... revived within this long","mn":0,"mx":3600},{"k":"PRONE_N","h":"prone","d":12,"t":"n","l":"drops to the ground ...","mn":1,"mx":100000},{"k":"PRONE_T","h":"prone","d":30,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_N","h":"bhop","d":15,"t":"n","l":"jumps ...","mn":1,"mx":100000},{"k":"BHOP_T","h":"bhop","d":15,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_VUP","h":"bhop","d":2.5,"t":"mps","l":"a jump: rising at least this fast","a":1,"mn":-100,"mx":1000},{"k":"SIDE_V","h":"sidesprint","d":4.3,"t":"mps","l":"moving at least this fast","a":1,"mn":0,"mx":1000},{"k":"SIDE_DEG","h":"sidesprint","d":60,"t":"deg","l":"... this far off where he looks","a":1,"mn":0,"mx":180},{"k":"SIDE_T","h":"sidesprint","d":2,"t":"s","l":"... this long on end","mn":0,"mx":3600},{"k":"STSP_CROUCH","h":"stancespeed","d":3,"t":"mps","l":"crouching at least this fast","a":1,"mn":0,"mx":1000},{"k":"STSP_PRONE","h":"stancespeed","d":1.6,"t":"mps","l":"... or lying at least this fast","a":1,"mn":0,"mx":1000},{"k":"STSP_T","h":"stancespeed","d":2,"t":"s","l":"... this long on end","mn":0,"mx":3600},{"k":"AIR_GAIN","h":"airspeed","d":4,"t":"mps","l":"speed gained in a jump","a":1,"mn":0,"mx":1000},{"k":"AIR_N","h":"airspeed","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"JF_MIN","h":"jumpfire","d":0.15,"t":"s","l":"a kill from this long after his take-off (+ the distance / 300 m/s)","a":1,"mn":0,"mx":10},{"k":"JF_MAX","h":"jumpfire","d":0.55,"t":"s","l":"... up to this long","a":1,"mn":0,"mx":10},{"k":"JF_N","h":"jumpfire","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"SHOTF_D","h":"shotfrom","d":15,"t":"m","l":"small-arms kills from this far","mn":0,"mx":10000},{"k":"SHOTF_DEG","h":"shotfrom","d":20,"t":"deg","l":"the killing bullet this far off the line from him","mn":0,"mx":180},{"k":"SHOTF_LAT","h":"shotfrom","d":3,"t":"m","l":"... and this far to the side at his distance","mn":0,"mx":10000},{"k":"SHOTF_N","h":"shotfrom","d":2,"t":"n","l":"such kills in a round, at least","mn":1,"mx":100000},{"k":"NOREC_N","h":"norecoil","d":8,"t":"n","l":"scoped sniper-rifle shots, at least","mn":1,"mx":100000},{"k":"NOREC_F","h":"norecoil","d":0.1,"t":"f","l":"a shot with no kick: his view up this share of the game's kick or less","mn":0,"mx":1},{"k":"NOREC_BASE","h":"norecoil","d":0.03,"t":"f","l":"the honest share of such shots, measured","a":1,"mn":0,"mx":1},{"k":"NOREC_P","h":"norecoil","d":0.0001,"t":"p","l":"odds of so many, under","mn":1e-15,"mx":1},{"k":"INF_ZERO","h":"infammo","d":8,"t":"n","l":"presses of 0.3 s or more in one life that took no bullet from the magazine","mn":1,"mx":100000},{"k":"INF_X","h":"infammo","d":1.5,"t":"x","l":"or more magazines changed in a life than this many times what he carried and could refill","mn":0,"mx":100}];
+const HT_SPEC = [{"k":"LAG_PING","h":"common","d":250,"t":"ms","l":"ping from which a jump or lag stretch is put down to lag (Teleport, Lag switch)","mn":0,"mx":10000},{"k":"WALL_T","h":"wall","d":0.7,"t":"s","l":"no clear line to the victim for at least this long before the kill","mn":0.1,"mx":5},{"k":"LAGC_WIN","h":"wall","d":0.1,"t":"s","l":"the server's latency compensation: the victim put back by half the killer's ping and this (his screen's window; at most 0.3 s in all)","a":1,"mn":0,"mx":0.3},{"k":"HN_WALL","h":"wall","d":2,"t":"n","l":"such kills by one soldier in a round (one is often a gap of the map's shapes)","mn":1,"mx":100000},{"k":"HN_SMOKE","h":"smoke","d":2,"t":"n","l":"kills through a dense smoke cloud by one soldier in a round","mn":1,"mx":100000},{"k":"HN_FOG","h":"fog","d":2,"t":"n","l":"kills beyond the fog by one soldier in a round","mn":1,"mx":100000},{"k":"FOG_SLACK","h":"fog","d":10,"t":"m","l":"how far past the map's view distance the kill must be","mn":0,"mx":10000},{"k":"TRACK_DEG","h":"track","d":3,"t":"deg","l":"his view within this much across of the hidden enemy","mn":0,"mx":360},{"k":"TRACK_VDEG","h":"track","d":6,"t":"deg","l":"... and this much up or down","mn":0,"mx":360},{"k":"TRACK_T","h":"track","d":2,"t":"s","l":"on the same hidden enemy for this long on end","mn":0,"mx":3600},{"k":"TRACK_TURN","h":"track","d":10,"t":"deg","l":"the bearing to the enemy turning at least this much meanwhile (his view following)","mn":0,"mx":360},{"k":"TRACK_STEP","h":"track","d":0.2,"t":"s","l":"step of the scan (also Fired at a wall)","a":1,"mn":0.1,"mx":1},{"k":"WF_T","h":"wallfire","d":1.4,"t":"s","l":"one burst this long at an enemy hidden behind cover gives the hint","mn":0,"mx":3600},{"k":"WF_T0","h":"wallfire","d":0.6,"t":"s","l":"... or bursts of at least this long","mn":0,"mx":3600},{"k":"WF_N","h":"wallfire","d":6,"t":"n","l":"... this many of them in a round","mn":1,"mx":100000},{"k":"WF_PRE","h":"wallfire","d":3,"t":"s","l":"the enemy not seen by him in this long before","mn":0,"mx":3600},{"k":"WF_NEAR","h":"wallfire","d":8,"t":"deg","l":"no enemy he can see within this much of his crosshair","mn":0,"mx":360},{"k":"CT_HID","h":"contact","d":1.5,"t":"s","l":"an enemy hidden from him at least this long, then in the open in front of him","mn":0.2,"mx":30},{"k":"CT_CONE","h":"contact","d":70,"t":"deg","l":"... within this of where he looks","a":1,"mn":5,"mx":180},{"k":"CT_NEAR","h":"contact","d":8,"t":"m","l":"... from this far","a":1,"mn":0,"mx":10000},{"k":"CT_FAR","h":"contact","d":150,"t":"m","l":"... to this far","a":1,"mn":0,"mx":10000},{"k":"CT_DEG","h":"contact","d":5,"t":"deg","l":"ready: his crosshair already within this of him","mn":0.5,"mx":90},{"k":"CT_N","h":"contact","d":6,"t":"n","l":"such times in a round, at least","mn":1,"mx":100000},{"k":"CT_P","h":"contact","d":0.0001,"t":"p","l":"odds of so many at the round's others' share, under","mn":1e-15,"mx":1},{"k":"FOV_IN","h":"fov","d":50,"t":"deg","l":"the band just outside the view: from this far off where he looks","mn":0,"mx":360},{"k":"FOV_OUT","h":"fov","d":70,"t":"deg","l":"... to this far","mn":0,"mx":360},{"k":"FOV_FRESH","h":"fov","d":1.5,"t":"s","l":"the enemy not in his view for this long before","mn":0,"mx":3600},{"k":"FOV_HIT","h":"fov","d":15,"t":"deg","l":"taken: he turns to within this much of the enemy","mn":0,"mx":360},{"k":"FOV_REACT","h":"fov","d":1.2,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"FOV_FAR","h":"fov","d":150,"t":"m","l":"enemies at most this far count","mn":0,"mx":10000},{"k":"FOV_N","h":"fov","d":5,"t":"n","l":"chances taken in a round, at least","mn":1,"mx":100000},{"k":"FOV_P","h":"fov","d":0.001,"t":"p","l":"odds of taking so many at the round's others' rate, under","mn":1e-15,"mx":1},{"k":"FOV_HALF","h":"fov","d":47.5,"t":"deg","l":"half the honest view across (16:9 screen)","a":1,"mn":0,"mx":360},{"k":"SNAP_FROM","h":"snap","d":30,"t":"deg","l":"his view this far or more off the victim 0.1 s before ...","mn":0,"mx":360},{"k":"SNAP_TO","h":"snap","d":5,"t":"deg","l":"... and within this much one step later, in the 1.5 s before the kill","mn":0,"mx":360},{"k":"SNAP_N","h":"snap","d":3,"t":"n","l":"such snaps by one soldier in a round","mn":1,"mx":100000},{"k":"REACT_Q","h":"react","d":0.25,"t":"s","l":"a kill this soon after first seeing the victim is a quick one","mn":0,"mx":3600},{"k":"REACT_MIN","h":"react","d":4,"t":"n","l":"quick kills, at least","mn":1,"mx":100000},{"k":"REACT_N","h":"react","d":8,"t":"n","l":"of at least this many kills measured","mn":1,"mx":100000},{"k":"REACT_P","h":"react","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"HS_KMIN","h":"hs","d":6,"t":"n","l":"kills with a hit place (no sniper rifles), at least","mn":1,"mx":100000},{"k":"HS_P","h":"hs","d":0.0001,"t":"p","l":"odds of so many in the head at the others' share (his weapons), under (also Sniper headshots)","mn":1e-15,"mx":1},{"k":"HSSN_MIN","h":"hssn","d":6,"t":"n","l":"sniper rifle kills with a hit place, at least","mn":1,"mx":100000},{"k":"HS_SNIPER","h":"hssn","d":0.47,"t":"f","l":"share in the head for a sniper rifle with no measured share of its own","a":1,"mn":0,"mx":1},{"k":"SPEED_V","h":"speed","d":8.7,"t":"mps","l":"on foot faster than this over each second","mn":-100,"mx":1000},{"k":"SPEED_T","h":"speed","d":2,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"SPAWN_START","h":"speed","d":10,"t":"s","l":"not in the round's first seconds (also Spawn: the start's spawns)","a":1,"mn":0,"mx":3600},{"k":"STAM_T","h":"stam","d":13,"t":"s","l":"one sprint this long (rounds without the stamina value)","mn":0,"mx":3600},{"k":"STAM_E","h":"stam","d":3.5,"t":"s","l":"sprinting with no stamina left for this long","mn":0,"mx":3600},{"k":"STAM_H","h":"stam","d":13,"t":"s","l":"sprinting with the stamina not going down for this long","mn":0,"mx":3600},{"k":"TELE_D","h":"tele","d":15,"t":"m","l":"a jump on foot of this much in one step","mn":0,"mx":10000},{"k":"TELE_GAP","h":"tele","d":13,"t":"mps","l":"not a gap in his records: over the gap no faster than this","mn":-100,"mx":1000},{"k":"CLIP_N","h":"clip","d":15,"t":"n","l":"steps through a wall in a round, at least","mn":1,"mx":100000},{"k":"CLIP_P","h":"clip","d":10,"t":"n","l":"... in at least this many places (5 m apart)","mn":1,"mx":100000},{"k":"FLY_H","h":"fly","d":5,"t":"m","l":"his feet this high over what is under him","mn":0,"mx":10000},{"k":"FLY_T","h":"fly","d":8,"t":"s","l":"... for this long on end","mn":0,"mx":3600},{"k":"FLY_V","h":"fly","d":2,"t":"mps","l":"moving across this fast on average","mn":-100,"mx":1000},{"k":"FLY_VZ","h":"fly","d":-1,"t":"mps","l":"and not coming down faster than this (negative: down)","mn":-50,"mx":50},{"k":"CHUTE_H","h":"chute","d":15,"t":"mps","l":"under a parachute faster than this across","mn":-100,"mx":1000},{"k":"CHUTE_UP","h":"chute","d":1,"t":"mps","l":"... or rising this fast","mn":-100,"mx":1000},{"k":"UNDER_D","h":"under","d":1.5,"t":"m","l":"alive on foot this deep under the ground","mn":0,"mx":10000},{"k":"UNDER_T","h":"under","d":2,"t":"s","l":"... for this long","mn":0,"mx":3600},{"k":"SPAWN_D","h":"spawn","d":25,"t":"m","l":"appearing further than this from any spawn point his side held (rounds without squads: or team mate or vehicle)","mn":0,"mx":10000},{"k":"SPAWN_SQ","h":"spawn","d":12,"t":"m","l":"... and further than this from his own squad leader (the game scatters a squad's men 3-9 m round him)","mn":0,"mx":10000},{"k":"SG_NEAR","h":"spawn","d":150,"t":"m","l":"a map spawn point counts if within this of a spawn group his side held","a":1,"mn":0,"mx":10000},{"k":"SG_R","h":"spawn","d":150,"t":"m","l":"maps without spawn points: this far from a held group's middle","a":1,"mn":0,"mx":10000},{"k":"SPAWN_EARLY","h":"respawn","d":0.5,"t":"s","l":"spawned this much earlier than the game allows","mn":0,"mx":3600},{"k":"VSPD_X","h":"vspeed","d":1.35,"t":"x","l":"faster than this many times the most its type made","mn":0,"mx":100},{"k":"VSPD_T","h":"vspeed","d":3,"t":"s","l":"... over this long","mn":0,"mx":3600},{"k":"DMG_HP","h":"dmg","d":25,"t":"hp","l":"a closed vehicle killed through by small arms with this much health or more left","mn":0,"mx":100},{"k":"MELEE_SLACK","h":"reach","d":2.5,"t":"m","l":"knife / defibrillator kill further than its reach plus this","mn":0,"mx":10000},{"k":"AMMO_X","h":"ammo","d":2,"t":"x","l":"more launches in one life than this many times what he could have had","mn":0,"mx":100},{"k":"PICK_R","h":"ammo","d":2.5,"t":"m","l":"a kit may have been picked up within this of where its carrier died (also Fire rate)","a":1,"mn":0,"mx":10000},{"k":"PICK_T","h":"ammo","d":300,"t":"s","l":"... in this long after","a":1,"mn":0,"mx":3600},{"k":"CRATE_R","h":"ammo","d":6,"t":"m","l":"near a supply crate: within this","a":1,"mn":0,"mx":10000},{"k":"FARM_N","h":"farm","d":4,"t":"n","l":"one killer kills the same standing victim this many times","mn":1,"mx":100000},{"k":"IDLE_T","h":"idle","d":240,"t":"s","l":"alive on foot, not moving 1 m nor turning 2 deg for this long","mn":0,"mx":3600},{"k":"OUT_T","h":"outside","d":10,"t":"s","l":"alive on his feet outside the combat area this long past the moment the game's damage kills a man with full health (15 s; Highway Tampa 22.5 s)","mn":0,"mx":3600},{"k":"NOFIRE_T","h":"nofire","d":1.5,"t":"s","l":"a bullet kill with every fire button up for this long before","mn":0,"mx":3600},{"k":"TRIG_ON","h":"trigger","d":0.15,"t":"s","l":"the kill this soon after his aim landed (rounds without fire buttons)","mn":0,"mx":3600},{"k":"TRIG_PRESS","h":"trigger","d":0.12,"t":"s","l":"the trigger pressed within this after his aim landed","mn":0,"mx":3600},{"k":"TRIG_N","h":"trigger","d":6,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"TRIG_P","h":"trigger","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"SMOOTH_ERR","h":"smooth","d":0.5,"t":"deg","l":"the middle angle between his view and a moving target, at most","mn":0,"mx":360},{"k":"SMOOTH_N","h":"smooth","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SMOOTH_W","h":"smooth","d":4,"t":"dps","l":"the target crossing his view at least this fast","mn":0,"mx":10000},{"k":"SWITCH_DT","h":"switch","d":0.8,"t":"s","l":"two kills of two enemies this close in time","mn":0,"mx":3600},{"k":"SWITCH_A","h":"switch","d":40,"t":"deg","l":"... this far apart as he saw them","mn":0,"mx":360},{"k":"PRE_N","h":"preaim","d":5,"t":"n","l":"kills with his view already on the victim as he came out of cover, at least","mn":1,"mx":100000},{"k":"PRE_P","h":"preaim","d":0.001,"t":"p","l":"odds against the round's others, under","mn":1e-15,"mx":1},{"k":"PRE_SNIPER","h":"preaim","d":0.22,"t":"f","l":"snipers: the others' share, at least this","a":1,"mn":0,"mx":1},{"k":"NSD_SHOTGUN","h":"spread","d":40,"t":"m","l":"a shotgun kill further than this","mn":0,"mx":10000},{"k":"NSD_PISTOL","h":"spread","d":150,"t":"m","l":"a pistol kill further than this","mn":0,"mx":10000},{"k":"NSD_SMG","h":"spread","d":120,"t":"m","l":"an SMG kill further than this","mn":0,"mx":10000},{"k":"NSD_RIFLE","h":"spread","d":250,"t":"m","l":"a rifle / machine gun kill further than this","mn":0,"mx":10000},{"k":"BLIND_N","h":"blindspot","d":12,"t":"n","l":"spots of soldiers nobody of his side could see, at least","mn":1,"mx":100000},{"k":"BLIND_SHARE","h":"blindspot","d":0.75,"t":"f","l":"... and this share of his spots","mn":0,"mx":1},{"k":"GUIDE_V","h":"guided","d":5,"t":"mps","l":"the target moving at least this fast","mn":-100,"mx":1000},{"k":"GUIDE_N","h":"guided","d":3,"t":"n","l":"such hits of one gunner, at least","mn":1,"mx":100000},{"k":"GUIDE_ERR","h":"guided","d":0.5,"t":"deg","l":"the middle angle of the flight to the target, at most","mn":0,"mx":360},{"k":"GUIDE_NOSE","h":"guided","d":0.25,"t":"deg","l":"... for missiles whose nose the demo has","a":1,"mn":0,"mx":360},{"k":"TV_N","h":"guided","d":8,"t":"n","l":"TV missiles fired, at least","mn":1,"mx":100000},{"k":"TV_P","h":"guided","d":1e-05,"t":"p","l":"odds of so many TV hits, under","mn":1e-15,"mx":1},{"k":"TV_RATE","h":"guided","d":0.383,"t":"f","l":"the share of TV missiles that hit, measured","a":1,"mn":0,"mx":1},{"k":"ART_GAP","h":"arty","d":50,"t":"s","l":"a strike this soon after the last one of that side","mn":0,"mx":3600},{"k":"ART_BURST","h":"arty","d":5,"t":"n","l":"more shells than this from a gun","a":1,"mn":1,"mx":100000},{"k":"ART_ROF","h":"arty","d":1.7,"t":"s","l":"two shells of one gun closer than this","mn":0,"mx":3600},{"k":"FLAG_X","h":"fastcap","d":2,"t":"x","l":"a flag moving this many soldiers' worth faster than the men there","mn":0,"mx":100},{"k":"SPAM_60","h":"spotspam","d":30,"t":"n","l":"spots in 60 s, at least","mn":1,"mx":100000},{"k":"SPAM_10","h":"spotspam","d":12,"t":"n","l":"... or in 10 s","mn":1,"mx":100000},{"k":"CLK_GAP","h":"clicker","d":0.3,"t":"s","l":"a press this soon after the last","mn":0,"mx":3600},{"k":"CLK_N","h":"clicker","d":15,"t":"n","l":"such presses of one weapon, at least","mn":1,"mx":100000},{"k":"CLK_RATE","h":"clicker","d":12,"t":"ps","l":"... at this many a second or more","mn":0,"mx":100},{"k":"CLK_CVN","h":"clicker","d":20,"t":"n","l":"or this many presses ...","mn":1,"mx":100000},{"k":"CLK_CV","h":"clicker","d":0.03,"t":"f","l":"... their spacing varying this little","mn":0,"mx":1},{"k":"HID_REC","h":"clicker","d":3,"t":"n","l":"or presses too short for a tick in this many records ...","mn":1,"mx":100000},{"k":"HID_N","h":"clicker","d":6,"t":"n","l":"... this many in all","mn":1,"mx":100000},{"k":"BRATE_X","h":"brate","d":1.5,"t":"x","l":"bullets of one press at this many times the weapon's rate","mn":0,"mx":100},{"k":"BRATE_SHOTS","h":"brate","d":8,"t":"n","l":"... at least this many bullets","mn":1,"mx":100000},{"k":"BRATE_N","h":"brate","d":2,"t":"n","l":"... this many times in a round","mn":1,"mx":100000},{"k":"SPOTR_N","h":"spotbot","d":10,"t":"n","l":"spots in a row","mn":1,"mx":100000},{"k":"SPOTR_CV","h":"spotbot","d":0.1,"t":"f","l":"their spacing varying this little","mn":0,"mx":1},{"k":"SPOTR_MIN","h":"spotbot","d":1.5,"t":"s","l":"spaced at least this on average","mn":0,"mx":3600},{"k":"LAG_MIN","h":"lagsw","d":0.5,"t":"s","l":"his records held for at least this ...","mn":0,"mx":3600},{"k":"LAG_MAX","h":"lagsw","d":3,"t":"s","l":"... and at most this","mn":0,"mx":3600},{"k":"LAG_RUN","h":"lagsw","d":2.5,"t":"mps","l":"while he ran at least this fast","mn":-100,"mx":1000},{"k":"LAG_WARP","h":"lagsw","d":4,"t":"m","l":"then at least this far at once","mn":0,"mx":10000},{"k":"LAG_AFTER","h":"lagsw","d":1.5,"t":"s","l":"with his kill up to this long after","mn":0,"mx":3600},{"k":"LAG_N","h":"lagsw","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"ONEHIT_D","h":"onehit","d":15,"t":"m","l":"a rifle / SMG / pistol body kill from this far","mn":0,"mx":10000},{"k":"ONEHIT_HP","h":"onehit","d":95,"t":"hp","l":"of a man with this much health 0.2 s before","mn":0,"mx":100},{"k":"ONEHIT_N","h":"onehit","d":4,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"ONEHIT_P","h":"onehit","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"ONEHIT_BASE","h":"onehit","d":0.015,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"SIL_ERR","h":"silent","d":30,"t":"deg","l":"his view this far off the victim at the kill","mn":0,"mx":360},{"k":"SIL_D","h":"silent","d":10,"t":"m","l":"kills from this far","mn":0,"mx":10000},{"k":"SIL_N","h":"silent","d":5,"t":"n","l":"such kills, at least","mn":1,"mx":100000},{"k":"SIL_P","h":"silent","d":0.0001,"t":"p","l":"odds, under","mn":1e-15,"mx":1},{"k":"SIL_BASE","h":"silent","d":0.055,"t":"f","l":"the honest share of such kills, measured","a":1,"mn":0,"mx":1},{"k":"VLOCK_N","h":"vlock","d":10,"t":"n","l":"kills at 15-150 m, at least","mn":1,"mx":100000},{"k":"VLOCK_MED","h":"vlock","d":0.3,"t":"deg","l":"his view's height off the chest: the middle, at most","mn":0,"mx":360},{"k":"VLOCK_P90","h":"vlock","d":0.8,"t":"deg","l":"... and 9 in 10, at most","mn":0,"mx":360},{"k":"SPIN_DEG","h":"spin","d":60,"t":"deg","l":"his view turning this much in a step (0.1 s)","mn":0,"mx":360},{"k":"SPIN_N","h":"spin","d":28,"t":"n","l":"... this many times","mn":1,"mx":100000},{"k":"SPIN_T","h":"spin","d":3,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"AFKB_T","h":"afkbot","d":180,"t":"s","l":"alive on foot within a small area for this long","mn":0,"mx":3600},{"k":"AFKB_R","h":"afkbot","d":8,"t":"m","l":"... within this","mn":0,"mx":10000},{"k":"AFKB_D","h":"afkbot","d":0.5,"t":"m","l":"along the same path again and again: within this on average","mn":0,"mx":10000},{"k":"TEAMSW_TK","h":"teamsw","d":50,"t":"n","l":"over to the side this many tickets ahead","mn":1,"mx":100000},{"k":"TEAMSW_T","h":"teamsw","d":60,"t":"s","l":"not in the round's first seconds","mn":0,"mx":3600},{"k":"TKREV_N","h":"tkrev","d":3,"t":"n","l":"team kills revived by the same medic, at least","mn":1,"mx":100000},{"k":"TKREV_T","h":"tkrev","d":30,"t":"s","l":"... revived within this long","mn":0,"mx":3600},{"k":"PRONE_N","h":"prone","d":12,"t":"n","l":"drops to the ground ...","mn":1,"mx":100000},{"k":"PRONE_T","h":"prone","d":30,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_N","h":"bhop","d":15,"t":"n","l":"jumps ...","mn":1,"mx":100000},{"k":"BHOP_T","h":"bhop","d":15,"t":"s","l":"... within this long","mn":0,"mx":3600},{"k":"BHOP_VUP","h":"bhop","d":2.5,"t":"mps","l":"a jump: rising at least this fast","a":1,"mn":-100,"mx":1000},{"k":"SIDE_V","h":"sidesprint","d":4.3,"t":"mps","l":"moving at least this fast","a":1,"mn":0,"mx":1000},{"k":"SIDE_DEG","h":"sidesprint","d":60,"t":"deg","l":"... this far off where he looks","a":1,"mn":0,"mx":180},{"k":"SIDE_T","h":"sidesprint","d":2,"t":"s","l":"... this long on end","mn":0,"mx":3600},{"k":"STSP_CROUCH","h":"stancespeed","d":3,"t":"mps","l":"crouching at least this fast","a":1,"mn":0,"mx":1000},{"k":"STSP_PRONE","h":"stancespeed","d":1.6,"t":"mps","l":"... or lying at least this fast","a":1,"mn":0,"mx":1000},{"k":"STSP_T","h":"stancespeed","d":2,"t":"s","l":"... this long on end","mn":0,"mx":3600},{"k":"AIR_GAIN","h":"airspeed","d":4,"t":"mps","l":"speed gained in a jump","a":1,"mn":0,"mx":1000},{"k":"AIR_N","h":"airspeed","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"JF_MIN","h":"jumpfire","d":0.15,"t":"s","l":"a kill from this long after his take-off (+ the distance / 300 m/s)","a":1,"mn":0,"mx":10},{"k":"JF_MAX","h":"jumpfire","d":0.55,"t":"s","l":"... up to this long","a":1,"mn":0,"mx":10},{"k":"JF_N","h":"jumpfire","d":2,"t":"n","l":"this many times in a round","mn":1,"mx":100000},{"k":"SHOTF_D","h":"shotfrom","d":15,"t":"m","l":"small-arms kills from this far","mn":0,"mx":10000},{"k":"SHOTF_DEG","h":"shotfrom","d":20,"t":"deg","l":"the killing bullet this far off the line from him","mn":0,"mx":180},{"k":"SHOTF_LAT","h":"shotfrom","d":3,"t":"m","l":"... and this far to the side at his distance","mn":0,"mx":10000},{"k":"SHOTF_N","h":"shotfrom","d":2,"t":"n","l":"such kills in a round, at least","mn":1,"mx":100000},{"k":"NOREC_N","h":"norecoil","d":8,"t":"n","l":"scoped sniper-rifle shots, at least","mn":1,"mx":100000},{"k":"NOREC_F","h":"norecoil","d":0.1,"t":"f","l":"a shot with no kick: his view up this share of the game's kick or less","mn":0,"mx":1},{"k":"NOREC_BASE","h":"norecoil","d":0.03,"t":"f","l":"the honest share of such shots, measured","a":1,"mn":0,"mx":1},{"k":"NOREC_P","h":"norecoil","d":0.0001,"t":"p","l":"odds of so many, under","mn":1e-15,"mx":1},{"k":"NOREC_GAP","h":"norecoil","d":0.5,"t":"s","l":"a shot counts only this long or more after his last press (his view back down from that kick)","mn":0,"mx":10},{"k":"AR_HOLD","h":"autorec","d":1,"t":"s","l":"a burst: the trigger held this long or more","mn":0.3,"mx":10},{"k":"AR_SHOTS","h":"autorec","d":8,"t":"n","l":"... and this many shots or more (the magazine's count)","a":1,"mn":2,"mx":200},{"k":"AR_FLAT","h":"autorec","d":0.03,"t":"deg","l":"a still burst: his view's pitch this little or less a 0.1 s step on average","mn":0,"mx":2},{"k":"AR_N","h":"autorec","d":3,"t":"n","l":"such bursts in a round, at least","mn":1,"mx":100000},{"k":"INF_ZERO","h":"infammo","d":8,"t":"n","l":"presses of 0.3 s or more in one life that took no bullet from the magazine","mn":1,"mx":100000},{"k":"INF_X","h":"infammo","d":1.5,"t":"x","l":"or more magazines changed in a life than this many times what he carried and could refill","mn":0,"mx":100},{"k":"INF_FULL","h":"infammo","d":0.6,"t":"f","l":"a reload: the count up to this share of the most the gun held in the round (not one or two rounds more)","a":1,"mn":0,"mx":1}];
 const HT_DEF = Object.fromEntries(HT_SPEC.map(s => [s.k, s.d])), HT_BY = new Map(HT_SPEC.map(s => [s.k, s]));
 let HT_SITE = { values: {}, off: [] }, HT_MINE = null, HT_HV = HINTS_V, HT_READY = false, HT_EFF = {}, HT_WAIT = [];
 // a set as saved: the known names with numbers in bounds (whole for counts), other than the recommended; the hints off
@@ -1632,7 +1781,8 @@ const htHvOf = S => Object.keys(S.values || {}).length || (S.off || []).length ?
 // every threshold from o (a name not in it: the recommended), and the hints off
 function applyHT(o, off) {
   const v = k => o && typeof o[k] === 'number' && Number.isFinite(o[k]) ? o[k] : HT_DEF[k];
-  LAG_PING = v('LAG_PING'); WALL_T = v('WALL_T'); HINT_N.wall = v('HN_WALL'); HINT_N.smoke = v('HN_SMOKE');
+  LAG_PING = v('LAG_PING'); WALL_T = v('WALL_T'); LAGC_WIN = v('LAGC_WIN');
+  CT_HID = v('CT_HID'); CT_CONE = v('CT_CONE'); CT_NEAR = v('CT_NEAR'); CT_FAR = v('CT_FAR'); CT_DEG = v('CT_DEG'); CT_N = v('CT_N'); CT_P = v('CT_P'); HINT_N.wall = v('HN_WALL'); HINT_N.smoke = v('HN_SMOKE');
   HINT_N.fog = v('HN_FOG'); FOG_SLACK = v('FOG_SLACK'); TRACK_DEG = v('TRACK_DEG'); TRACK_VDEG = v('TRACK_VDEG');
   TRACK_T = v('TRACK_T'); TRACK_TURN = v('TRACK_TURN'); TRACK_STEP = v('TRACK_STEP'); WF_T = v('WF_T');
   WF_T0 = v('WF_T0'); WF_N = v('WF_N'); WF_PRE = v('WF_PRE'); WF_NEAR = v('WF_NEAR'); FOV_IN = v('FOV_IN');
@@ -1669,10 +1819,13 @@ function applyHT(o, off) {
   BHOP_VUP = v('BHOP_VUP'); SIDE_V = v('SIDE_V'); SIDE_DEG = v('SIDE_DEG'); SIDE_T = v('SIDE_T'); AIR_GAIN = v('AIR_GAIN'); AIR_N = v('AIR_N'); STSP_CROUCH = v('STSP_CROUCH'); STSP_PRONE = v('STSP_PRONE'); STSP_T = v('STSP_T');
   JF_MIN = v('JF_MIN'); JF_MAX = v('JF_MAX'); JF_N = v('JF_N');
   SHOTF_D = v('SHOTF_D'); SHOTF_DEG = v('SHOTF_DEG'); SHOTF_LAT = v('SHOTF_LAT'); SHOTF_N = v('SHOTF_N');   // (v245)
-  NOREC_N = v('NOREC_N'); NOREC_F = v('NOREC_F'); NOREC_BASE = v('NOREC_BASE'); NOREC_P = v('NOREC_P'); INF_ZERO = v('INF_ZERO'); INF_X = v('INF_X');
+  NOREC_N = v('NOREC_N'); NOREC_F = v('NOREC_F'); NOREC_BASE = v('NOREC_BASE'); NOREC_P = v('NOREC_P'); NOREC_GAP = v('NOREC_GAP'); AR_HOLD = v('AR_HOLD'); AR_SHOTS = v('AR_SHOTS'); AR_FLAT = v('AR_FLAT'); AR_N = v('AR_N'); INF_ZERO = v('INF_ZERO'); INF_X = v('INF_X'); INF_FULL = v('INF_FULL');
   HT_OFF = new Set(off || []);
 }
 // the sets in force: the site's, and his own over it while he uses it (his hints off and on over the site's)
+// (v254) the site's hints in shadow: ADM_SHADOW, with the site's file over it ({ shadow: [put in], live: [taken out] })
+let HT_SHADOW_SITE = { shadow: [], live: [] };
+function htShadowSet(j) { HT_SHADOW_SITE = { shadow: Array.isArray(j?.shadow) ? j.shadow : [], live: Array.isArray(j?.live) ? j.live : [], at: j?.at || null, by: j?.by || null }; const S = new Set([...ADM_SHADOW, ...HT_SHADOW_SITE.shadow]); for (const k of HT_SHADOW_SITE.live) S.delete(k); HT_SHADOW = S; }
 function htSet(site, mine) {
   HT_SITE = { values: htClean(site && site.values), off: htKinds(site && site.off), at: site && site.at || null, by: site && site.by || null };
   HT_MINE = mine ? { values: htClean(mine.values, true), off: htKinds(mine.off), on: htKinds(mine.on), use: !!mine.use, at: mine.at || null } : null;
@@ -1689,6 +1842,7 @@ function htSet(site, mine) {
 async function htLoad(analyze) {
   let site = null, mine = null;
   try { const r = await fetch('/admin/api/data/hint-thresholds.json', { credentials: 'same-origin', cache: 'no-store' }); if (r.ok) site = await r.json(); } catch (e) {}
+  try { const r = await fetch('/admin/api/data/hint-shadow.json', { credentials: 'same-origin', cache: 'no-store' }); htShadowSet(r.ok ? await r.json() : null); } catch (e) { htShadowSet(null); }   // (v254)
   if (!analyze) { try { const j = await admApi('hints-mine'); if (j && j.ok) mine = j.mine; } catch (e) {} }
   htSet(site, mine);
 }
@@ -1826,8 +1980,8 @@ function flagChoices(R) {
       if (k < 0) { ST.lost++; lost.push([i, arnd(T[q], 1)]); return; } ST.died++;
     }
     if (!C.includes(k)) { ST.far++; return; } if (C.length < 2) { ST.one++; return; }
-    const s = seriesAt(R.players[i].squad, t0), cm = seriesAt(R.players[i].cmdr, t0); if (cm && cm[1]) { ST.cmdr++; return; }   // (the commander)
-    const sq = s && s[1] ? s[1] : 0, role = !sq ? 1 : s[2] ? 2 : 0, sg = tm === 0 ? 1 : -1;
+    const s = squadOf(i, t0), cm = seriesAt(R.players[i].cmdr, t0); if (cm && cm[1]) { ST.cmdr++; return; }   // (the commander)
+    const sq = s[0], role = !sq ? 1 : s[1] ? 2 : 0, sg = tm === 0 ? 1 : -1;
     const ord = sq ? ordersNow(t0).filter(o => o.team === tm && o.squad === sq) : [];
     const t1 = T[q], cands = C.map(m => {
       const z = Z[m], rr = z.R + CH_NEAR, o = FO[g * nf + m]; let ally = 0, kn = 0, unk = 0, hr = 0, far = 0; const EE = [];
@@ -2034,10 +2188,12 @@ function wallBy(h) {
 // [badge, html line, plain text] of an admin hint
 // (v170) the hints about movement and aim say his ping then (the game's own): lag makes jumps, snaps and odd times
 function admDescribe(h) {
-  const r = admDescribe0(h); if (!PING_KINDS.has(h.kind) || !round) return r;
-  const id = h.kill ? h.kill.killer : h.actor, i = id != null ? round.pidx.get(id) : undefined; if (i === undefined) return r;
-  const pg = pingAt(round.players[i], h.t), pk = pingPeak(round.players[i], h.t - 10, h.t + 2); if (pg == null) return r;
-  r[1] = r[1].replace(/<\/span>$/, ` · ping ${pg} ms${pk != null && pk >= pg + 50 ? ` (up to ${pk} ms just before)` : ''}</span>`); return r;
+  const r = admDescribe0(h), add = x => { r[1] = /<\/span>$/.test(r[1]) ? r[1].replace(/<\/span>$/, ' · ' + x + '</span>') : r[1] + ` <span class="w">${x}</span>`; };
+  const id = h.kill ? h.kill.killer : h.actor, i = id != null && round ? round.pidx.get(id) : undefined;
+  if (PING_KINDS.has(h.kind) && i !== undefined) { const pg = pingAt(round.players[i], h.t), pk = pingPeak(round.players[i], h.t - 10, h.t + 2); if (pg != null) add(`ping ${pg} ms${pk != null && pk >= pg + 50 ? ` (up to ${pk} ms just before)` : ''}`); }
+  // (v254) a kind in shadow: said on every such hint (only the site's owner and the accounts with that right see them)
+  if (HT_SHADOW.has(h.kind)) add('in shadow: only the site\'s owner sees it (and the accounts with the right for the site\'s thresholds); no alerts, not on the players\' cards');
+  return r;
 }
 function admDescribe0(h) {
   const pn = id => { const i = round.pidx.get(id); return i === undefined ? '' : `<span class="t${teamOf(i, h.t)}">${esc(round.players[i].name)}</span>`; };
@@ -2046,6 +2202,8 @@ function admDescribe0(h) {
   if (h.kind === 'reach') return [h.d.toFixed(1) + ' m', `<b>Melee reach</b> ${pn(e.killer)} → ${pn(e.victim)} <span class="w">a ${h.what} kill from ${h.d.toFixed(1)} m away at the nearest (it reaches ${h.reach} m)</span>`, `Melee reach: ${pt(e.killer)} → ${pt(e.victim)}, ${h.what} from ${h.d.toFixed(1)} m`];
   if (h.kind === 'rate') return [h.gap.toFixed(1) + ' s', `<b>Fire rate</b> ${pn(h.actor)} <span class="w">${h.launch ? 'two ' + esc(h.what) + ' launches' : 'two ' + esc(h.what) + ' kills (separate shots)'} ${h.gap.toFixed(2)} s apart - it can't fire again for ${h.lim} s</span>`, `Fire rate: ${pt(h.actor)}, ${h.what} ${h.gap.toFixed(2)} s apart`];
   if (h.kind === 'ammo') return [h.n + '×', `<b>Ammo</b> ${pn(h.actor)} <span class="w">${h.n} × ${esc(h.what)} in one life (over ${Math.round(h.span)} s; a kit holds ${h.holds}${h.picks ? `; he may have picked up ${h.picks} more kit${h.picks > 1 ? 's' : ''} with it` : ''}${h.bags ? `; walked over ${h.bags} ammo bag${h.bags > 1 ? 's' : ''}` : ''}${h.sup ? `; a support with his bag out came near ${h.sup} time${h.sup > 1 ? 's' : ''}` : ''}${h.crates ? `; at a supply crate ${h.crates} time${h.crates > 1 ? 's' : ''}` : ''}${h.kits > 1 ? ` - ${h.kits} full loads in all` : ', no ammo bag, support or supply crate near him'})</span>`, `Ammo: ${pt(h.actor)}, ${h.n} × ${h.what} in one life`];
+  if (h.kind === 'autorec') return [h.q + '/' + h.n, `<b>Recoil script</b> ${pn(h.actor)} <span class="w">${h.q} of his ${h.n} bursts of ${AR_HOLD} s or more (${AR_SHOTS}+ shots) with his view as good as still - ${h.per.toFixed(3)}° a 0.1 s step in the first (${esc(h.w)}, ${h.hold.toFixed(1)} s, ${h.shots} shots); the gun kicks every shot and a hand pulling down against it moves the view ~0.5° a step (44 demos: 0.05° the least of 152 bursts) · a recoil script or a no-recoil hack</span>`, `Recoil script: ${pt(h.actor)} ${h.q}/${h.n}`];
+  if (h.kind === 'contact') return [h.q + '/' + h.n, `<b>Ready for contact</b> ${pn(h.actor)} <span class="w">${h.q} of ${h.n} times an enemy came out of cover in front of him (hidden from him ${CT_HID} s or more, ${CT_NEAR}-${CT_FAR} m off, not spotted, not in a UAV ring, not firing) his crosshair was already within ${CT_DEG}° of him (the round's others ${Math.round(h.others * 100)}%; odds ${h.tail < 1e-6 ? h.tail.toExponential(0) : h.tail.toPrecision(2)}) · the first: ${pn(h.vs)} ${Math.round(h.d)} m off, ${h.off.toFixed(1)}° · honest players hold their sights on doors and corners too - a wallhack holds them on the man behind the wall, every time</span>`, `Ready for contact: ${pt(h.actor)} ${h.q}/${h.n}`];
   if (h.kind === 'fov') return [h.q + '/' + h.n, `<b>Wide view</b> ${pn(h.actor)} <span class="w">a weak sign: ${h.q} of ${h.n} times an enemy he could see came ${FOV_IN}-${FOV_OUT}° to the side of where he looked - just outside the ${Math.round(FOV_HALF * 2)}° view taken here - with no shot, spot or hit to give him away, he turned to him within ${FOV_REACT} s (the round's others ${Math.round(h.others * 100)}%). A wider view than a 16:9 screen's would do that - an ultrawide FOV hack (a 21:9 or 32:9 monitor does not widen it: the game keeps those near 16:9's width, ~92°); so can sound, the minimap or a team mate's call</span>`, `Wide view: ${pt(h.actor)}, ${h.q} of ${h.n}`];
   if (h.kind === 'wallfire') return [h.n > 1 ? h.n + '×' : h.dur.toFixed(1) + ' s', `<b>Fired at a wall</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">${h.n > 1 ? `${h.n} times this round he held the trigger (${WF_T0} s or more, ${h.total.toFixed(1)} s in all) on an enemy behind walls or a hill he hadn't seen in the ${WF_PRE} s before; the longest ` : 'held the trigger '}${h.dur.toFixed(1)} s on end with his crosshair on him behind cover, ${Math.round(h.d)} m away · ${esc(h.w)} · ${h.last === null ? 'not seen in the 6 s before' : `last seen ${h.last.toFixed(1)} s before`} · nobody in sight near his crosshair</span>`, `Fired at a wall: ${pt(h.actor)} → ${pt(h.vs)}, ${h.n > 1 ? h.n + ' times' : h.dur.toFixed(1) + ' s'}`];
   if (h.kind === 'track') return [h.dur.toFixed(1) + ' s', `<b>Wall tracking</b> ${pn(h.actor)} → ${pn(h.vs)} <span class="w">his view followed him behind cover for ${h.dur.toFixed(1)} s as he moved ${Math.round(h.turn)}° across, ${Math.round(h.d)} m away</span>`, `Wall tracking: ${pt(h.actor)} → ${pt(h.vs)}, ${h.dur.toFixed(1)} s`];
@@ -2092,7 +2250,7 @@ function admDescribe0(h) {
   if (h.kind === 'chute') { const up = h.up >= CHUTE_UP; return [up ? '+' + h.up.toFixed(1) + ' m/s' : h.hs.toFixed(0) + ' m/s', `<b>Parachute</b> ${pn(h.actor)} <span class="w">under his parachute ${up ? `rose ${h.up.toFixed(1)} m in a second` : `${h.hs.toFixed(1)} m/s across`} · honest parachutes: 9-12 m/s across, always coming down 4-7 m/s</span>`, `Parachute: ${pt(h.actor)} ${up ? 'rising ' + h.up.toFixed(1) + ' m/s' : h.hs.toFixed(0) + ' m/s across'}`]; }
   if (h.kind === 'glitch') { const at = [h.up != null ? Math.round(h.up) + ' m above him' : '', h.down != null ? Math.round(h.down) + ' m below him' : ''].filter(Boolean).join(' and ');
     const wh = h.where == null ? 'under a floor, inside a rock or a wall, on a roof no one climbs? (no shapes for this map)' : h.where === 'inside' ? 'his chest inside the map\'s shapes' : h.where === 'under' ? 'under the ground' : h.where === 'air' ? 'in the air over what the map\'s shapes show' : h.where === 'ground' ? 'on the ground, the others over him: under a bridge or a balcony? (listed apart)' : `on top of something ${h.where.slice(4)} m up: a roof or a ledge no one else got onto${h.info ? ' (listed apart: the others only below)' : ''}`;
-    return [h.dur.toFixed(0) + ' s', `<b>Glitch spot</b> ${pn(h.actor)} <span class="w">${h.dur.toFixed(0)} s on foot where no one else stood in ${h.rounds} rounds of this map, while ${h.others}${h.others >= 4 ? '+' : ''} others stood right there ${at} · ${wh} · look in His view</span>`, `Glitch spot: ${pt(h.actor)} ${h.dur.toFixed(0)} s`]; }
+    return [h.dur.toFixed(0) + ' s', `<b>Glitch spot</b> ${pn(h.actor)} <span class="w">${h.dur.toFixed(0)} s on foot${h.n > 1 ? ` (${h.n} times, till ${fmt(h.last)})` : ''} where no one else stood in ${h.rounds} rounds of this map, while ${h.others}${h.others >= 4 ? '+' : ''} others stood right there ${at} · ${wh} · look in His view</span>`, `Glitch spot: ${pt(h.actor)} ${h.dur.toFixed(0)} s`]; }
   if (h.kind === 'under') return [h.depth.toFixed(1) + ' m', `<b>Under the map</b> ${pn(h.actor)} <span class="w">${h.depth.toFixed(1)} m under the ground for ${h.dur.toFixed(0)} s, alive on foot</span>`, `Under the map: ${pt(h.actor)} ${h.depth.toFixed(1)} m down`];
   if (h.kind === 'guided') { const ws = []; if (h.why.includes('stick')) ws.push(`${h.moving} hits on moving targets, his missile ${h.mid.toFixed(2)}° off the line to the target at the middle (honest gunners: 2-3°)`); if (h.why.includes('rate')) ws.push(`${h.hits} of ${h.n} TV missiles hit (TV gunners hit ${Math.round(h.others * 100)}% - 5596 missiles of 168 rounds)`); return [h.why.includes('stick') ? h.mid.toFixed(1) + '°' : h.hits + '/' + h.n, `<b>Guided missiles</b> ${pn(h.actor)} <span class="w">${esc(h.what)}: ${ws.join('; ')}</span>`, `Guided missiles: ${pt(h.actor)}, ${h.why.includes('stick') ? h.mid.toFixed(2) + '° off moving targets' : h.hits + ' of ' + h.n + ' TV missiles hit'}`]; }
   if (h.kind === 'spotspam') return [h.n60 >= SPAM_60 ? h.n60 + '/min' : h.n10 + '/10 s', `<b>Spot spam</b> ${pn(h.actor)} <span class="w">${h.n60} spots within a minute, ${h.n10} within 10 s (${h.all} in the round, not counting those he made as commander) · honest players spot 26 a minute at the most (the hacks send them without the radio voice); a commander spots from his screen as many as he likes</span>`, `Spot spam: ${pt(h.actor)}, ${h.n60} spots in a minute`];
@@ -2137,7 +2295,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
   box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 12366) ----
+// ---- part 7 (page line 12568) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -2219,6 +2377,14 @@ let htD = null;
 const htCanSite = () => !!(acc && acc.in && (acc.owner || (acc.cards || []).includes('hints')));
 const htFmt = (s, v) => v === undefined || v === null || v === '' ? '' : (s.t === 'p' && v < 0.001 ? v.toExponential() : String(+(+v).toPrecision(6)));
 const htMyOff = kd => { const D = htD, off = D.siteOff.has(kd); return D.mineOn.has(kd) ? false : D.mineOff.has(kd) ? true : off; };
+// (v254) what the admins' review marks say of each kind (admin.mjs review-stats: their servers' rounds), loaded as the
+// editor opens: checked - nothing there / a false alarm / suspicious
+let HT_RS = null, htRsAt = 0;
+function htRsLoad() { if (Date.now() - htRsAt < 60e3) return; htRsAt = Date.now(); admApi('review-stats', {}).then(j => { if (j && j.ok) { HT_RS = j; if ($('#htDlg')?.open) htDraw(); } }).catch(() => {}); }
+function htRsTxt(kd) {
+  const o = HT_RS?.kinds?.[kd]; if (!o) return ''; const n = o.ok + o.false + o.sus; if (!n) return '';
+  return ` <span class="w htrs" title="The admins' review marks on this hint (${esc(HT_RS.scope)}): ${o.sus} suspicious, ${o.false} a false alarm, ${o.ok} checked - nothing there${o.last ? '; the last ' + esc(String(o.last).slice(0, 10)) : ''}">· marked ${n}: ⚑${o.sus} ✗${o.false} ✓${o.ok}${n >= 5 ? ` (${Math.round(o.false / n * 100)}% false)` : ''}</span>`;
+}
 function htOpen(keep) {   // (keep 'site' / 'mine': the other column's edits not saved yet stay, after saving one)
   let d = $('#htDlg');
   if (!d) { d = document.createElement('dialog'); d.id = 'htDlg'; d.className = 'htdlg'; d.setAttribute('aria-labelledby', 'htH'); document.body.appendChild(d); d.addEventListener('click', e => { if (e.target === d) d.close(); }); }
@@ -2227,7 +2393,7 @@ function htOpen(keep) {   // (keep 'site' / 'mine': the other column's edits not
   htD = { site: { ...HT_SITE.values }, siteOff: new Set(HT_SITE.off), mine: { ...M.values }, mineOff: new Set(M.off), mineOn: new Set(M.on), use: !!M.use, q: htD ? htD.q : '', adv: htD ? htD.adv : false, only: old ? old.only : false };
   if (old && keep === 'site') Object.assign(htD, { site: old.site, siteOff: old.siteOff });
   if (old && keep === 'mine') Object.assign(htD, { mine: old.mine, mineOff: old.mineOff, mineOn: old.mineOn, use: old.use });
-  htDraw(); if (!d.open) d.showModal();
+  htDraw(); if (!d.open) d.showModal(); htRsLoad();
   const q = $('#htQ'); if (q) q.focus();
 }
 function htDraw() {
@@ -2240,7 +2406,8 @@ function htDraw() {
     const L = HT_SPEC.filter(s => s.h === kd && (D.adv || !s.a) && (kq || (s.l + ' ' + s.k).toLowerCase().includes(q)) && (!D.only || s.k in D.site || s.k in D.mine));
     const offCh = kd !== 'common' && (D.siteOff.has(kd) || D.mineOff.has(kd) || D.mineOn.has(kd));
     if (!L.length && !(kq && (!D.only || offCh))) continue;
-    rows += `<tr class="htk"><th colspan="2">${esc(nm)}${HT_SPEC.some(s => s.h === kd) ? '' : ' <span class="w">· no thresholds</span>'}</th>`
+    const shL = kd === 'common' ? '' : can ? ` <label class="htonl htsh" title="In shadow: worked out and kept, shown only to the site's owner and the accounts with this right; no alerts, not on the players' cards nor in their score (new detectors, until the archive and your marks bear them out)"><input type="checkbox" data-sh="${kd}"${HT_SHADOW.has(kd) ? ' checked' : ''}> shadow</label>` : HT_SHADOW.has(kd) ? ' <span class="w">· in shadow</span>' : '';
+    rows += `<tr class="htk"><th colspan="2">${esc(nm)}${HT_SPEC.some(s => s.h === kd) ? '' : ' <span class="w">· no thresholds</span>'}${shL}${htRsTxt(kd)}</th>`
       + (kd === 'common' ? '<td></td><td></td>' : `<td><label class="htonl"><input type="checkbox" data-so="${kd}"${D.siteOff.has(kd) ? '' : ' checked'}${can ? '' : ' disabled'}> on</label></td><td><label class="htonl"><input type="checkbox" data-mo="${kd}"${htMyOff(kd) ? '' : ' checked'}> on</label></td>`) + '</tr>';
     for (const s of L) rows += `<tr><td class="htl">${esc(s.l)} <code>${s.k}</code>${HT_TYPE[s.t] ? ` <span class="w">${HT_TYPE[s.t]}</span>` : ''}</td><td class="htr">${esc(htFmt(s, s.d))}${HT_UNIT[s.t] ? ' ' + HT_UNIT[s.t] : ''}</td><td>${cell(s, 's', D.site, !can, s.d)}</td><td>${cell(s, 'm', D.mine, false, D.site[s.k] ?? s.d)}</td></tr>`;
   }
@@ -2264,6 +2431,7 @@ function htDraw() {
     if (x === (site ? s.d : D.site[k] ?? s.d)) delete V[k]; else V[k] = x;   // (the same as the column to its left: nothing kept)
     htDraw();
   });
+  d.querySelectorAll('[data-sh]').forEach(c => c.onchange = async () => { c.disabled = true; const j = await admApi('hints-shadow', { kind: c.dataset.sh, on: c.checked }).catch(e => ({ ok: false, msg: e.message })); if (j.ok) htShadowSet(j.shadow); htDraw(); $('#htMsg').textContent = j.msg || j.error || ''; if (typeof renderAdmin === 'function' && round) { round._adm && delete round._adm._noSh; renderAdmin(); } });   // (v254)
   d.querySelectorAll('[data-so]').forEach(c => c.onchange = () => { const k = c.dataset.so; if (c.checked) D.siteOff.delete(k); else D.siteOff.add(k); htDraw(); });
   d.querySelectorAll('[data-mo]').forEach(c => c.onchange = () => { const k = c.dataset.mo, wantOff = !c.checked; D.mineOff.delete(k); D.mineOn.delete(k); if (wantOff !== D.siteOff.has(k)) (wantOff ? D.mineOff : D.mineOn).add(k); htDraw(); });
   const busy = async (b, f) => { b.disabled = true; $('#htMsg').textContent = 'Saving…'; try { await f(); } catch (e) { $('#htMsg').textContent = e.message; } finally { b.disabled = false; } };
@@ -3139,7 +3307,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 17110) ----
+// ---- part 8 (page line 17332) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -3157,7 +3325,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 17146) ----
+// ---- part 9 (page line 17368) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

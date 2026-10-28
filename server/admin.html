@@ -353,7 +353,7 @@ function renderHints() {
   const H = S.hints, n = H.changed.length;
   $('#htSum').innerHTML = n || H.off.length ? `<span class="warn">${n} of ${H.n} changed from the recommended${H.off.length ? `, ${H.off.length} hint${H.off.length === 1 ? '' : 's'} off (${esc(H.off.join(', '))})` : ''}</span><span class="muted">${H.by ? ' · by ' + esc(H.by === 'owner' ? "the site's owner" : H.by) : ''}${H.at ? ' · ' + ago(H.at) : ''}</span>` : `<span class="ok">all ${H.n} recommended</span>`;
   $('#htList').innerHTML = H.changed.map(c => `<div>${esc(c.k)} <b>${esc(String(c.v))}</b> <span class="muted">(recommended ${esc(String(c.d))}) · ${esc(c.h)}: ${esc(c.l)}</span></div>`).join('');
-  $('#htHv').textContent = `hint rules ${H.hv}`;
+  $('#htHv').textContent = `hint rules ${H.hv}${H.shadow?.length ? ` · in shadow (the owner's eyes only, no alerts, not on the cards): ${H.shadow.join(', ')}` : ''}`;   // (v254)
 }
 function renderRounds() {
   const R = S.rounds;
