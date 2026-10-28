@@ -5,6 +5,39 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v247
+
+**The engine's own rules for the score, the time outside the combat area and the spawns** (Sagara: "another pass over
+OpenBF2 — scoring, tickets, spawn rules, the combat area; check ours against how the engine counts and fix what
+differs"; the engine's code read for knowledge only, then checked on 43 demos):
+
+- **Outside the map** — now by the game's own rule: it counts a man's seconds outside the combat area while he is
+  alive (a man down too); after the map's allowed time (10 s on every map) it takes **20** health a second off the man
+  himself — in a vehicle too — and four times that after 20 s (Highway Tampa: 5), so a man with full health is dead at
+  **15 s**. The hint: alive **on his feet** outside longer than that, plus what he was healed, plus 10 s — no damage
+  came off him. A man down is no longer counted as alive (before: 8 s up and 13 s down made 21 s, close to the old
+  25 s). Now **strong** (before: minor). In 43 demos: every man on his feet back by 10 s, pilots dead at 14–17 s.
+- **The map's OUT ring** counts down the seconds he has left (10 → 1), as the game does — it used to count up while
+  its tooltip said "left" — then shows the health the game takes off him a second (−20/s, −80/s after 20 s); over the
+  ring for the soldier you follow, where the weapon plate no longer hides it.
+- **Spawn** — the game's squad spawn rides on the squad leader, is offered only to the squad's other men, and scatters
+  them **3–9 m** round him (654 of 663 squad spawns on foot within 9 m): away from his side's spawn points only **his
+  own squad leader within 12 m** explains a spawn now, not any team mate within 25 m (rounds without squads: as before).
+  New threshold *SPAWN_SQ* (12 m) — 170 thresholds of 57 hints.
+- **The score** — the game's is **2 a kill + teamwork** (+ a commander's points): exactly so for 418 of 438 players,
+  16 of the other 20 commanders. A soldier's card now breaks his teamwork down by the game's rules — assists +1,
+  revives +2, heal and repair points, flags +2 / +1, team kills −4, suicides −2 — and the **rest** the demo doesn't
+  show (ammo given, defending a flag, spotting), and a commander's points.
+- **Heal and repair points as the game pays them**: +1 each time what he healed of his team mates (in % of their
+  health, all his heals summed) or repaired of their vehicles passes 100 more — not +1 a heal of 25+ or +1 a repair.
+  Against the teamwork the game gave during heals and repairs in 43 demos: 33 points off instead of 59 (heals), 60
+  instead of 347 (repairs). In the card and the ≈ Score of rounds without the game's scoreboard.
+- **Tickets and spawn times** already matched the engine: the bleed (fractional, whole tickets as they add up) since
+  v235, the spawn time from the demo's own "may spawn at" since v170 (the game spawns at most 0.1 s after it, never
+  before).
+- The hint rules become version **15**: the background analysis goes over every round again by itself. The decoder
+  (`18e8999d15`), the round summaries (18) and the statistics are as in v246: nothing decoded or summed up again.
+
 ## v246
 
 **Sagara's five: the page that jumped, the rights' ticks, the weapon plate, squad colours, the records** (2026-10-28):

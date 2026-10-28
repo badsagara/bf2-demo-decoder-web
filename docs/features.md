@@ -165,6 +165,12 @@ explosions and run-overs have none.
   before v132), it is **≈ Score**: worked out by the game's rules from what the demo shows.
 - **Teamwork**: the game's teamwork points (assists, revives, heals, repairs, resupply, flags, commander; team kills and
   suicides take some off). **Assists**: the game's +1 at a team mate's kill.
+- (v247, the engine's score code read in OpenBF2 for knowledge, checked on 43 demos) the score is **2 a kill + teamwork**
+  (+ a commander's points: exactly so for 418 of 438 players of 43 demos; 16 of the other 20 were commanders). A soldier's card breaks his teamwork
+  down by the game's rules: assists +1, revives +2, **heal and repair points** — +1 each time what he healed of his team
+  mates (in % of their health, all his heals summed) or repaired of their vehicles passes 100 more, as the game pays them
+  (not +1 a heal), flags +2 / +1, team kills −4, suicides −2 — and the **rest** the demo doesn't show (ammo given, defending
+  a flag, spotting). The ≈ Score of rounds without a scoreboard counts heals and repairs the same way.
 - **Repairs** in records and posts are the game's own repair points, not every repair the page sees (a vehicle that
   repaired itself next to an engineer was once counted as 747 repairs).
 - **Streaks**: enemy kills in a row without dying, **on foot** and **in vehicles** apart — a kill of the other kind

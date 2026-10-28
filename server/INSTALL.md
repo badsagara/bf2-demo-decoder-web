@@ -981,10 +981,13 @@ UAV's ring counted like a spot): the background analysis goes over every round a
 (v246) The statistics' code changes (Records: three different players): the statistics and the Records pages are
 written again by themselves after the update (some minutes on a big site). admin.mjs restarts by itself on the new
 version. Nothing decoded or analysed again, nothing to do.
+(v247) The hint rules become version 15 (Outside the map and Spawn by the game's own rules): the background analysis
+goes over every round again by itself. The decoder (`18e8999d15`), the round summaries (18) and the statistics stay:
+nothing decoded or summed up again, nothing to do.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (169 of 57 hints since v245: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (170 of 57 hints since v247: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 

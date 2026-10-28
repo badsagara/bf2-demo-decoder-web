@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v246';
+const APP_VERSION = 'v247';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1619,6 +1619,23 @@ function normalize(d) {
   for (const e of events) if (e.type==='death' && e._x === undefined) e._x = events.some(k => k.type==='kill' && k.victim===e.player && k.t <= e.t+0.5 && e.t-k.t < 60 &&
     !events.some(s => s.type==='spawn' && s.player===e.player && s.t > k.t && s.t <= e.t-1));
   const duration = d.meta?.duration || (F ? times[F-1] : 0);
+  // (v247, todo 287 - OpenBF2's ServerGameLogic::heal and PlayerScoreData, as knowledge) the game pays a heal point each time
+  // what a man has healed of his team mates (in % of their health, all his heals summed) passes 100 more (healScoreLimit),
+  // and a repair point the same for what he repaired of his side's vehicles - one a team mate sits in, not his own
+  // (repairScoreLimit). The decoder's estimate (+1 a heal of 25+, +1 a repair) recounted so: 43 demos, the teamwork the
+  // game gave during his heals and repairs - 33 points off the heal rule against 59, 60 off the repair rule against 347
+  if (d.meta?.source === 'demo') {
+    const byId = new Map(d.players.map(p => [p.id, p])), sideAt = (pl, tt) => { let v = pl.team ?? -1; for (const [ts, tm] of pl.teams || []) { if (ts > tt) break; v = tm; } return v; };
+    for (const p of d.players) {
+      if (p.vehicle || !p.pts) continue;
+      const add = [], pay = (L, why) => { let acc = 0; for (const [tt, g] of L) { const was = Math.floor(acc / 100); acc += g; for (let k = was + 1; k <= Math.floor(acc / 100); k++) add.push([tt, 1, why]); } };
+      pay(events.filter(e => e.type === 'heal' && e.medic === p.id && e.player !== p.id && byId.has(e.player) && sideAt(byId.get(e.player), e.t) === sideAt(p, e.t)).map(e => [+(e.until ?? e.t), e.gain || 0]), 'heal');
+      // (the repairs the decoder found paid - of a vehicle a team mate sat in: its entries at each repair's end)
+      const rpT = p.pts.filter(q => q[2] === 'repair').map(q => q[0]);
+      pay(events.filter(e => e.type === 'repair' && e.by === p.id && rpT.some(x => Math.abs(x - (e.until ?? e.t)) < 0.06)).map(e => [+(e.until ?? e.t), e.gain || 0]), 'repair');
+      p.pts = p.pts.filter(q => q[2] !== 'heal' && q[2] !== 'repair').concat(add).sort((a, b) => a[0] - b[0]);
+    }
+  }
   // kill distance (m), and a kill's weapon put right where the game named one it can't be: killFix (v221; the same in
   // ingest.mjs summarize). (v204) a decoded round's file (.bfr) has each kill's distance as the code that decoded it worked
   // it out: worked out again here, always - only a logger's file keeps its own
@@ -1691,6 +1708,16 @@ const downSecs = (p, tt) => { const f = downLeft(p, tt); return f === null ? nul
 const firingNow = (p, tt) => { const F = p.fire; if (!F) return null; let lo = 0, hi = F.length - 1, k = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (F[m][0] <= tt) { k = m; lo = m + 1; } else hi = m - 1; } for (let j = k; j >= 0 && tt - F[j][0] < 120; j--) if (F[j][1] >= tt) return F[j]; return null; };
 const spawnIn = (p, tt) => { let a = null; for (const [ts, at] of p.sw || []) { if (ts > tt) break; a = at; } return a === null ? null : a - tt; };
 const outsideNow = (p, tt) => { for (const o of p.out || []) if (o[0] <= tt && tt < o[1]) return Math.max(0, Math.floor(tt - o[0])); return null; };
+// (v247, todo 287 - OpenBF2's ServerGameLogic::uPlayingInsideGameArea and CombatAreaManager, as knowledge) the game counts
+// a man's seconds outside the combat area while he is alive - a man down too - and starts again at 0 when he is inside or
+// dead. Past the map's CombatAreaManager.timeAllowedOutside (10 s on every map) it takes damage x (seconds / allowed,
+// whole)^2 a second off the man himself, in a vehicle too (CombatAreaManager.damage: 20 a second, Highway Tampa 5): from
+// full health dead at 15 s (Tampa 22.5 s). 43 demos, 336 stretches: every man on his feet back inside by 10 s (or down),
+// pilots dead at 14-17 s (one 23 s)
+const OOB_ALLOW = 10, OOB_DMG = { highway_tampa: 5 };
+const oobDmg = () => OOB_DMG[mapKey()] ?? 20;
+// the seconds outside at which health hp is gone
+function oobLive(hp, dmg = oobDmg(), allow = OOB_ALLOW) { let t = allow, left = hp; for (let m = 1; m < 60; m++) { const r = dmg * m * m; if (left <= r * allow) return t + left / r; left -= r * allow; t += allow; } return t; }
 // where his life began: a flag's spawn point, his squad leader or a vehicle (the spawn group he had chosen, Player ghost)
 const sgName = q => { let b = null, bd = 60; for (const f of round.flags) { const d = Math.hypot(f.x - q.x, f.y - q.y); if (d < bd) { bd = d; b = f; } } return b ? b.name : 'the spawn point at ' + gridOf(q.x, q.y); };
 function spawnedAt(p, tt) {
@@ -2165,10 +2192,17 @@ function sbRows(p, tt) {
   let h = '';
   const g = p.sb && sbNow(p, tt);
   if (g) {
-    // what the demo itself shows of his teamwork (the rest: kill assists, resupply, defending flags, ...)
-    const parts = [...scoreParts(p, tt)].filter(([why]) => why !== 'kill' && why !== 'team kill' && why !== 'suicide').map(([why, [n]]) => `${why} ${n}×`).join(' · ');
-    const nas = round.events.reduce((n, e) => n + (e.t <= tt && e.type === 'kill' && e.assists?.includes(p.id) ? 1 : 0), 0);
-    h += `<dt title="The game's own scoreboard (sent to every player, so it is in the demo)">Score</dt><dd>${g[1]} <span class="w">K ${g[2]} · D ${g[3]} · teamwork ${g[5]}${nas ? ` · <span title="Kill assists: the game gave him +1 at a kill by a team mate (damage, targeting or driving)">assists ${nas}</span>` : ''}${g[4] ? ' · team kills ' + g[4] : ''}</span>${parts ? `<br><span class="w" title="Teamwork the demo shows as events; the game also counts kill assists, resupply, defending flags and commander points">seen: ${esc(parts)}</span>` : ''}</dd>`;
+    // (v247, todo 287 - OpenBF2's ScoreManager and the game's scripts, as knowledge) his score is 2 a kill + his teamwork
+    // (+ a commander's points: 418 of 438 players of 43 demos exactly, 16 of the other 20 commanders); his teamwork as the game pays it: +1 a kill assist
+    // (damage, targeting, driving - the demo shows them as his score going up at a team mate's kill), +2 a revive, +1 a heal
+    // or repair point, flags +2 / +1, -4 a team kill, -2 a suicide; the rest is what the demo doesn't show (ammo given -
+    // +1 a 100 -, defending a flag, spotting)
+    const P = scoreParts(p, tt), nas = round.events.reduce((n, e) => n + (e.t <= tt && e.type === 'kill' && e.assists?.includes(p.id) ? 1 : 0), 0);
+    const pv = why => (P.get(why) || [0, 0])[1], flags = pv('flag captured') + pv('flag neutralised');
+    const tw = [['assists', nas], ['revives', pv('revive')], ['heals', pv('heal')], ['repairs', pv('repair')], ['flags', flags], ['team kills', -4 * g[4]], ['suicides', pv('suicide')]].filter(([, v]) => v);
+    const rest = g[5] - tw.reduce((a, [, v]) => a + v, 0), cmd = g[1] - 2 * g[2] - g[5];
+    const twTxt = tw.map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`).concat(rest ? [`<span title="What the demo doesn't show: ammo given (+1 a 100), defending a flag, spotting - and where the flags' estimate is off">rest ${rest > 0 ? '+' : ''}${rest}</span>`] : []).join(' · ');
+    h += `<dt title="The game's own scoreboard (sent to every player, so it is in the demo): 2 a kill + teamwork${cmd ? ' + commander' : ''}">Score</dt><dd>${g[1]} <span class="w">K ${g[2]} · D ${g[3]} · teamwork ${g[5]}${g[4] ? ' · team kills ' + g[4] : ''}${cmd ? ` · <span title="Score less 2 a kill and teamwork: the commander's points">commander ${cmd > 0 ? '+' : ''}${cmd}</span>` : ''}</span>${twTxt ? `<br><span class="w" title="His teamwork by the game's rules: +1 a kill assist, +2 a revive, +1 a heal or repair point (each 100% healed or repaired), flags +2 / +1, -4 a team kill, -2 a suicide">teamwork: ${twTxt}</span>` : ''}</dd>`;
   }
   const c = seriesAt(p.cmdr, tt), q = seriesAt(p.squad, tt);
   if (c && c[1]) h += `<dt>Commander</dt><dd>since ${fmt(c[0])}</dd>`;
@@ -5366,8 +5400,9 @@ function draw() {
       const r = p.vehicle ? Math.max(18, (vr || 0) + 6) : 21, oc = css('--outside');
       cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.beginPath(); cx.arc(px, py, r, 0, Math.PI * 2); cx.stroke();
       cx.strokeStyle = oc; cx.globalAlpha = 1; cx.lineWidth = 2; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]);
-      const lb = 'OUT ' + o + ' s'; cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText(lb).width;
-      cx.fillStyle = oc; cx.fillRect(px - w / 2 - 3, py + r + 2, w + 6, 13); cx.fillStyle = '#fff'; cx.fillText(lb, px - w / 2, py + r + 12);
+      const mo = Math.floor(o / OOB_ALLOW), lb = o < OOB_ALLOW ? 'OUT ' + (OOB_ALLOW - o) + ' s' : 'OUT −' + oobDmg() * mo * mo + '/s'; cx.font = '700 10px ' + css('--font-data'); const w = cx.measureText(lb).width;   // (v247: the seconds left, as the game counts them; then what it takes off him a second)
+      const ly = sel === i && opts.hands && !p.vehicle ? py - r - 15 : py + r + 2;   // (v247: over the ring for the soldier you follow - the weapon plate is under him)
+      cx.fillStyle = oc; cx.fillRect(px - w / 2 - 3, ly, w + 6, 13); cx.fillStyle = '#fff'; cx.fillText(lb, px - w / 2, ly + 10);
     } }
     if (sel===i) {
       // (v152, Sagara: "кільце навколо бійця за яким стежиш, зробимо чорним"): black, on a light edge so it shows on dark ground
@@ -9497,7 +9532,7 @@ const LEGEND = [
     cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(-4.5, -4.5); cx.lineTo(4.5, 4.5); cx.moveTo(4.5, -4.5); cx.lineTo(-4.5, 4.5);
     cx.strokeStyle = 'rgba(235,235,225,.75)'; cx.lineWidth = 4; cx.stroke(); cx.strokeStyle = 'rgba(0,0,0,.95)'; cx.lineWidth = 2; cx.stroke(); cx.lineCap = 'butt'; }],
   ['killTags', () => 'Team kill', 'By a soldier who killed one of his own side', () => { cx.font = '700 11px ' + css('--font-data'); cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.lineJoin = 'round'; cx.strokeText('TK', 0, 0.5); cx.fillStyle = css('--tk'); cx.fillText('TK', 0, 0.5); }],
-  ['oob', () => 'Out of bounds', 'Outside the combat area: OUT and the seconds he has left to get back', () => { lgSol(0, 1, teamColor(0), 0.5); cx.scale(0.55, 0.55); cx.beginPath(); cx.arc(0, 0, 21, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--outside'); cx.lineWidth = 2.6; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]); }],
+  ['oob', () => 'Out of bounds', 'Outside the combat area: OUT and the seconds he has left to get back (10 on every map), then the health the game takes off him a second', () => { lgSol(0, 1, teamColor(0), 0.5); cx.scale(0.55, 0.55); cx.beginPath(); cx.arc(0, 0, 21, 0, Math.PI * 2); cx.strokeStyle = css('--bg'); cx.globalAlpha = 0.7; cx.lineWidth = 4; cx.stroke(); cx.globalAlpha = 1; cx.strokeStyle = css('--outside'); cx.lineWidth = 2.6; cx.setLineDash([5, 3]); cx.stroke(); cx.setLineDash([]); }],
   ['lift', () => 'Up high', 'On a roof, an upper floor, a tower, a bridge or a deck - 2 m or more over the ground: raised over his shadow, a line down to it (12 m or more: the height by the shadow)', () => {
     cx.fillStyle = 'rgba(0,0,0,.5)'; cx.beginPath(); cx.ellipse(0, 8, 5, 2.6, 0, 0, Math.PI * 2); cx.fill();
     cx.lineCap = 'round'; cx.strokeStyle = css('--bg'); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(0, 8); cx.lineTo(0, -2); cx.stroke(); cx.strokeStyle = teamColor(0); cx.lineWidth = 1.4; cx.stroke(); cx.lineCap = 'butt';
@@ -9913,7 +9948,7 @@ const MC = [];
   B('fire', 'sol', true, 'Firing', 'A flash at the gun of everyone holding a fire button, and at a vehicle when someone in it fires (the demo has a button going down and up, not each shot)');
   B('zoomDot', 'sol', true, 'Aiming down the sights', 'A white dot at his nose while he looks through his sights or scope');
   B('moveMk', 'sol', true, 'Parachute, ladder, water', "A parachute's canopy over him, a ladder by him, waves under a swimmer");
-  B('oob', 'sol', true, 'Out of bounds', 'A dashed ring and OUT with the seconds he has left, outside the combat area');
+  B('oob', 'sol', true, 'Out of bounds', 'Outside the combat area: a dashed ring and OUT with the seconds he has left (10), then the health the game takes off him a second (20, after 20 s four times that)');
   C('vehMark', 'veh', 'models', 'Look', "As the game's map icons, or its 3D models seen from above, to scale, the turret turning where the gun points (M)", [['icons', 'Icons'], ['models', 'Models']], () => opts.models ? 'models' : 'icons', v => { opts.models = v !== 'icons'; }, { key: 'M' });
   B('emptyVeh', 'veh', true, 'Empty vehicles', 'Vehicles nobody sits in, grey (off: only those with somebody in them, and the one you follow)');
   N('crew', 'veh', 'crew', 'Crew names', 'Who sits in a vehicle, by it - a line a seat');
