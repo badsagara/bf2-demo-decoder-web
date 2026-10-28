@@ -509,7 +509,7 @@ What is on it:
 |---|---|
 | Tiles | players ranked (15+ telling choices); **worth a look** (q < 0.05 — none while fewer than 30 are ranked); the daily **placebo** (red — v251 — only when more shuffles flag someone than chance would: 1 in 20 does, so 1 of 10 is fine, 3 of 10 is not) and the **trusted players** at q < 0.05 (should be 0) — red when not |
 | How to read it | the terms in a few lines |
-| A player (when one is picked) | beyond and q, hidden enemies avoided, the emptiest flag x / foretold, his reading of the game; what it says (stands out / somewhat above / nothing out of the ordinary / not ranked yet); (v251) **his flags** — the flags he went for most unlike everyone: went / on offer, everyone's odds, hidden enemies there as a rule, the taste the model allows him (a liking for a quiet flag is his way, not luck: his odds take it in); **his most telling choices**: the flags he could have gone for — ▶ the one he went for — each with its distance, hidden enemies on it + on the way in, known ones, his odds; the link opens the round 3 s before he set off, following him; *killed on the way* when he died before getting there |
+| A player (when one is picked) | beyond and q, hidden enemies avoided, the emptiest flag x / foretold, his reading of the game; what it says (stands out / somewhat above / nothing out of the ordinary / not ranked yet); (v251) **his flags** — the flags he went for most unlike everyone: went / on offer, everyone's odds, hidden enemies there as a rule, the taste the model allows him (a liking for a quiet flag is his way, not luck: his odds take it in); **his most telling choices**: the flags he could have gone for — ▶ the one he went for — each with its distance, hidden enemies on it + on the way in (v252: those he saw himself on the way marked — if he turned away from them, no luck), known ones (what his side knew when he set off), his odds; the link opens the round 3 s before he set off, following him; *killed on the way* when he died before getting there |
 | The plot | each ranked player: across — his reading of the game (the known enemies he avoided); up — **beyond** (the ranking); red — q < 0.05 (with the line where it starts), ○ — trusted; tap a dot for his choices |
 | The table | every ranked player by beyond (100 at first, **Show all**): rounds, telling choices, emptiest, avoided, z hid, z kn, beyond, lost (his trips killed on the way with the flag not known), q; ★ trusted; a filter by nick, *only q < 0.05*, *also those not ranked yet*; tap a row for his choices |
 | The check | once a day: placebo, split halves, the trusted players, peeking put into real players' choices, killed-on-the-way against the ranking |
@@ -618,7 +618,7 @@ sudo -u bf2replay node choices.mjs                    # the table: players ranke
 sudo -u bf2replay node choices.mjs --nick NAME        # his choices, the most telling first, each with a link to the moment
 sudo -u bf2replay node choices.mjs --check            # is it measuring anything on our rounds (placebo, split halves, peeking put in)
 sudo -u bf2replay node choices.mjs --maps strike_at_karkand --since 2026-10-01
-sudo -u bf2replay node choices.mjs --known seen=10 --check   # (v251) another rule for "known" - does it find more
+sudo -u bf2replay node choices.mjs --known seen=20 --check   # (v251) another rule for "known" - does it find more (v252: the default is what his side knew when he set off)
 ```
 
 Read *beyond* and *q* (q < 0.05: of the players at or above him, about 1 in 20 is there by luck). It needs a player's

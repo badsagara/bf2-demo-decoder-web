@@ -5,6 +5,33 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v252
+
+**Flag choices: "known" is what his side knew when he set off** (Sagara sent the analysis archive of v251, 2026-10-28):
+
+- **The rule for which enemies near a flag his side knew of** is now what it knew **when he set off**: seen by any of
+  them in the 10 s before, spotted or in its UAV ring then, one who killed a man of his side in the minute before, one
+  heard firing near them in the 10 s before. Up to v251 it also took what came after — sightings to 5 s after, and what
+  he saw himself, spotted or had in the UAV ring until he got there. But he sees the enemies at the flag he goes to as
+  he gets there: they turned "known" at his flag and stayed "hidden" at the others, and every player looked lucky. On
+  the 3,449 rounds: by the new rule the honest crowd shows no lean (−0.01 a choice, was 0.25) and next to no spread
+  between players (0.001, was 0.03); a radar put into 30% of a player's choices is found in 19% (was 4%), in 50% of them
+  in 42% (was 10%); the placebo stays clean; 1,172 players ranked (was 737), twice the telling choices; nobody at
+  q < 0.05. The crowd does not go by older sightings either (an enemy seen 10–60 s before is gone for no less than one
+  nobody saw), so 10 s is enough. All of it in admin-hints.md → Flag choices.
+- **Trips set off in a round's first 15 s are left out**: who is where then is the map's spawns (everyone keeps away
+  from the enemy's spawn flags — the crowd's lean 0.08 a telling choice there, none after), and a regular who is there
+  at every round's start would look lucky for it (`--start S` to change it).
+- **choices.mjs works the counts out over E itself** (what the analysis keeps of each enemy since v251), by that rule —
+  rounds analysed before v251 are left out (the background analysis did them again with v251). No new analysis is
+  needed. `--known v251` (or `BF2R_CHOICES_KNOWN="v251"`) gives the old rule back; new keys `ownTo`, `ownGap` (his own
+  sightings only up to some seconds after he set off, or not in the last seconds before he got there).
+- **A player's card**: a hidden enemy he saw himself on the way is marked *seen by him on the way* (if he turned away
+  from him, that is no luck).
+- **The background analysis**: a round decoded while a run went on failed with "open: not in the list" (the page kept
+  the list it was opened with) and was not tried again until the next version of the site — now a new page is opened
+  for it at once, and such a failure is tried again after an hour.
+
 ## v251
 
 **Flag choices: tuned on the server's 3 432 rounds** (Sagara sent the analysis archive of 2026-10-28; "давай"):

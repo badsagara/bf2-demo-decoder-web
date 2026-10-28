@@ -1,4 +1,4 @@
-# Admin hints — what each one means and when it shows up (v251)
+# Admin hints — what each one means and when it shows up (v252)
 
 > **For admins only.** This file describes the hint rules and thresholds that are kept out of the public page. Don't
 > share it with players. A copy of the project's `admin-hints-en.md`; back to [the docs](README.md) · [admin guide](admin-guide.md).
@@ -283,15 +283,20 @@ he could have gone for instead: every flag his side did not hold, out to 2 × th
 picked without looking at the one he chose. For each flag, at the moment he set off:
 - **what his side could know**: the distance; the enemy's or nobody's; the flag's height and which way it moved over
   5 s (it blinks on the minimap); his team mates within the zone + 20 m (on his minimap); his squad's order there; and
-  the enemies there **known** to them — seen by anyone of his side from 20 s before he set off to 5 s after (minimap,
-  voice); seen by **him**, spotted or in the UAV ring at any moment until he got there or fell (an enemy he met on the
-  way and turned away from was known); who killed a man of his side from 60 s before to 5 s after (the kill message, the
-  death screen — his own killer too); or who fired within 150 m of one of them (heard);
+  the enemies there **known** to them **when he set off** (v252) — seen by anyone of his side in the 10 s before
+  (minimap, voice), spotted or in its UAV ring then, who killed a man of his side in the minute before (the kill
+  message, the death screen — his own killer too), or who fired within 150 m of one of them in the 10 s before (heard);
 - **what nobody on his side knew**: the other enemies within the zone + 20 m, and 20–60 m out of it (on the way in).
 
-Generous on purpose: a wrong "unknown" would make an honest player look lucky, a wrong "known" only makes the test less
-sharp. On Karkand most enemies near a flag are known; a trip where the flags differ in **hidden** enemies — a
-**telling** choice — comes about once a round for a man who plays the whole round. A squad member whose leader went to
+Up to v251 "known" also took what came after he set off — sightings to 5 s after, and anything he saw himself, spotted
+or had in the UAV ring until he got there ("generous on purpose"). It was not generous but slanted: he sees the enemies
+at the flag he goes to as he gets there, so those turned "known" at his flag and stayed "hidden" at the others — every
+player looked lucky, and a radar much less so (below, "On the server's own rounds"). An enemy he saw himself on the way
+and turned away from now counts as hidden: his card shows such ones as *seen by him on the way* — that is no luck.
+A trip where the flags differ in **hidden** enemies is a **telling** choice (about half of all choices since v252).
+(v252) Trips set off in a round's first 15 s are left out: who is where then is the map's spawns, and everyone keeps away
+from the enemy's spawn flags (the crowd's lean 0.08 a telling choice there, none after 15 s) — a regular there at every
+round's start would look lucky for it. A squad member whose leader went to
 the same flag (from 20 s before he set off to 20 s after he arrived) is left out: that was the leader's choice. The
 commander is left out. A flag is told by its name (each layer — 16, 32, 64 — has its own set).
 
@@ -356,15 +361,44 @@ real players' telling choices (found at p < 0.01):
 | only the trips that got there (`--arrived`) | — | 261 ranked, nobody at q < 0.05 |
 
 So a player who follows a radar in half of his telling choices is found 4 times in 10; one who does it in a third of
-them, 1 in 6 — mostly when he has 60+ telling choices. Which enemies count as known (20 s or 10 s back?) could not be
-tried on that archive; the analysis keeps it from v251 on (below).
+them, 1 in 6 — mostly when he has 60+ telling choices. Which enemies count as known could not be tried on that archive;
+the analysis keeps it from v251 on (below).
+
+**Which enemies count as known (v252: the archive of 2026-10-28, v251 — 3,449 rounds, every one with what his side
+could know of each enemy).** Each rule with the placebo (5 shuffles), split halves and two kinds of peeking put into
+real players' choices: **a radar** (in a share of his choices he goes for the flag with the fewest enemies of all near
+it — known or not, as a radar shows them: the rule plays no part in it) and the v251 kind (the fewest enemies hidden by
+v251's rule). Found at p < 0.01 when he does it in 20 / 30 / 50% of his choices:
+
+| rule | telling | crowd's lean · spread | radar | v251 kind |
+|---|---|---|---|---|
+| v251 (seen 20 s back to 5 s after; own sightings, spots, UAV until he got there) | 39,401 | 0.25 · 0.030 | 3 / 4 / 10% | 9 / 16 / 42% |
+| seen 10 s back | 46,051 | 0.23 · 0.021 | 4 / 5 / 14% | 7 / 15 / 35% |
+| seen 40 s back | 29,840 | 0.26 · 0.025 | 3 / 3 / 9% | 6 / 14 / 34% |
+| nothing after he set off | 45,154 | 0.24 · 0.022 | 4 / 6 / 14% | 8 / 15 / 36% |
+| his own sightings not counted | 47,088 | 0.08 · 0.018 | 4 / 8 / 22% | 6 / 13 / 33% |
+| … only in the first 10 s | 46,255 | 0.09 · 0.014 | 4 / 8 / 19% | 6 / 13 / 33% |
+| spots · the UAV only to 5 s after he set off | 42,760 · 43,765 | 0.23–0.24 · 0.019–0.024 | 3–4 / 5 / 13% | 7–8 / 15–17 / 35–41% |
+| heard counted as hidden | 44,741 | 0.25 · 0.033 | 2 / 4 / 11% | 6 / 14 / 34% |
+| **when he set off: seen 10 s back, spotted / UAV then, killed one in the minute before, heard 10 s back (v252)** | **85,226** | **−0.01 · 0.001** | **11 / 19 / 42%** | 4 / 6 / 13% |
+| the same, seen 20 s back | 70,677 | 0.01 · 0.003 | 7 / 15 / 33% | 3 / 6 / 15% |
+
+By what was known when he set off the honest crowd shows **no lean and next to no spread**: the model foretells their
+hidden enemies as they meet them — v251's lean of 0.25 a choice was its own slant (his own sightings at his flag as he
+got there: by the crowd's choices, an enemy only he saw on the way drew them to the flag, +0.94 — that is, they were at
+the flag he went to). And the crowd does not go by older sightings: an enemy seen 10–20, 20–40, 40–60 s before he set
+off, heard further back, or spotted earlier, is gone for no less than one nobody saw (+0.09, +0.09, −0.03, −0.03, −0.04
+against −0.05), so 10 s is enough. A radar is found 4–5 times as often; the v251 kind less (it avoids what v251 called
+hidden — partly enemies at his flag he would have seen anyway). Placebo clean (0 flagged), split halves r 0.06, 1,172
+players ranked (737 before; the first 15 s of each round left out, as above), nobody at q < 0.05 — on the site and on
+each server.
 
 **Another rule for "known" (v251).** The analysis keeps, for every enemy within a flag's zone + 60 m, when his side last
 saw him before the trip and next after, when the player himself saw him on the way, his spots, the UAV ring, a man of
-his side he killed, his shots within 150 / 300 m of the side. The counts above are the page's rule over it;
-`choices.mjs --known seen=10,hear=0,...` works them out by another (keys and limits: server/INSTALL.md → Flag choices)
-— with `--check` to see whether it finds more with the placebo still clean — and `BF2R_CHOICES_KNOWN` in
-/etc/bf2replay.conf makes the background run (and the page) use it. Rounds analysed before v251 are left out then.
+his side he killed, his shots within 150 / 300 m of the side. `choices.mjs --known seen=20,own=1,...` works the counts
+out by another rule (keys and limits: server/INSTALL.md → Flag choices; `v251` starts from v251's) — with `--check` to
+see whether it finds more with the placebo still clean — and `BF2R_CHOICES_KNOWN` in /etc/bf2replay.conf makes the
+background run (and the page) use it. Rounds analysed before v251 are left out (they have no E).
 
 **Not in the demo**: voice. A squad that talks ("A is empty") makes its leader look lucky too — check his squad
 mates' *beyond* and watch the moments. A team mate as a spectator who tells him (ghosting) looks the same as a

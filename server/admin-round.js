@@ -1,6 +1,6 @@
-// BF2 Round Replay v251 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v252 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v251';
+const ADM_V = 'v252';
 // ---- part 1 (page line 7094) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
@@ -1708,7 +1708,7 @@ const ANALYZE_COLS = {
   CL: ['player', 't'],   // (v249) trips that ended in his death on the way to a flag not known (too soon, or no clear way)
   Cc: ['flag', 'd', 'own', 'lvl', 'mv', 'ally', 'known', 'unk', 'ord', 'heard', 'unkFar', 'E'],
   notes: { C: "t0: when he set off (10 m from where the trip began: his spawn or revive, or the edge of the flag zone he left); tArr: when he got into the chosen flag's zone (he stayed 4 s or died there); chosen: its place in cands; role: 2 a squad leader, 1 in no squad, 0 a squad member; veh: 1 he drove some of the way (aircraft and trips on foot faster than 7.5 m/s are left out); Cf: the round's flag names (cands' flag is its place there); trip: m he went; lead: 1 a squad member whose leader was in the chosen zone, or got there, from 20 s before he set off to 20 s after he arrived (he followed: the leader's choice); died: 1 killed on the way, tArr when - chosen is the flag he had come nearest to (a third of the way, 30 m or more, clearly more than any other), else the one his way pointed at (15 m or more from where he set off, 20 deg or less off it, the next flag 40 or more)",
-    Cc: "for each flag he could have gone for (its owner not his side, no farther than 2 x the nearest such flag or it + 150 m - chosen without looking at his choice), at t0: d m to its zone's middle; own 1 the enemy's, 0 nobody's; lvl |the flag's height| 0-1; mv its change over the 5 s before, + toward his side; ally his team mates within the zone + 20 m (on his minimap); known the enemies there his side knew of (seen by any of them from 20 s before t0 to 5 s after; seen by him, spotted or in its UAV ring until tArr; killed one of them from 60 s before t0 to 5 s after; or firing within 150 m of one of them from 10 s before t0 to 5 s after); unk the enemies there nobody of his side knew of; ord 1 his squad's order was there; heard of known, those only heard; unkFar the unknown enemies 20-60 m out of the zone (on the way in); E (v251) every enemy within the zone + 60 m, what his side could know of him: [player, m out of the zone's edge (- inside), sB, sA, oA, spB, spA, uB, uA, kB, kA, hB, hA, fB, fA] - B: s before t0 of the last time, A: s after t0 of the first time, null none; s seen by anyone of his side (60 s before to 20 s after; 0.25 s steps from 20 s before to 5 s after, whole seconds beyond), o seen by him himself (from t0 to tArr; whole seconds when the rest already made him known), sp spotted (65 s before to tArr), u in the UAV ring (60 s before to tArr, 1 s steps from 20 s before t0), k killed a man of his side (120 s before to tArr), h fired within 150 m of one of them, f within 300 m (30 s before to 20 s after); m and s rounded up (0.1 m, 0.01 s) - known / unk / heard / unkFar are the page's rule over it (server/choices.mjs --known tries others)",
+    Cc: "for each flag he could have gone for (its owner not his side, no farther than 2 x the nearest such flag or it + 150 m - chosen without looking at his choice), at t0: d m to its zone's middle; own 1 the enemy's, 0 nobody's; lvl |the flag's height| 0-1; mv its change over the 5 s before, + toward his side; ally his team mates within the zone + 20 m (on his minimap); known the enemies there his side knew of when he set off (v252: seen by any of them in the 10 s before t0, spotted or in its UAV ring then, killed one of them in the minute before, or firing within 150 m of one of them in the 10 s before; up to v251 also from t0 to 5 s after, and seen by him, spotted or in the UAV ring until tArr); unk the enemies there nobody of his side knew of; ord 1 his squad's order was there; heard of known, those only heard; unkFar the unknown enemies 20-60 m out of the zone (on the way in); E (v251) every enemy within the zone + 60 m, what his side could know of him: [player, m out of the zone's edge (- inside), sB, sA, oA, spB, spA, uB, uA, kB, kA, hB, hA, fB, fA] - B: s before t0 of the last time, A: s after t0 of the first time, null none; s seen by anyone of his side (60 s before to 20 s after; 0.25 s steps from 20 s before to 5 s after, whole seconds beyond), o seen by him himself (from t0 to tArr; whole seconds when the rest already made him known), sp spotted (65 s before to tArr), u in the UAV ring (60 s before to tArr, 1 s steps from 20 s before t0), k killed a man of his side (120 s before to tArr), h fired within 150 m of one of them, f within 300 m (30 s before to 20 s after); m and s rounded up (0.1 m, 0.01 s) - known / unk / heard / unkFar are a rule over it (v252: what his side knew when he set off - seen in the 10 s before, spotted or in the UAV ring then, killed one of his side in the minute before, heard in the 10 s before; up to v251 also what came after until tArr); server/choices.mjs works them out over E itself (--known tries other rules)",
  err: 'deg off the victim, 21 values: 2.0 s before the kill .. the kill (null: not known)', losK: 'records of 0.1 s back to a clear sight line on the grid (0: clear at the kill); 100 + k: none found in the k checked',
     losX: 'the same with the exact shapes (only when losK >= 3)', press: 's from the fire press that fired it to the kill', fog: 'distance / the map fog limit',
     near: 'bits: 1 a spawn, 2 a revive, 4 in a vehicle, within 5 s; 8 his last place held 0.8 s or more before (a gap in his records)', eng: 'first / even / second / ambush / blind',
@@ -1722,17 +1722,20 @@ const arnd = (v, k = 2) => v == null || !Number.isFinite(v) ? null : +v.toFixed(
 // or had in its UAV ring, or who fired near a team mate - and what nobody on his side knew: the other enemies there. A
 // wallhack or radar shows the second; an honest player's choices follow the first alone. server/choices.mjs puts every
 // player's choices over all rounds against what the known part foretells (the analysis's files, table C).
-// Generous on purpose: an enemy his side may have known of counts as known (a wrong "unknown" would make an honest
-// player look lucky; a wrong "known" only makes the test less sharp). Known: seen by anyone of his side from 20 s before
-// he set off to 5 s after (the minimap, voice); seen by him himself, spotted or in the UAV ring at any moment until he got
-// there or fell (an enemy he met on the way and turned away from was known); one who killed a man of his side from 60 s
-// before he set off to 5 s after (the kill message, the death screen - his own killer too); or one who fired within
-// 150 m of one of them from 10 s before to 5 s after (heard). Not in the demo: voice (a team mate's "A is empty")
+// (v252) Known: what his side knew when he set off - seen by anyone of his side in the 10 s before (the minimap, voice),
+// spotted or in its UAV ring then, one who killed a man of his side in the minute before (the kill message, the death
+// screen - his own killer too), or one who fired within 150 m of one of them in the 10 s before (heard). Up to v251 it was
+// "generous" - also seen to 5 s after, and seen by him, spotted or in the UAV ring until he got there: but then the enemies
+// at the flag he went to turned known as he got there, and every player looked lucky (the archive of 2026-10-28: the
+// crowd's lean 0.25 a choice; by what was known when he set off, -0.01, and a radar is found 4-5 x as often). The rest of
+// what E keeps (his own sightings on the way among it) is for trying other rules. Not in the demo: voice (a team mate's
+// "A is empty")
 // The flags he could have gone for are chosen without looking at the one he did go for (else the choice would shape its own
 // odds): every flag his side did not hold out to 2 x the nearest one's distance or it + 150 m; a trip to a flag farther
 // than that, or set off from 25 m of a zone's edge or less, is left out.
 const CH_DIED_M = 30, CH_DIED_F = 0.33, CH_DIED_H = 15, CH_GO = 10, CH_FAR = 60, CH_LEAD = 20, CH_EDGE = 25, CH_T0 = 6, CH_T1 = 120, CH_STAY = 4, CH_NEAR = 20, CH_SEEN = 20, CH_AFTER = 5, CH_GRID = 0.25, CH_KILL = 60, CH_HEAR = 10, CH_HEAR_D = 150, CH_ORD = 50, CH_X = 2, CH_PLUS = 150, CH_MV = 5, CH_RUN = 7.5
 const CH_BACK = 60, CH_AHEAD = 20, CH_KILL_B = 120, CH_HEAR_B = 30, CH_HEAR_F = 300;   // (v251: how far E looks, beyond the page's rule)
+const CH_KNOWN = 10;   // (v252) the rule: seen by his side in the 10 s before he set off (CH_SEEN / CH_AFTER: where E looks on the fine grid)
 function flagChoices(R) {
   const { times: T, n, X, Y, L, DN, VT, DR, FO, FC, nf } = R, F = T.length; if (!nf || !FO || !FC || F < 100) return [];
   const st = T[1] - T[0] || 0.1, stay = Math.round(CH_STAY / st), back = Math.round(CH_MV / st);
@@ -1775,22 +1778,23 @@ function flagChoices(R) {
       if (dm <= CH_HEAR_D) { if (f[0] <= t0) E[9] = t0 - f[0]; else if (E[10] == null) E[10] = f[0] - t0; }
       if (dm <= CH_HEAR_F) { if (f[0] <= t0) E[11] = t0 - f[0]; else if (E[12] == null) E[12] = f[0] - t0; }
     }
-    // (he himself: on the fine grid when the page's rule needs it - nothing else told his side of the enemy - else on whole
-    // seconds, the first one then looked at closer: a quarter of the work, and only a sight of him shorter than 1 s missed)
+    // (he himself: on whole seconds, the first one then looked at closer - only a sight of him shorter than 1 s missed; the
+    // rule since v252 does not count it, it is kept to try others and for the admins' "seen by him on the way")
     const g2 = g0 + 1, g3 = Math.floor(t1 / CH_GRID);
-    if (known(kept(E)) !== 2) { for (let gi = g2; gi <= g3; gi++) if (sees(j, gi, tm, i)) { E[2] = gi * CH_GRID - t0; break; } }
-    else for (let gi = Math.ceil(g2 / Q) * Q; gi <= g3 + Q - 1; gi += Q) { const gk = Math.min(gi, g3); if (!sees(j, gk, tm, i)) continue; let f = gk; while (f - 1 >= Math.max(g2, gk - Q + 1) && sees(j, f - 1, tm, i)) f--; E[2] = f * CH_GRID - t0; break; }
+    for (let gi = Math.ceil(g2 / Q) * Q; gi <= g3 + Q - 1; gi += Q) { const gk = Math.min(gi, g3); if (!sees(j, gk, tm, i)) continue; let f = gk; while (f - 1 >= Math.max(g2, gk - Q + 1) && sees(j, f - 1, tm, i)) f--; E[2] = f * CH_GRID - t0; break; }
     return E;
   };
-  // the page's rule (as it always was): 2 seen by his side from 20 s before he set off to 5 s after, by him or spotted or
-  // in the UAV ring until he got there, or killed a man of his side from 60 s before to 5 s after; 1 only heard (fired
-  // within 150 m of one of them from 10 s before to 5 s after); 0 nobody of his side knew of him
+  // the rule (v252, as server/choices.mjs's KNOWN): what his side knew WHEN HE SET OFF - 2 seen by any of them in the 10 s
+  // before, spotted then (a spot shows 5 s) or in its UAV ring then, or killed a man of his side in the minute before; 1
+  // only heard (fired within 150 m of one of them in the 10 s before); 0 nobody of his side knew of him. Up to v251 it also
+  // took what came after (sightings to 5 s after, his own sightings, spots and the UAV ring until he got there) - but he
+  // sees the enemies at the flag he goes to as he gets there, so every player looked lucky (admin-hints.md -> Flag
+  // choices)
   const le = (v, x) => v != null && v <= x;
   // (E's values rounded up - to 0.01 s, 0.1 m - so that a rule of whole steps (<= 20 s, <= 20 m) gives over them what it
   // gives over the exact ones)
   const up = (v, k) => Math.ceil(v * k - 1e-6) / k, kept = E => E.map(x => x == null ? null : up(x, 100));
-  const known = E => le(E[0], CH_SEEN) || le(E[1], CH_AFTER) || E[2] != null || le(E[3], CH_SEEN + SPOT_SHOW) || E[4] != null || le(E[5], CH_SEEN) || E[6] != null || le(E[7], CH_KILL) || le(E[8], CH_AFTER) ? 2
-    : le(E[9], CH_HEAR) || le(E[10], CH_AFTER) ? 1 : 0;
+  const known = E => le(E[0], CH_KNOWN) || le(E[3], CH_KNOWN + SPOT_SHOW) || le(E[5], CH_KNOWN) || le(E[7], CH_KILL) ? 2 : le(E[9], CH_HEAR) ? 1 : 0;
   const out = [], lost = R._chLost = [], ST = R._chSt = { trips: 0, riding: 0, air: 0, fast: 0, time: 0, near: 0, own: 0, far: 0, one: 0, cmdr: 0, died: 0, lost: 0, kept: 0 };   // (why trips were left out; lost: [player, t] - killed on the way, his flag not known)
   // a trip: from frame a (where it began) into zone k at frame q
   // k < 0: he was killed (or went down) on the way, at frame q - the flag he was making for is the one he had come
@@ -2133,7 +2137,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
   box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 12362) ----
+// ---- part 7 (page line 12366) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -3035,7 +3039,7 @@ function fcPlayer(S, p, J) {
   const min = J.min || 15, flag = p.q != null && p.q < 0.05;
   const say = !p.ranked ? `Fewer than ${min} telling choices (${p.telling}): not ranked yet - a few more rounds.` : flag ? 'He stands out: of the ranked players at his level or above, about 1 in 20 is there by luck. Watch his choices below - the side view, his team\'s minimap, his squad - and his other hints.' : p.q != null && p.q < 0.2 ? 'Somewhat above the others - not enough to say anything.' : 'Nothing out of the ordinary.';
   const mom = (p.moments || []).map(m => {
-    const fl = m.cands.map((c, k) => `<span class="fcf${k === m.chosen ? ' ch' : ''}" title="${k === m.chosen ? 'the flag he went for' : 'a flag he could have gone for'}">${k === m.chosen ? '▶ ' : ''}${esc(c[0])} <span class="w">${c[1]} m</span> · <b class="${c[2] + c[3] ? 'fch' : ''}">${c[2]}+${c[3]}</b> hidden · ${c[4]} known · <span class="w">his odds ${c[5]}%</span></span>`).join('');
+    const fl = m.cands.map((c, k) => `<span class="fcf${k === m.chosen ? ' ch' : ''}" title="${k === m.chosen ? 'the flag he went for' : 'a flag he could have gone for'}">${k === m.chosen ? '▶ ' : ''}${esc(c[0])} <span class="w">${c[1]} m</span> · <b class="${c[2] + c[3] ? 'fch' : ''}">${c[2]}+${c[3]}</b> hidden${c[6] ? ` <span class="w" title="Of the hidden ones, those he saw himself on the way - after he set off (he may have turned away from them)">(${c[6]} seen by him on the way)</span>` : ''} · ${c[4]} known · <span class="w">his odds ${c[5]}%</span></span>`).join('');
     const day = /^\d{4}-\d\d-\d\d/.test(m.date || '') ? dayName(String(m.date).slice(0, 10)) + ' ' + String(m.date).slice(11, 16) : '';
     return `<li><a class="plink" href="${fcLink(m, p.name)}" title="Open the round there (3 s before he set off), following him">${esc([day, mapName(m.map), fmt(m.t)].filter(Boolean).join(' · '))} ↗</a>${m.died ? ' <span class="admstr">killed on the way</span>' : ''}${!S.key && m.server ? ` <span class="w">${esc(m.server)}</span>` : ''}<div class="fcfl">${fl}</div></li>`;
   }).join('');
@@ -3051,7 +3055,7 @@ function fcPlayer(S, p, J) {
       <div class="kpi"><span class="kl">Reads the game</span><span class="kv">${fcZ(p.zKnown)}</span><span class="ks">the known enemies he avoided</span></div></div>
     <p class="fcsay">${say}</p>
     ${fav ? `<h3>His flags</h3><p class="w fcexp">The flags he went for most unlike everyone (of those he could have gone for 5 times or more). <b>Went</b>: times he went / times it was on offer · <b>everyone</b>: how often everyone's odds would have him go · <b>hidden</b>: the enemies nobody of a side knew of there, on a trip, as a rule · <b>taste</b>: what the model allows him for that flag, learnt only from his choices where every flag had as many hidden enemies (a radar shows nothing there) - a liking for a quiet flag is his way, and his odds above take it in.</p><div class="stscroll"><table class="sttab fcfav"><thead><tr><th>Flag</th><th class="n" title="Times he went / times it was on offer">Went</th><th class="n" title="How often everyone's odds would have him go">Everyone</th><th class="n" title="Hidden enemies there on a trip, as a rule">Hidden</th><th class="n" title="What the model allows him for that flag">Taste</th></tr></thead><tbody>${fav}</tbody></table></div>` : ''}
-    ${mom ? `<h3>His most telling choices</h3><p class="w fcexp">▶ the flag he went for. <b>hidden</b>: enemies on the flag + on the way in that nobody on his side knew of · <b>known</b>: those his side saw, spotted, had in the UAV ring, heard, or who had killed one of them · <b>his odds</b>: by his own way of choosing (his flags too) and what he could know. The link opens the round 3 s before he set off, following him.</p><ul class="fcmom">${mom}</ul>` : `<p class="w">No moments kept (fewer than 5 telling choices).</p>`}</section>`;
+    ${mom ? `<h3>His most telling choices</h3><p class="w fcexp">▶ the flag he went for. <b>hidden</b>: enemies on the flag + on the way in that nobody on his side knew of · <b>known</b>: those his side knew of when he set off (seen in the 10 s before, spotted or in the UAV ring then, heard, or who had killed one of them) · <b>seen by him on the way</b>: hidden ones he saw himself after he set off - if he turned away from them, that is no luck · <b>his odds</b>: by his own way of choosing (his flags too) and what he could know. The link opens the round 3 s before he set off, following him.</p><ul class="fcmom">${mom}</ul>` : `<p class="w">No moments kept (fewer than 5 telling choices).</p>`}</section>`;
 }
 // (v251) the placebo: under no link at all, a shuffle flags someone at q < 0.05 about 1 time in 20 - more shuffles with
 // someone than that (a binomial tail under 2%) is a reason to doubt the spread
@@ -3080,7 +3084,7 @@ function fcRender(box, arg) {
   let html = statsHead('Flag choices', sub) + tabs + `<div class="kpis">${tile('Players ranked', ranked.length, `${min}+ telling choices`)}${tile('Worth a look', plain ? '–' : flagged.length, plain ? 'under 30 ranked: no q yet' : 'q < 0.05', flagged.length > 0)}
     ${pl ? tile('Placebo', `${pl.flaggedAtQ05}`, !pl.flaggedAtQ05 ? `flagged in ${pl.runs} shuffles: as it should be` : fcOdd(pl) ? `flagged in ${pl.runsWithAny} of ${pl.runs} shuffles: more than chance - careful` : `flagged in ${pl.runsWithAny} of ${pl.runs} shuffles: within chance (about 1 in 20)`, fcOdd(pl)) : ''}
     ${C?.trusted ? tile('Trusted players', `${C.trusted.flaggedAtQ05} / ${C.trusted.ranked}`, 'of the ranked at q < 0.05 (should be 0)', C.trusted.flaggedAtQ05 > 0) : ''}</div>
-    <details class="fchow"><summary>How to read it</summary><p>Every trip a soldier made to a flag his side did not hold is set against the flags he could have gone for. For each flag, what his side could know then (distance, owner, team mates there, the enemies seen, spotted, in the UAV ring, heard, or who had killed one of them) and what nobody on his side knew (the other enemies there). A model learnt from everyone's choices, fitted again to each player's own way of choosing (and his own liking for some flags, learnt where a radar shows nothing), gives each flag his odds; a wallhack or radar shows him the rest, so he keeps meeting fewer hidden enemies than his odds foretell. <b>Telling</b>: a choice where the flags differed in hidden enemies (about one a round for a man who plays the whole round). <b>Beyond</b>: how unlikely so few hidden enemies are, in standard units, against the spread of everyone's (wider for regulars), less what his reading of the game (the known enemies he avoided) explains - the ranking. <b>q</b>: of the players ranked at his level or above, about that share is there by luck (q &lt; 0.05: 1 in 20). <b>Lost</b>: his trips that ended in his death with the flag not known.</p><p class="w">A reason to watch his choices, never proof: voice is not in the demo - a squad that talks ("A is empty") makes its leader look lucky too, and so does a team mate spectating for him. The method and how sure it is: the admins' docs, admin-hints.md → Flag choices.</p></details></section>`;
+    <details class="fchow"><summary>How to read it</summary><p>Every trip a soldier made to a flag his side did not hold is set against the flags he could have gone for. For each flag, what his side knew when he set off (distance, owner, team mates there, the enemies seen in the 10 s before, spotted or in the UAV ring then, heard, or who had killed one of them) and what nobody on his side knew (the other enemies there). A model learnt from everyone's choices, fitted again to each player's own way of choosing (and his own liking for some flags, learnt where a radar shows nothing), gives each flag his odds; a wallhack or radar shows him the rest, so he keeps meeting fewer hidden enemies than his odds foretell. <b>Telling</b>: a choice where the flags differed in hidden enemies (about one a round for a man who plays the whole round). <b>Beyond</b>: how unlikely so few hidden enemies are, in standard units, against the spread of everyone's (wider for regulars), less what his reading of the game (the known enemies he avoided) explains - the ranking. <b>q</b>: of the players ranked at his level or above, about that share is there by luck (q &lt; 0.05: 1 in 20). <b>Lost</b>: his trips that ended in his death with the flag not known.</p><p class="w">A reason to watch his choices, never proof: voice is not in the demo - a squad that talks ("A is empty") makes its leader look lucky too, and so does a team mate spectating for him. The method and how sure it is: the admins' docs, admin-hints.md → Flag choices.</p></details></section>`;
   if (sel) html += fcPlayer(S, sel, J);
   html += fcPlot(S, P, sel && sel.nick, (box.clientWidth || 700) - 40);
   const q = fc.q.trim().toLowerCase(), rows = P.filter(p => (fc.all || p.ranked) && (!fc.only || (p.q != null && p.q < 0.05)) && (!q || p.name.toLowerCase().includes(q) || p.nick.toLowerCase().includes(q)));
@@ -3135,7 +3139,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 17106) ----
+// ---- part 8 (page line 17110) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -3153,7 +3157,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 17142) ----
+// ---- part 9 (page line 17146) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

@@ -130,7 +130,7 @@ the exact collision shapes of the maps `site/assets/geo`, the maps' trees `site/
 minimaps `site/assets/maps_hd`). Unpack it over your clone and push:
 
 ```bash
-V=v251                                   # the version in the archive's name
+V=v252                                   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

@@ -34,10 +34,12 @@
 //     --selftest [--players N --cheat share --style sd --trait sd --detail]   a made-up archive (the real flags,
 //                                   made-up players, some of them cheaters): how many cheaters are found, and how many
 //                                   honest players with them
-//     --known k=v,...               (v251) another rule for which enemies his side knew of, worked out again over the
-//                                   analysis's E (rounds analysed with v251 or later): seen=10 (sightings by his side from
-//                                   10 s before he set off, not 20), after=0, own=0, spot=0, spotTo=5, uav=0, uavTo=5,
-//                                   kill=30, hear=0 (heard counts as hidden), hearD=300, near=10, far=40 - e.g. with --check
+//     --start S                     (v252) trips set off in a round's first S s left out (default 15; 0: none)
+//     --known k=v,...               (v251) another rule for which enemies his side knew of, worked out over the analysis's
+//                                   E (rounds analysed with v251 or later; v252: always so): seen=20 (sightings by his
+//                                   side from 20 s before he set off, not 10), after=5, own=1 (ownTo=10, ownGap=10),
+//                                   spot=0, spotTo=5, uav=0, uavTo=5, kill=30, hear=0 (heard counts as hidden), hearD=300,
+//                                   near=10, far=40, v251 (the rule up to v251) - e.g. with --check
 //                                   to see whether it finds more (the admins' file is left as it is unless --out F says
 //                                   where; BF2R_CHOICES_KNOWN in /etc/bf2replay.conf makes the background run use one)
 //     --out F                       the JSON elsewhere (--out - : none)
@@ -48,7 +50,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { readRoundList } from './roundsidx.mjs';
 
-export const CHOICES_V = 2;   // (v251: his taste in flags, his favourite flags, the knowledge rules from the analysis's E)
+export const CHOICES_V = 3;   // (v252: known = what his side knew when he set off, over E; v251: his taste in flags, his favourite flags, the knowledge rules from the analysis's E)
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
 const opt = (k, d) => process.env[k] ?? conf[k] ?? d;
@@ -78,35 +80,52 @@ export function countedFiles(data = path.join(ROOT, 'data')) {
   let listed = null; try { const L = readRoundList(fs, path, data).rounds; if (L && L.length) listed = new Set(L.map(r => fileOf(r.name))); } catch (e) {}
   return { skip: new Set(Object.keys(copies).map(fileOf)), listed };
 }
-// (v251) which enemies near a flag count as known to his side: the page's rule (the analysis's counts) or another one
-// worked out again over Cc's E (the analysis's files of v251 on - rounds analysed before are left out then). seen: s
-// before he set off that a sighting by his side still counts (the page: 20, at most 60); after: s after he set off that a
-// sighting, a kill or a shot still counts (5, at most 20); own: his own sightings until he got there (1 / 0); spot, uav:
-// spots (shown 5 s) and the UAV ring from `seen` before (1 / 0) until spotTo / uavTo s after (-1: until he got there);
-// kill: s before he set off that a man of his side killed by him counts (60, at most 120; 0 none); hear: s before that a
-// shot near one of his side counts as heard (10, at most 30; 0: heard is not known - those count as hidden); hearD: how
-// near (150, or 300); near: m out of the zone's edge an enemy is "there" (20); far: out to which he is "on the way in" (60)
-export const KNOWN = { seen: 20, after: 5, own: 1, spot: 1, spotTo: -1, uav: 1, uavTo: -1, kill: 60, hear: 10, hearD: 150, near: 20, far: 60 };
+// which enemies near a flag count as known to his side - worked out over Cc's E (the analysis's files of v251 on; rounds
+// analysed before are left out). (v252) By default what his side knew WHEN HE SET OFF: seen by any of them in the 10 s
+// before, on its minimap then (a spot, the UAV ring), one who killed a man of his side in the minute before, or one heard
+// firing near them in the 10 s before - nothing that came after. Up to v251 the page also counted what came after
+// (sightings to 5 s after, his own sightings, spots and the UAV ring until he got there): but he sees the enemies at the
+// flag he goes to as he gets there, so they turned "known" there and every player looked lucky (everyone's lean 0.25 a
+// choice, spread 0.03 a choice); by what was known when he set off, the honest crowd shows no lean (-0.01) and next to no
+// spread (0.001), and a radar put into 30% of a player's choices is found 4-5 x as often (the archive of 2026-10-28, v251:
+// admin-hints.md -> Flag choices). And by the crowd's own choices, an enemy seen 10-60 s before is gone for no less
+// than one never seen (0.09 / 0.09 / -0.03 against -0.05): they don't go by older sightings.
+// seen: s before he set off that a sighting by his side still counts (10, at most 60); after: s after he set off that a
+// sighting, a kill or a shot still counts (0, at most 20); own: his own sightings on the way (0 / 1) - ownTo: up to s after
+// he set off (-1: until he got there), ownGap: not in the last s before he got there; spot, uav: spots (shown 5 s) and the
+// UAV ring from `seen` before (1 / 0) until spotTo / uavTo s after (0; -1: until he got there); kill: s before he set
+// off that a man of his side killed by him counts (60, at most 120; 0 none); hear: s before that a shot near one of his
+// side counts as heard (10, at most 30; 0: heard is not known - those count as hidden); hearD: how near (150, or 300);
+// near: m out of the zone's edge an enemy is "there" (20); far: out to which he is "on the way in" (60). `v251` (as a
+// word in --known) starts from the rule up to v251
+export const KNOWN = { seen: 10, after: 0, own: 0, ownTo: -1, ownGap: 0, spot: 1, spotTo: 0, uav: 1, uavTo: 0, kill: 60, hear: 10, hearD: 150, near: 20, far: 60 };
+export const KNOWN_V251 = { ...KNOWN, seen: 20, after: 5, own: 1, spotTo: -1, uavTo: -1 };
 const SPOT_SHOW = 5;
 export function knownRule(txt) {
-  if (!txt) return null; const R = { ...KNOWN };
-  for (const part of String(txt).split(',')) { const m = /^\s*(\w+)\s*=\s*(-?[\d.]+)\s*$/.exec(part); if (!m || !Object.hasOwn(KNOWN, m[1]) || !Number.isFinite(+m[2])) throw new Error('--known: ' + part.trim() + ' (one of ' + Object.keys(KNOWN).join(', ') + ', = a number)'); R[m[1]] = +m[2]; }
+  if (!txt) return null; const parts = String(txt).split(',').map(x => x.trim()).filter(Boolean), R = { ...(parts.includes('v251') ? KNOWN_V251 : KNOWN) };
+  for (const part of parts) { if (part === 'v251') continue; const m = /^(\w+)\s*=\s*(-?[\d.]+)$/.exec(part); if (!m || !Object.hasOwn(KNOWN, m[1]) || !Number.isFinite(+m[2])) throw new Error('--known: ' + part + ' (one of ' + Object.keys(KNOWN).join(', ') + ', = a number; or v251)'); R[m[1]] = +m[2]; }
   R.seen = Math.min(60, R.seen); R.after = Math.min(20, R.after); R.kill = Math.min(120, R.kill); R.hear = Math.min(30, R.hear); R.far = Math.min(60, R.far);
   return R;
 }
-// one enemy's E: [player, m out, sB, sA, oA, spB, spA, uB, uA, kB, kA, hB, hA, fB, fA] -> 2 known, 1 only heard, 0 not
+// one enemy's E: [player, m out, sB, sA, oA, spB, spA, uB, uA, kB, kA, hB, hA, fB, fA] -> 2 known, 1 only heard, 0 not;
+// dur: s from when he set off to when he got there (or fell)
 const leq = (v, x) => v != null && v <= x;
-function knownBy(e, K) {
-  if (leq(e[2], K.seen) || leq(e[3], K.after) || (K.own && e[4] != null)) return 2;
+function knownBy(e, K, dur = Infinity) {
+  const ownEnd = Math.min(K.ownTo < 0 ? Infinity : K.ownTo, dur - K.ownGap);
+  if (leq(e[2], K.seen) || leq(e[3], K.after) || (K.own && leq(e[4], ownEnd))) return 2;
   if (K.spot && (leq(e[5], K.seen + SPOT_SHOW) || (K.spotTo < 0 ? e[6] != null : leq(e[6], K.spotTo)))) return 2;
   if (K.uav && (leq(e[7], K.seen) || (K.uavTo < 0 ? e[8] != null : leq(e[8], K.uavTo)))) return 2;
   if (K.kill > 0 && (leq(e[9], K.kill) || leq(e[10], K.after))) return 2;
   const [hb, ha] = K.hearD > 150 ? [e[13], e[14]] : [e[11], e[12]];
   return K.hear > 0 && (leq(hb, K.hear) || leq(ha, K.after)) ? 1 : 0;
 }
-export function readChoices(dir, { nickOf, maps = null, since = '', until = '', all = false, arrived = false, skip = null, listed = null, known = null } = {}) {
+// (v252) the trips set off in the first START s of a round are left out: who is where then is the map's spawns, not anyone's
+// knowing - everyone keeps away from the enemy's spawn flags then (the crowd's lean 0.08 a telling choice there, none after
+// 15 s), and a regular who is there at every round's start would look lucky for it
+export const START = 15;
+export function readChoices(dir, { nickOf, maps = null, since = '', until = '', all = false, arrived = false, skip = null, listed = null, known = null, start = START } = {}) {
   nickOf = nickOf || nickRule();
-  const out = [], st = { files: 0, noC: 0, noE: 0, rounds: 0, rows: 0, followed: 0, bots: 0, skipped: 0, died: 0, copies: 0, unlisted: 0, dupes: 0 }, lost = new Map(), seenRound = new Set();
+  const out = [], st = { files: 0, noC: 0, noE: 0, start: 0, rounds: 0, rows: 0, followed: 0, bots: 0, skipped: 0, died: 0, copies: 0, unlisted: 0, dupes: 0 }, lost = new Map(), seenRound = new Set();
   let files = []; try { files = fs.readdirSync(dir).filter(f => f.endsWith('.json.gz')).sort(); } catch (e) { return { D: out, st, lost }; }
   for (const f of files) {
     st.files++;
@@ -115,7 +134,7 @@ export function readChoices(dir, { nickOf, maps = null, since = '', until = '', 
     if (!Array.isArray(j.C) || !j.cols?.C || !j.cols?.Cc) { st.noC++; continue; }
     const meta = { ...(j.meta || {}), ...(j.round?.sum || {}) }, map = String(meta.map || j.map || '').toLowerCase(), date = String(meta.date || '');
     if (maps && !maps.has(map)) continue; if (since && date.slice(0, 10) < since) continue; if (until && date.slice(0, 10) > until) continue;
-    if (known && j.cols.Cc.indexOf('E') < 0) { st.noE++; continue; }
+    if (j.cols.Cc.indexOf('E') < 0) { st.noE++; continue; }   // (v252: the counts by the rule, over E - not the page's stored ones)
     // (the same round twice - two files of one demo: by its server, time and map)
     const rk = String(meta.server || '') + '|' + date + '|' + map; if (date && seenRound.has(rk)) { st.dupes++; continue; } seenRound.add(rk);
     st.rounds++;
@@ -124,15 +143,16 @@ export function readChoices(dir, { nickOf, maps = null, since = '', until = '', 
     const c = j.cols.C, cc = j.cols.Cc, ix = k => c.indexOf(k), jx = k => cc.indexOf(k);
     const I = { p: ix('player'), t0: ix('t0'), ta: ix('tArr'), ch: ix('chosen'), tm: ix('team'), role: ix('role'), veh: ix('veh'), trip: ix('trip'), cands: ix('cands'), lead: ix('lead'), died: ix('died') };
     const J = { f: jx('flag'), d: jx('d'), own: jx('own'), lvl: jx('lvl'), mv: jx('mv'), ally: jx('ally'), kn: jx('known'), unk: jx('unk'), ord: jx('ord'), hr: jx('heard'), far: jx('unkFar'), E: jx('E') };
-    // (another rule for "known": the counts worked out again over each enemy's E)
-    const kc = x => { if (!known) return [x[J.kn], x[J.unk], J.hr >= 0 ? x[J.hr] || 0 : 0, J.far >= 0 ? x[J.far] || 0 : 0]; let kn = 0, unk = 0, hr = 0, far = 0; for (const e of x[J.E] || []) { if (e[1] > known.far) continue; const v = knownBy(e, known); if (e[1] > known.near) { if (!v) far++; continue; } if (v) { kn++; if (v === 1) hr++; } else unk++; } return [kn, unk, hr, far]; };
+    // (the counts by the rule over each enemy's E; os: of the hidden ones, those he saw himself on the way)
+    const K = known || KNOWN, kc = (x, dur) => { let kn = 0, unk = 0, hr = 0, far = 0, os = 0; for (const e of x[J.E] || []) { if (e[1] > K.far) continue; const v = knownBy(e, K, dur); if (!v && e[4] != null) os++; if (e[1] > K.near) { if (!v) far++; continue; } if (v) { kn++; if (v === 1) hr++; } else unk++; } return [kn, unk, hr, far, os]; };
     const round = linkId(j.round?.name || j.name), Cf = Array.isArray(j.Cf) ? j.Cf : null;
     for (const r of j.CL || []) { const w = who.get(r[0]); if (w) lost.set(w[0], (lost.get(w[0]) || 0) + 1); }   // (killed on the way, his flag not known)
     for (const r of j.C) {
       st.rows++; const w = who.get(r[I.p]); if (!w) { st.bots++; continue; }
+      if (r[I.t0] < start) { st.start++; continue; }
       const role = r[I.role], lead = I.lead >= 0 ? r[I.lead] || 0 : 0; if (role === 0 && lead && !all) { st.followed++; continue; }
       const died = I.died >= 0 ? r[I.died] || 0 : 0; if (died) { if (arrived) continue; st.died++; }
-      const cands = r[I.cands].map(x => { const [kn, unk, hr, far] = kc(x); return { f: x[J.f], fn: Cf ? String(Cf[x[J.f]] ?? x[J.f]) : String(x[J.f]), d: x[J.d], own: x[J.own], lvl: x[J.lvl] ?? 0, mv: x[J.mv] ?? 0, ally: x[J.ally], kn, unk, ord: x[J.ord], hr, far }; });
+      const cands = r[I.cands].map(x => { const [kn, unk, hr, far, os] = kc(x, r[I.ta] - r[I.t0]); return { os, f: x[J.f], fn: Cf ? String(Cf[x[J.f]] ?? x[J.f]) : String(x[J.f]), d: x[J.d], own: x[J.own], lvl: x[J.lvl] ?? 0, mv: x[J.mv] ?? 0, ally: x[J.ally], kn, unk, ord: x[J.ord], hr, far }; });
       if (cands.length < 2 || r[I.ch] < 0) { if (died && r[I.ch] < 0) lost.set(w[0], (lost.get(w[0]) || 0) + 1); continue; }
       out.push({ nick: w[0], name: w[1], round, date, map, server: String(meta.server || ''), t0: r[I.t0], ta: r[I.ta], ch: r[I.ch], tm: r[I.tm], role, lead, died, veh: r[I.veh], cands });
     }
@@ -478,7 +498,7 @@ function favFlags(D, taste) {
 }
 function playersJson(A, fav = null) {
   return A.L.filter(o => o.tell > 0).sort((x, y) => y.zR - x.zR).map(o => ({ nick: o.nick, name: o.name, rounds: o.rounds, choices: o.n, telling: o.tell, emptiest: o.hit, foretold: +o.E.toFixed(2), ratio: o.ratio == null ? null : +o.ratio.toFixed(3), shrunk: +o.shrunk.toFixed(3), ci: o.ci.map(v => +v.toFixed(3)), avoided: +(o.exp - o.met).toFixed(2), z: +o.z.toFixed(3), zKnown: +o.zKn.toFixed(3), zBeyond: +o.zR.toFixed(3), lost: o.lost, lostShare: +o.lostShare.toFixed(3), p: +o.p.toExponential(3), q: o.q == null ? null : +o.q.toFixed(4), ranked: o.ranked,
-    moments: o.tell < 5 ? [] : o.moments.sort((x, y) => y.why - x.why).slice(0, 10).map(m => { const pp = m.d.pS || m.d.p || []; return { round: m.round, t: m.t, map: m.map, date: m.date, server: m.d.server || '', chosen: m.d.ch, died: m.d.died || 0, cands: m.d.cands.map((c, k) => [c.fn, c.d, c.unk, c.far, c.kn, Math.round((pp[k] || 0) * 100)]), link: linkOf(m.round, m.t, o.name) }; }),
+    moments: o.tell < 5 ? [] : o.moments.sort((x, y) => y.why - x.why).slice(0, 10).map(m => { const pp = m.d.pS || m.d.p || []; return { round: m.round, t: m.t, map: m.map, date: m.date, server: m.d.server || '', chosen: m.d.ch, died: m.d.died || 0, cands: m.d.cands.map((c, k) => [c.fn, c.d, c.unk, c.far, c.kn, Math.round((pp[k] || 0) * 100), c.os || 0]), link: linkOf(m.round, m.t, o.name) }; }),
     flags: o.tell < 5 || !fav ? [] : fav.get(o.nick) || [] }));
 }
 const nulJson = N => Object.fromEntries(Object.entries(N).map(([k, v]) => [k, typeof v === 'number' ? +v.toFixed(4) : v]));
@@ -508,10 +528,10 @@ export function runChoices({ dir = path.join(ROOT, 'analysis', 'rounds'), data =
   let newest = 0; try { for (const f of fs.readdirSync(dir)) if (f.endsWith('.json.gz')) newest = Math.max(newest, fs.statSync(path.join(dir, f)).mtimeMs); } catch (e) { log('flag choices: no analysed rounds'); return null; }
   if (!force && made && newest <= made) return null;
   // (v251) another rule for "known" from /etc/bf2replay.conf (BF2R_CHOICES_KNOWN="seen=10,hear=0" - tried first with
-  // choices.mjs --known ... --check): rounds analysed before v251 are left out then
+  // choices.mjs --known ... --check)
   let known = null; try { known = knownRule(opt('BF2R_CHOICES_KNOWN', '').trim()); } catch (e) { log('flag choices: BF2R_CHOICES_KNOWN ' + e.message + ' - the page\'s rule'); }
   const t0 = Date.now(), { D, st, lost } = readChoices(dir, { ...countedFiles(data), known });
-  if (D.length < 20) { log(`flag choices: ${D.length} choices so far (${st.noC} rounds analysed before v249${st.noE ? `, ${st.noE} before v251 - left out by BF2R_CHOICES_KNOWN` : ''}) - too few, not written`); return null; }
+  if (D.length < 20) { log(`flag choices: ${D.length} choices so far (${st.noC} rounds analysed before v249${st.noE ? `, ${st.noE} before v251 - left out: the background analysis goes over them` : ''}) - too few, not written`); return null; }
   const A = analyse(D, { min, lost }), J = choicesJson(A, D, st, min);
   if (known) J.known = Object.fromEntries(Object.entries(known).filter(([k, v]) => KNOWN[k] !== v));
   J.byServer = byServerJson(D, min);
@@ -522,7 +542,7 @@ export function runChoices({ dir = path.join(ROOT, 'analysis', 'rounds'), data =
   if (same(old) && old.at && Date.now() - Date.parse(old.at) < 24 * 3600e3) J.check = old;
   else { try { const tc = Date.now(); J.check = check(D, min, lost, { runs: 10, reps: 3, trusted: trustedNicks(data) }); J.check.ms = Date.now() - tc; J.check.v = CHOICES_V; J.check.known = J.known || null; } catch (e) { log('flag choices: the check went wrong:', e.message); } }
   writeJson(out, J);
-  log(`flag choices: ${known ? `(known by BF2R_CHOICES_KNOWN: ${JSON.stringify(J.known)}, ${st.noE} rounds analysed before v251 left out) ` : ''}${st.rounds} rounds, ${D.length} choices (${J.telling} telling), ${A.nul.ranked} players ranked, ${J.players.filter(p => isQ(p.q)).length} at q < 0.05; ${Object.keys(J.byServer).length} servers on their own${J.check && J.check !== old ? `; checked (placebo: ${J.check.placebo.flaggedAtQ05} flagged)` : ''}; ${Math.round((Date.now() - t0) / 1000)} s`);
+  log(`flag choices: ${known ? `(known by BF2R_CHOICES_KNOWN: ${JSON.stringify(J.known)}) ` : ''}${st.noE ? `(${st.noE} rounds analysed before v251 left out) ` : ''}${st.rounds} rounds, ${D.length} choices (${J.telling} telling), ${A.nul.ranked} players ranked, ${J.players.filter(p => isQ(p.q)).length} at q < 0.05; ${Object.keys(J.byServer).length} servers on their own${J.check && J.check !== old ? `; checked (placebo: ${J.check.placebo.flaggedAtQ05} flagged)` : ''}; ${Math.round((Date.now() - t0) / 1000)} s`);
   return J;
 }
 
@@ -532,9 +552,9 @@ if (import.meta.url === 'file://' + process.argv[1] || process.argv[1]?.endsWith
   const maps = val('--maps', '') ? new Set(val('--maps', '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)) : null;
   const flt = has('--dir') ? {} : countedFiles();   // (an archive elsewhere: every file in it)
   let known = null; try { known = knownRule(val('--known', '')); } catch (e) { console.log(e.message); process.exit(1); }
-  const { D, st, lost } = readChoices(dir, { maps, since: val('--since', ''), until: val('--until', ''), all: has('--all'), arrived: has('--arrived'), known, ...flt });
-  if (known) console.log(`known by another rule: ${Object.entries(known).filter(([k, v]) => KNOWN[k] !== v).map(([k, v]) => k + ' ' + v).join(', ') || 'the page\'s own'} (the page: ${Object.entries(KNOWN).map(([k, v]) => k + ' ' + v).join(', ')}); ${st.noE} rounds analysed before v251 left out`);
-  console.log(`${st.rounds} rounds with choices (${st.noC} analysed before v249 - none yet${st.copies + st.dupes ? `; ${st.copies + st.dupes} copies of other rounds left out` : ''}${st.unlisted ? `, ${st.unlisted} no more listed` : ''}), ${D.length} choices of players (${has('--arrived') ? 'killed on the way left out' : st.died + ' of them killed on the way'}; ${st.followed} squad members who followed their leader${has('--all') ? ' - counted' : ' - left out'}, ${st.bots} of bots)`);
+  const { D, st, lost } = readChoices(dir, { maps, since: val('--since', ''), until: val('--until', ''), all: has('--all'), arrived: has('--arrived'), known, start: num('--start', START), ...flt });
+  if (known) console.log(`known by another rule: ${Object.entries(known).filter(([k, v]) => KNOWN[k] !== v).map(([k, v]) => k + ' ' + v).join(', ') || 'the default one'} (the default: ${Object.entries(KNOWN).map(([k, v]) => k + ' ' + v).join(', ')})`);
+  console.log(`${st.rounds} rounds with choices (${st.noC} analysed before v249 - none yet${st.noE ? `, ${st.noE} before v251 - left out: what his side knew is not in them` : ''}${st.copies + st.dupes ? `; ${st.copies + st.dupes} copies of other rounds left out` : ''}${st.unlisted ? `, ${st.unlisted} no more listed` : ''}), ${D.length} choices of players (${has('--arrived') ? 'killed on the way left out' : st.died + ' of them killed on the way'}; ${st.followed} squad members who followed their leader${has('--all') ? ' - counted' : ' - left out'}, ${st.bots} of bots; ${st.start} set off in a round's first ${num('--start', START)} s - left out)`);
   if (has('--selftest')) {
     const T = D.filter(d => d.cands.length >= 2); if (T.length < 20) { console.log('too few choices to make an archive up from'); process.exit(0); }
     for (const seed of [11, 12, 13]) { const r = selfTest(T, { seed, players: num('--players', 300), cheat: num('--cheat', 0.05), styleSd: num('--style', 0.5), traitSd: num('--trait', 0.15), min, detail: has('--detail') }); console.log(JSON.stringify(r)); }
@@ -555,7 +575,7 @@ if (import.meta.url === 'file://' + process.argv[1] || process.argv[1]?.endsWith
     else {
       console.log(`\n${o.name}: ${o.n} choices in ${o.rounds} rounds, ${o.tell} telling; emptiest ${o.hit} / ${o.E.toFixed(1)} foretold (p ${o.pHit.toExponential(1)}), avoided ${(o.exp - o.met).toFixed(1)} hidden enemies; z ${o.z.toFixed(2)}, known ${o.zKn.toFixed(2)}, beyond ${o.zR.toFixed(2)}${o.q != null ? ', q ' + o.q.toFixed(3) : ''}; killed on the way, flag not known: ${o.lost}`);
       for (const m of o.moments.sort((x, y) => y.why - x.why).slice(0, 15)) {
-        const d = m.d, pp = d.pS || d.p, fl = (d.died ? '(killed on the way) ' : '') + d.cands.map((c, k) => `${k === d.ch ? '>' : ' '}${c.fn} ${c.d} m: ${c.unk}+${c.far} hidden, ${c.kn} known, odds ${(pp[k] * 100).toFixed(0)}%`).join(' | ');
+        const d = m.d, pp = d.pS || d.p, fl = (d.died ? '(killed on the way) ' : '') + d.cands.map((c, k) => `${k === d.ch ? '>' : ' '}${c.fn} ${c.d} m: ${c.unk}+${c.far} hidden${c.os ? ` (${c.os} seen by him on the way)` : ''}, ${c.kn} known, odds ${(pp[k] * 100).toFixed(0)}%`).join(' | ');
         console.log(`  ${m.date} ${m.map} ${Math.round(m.t)} s  ${fl}\n    ${linkOf(m.round, m.t, o.name)}`);
       }
       const fv = favFlags(D, A.taste).get(o.nick) || [];
