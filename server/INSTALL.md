@@ -1022,6 +1022,18 @@ nothing decoded or summed up again, nothing to do.
 once**; `BF2R_ANALYZE_JOBS`), batch after batch without the 5-minute breaks; *All rounds now* is gone ("Faster, several
 at once" above). The hint rules (15), the decoder and the summaries stay: nothing to do. A pass of v247 still going goes
 on with the new code after the update (the run going then finishes its rounds and stops; the next, 5 min later, is v248).
+(v249) The background analysis keeps a new table, the flag choices (its version 3): every round analysed before goes
+through it again by itself, after the new rounds and those of older hint rules — the hint rules, the players' hint
+cards, the decoder and the summaries stay as they are, nothing decoded again. Then `server/choices.mjs` (below) has
+something to compare; until most rounds are done it ranks few players. To have it sooner: more rounds at once on the
+Background analysis card.
+
+(v250) The admins' page **Flag choices** (`#achoices=1`) on the site: admin.mjs hands each account its part of
+`data/.admin/choices.json` (`/admin/api/choices`: the owner every server together and each on its own, a server's admin
+his servers' own; the raw file is the owner's only), and **Work it out again** (`/admin/api/choices-run`: the owner, or
+an account with the card Background analysis) starts `analyze.mjs --choices` in the background (`analysis/.choices.log`).
+choices.mjs now works each server out on its own too and runs its check once a day (some minutes on a big site: in
+the background analysis's run). The page, admin.mjs and the analysis restart / pick it up by themselves: nothing to do.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 
@@ -1046,6 +1058,26 @@ leaves it out of the set (the page and the server agree on what is left). To go 
 ```bash
 sudo rm /srv/bf2replay/data/.admin/hint-thresholds.json   # the site's: all recommended (the analysis goes over the rounds again)
 ```
+
+### Flag choices: who is lucky at flags (v249)
+
+The page's analysis (table C of each `analysis/rounds/*.json.gz`) keeps every trip a soldier made to a flag his side did
+not hold, with the flags he could have gone for and, for each, the enemies his side knew of there and those it did not.
+`server/choices.mjs` reads them all (some seconds for thousands of rounds), learns from everyone's choices how players
+choose by what they could know, and ranks the players by the enemies they could not know of that they avoided beyond
+that — [docs/admin-hints.md](../docs/admin-hints.md#flag-choices--over-all-of-a-players-rounds-v249).
+
+```bash
+cd /srv/bf2replay/repo/server
+sudo -u bf2replay node choices.mjs                 # the table (players with 15+ telling choices: --min N)
+sudo -u bf2replay node choices.mjs --nick NAME     # his choices, the most telling first, with links
+sudo -u bf2replay node choices.mjs --check         # placebo, split halves, peeking put into real players' choices, killed-on-the-way
+sudo -u bf2replay node choices.mjs --selftest      # a made-up archive from our rounds' flags, 5% cheaters: found, and false alarms
+sudo -u bf2replay node analyze.mjs --choices       # data/.admin/choices.json now (the background run does it at most once an hour)
+```
+
+`--all` counts squad members who followed their leader too; `--maps`, `--since`, `--until` narrow the rounds; `--dir`
+reads an unpacked analysis archive. The file is for the admins (`/admin/api/data/choices.json`, like the hint cards).
 
 ## 21. Old demos: what to keep so that there is room (v186)
 

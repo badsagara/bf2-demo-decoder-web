@@ -319,6 +319,13 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   question; only analysed rounds count, bots are left out, a server's admin sees his servers only. Bullets are an
   estimate from the magazine's count between two presses of the same weapon less than 20 s apart (none where the demo
   has no count).
+- (v249) **Flag choices** compare players over all their rounds: each trip to a flag his side did not hold, against the
+  flags he could have gone for, by what his side could know (seen, spotted, UAV, heard) and what it could not (the
+  other enemies there). A model learnt from everyone's choices, fitted again to each player's own way of choosing, gives each one its own odds; a player who keeps meeting
+  fewer hidden enemies than his odds foretell stands out (`server/choices.mjs`, `data/.admin/choices.json`). Voice is
+  not in the demo, so it is a reason to watch, never proof. (v250) The admins' page **Flag choices** (`#achoices=1`):
+  the ranking, a plot, each player's most telling choices with links; every server on its own too (a server's admin
+  sees only his); a check once a day (placebo, split halves, the trusted players).
 - **Glitch spot** uses a grid (2 × 2 m, 2.5 m high) of where living soldiers stood on foot in all rounds of a map; it
   needs 30+ rounds of the map.
 - A hint is a reason to watch, never proof; see [admin-hints.md](admin-hints.md) for each one.

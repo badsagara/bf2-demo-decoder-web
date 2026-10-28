@@ -1,4 +1,4 @@
-# Admin hints — what each one means and when it shows up (v247)
+# Admin hints — what each one means and when it shows up (v250)
 
 > **For admins only.** This file describes the hint rules and thresholds that are kept out of the public page. Don't
 > share it with players. A copy of the project's `admin-hints-en.md`; back to [the docs](README.md) · [admin guide](admin-guide.md).
@@ -265,3 +265,80 @@ What the demo can't show: a recoil script on an automatic weapon. Fifteen shots 
 54. **Side switch** (`teamsw`). He went over mid-round to the side that was 50+ tickets ahead and already had as many men or more. Other switches are mostly the server's balancing: 43 in 17 rounds.
 
 55. **TK + revive** (`tkrev`). 3 or more times he killed a team mate and revived him within 30 s: points from the defibrillator.
+
+## Flag choices — over all of a player's rounds (v249)
+
+Not a hint of one round: a comparison of players over every analysed round, for a wallhack or radar that shows where
+the enemies are. Such a player "is lucky" at flags: he goes for the flag where nobody is, when nothing he could know
+said it was empty.
+
+**What is counted.** Every trip to a flag his side did not hold: from where he spawned, was revived or left a flag zone
+(he must be 25 m or more from every zone's edge and travel 6–120 s), on foot or driving (not as a passenger, not in an
+aircraft, not faster than a man runs), to a flag zone where he stayed 4 s or died. **A trip that ended in his death on
+the way counts too** (about 2 in 5 on Karkand): its flag is the one he had come nearest to (a third of the way, 30 m or
+more, clearly more than any other), else the one his way pointed at (20° or less off, the next flag 40° or more).
+Without them the unlucky trips would be missing, and a player who is often killed on the way would look lucky; those
+whose flag can't be told are counted per player (*lost*) and `--check` says whether they go with the ranking. The flags
+he could have gone for instead: every flag his side did not hold, out to 2 × the nearest one's distance or it + 150 m —
+picked without looking at the one he chose. For each flag, at the moment he set off:
+- **what his side could know**: the distance; the enemy's or nobody's; the flag's height and which way it moved over
+  5 s (it blinks on the minimap); his team mates within the zone + 20 m (on his minimap); his squad's order there; and
+  the enemies there **known** to them — seen by anyone of his side from 20 s before he set off to 5 s after (minimap,
+  voice); seen by **him**, spotted or in the UAV ring at any moment until he got there or fell (an enemy he met on the
+  way and turned away from was known); who killed a man of his side from 60 s before to 5 s after (the kill message, the
+  death screen — his own killer too); or who fired within 150 m of one of them (heard);
+- **what nobody on his side knew**: the other enemies within the zone + 20 m, and 20–60 m out of it (on the way in).
+
+Generous on purpose: a wrong "unknown" would make an honest player look lucky, a wrong "known" only makes the test less
+sharp. On Karkand most enemies near a flag are known; a trip where the flags differ in **hidden** enemies — a
+**telling** choice — comes about once a round for a man who plays the whole round. A squad member whose leader went to
+the same flag (from 20 s before he set off to 20 s after he arrived) is left out: that was the leader's choice. The
+commander is left out. A flag is told by its name (each layer — 16, 32, 64 — has its own set).
+
+**How players are compared.**
+1. A model learns from **everyone's** choices how players choose by what they could know (each flag's odds by distance,
+   owner, height, team mates, known enemies, order — and how much each map's flag draws each side).
+2. **His own way of choosing.** The same weights are fitted again on each player's own choices, pulled towards
+   everyone's: a player who always goes for the far flags nobody fights over (back-capping) meets fewer enemies of
+   every kind, and by his own weights that is his way, not luck. Only the known part is fitted, so a cheater's pull
+   away from hidden enemies stays in what is left.
+3. For each player: the hidden enemies his own odds foretell over his telling choices, and how many he met
+   (**avoided** = the difference); how often he chose the emptiest flag, and how often his odds would (**emptiest**
+   x / E). How unlikely "so few" is, **exactly** (hidden enemies are rare, so a plain bell curve would run ahead of it).
+4. **z hid** — that, set against the spread of everyone's. The spread grows with how much a player has played: honest
+   players differ a little per choice (game sense, a squad that talks), which adds up over many choices, so a regular
+   is measured against a wider spread than a newcomer (fitted to the ranked players, the farthest 2.5% left out of the
+   fit so a few cheaters don't move it). **z kn** — the same for the *known* enemies: his reading of the game.
+   **beyond** — z hid less what his z kn foretells over everyone (only taken off: a good honest player avoids the
+   hidden enemies a little too; a player low on the known ones gets nothing from it): **the ranking**. **q** — the
+   false-discovery rate over all ranked players (Benjamini–Hochberg): q < 0.05 means that of the players at or above
+   him, about 1 in 20 is there by luck.
+5. Only players with **15 or more telling choices** are ranked. Fewer than 30 such players: the plain z and no q.
+
+**How sure (a made-up archive, v249).** The flags of real decoded rounds with made-up players: 12 runs of 300 players
+with 1–300 rounds each, honest ones each with his own way of choosing, his own game sense and his own bit of luck with
+hidden enemies, 10% cheaters pulled away from hidden enemies. Of 1,553 honest players ranked, **2** reached q < 0.05,
+of 42 flagged (5%, as q < 0.05 promises). Cheaters found at q < 0.05, by how many telling choices they had:
+
+| each hidden enemy cuts a flag's odds | 15–59 | 60–149 | 150–299 |
+|---|---|---|---|
+| 4.5 × (a radar he follows) | 8 of 32 | 18 of 23 | 3 of 4 |
+| 2.2 × | 2 of 35 | 3 of 26 | 4 of 8 |
+| 1.5 × (now and then) | 0 of 33 | 1 of 19 | 1 of 16 |
+
+So it finds a player who follows a radar once he has 60+ telling choices (60+ full rounds); one who peeks now and then
+it does not find. Real honest players also talk (voice, squads): run `--check` on the server's own rounds — the
+**placebo** (hidden enemies shuffled among choices of the same flags and side: nobody should be found, and *beyond*
+should spread about ±1), **split halves** (a real trait keeps its place between his odd and even rounds), peeking put
+into real players' choices, and whether *lost* goes with the ranking (it should not).
+
+**Not in the demo**: voice. A squad that talks ("A is empty") makes its leader look lucky too — check his squad
+mates' *beyond* and watch the moments. A team mate as a spectator who tells him (ghosting) looks the same as a
+wallhack here.
+
+**Where**: (v250) the site's **Flag choices** page for admins (`#achoices=1`: the admins' pane, a player's page, the
+Statistics page — [admin-guide.md](admin-guide.md#the-flag-choices-page-v250)): the ranking, a plot against the reading of
+the game, each player's most telling choices with links to the moment, the daily check; a server's admin sees his
+servers only, each on its own. On the server: `node server/choices.mjs` (the table; `--nick NAME`; `--check`;
+`--selftest`). The background analysis works it out at most once an hour (`analyze.mjs --choices` at once), each
+server on its own too, and runs the check once a day.

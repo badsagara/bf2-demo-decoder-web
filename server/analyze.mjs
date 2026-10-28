@@ -35,6 +35,9 @@
 //     --hints                       only the hints over every player's rounds: data/.admin/hints.json (each hint's share
 //                                   of soldier-rounds) and data/.admin/hints/<nick>.json (the player page's card; v196:
 //                                   the admins' - data/stats before)
+//     --choices                     (v249) only the flag choices over every analysed round (choices.mjs): who meets fewer
+//                                   enemies his side could not know of than his choices foretell - data/.admin/choices.json
+//                                   (--auto does it after the hints, at most once an hour)
 //     --glitch [N]                  only the glitch spots (glitch.mjs; no browser): N new rounds (default every one) into
 //                                   the maps' grids of places stood (analysis/glitch), then data/.admin/glitch/<map>.json;
 //                                   --auto does 150 a run first (--glitch-rounds N)
@@ -55,6 +58,7 @@ import { aggGlitch } from './glitch.mjs';
 import { alertRound } from './alerts.mjs';   // (v214)
 import { siteHv as htSiteHv } from './hintcfg.mjs';   // (v227)
 import { sameAs as decSame } from './decoders.mjs';   // (v229)
+import { runChoices } from './choices.mjs';   // (v249)
 
 const conf = {};
 try { for (const line of fs.readFileSync('/etc/bf2replay.conf', 'utf8').split('\n')) { const m = /^\s*([A-Z0-9_]+)\s*=\s*"?([^"#]*?)"?\s*(#.*)?$/.exec(line); if (m) conf[m[1]] = m[2]; } } catch (e) { /* no file: defaults */ }
@@ -151,6 +155,11 @@ const hvSave = () => { if (hvIdx) { try { fs.writeFileSync(HVI + '.tmp', JSON.st
 const hvOf = f => { const I = hvLoad(); if (I[f] !== undefined) return I[f]; let v = 0; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).hv || 0; } catch (e) {} return (I[f] = v); };
 // (v225) the decoder of the round's .bfr a file was worked out from ('' not known): a round decoded again since by a new
 // decoder (v225: where a soldier looks - the head's way, not the body's) is looked at again, as for new hint rules
+// (v249) the analysis's own version a file was made with (the page's ANALYZE_V: v3 added the flag choices, table C) - a
+// round done with the hint rules now but an older version is done again after the others, without changing the hint rules
+// (the players' hint cards stay as they are meanwhile)
+const avOf = f => { const I = hvLoad(), k = 'v:' + f; if (I[k] !== undefined) return I[k]; let v = 0; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).v || 0; } catch (e) {} return (I[k] = v); };
+function pageAv() { return +((/const ANALYZE_V = (\d+)/.exec(admText() || pageText()) || [])[1] || 0); }
 const decOf = f => { const I = hvLoad(), k = '@' + f; if (I[k] !== undefined) return I[k]; let v = ''; try { v = JSON.parse(zlib.gunzipSync(fs.readFileSync(path.join(RDIR, f)))).round?.decoder || ''; } catch (e) {} return (I[k] = v); };
 const NOT_SUS = new Set(['tk', 'claycap', 'clay', 'idle', 'spotspam', 'outside', 'teamsw', 'tkrev', 'prone', 'bhop', 'afkbot']);   // (v214: + the new rule ones)
 // (v214, todo 265: a suspicion score on the player card) log10 of P(X >= k), X ~ Binomial(n, p), summed in logs
@@ -184,7 +193,7 @@ function aggHints() {
         // claymores at a flag, idle, spot spam, out of bounds, unsure artillery) - its demo is kept for them (demos.mjs)
         const sus = [...new Set((d.H || []).filter(h => h && !h.info && !NOT_SUS.has(h.kind) && !(h.kind === 'arty' && !h.sure)).map(h => h.kind))];
         c = cache[f] = { cv: 2, mt: st.mtimeMs, hv: d.hv || 0, name: d.round?.name || d.name, date: d.meta?.date || '', pl, sus, h: [...hc].map(([k, n]) => { const [j, kind] = k.split('|'); return [+j, kind, n]; }) };
-        hvLoad()[f] = d.hv || 0; hvLoad()['@' + f] = d.round?.decoder || '';
+        hvLoad()[f] = d.hv || 0; hvLoad()['@' + f] = d.round?.decoder || ''; hvLoad()['v:' + f] = d.v || 0;
       } catch (e) { continue; }
     }
     out[f] = c;
@@ -238,6 +247,10 @@ function aggHints() {
   log(`hints over every player's rounds: ${rounds} rounds (hint rules ${HV}), ${P.size} players, ${keep.size} with hints (${wrote} files written)${read ? `, ${read} round files read` : ''}`);
 }
 if (has('--hints')) { aggHints(); process.exit(0); }
+// (v249) the flag choices over every analysed round (choices.mjs): data/.admin/choices.json, at most once an hour in the
+// background run (when a round's file is newer); --choices now
+function choicesNow(force) { try { runChoices({ dir: RDIR, data: DATA, force: !!force, log }); } catch (e) { log('flag choices not written:', e.message); } }
+if (has('--choices')) { choicesNow(true); process.exit(0); }
 // (v185, todo 185) glitch spots (glitch.mjs): the decoded rounds into each map's grid of places stood, then the hints
 function glitchStep(budget) {
   const F = aggFns(); if (!F) { log('glitch spots: the page has no nickOf'); return; }
@@ -312,14 +325,14 @@ const failedPath = path.join(OUT, 'failed.json'); let failed = {}; try { failed 
 // nor one being done now (busy: v248, the list is looked at again between batches)
 function autoList(busy) {
   let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
-  const HV = pageHv(), none = [], old = [];
+  const HV = pageHv(), AV = pageAv(), none = [], old = [], older = [];
   let skipF = 0;
-  for (const r of listed()) { if (copies[r.name] || busy.has(r.name)) continue; if (failed[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); }
+  for (const r of listed()) { if (copies[r.name] || busy.has(r.name)) continue; if (failed[r.name]?.page === pageVer) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); else if (AV && avOf(f) < AV) older.push(r); }
   // (v225) while ingest.mjs decodes the rounds again for a new decoder (data/reprocess.json), the rounds it has done come
   // first: one not done yet would be looked at now and again once it is
   { let P = null; try { P = JSON.parse(fs.readFileSync(path.join(DATA, 'reprocess.json'), 'utf8')); } catch (e) {}
     if (P && P.hash && !P.end) { const L = r => r.decoder === P.hash ? 0 : 1; for (const A of [none, old]) A.sort((a, b) => L(a) - L(b)); } }
-  hvSave(); return { none, old, skipF };
+  hvSave(); return { none, old, older, skipF };   // (v249: older - done with the hint rules now, but by an older analysis: no flag choices)
 }
 // (v248) the background run goes batch by batch: BATCH rounds a page at once, then the players' hint cards are written
 // and the list is looked at again (rounds decoded meanwhile come first) - until none are left or the run's time is up
@@ -328,11 +341,11 @@ let queue;
 if (AUTO) {
   { const S = autoSet(); if (S.boost) { delete S.boost; autoSetPut(S); } }   // (v248: All rounds now is no more)
   const L = autoList(new Set());
-  if (!L.none.length && !L.old.length) {
-    aggHints(); const m = `nothing to do: every round is done with the hint rules now${L.skipF ? ` (${L.skipF} failed with this version of the site: tried again after its next update)` : ''}`; log(m); note('done', m, { queued: 0, failed: L.skipF }); process.exit(0);
+  if (!L.none.length && !L.old.length && !L.older.length) {
+    aggHints(); choicesNow(); const m = `nothing to do: every round is done with the hint rules now${L.skipF ? ` (${L.skipF} failed with this version of the site: tried again after its next update)` : ''}`; log(m); note('done', m, { queued: 0, failed: L.skipF }); process.exit(0);
   }
-  log(`${L.none.length} rounds not looked at yet, ${L.old.length} done with older hint rules`);
-  queue = L.none.concat(L.old).slice(0, BATCH * jobsWanted());
+  log(`${L.none.length} rounds not looked at yet, ${L.old.length} done with older hint rules${L.older.length ? `, ${L.older.length} without the newest numbers (flag choices)` : ''}`);
+  queue = L.none.concat(L.old, L.older).slice(0, BATCH * jobsWanted());
 } else {
   queue = listed();
   if (!FRESH) queue = queue.filter(r => { try { return !fs.statSync(fileOf(r.name)).size; } catch (e) { return true; } });
@@ -419,7 +432,7 @@ const goOn = () => {
 // again (rounds decoded meanwhile first), BATCH rounds a page at once
 function refill() {
   if (!AUTO || !goOn() || done + busy.size >= LIMIT) return false;
-  const L = autoList(busy), all = L.none.concat(L.old); if (!all.length) return false;   // (the last pages finish theirs; the cards are written at the end)
+  const L = autoList(busy), all = L.none.concat(L.old, L.older); if (!all.length) return false;   // (the last pages finish theirs; the cards are written at the end)
   try { aggHints(); } catch (e) { log('hints not written:', e.message); }
   queue = all.slice(0, Math.min(BATCH * jobsWanted(), LIMIT - done - busy.size)); batch++; total += queue.length;
   runInfo.rounds = total; runInfo.batch = batch; writeRun();
@@ -451,7 +464,7 @@ async function worker() {
       if (!d || d.error) throw new Error(d ? d.error : 'no numbers');
       d.round = { name: r.name, decoder: r.decoder || null, bytes: r.bytes || null, sum: r.sum ? { ...r.sum, P: undefined, top: undefined } : null }; d.pageErrors = page._errs; d.wallMs = Date.now() - t0; d.jobs = n0;
       fs.writeFileSync(fileOf(r.name) + '.part', zlib.gzipSync(JSON.stringify(d), { level: 9 })); fs.renameSync(fileOf(r.name) + '.part', fileOf(r.name));
-      hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0; hvLoad()['@' + path.basename(fileOf(r.name))] = r.decoder || '';
+      hvLoad()[path.basename(fileOf(r.name))] = d.hv || 0; hvLoad()['@' + path.basename(fileOf(r.name))] = r.decoder || ''; hvLoad()['v:' + path.basename(fileOf(r.name))] = d.v || 0;
       await alertRound(d);   // (v214: its hints to the server's admin channel, when it has one and the round is new)
       delete failed[r.name]; page._n++; page._map = mapOf(r); done++; kills += d.K.length; hints += d.H.length;
       if (full && running === n0 && jobsWanted() === n0) speedAdd(n0, d.wallMs / 1000);   // (ran with that many beside it to the end)
@@ -489,11 +502,12 @@ writeRun(); hvSave();
 log(`done: ${done} rounds (${kills} kills, ${hints} hints), ${Object.keys(failed).length} failed, ${Math.round((Date.now() - started) / 60000)} min`);
 if (AUTO) {
   const failedNow = Object.values(failed).filter(f => f.at >= runInfo.started).length;
-  let rest = 0; try { const L = autoList(new Set()); rest = L.none.length + L.old.length; } catch (e) {}
+  let rest = 0; try { const L = autoList(new Set()); rest = L.none.length + L.old.length + L.older.length; } catch (e) {}
   const ms = Date.now() - started, took = ms >= 60e3 ? `${Math.round(ms / 60e3)} min` : `${Math.round(ms / 1e3)} s`;
   const why = updated ? ' (the site was updated: the next run, with the new code, goes on)' : outOfTime ? ' (the time of a run was up: the next run goes on)' : told === 'p' ? ' (paused on the admin page)' : stopping ? ' (stopped)' : '';
   note('ran', `${done} round${done === 1 ? '' : 's'} done${failedNow ? `, ${failedNow} failed` : ''} in ${took}, ${runInfo.jobs} at once${rest > 0 ? ` · ${rest} to go${why}` : ' · all done'}`, { done, failed: failedNow, queued: rest, jobs: runInfo.jobs, secs: Math.round(ms / 1000), stopped: stopping || undefined });
   try { aggHints(); } catch (e) { log('hints not written:', e.message); }
+  choicesNow();
   process.exit(0);
 }
 // (v182) the archive also when stopped (analyze.sh stop): what is done so far, ready to send; started again, the run goes on

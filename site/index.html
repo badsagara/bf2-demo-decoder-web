@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v248';
+const APP_VERSION = 'v250';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -14072,7 +14072,7 @@ function renderPlayerPage() {
   const KN = Object.fromEntries(HEAT_CAUSE);
   const shown = ppage.all ? R : R.slice(0, 15);
   box.innerHTML = `<section class="card"><div class="pphead"><div><h2 class="ppname">${esc(name)}</h2><span class="aka">${aka.length ? `also as ${aka.map(esc).join(', ')} · ` : ''}${n} round${n === 1 ? '' : 's'}${span ? ', ' + esc(span) : ''} · ${[...maps].map(([m, c]) => esc(mapName(m)) + (maps.size > 1 ? ' ' + c : '')).join(' · ')}</span></div>
-      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}<button class="btn sm" id="ppCmp" aria-expanded="false" title="Him and another player side by side">Compare with…</button>${session.server && ADM.statsRender ? '<button class="btn sm" id="ppAst" title="Admins: any parameter of his kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone">Ask about him…</button>' : ''}${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
+      <div class="chips">${round ? '<button class="btn sm" id="ppBack" title="Back to the round on the map (Esc)">‹ Back to the round</button>' : ''}<button class="btn sm" id="ppCmp" aria-expanded="false" title="Him and another player side by side">Compare with…</button>${session.server && ADM.statsRender ? '<button class="btn sm" id="ppAst" title="Admins: any parameter of his kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone">Ask about him…</button>' : ''}${session.server && ADM.choicesRender ? '<button class="btn sm" id="ppFc" title="Admins: is he lucky at flags - does he go for the flag nobody on his side knew was empty, over all his rounds">Flag choices</button>' : ''}${session.server ? '<button class="btn sm" id="ppLink" title="A link to this page">Copy link</button>' : ''}</div></div>
       <div class="cmpask" id="ppCmpBox" hidden><label>Compare ${esc(name)} with <input type="search" class="rfind" id="ppCmpIn" list="ppCmpList" placeholder="A player's name" autocomplete="off" spellcheck="false"></label><datalist id="ppCmpList">${[...names].filter(([kk]) => kk !== nick && !/^Player \d+$/.test(kk)).map(([kk, nm]) => `<option value="${esc(nm)}">`).join('')}</datalist><span class="w" id="ppCmpMsg"></span></div>
       <div class="kpis">${tiles.join('')}</div></section>
     <section class="card"><h2>Rounds <span class="w">newest first · a row opens the round following him</span></h2>
@@ -14111,6 +14111,7 @@ function renderPlayerPage() {
   };
   ci.onchange = pick; ci.onkeydown = e => { if (e.key === 'Enter') pick(); };
   const ast = $('#ppAst'); if (ast) ast.onclick = () => openStatsPage('astats', { n: nick });   // (v244)
+  const pfc = $('#ppFc'); if (pfc) pfc.onclick = () => openStatsPage('achoices', { p: nick });   // (v250)
   const lk = $('#ppLink'); if (lk) lk.onclick = async () => { const u = playerLink(nick); try { await navigator.clipboard.writeText(u); toast('Link copied'); } catch (e) { prompt('Link to his page:', u); } };
 }
 // ---------- two players side by side (#player=<nick>&vs=<nick>) ----------
@@ -14326,7 +14327,9 @@ function vehCard(vt, title) {
     ${L.map(([v, a]) => `<tr><td>${esc(v)} <span class="w">${esc(vkindClass(v))}</span></td><td class="n">${hm(a[0])}</td><td class="n">${a[1]}</td><td class="n">${a[2]}</td><td class="n">${a[0] >= 300 ? (a[1] / a[0] * 3600).toFixed(1) : '–'}</td></tr>`).join('')}</tbody></table></div></section>`;
 }
 // ---- the pages ----
-const STATS_PAGES = ['hub', 'clans', 'vehicles', 'server', 'find', 'astats'];
+const STATS_PAGES = ['hub', 'clans', 'vehicles', 'server', 'find', 'astats', 'achoices'];
+// (v250) the admins' flag choices: #achoices=1, fcs=<server> (none: the first the account may see), fcp=<nick> (his choices)
+const fcHash = a => ({ fcs: a && a.s ? String(a.s) : null, fcp: a && a.p ? String(a.p) : null });
 // (v244) the admins' statistics: #astats=1 and the question in q* keys (their part of the page asks and draws it -
 // ADM.statsRender; the arg: { n: nick, s: side, m: parameter, a: how, o, v: the share's test, w: weapon, f, t: days,
 // sv: server, mp: map, c: "m:op:v,…" conditions, min, ord })
@@ -14335,16 +14338,16 @@ const aqHash = q => Object.fromEntries(AQ_KEYS.map(k => ['q' + k, q && q[k] != n
 const aqFromHash = h => Object.fromEntries(AQ_KEYS.filter(k => h.get('q' + k) != null).map(k => [k, h.get('q' + k)]));
 const aqHashOf = q => Object.fromEntries(AQ_KEYS.filter(k => q && q[k] != null && q[k] !== '').map(k => [k, String(q[k])]));   // (the same keys in the same order: a question against the hash's)
 function openStatsPage(page, arg, fromLink) {
-  if (page !== 'astats' && !can('stats')) { if (!fromLink) toast('This account may not open the statistics'); return false; }   // (v224)
+  if (page !== 'astats' && page !== 'achoices' && !can('stats')) { if (!fromLink) toast('This account may not open the statistics'); return false; }   // (v224)
   if (!session || !STATS_PAGES.includes(page)) return false;
   if (rpage.on) closeRoundsPage(!!fromLink);
   ppage.nick = null; ppage.vs = null; ppage.map = null; ppage.page = page; ppage.arg = arg ?? null; ppage.all = false; ppage.admTried = false;
   document.body.classList.add('pview'); $('#pPage').hidden = false;
-  if (session.server && !fromLink) hashSet({ player: null, vs: null, map: null, stats: page === 'hub' ? '1' : null, clans: page === 'clans' ? '1' : null, vehicles: page === 'vehicles' ? '1' : null, server: page === 'server' ? (arg || '_all') : null, find: page === 'find' ? '1' : null, astats: page === 'astats' ? '1' : null, ...aqHash(page === 'astats' ? arg : null) });
+  if (session.server && !fromLink) hashSet({ player: null, vs: null, map: null, stats: page === 'hub' ? '1' : null, clans: page === 'clans' ? '1' : null, vehicles: page === 'vehicles' ? '1' : null, server: page === 'server' ? (arg || '_all') : null, find: page === 'find' ? '1' : null, astats: page === 'astats' ? '1' : null, ...aqHash(page === 'astats' ? arg : null), achoices: page === 'achoices' ? '1' : null, ...fcHash(page === 'achoices' ? arg : null) });
   renderStatsPage(); window.scrollTo({ top: 0 });
   return true;
 }
-const statsPageKeys = { stats: null, clans: null, vehicles: null, server: null, find: null, astats: null, ...aqHash(null) };
+const statsPageKeys = { stats: null, clans: null, vehicles: null, server: null, find: null, astats: null, ...aqHash(null), achoices: null, ...fcHash(null) };
 function statsData(file, compute, redraw) {
   if (statsOn()) { const o = statsGet(file); if (o.wait) { statsThen(o, redraw); return null; } return o.data || undefined; }
   return compute();
@@ -14374,7 +14377,7 @@ function renderStatsPage() {
       <button class="kpi" data-sp="clans"><span class="kl">Clans</span><span class="kv">Clans</span><span class="ks">by tag · clan against clan</span></button>
       <button class="kpi" data-sp="vehicles"><span class="kl">Vehicles</span><span class="kv">Vehicles</span><span class="ks">time, kills · the best in each</span></button>
       <button class="kpi" data-sp="find"><span class="kl">Search</span><span class="kv">Moments</span><span class="ks">kills by player, weapon, range…</span></button>
-      <button class="kpi" data-srvp="_all"><span class="kl">All servers</span><span class="kv">${RS.length}</span><span class="ks">rounds · when, maps, flags</span></button>${ADM.statsRender ? '<button class="kpi" data-sp="astats"><span class="kl">Admins</span><span class="kv">Ask</span><span class="ks">a player, a parameter, a weapon, days</span></button>' : ''}</div></section>
+      <button class="kpi" data-srvp="_all"><span class="kl">All servers</span><span class="kv">${RS.length}</span><span class="ks">rounds · when, maps, flags</span></button>${ADM.statsRender ? '<button class="kpi" data-sp="astats"><span class="kl">Admins</span><span class="kv">Ask</span><span class="ks">a player, a parameter, a weapon, days</span></button>' : ''}${ADM.choicesRender ? '<button class="kpi" data-sp="achoices"><span class="kl">Admins</span><span class="kv">Flag choices</span><span class="ks">who is lucky at flags</span></button>' : ''}</div></section>
       <section class="card"><h2>Servers <span class="w">when they play, their maps and flags</span></h2><ul class="plist">${S.map(([nm, , n]) => `<li><span class="nmc"><button class="plink" data-srvp="${esc(nm)}">${esc(nm)}</button></span><span class="n">${n} rounds</span></li>`).join('') || '<li class="empty">None.</li>'}</ul></section>`;
     statsWire(box); return;
   }
@@ -14414,6 +14417,13 @@ function renderStatsPage() {
     statsWire(box); return;
   }
   if (ppage.page === 'find') return renderFindPage(box, RS, redraw);
+  if (ppage.page === 'achoices') {   // (v250: the admins' part draws it; till it is here - or for a visitor - a word)
+    if (ADM.choicesRender) { try { ADM.choicesRender(box, ppage.arg || {}); } catch (e) { console.error(e); box.innerHTML = statsHead('Flag choices') + '<p class="empty">Something went wrong here (the console says what).</p></section>'; statsWire(box); } return; }
+    const wait = !ppage.admTried || admLoading;
+    box.innerHTML = statsHead('Flag choices', "for the site's admins") + `<p class="empty">${wait ? "Loading the admins' part…" : !acc || !acc.in ? 'For the admins of the site and of its servers: Log in (at the top of the page) - this page opens then.' : !acc.admin ? 'This account has no Admin tab: the flag choices are for admins.' : "An admin's powers last 12 hours from the login: Log in again (at the top of the page)."}</p></section>`; statsWire(box);
+    if (!ppage.admTried) { ppage.admTried = true; adminLoad().then(() => { if (ppage.page === 'achoices') renderStatsPage(); }); }
+    return;
+  }
   if (ppage.page === 'astats') {   // (v244: the admins' part draws it; till it is here - or for a visitor - a word)
     if (ADM.statsRender) { try { ADM.statsRender(box, ppage.arg || {}); } catch (e) { console.error(e); box.innerHTML = statsHead('Ask the statistics') + '<p class="empty">Something went wrong here (the console says what).</p></section>'; statsWire(box); } return; }
     const wait = !ppage.admTried || admLoading;
@@ -14704,9 +14714,10 @@ async function serverBoot() {
   else if (h.get('map')) openMapPage(h.get('map'), true);
   else statsFromHash(h);   // (v215)
 }
-// (v215) #stats=1, #clans=1, #vehicles=1, #server=<name>, #find=1; (v244) #astats=1&qn=…
+// (v215) #stats=1, #clans=1, #vehicles=1, #server=<name>, #find=1; (v244) #astats=1&qn=…; (v250) #achoices=1&fcs=…&fcp=…
 function statsFromHash(h) {
   if (h.has('astats')) return openStatsPage('astats', aqFromHash(h), true);
+  if (h.has('achoices')) return openStatsPage('achoices', { s: h.get('fcs') || null, p: h.get('fcp') || null }, true);   // (v250)
   if (h.has('stats')) return openStatsPage('hub', null, true); if (h.has('clans')) return openStatsPage('clans', null, true); if (h.has('vehicles')) return openStatsPage('vehicles', null, true);
   if (h.has('server')) return openStatsPage('server', h.get('server'), true); if (h.has('find')) return openStatsPage('find', null, true); return false;
 }
@@ -14719,8 +14730,9 @@ window.addEventListener('hashchange', async () => { if (!session || !session.ser
   closeRoundsPage(true);
   if (h.get('player')) { if (ppage.nick !== h.get('player') || ppage.vs !== (h.get('vs') || null)) openPlayerPage(h.get('player'), true, h.get('vs')); return; }
   if (h.get('map')) { if (ppage.map !== h.get('map').toLowerCase()) openMapPage(h.get('map'), true); return; }
-  if (['stats', 'clans', 'vehicles', 'server', 'find', 'astats'].some(k => h.has(k))) { const pg = h.has('astats') ? 'astats' : h.has('stats') ? 'hub' : ['clans', 'vehicles', 'server', 'find'].find(k => h.has(k));
-    if (ppage.page !== pg || (pg === 'server' && ppage.arg !== h.get('server')) || (pg === 'astats' && JSON.stringify(aqFromHash(h)) !== JSON.stringify(aqHashOf(ppage.arg)))) statsFromHash(h); return; }
+  if (['stats', 'clans', 'vehicles', 'server', 'find', 'astats', 'achoices'].some(k => h.has(k))) { const pg = h.has('astats') ? 'astats' : h.has('achoices') ? 'achoices' : h.has('stats') ? 'hub' : ['clans', 'vehicles', 'server', 'find'].find(k => h.has(k));
+    if (ppage.page !== pg || (pg === 'server' && ppage.arg !== h.get('server')) || (pg === 'astats' && JSON.stringify(aqFromHash(h)) !== JSON.stringify(aqHashOf(ppage.arg)))
+      || (pg === 'achoices' && ((h.get('fcs') || null) !== (ppage.arg?.s || null) || (h.get('fcp') || null) !== (ppage.arg?.p || null)))) statsFromHash(h); return; }
   if (ppage.nick || ppage.map || ppage.page) closePlayerPage(true);
   if (h.has('review') || h.get('tab') === 'admin') { revWant = true; revKick(); } else if (revOn) revSet(false);   // (v243)
   if (!revOn && !revWant && (h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });

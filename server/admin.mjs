@@ -440,7 +440,7 @@ function htMineSave(b, s) {
 }
 function pageHintsV() {   // (v196: HINTS_V is in the admins' part of the page, server/admin-round.js)
   const f = path.join(SITE, 'index.html'), g = path.join(HERE, 'admin-round.js'); let mt = 0; try { mt = fs.statSync(f).mtimeMs + fs.statSync(g).mtimeMs; } catch (e) { return 0; }
-  if (mt !== hvPage.mt) { let v = 0, ver = ''; try { const t = fs.readFileSync(f, 'utf8'), a = fs.readFileSync(g, 'utf8'); v = +((/const HINTS_V = (\d+)/.exec(a) || /const HINTS_V = (\d+)/.exec(t) || [])[1] || 0); ver = (/const APP_VERSION = '(v\d+)'/.exec(t) || [])[1] || ''; } catch (e) {} hvPage = { mt, v, ver }; }
+  if (mt !== hvPage.mt) { let v = 0, ver = '', av = 0; try { const t = fs.readFileSync(f, 'utf8'), a = fs.readFileSync(g, 'utf8'); v = +((/const HINTS_V = (\d+)/.exec(a) || /const HINTS_V = (\d+)/.exec(t) || [])[1] || 0); ver = (/const APP_VERSION = '(v\d+)'/.exec(t) || [])[1] || ''; av = +((/const ANALYZE_V = (\d+)/.exec(a) || [])[1] || 0); } catch (e) {} hvPage = { mt, v, ver, av }; }
   // (v227) with the site's hint thresholds: HINTS_V.<hash> while they differ from the recommended (hintcfg.mjs)
   return hvPage.v ? htSiteHv(hvPage.v, DATA, HT_ADM()) : hvPage.v;
 }
@@ -459,7 +459,9 @@ function analysisState() {
   const OUTD = path.join(ROOT, 'analysis'), HV = pageHintsV(), hv = readJson(path.join(OUTD, '.hv.json'), {}) || {}, failed = readJson(path.join(OUTD, 'failed.json'), {}) || {};
   const copies = readJson(path.join(DATA, '.copies.json'), {})?.copies || {}, fileOf = n => String(n || '').replace(/\.bf2demo$/i, '').replace(/[^A-Za-z0-9._-]/g, '_') + '.json.gz';
   const R = (index().rounds || []).filter(r => r.sum && !r.sum.empty && r.bfr && !copies[r.name] && !((r.sum.players ?? 0) < 6));
-  let cur = 0, old = 0; for (const r of R) { const v = hv[fileOf(r.name)]; if (v === undefined) continue; if (String(v) === String(HV)) cur++; else old++; }   // (v227: HINTS_V.<hash> - the same, or older)
+  // (v249: a round done with the hint rules now but an older analysis - without the flag choices - is not done yet either)
+  const AV = hvPage.av || 0;
+  let cur = 0, old = 0; for (const r of R) { const f = fileOf(r.name), v = hv[f]; if (v === undefined) continue; if (String(v) === String(HV) && !(AV && hv['v:' + f] !== undefined && hv['v:' + f] < AV)) cur++; else old++; }   // (v227: HINTS_V.<hash> - the same, or older)
   const auto = readJson(path.join(OUTD, 'auto.json'), null), run = readJson(path.join(OUTD, 'run.json'), null);
   const runOn = !!(run && !run.ended && alive(run.pid)), autoOn = !!(auto && !auto.ended && alive(auto.pid));
   const secs = auto && auto.ended && auto.done ? (Date.parse(auto.ended) - Date.parse(auto.started)) / 1000 : null;
@@ -830,6 +832,36 @@ function revRound(s, name) {
   return { r };
 }
 function trustedFor(server) { const T = readJson(path.join(REV, 'trusted.json'), {})?.nicks || {}, out = {}; for (const [n, e] of Object.entries(T)) if (!e.servers || !server || e.servers.includes(server)) out[n] = e; return out; }
+// ---------- (v250) the flag choices (server/choices.mjs: data/.admin/choices.json) for the admins' page #achoices ----------
+// The owner: every server together and each on its own; a server's admin: his servers', each on its own (that server's
+// players as its own rounds have them - never the whole site's). The trusted players marked (as the review keeps them).
+// "Work it out again": the owner, or an account with the card Background analysis (analyze.mjs --choices, in the
+// background: seconds to a few minutes)
+const CHOICES_F = () => path.join(DATA, '.admin', 'choices.json'), CHRUN_F = () => path.join(ROOT, 'analysis', '.choices-run.json');
+function choicesFor(s, R) {
+  const J = readJsonMt(CHOICES_F(), null), own = R.owner, run = readJson(CHRUN_F(), null);
+  const base = { ok: true, running: !!(run && !run.ended && alive(run.pid)), canRun: own || !!R.cards.analysis, at: J?.at || null, ranAt: run?.started || null };
+  if (!J) return { ...base, scopes: [] };
+  const mark = (L, srv) => { const T = trustedFor(srv); return (L || []).map(p => T[p.nick] ? { ...p, trusted: true } : p); };
+  const scopes = [];
+  if (own) scopes.push({ key: '', label: 'All servers', rounds: J.rounds, choices: J.choices, telling: J.telling, null: J.null, pseudoR2: J.pseudoR2, players: mark(J.players, null) });
+  for (const [sv, o] of Object.entries(J.byServer || {})) if (own || srvOk(s, sv)) scopes.push({ key: sv, label: sv, ...o, players: mark(o.players, sv) });
+  return { ...base, min: J.min, check: J.check || null, scopes, mine: own ? null : (s.servers || []) };
+}
+function choicesRun(s, R) {
+  if (!R.owner && !R.cards.analysis) return { ok: false, msg: "working it out again is the owner's, or an account's with the card Background analysis" };
+  const run = readJson(CHRUN_F(), null); if (run && !run.ended && alive(run.pid)) return { ok: false, msg: 'it is being worked out already' };
+  fs.mkdirSync(path.dirname(CHRUN_F()), { recursive: true });
+  const lf = fs.openSync(path.join(path.dirname(CHRUN_F()), '.choices.log'), 'w');
+  const ch = spawn(NODE, [path.join(HERE, 'analyze.mjs'), '--choices'], { detached: true, stdio: ['ignore', lf, lf], env: process.env, cwd: ROOT });
+  fs.closeSync(lf); try { os.setPriority(ch.pid, 15); } catch (e) {}
+  ch.on('error', e => log('flag choices not started:', e.message));
+  ch.on('exit', () => { try { const o = readJson(CHRUN_F(), {}) || {}; if (o.pid === ch.pid) writeJson(CHRUN_F(), { ...o, ended: new Date().toISOString() }); } catch (e) {} });
+  ch.unref();
+  try { writeJson(CHRUN_F(), { started: new Date().toISOString(), pid: ch.pid, by: whoOf(s) }); } catch (e) {}
+  log(`flag choices: worked out again by ${whoOf(s)}, pid`, ch.pid);
+  return { ok: true, msg: 'being worked out again: seconds to a few minutes (longer once a day, with its checks) - the page shows it when it is done' };
+}
 // ---------- (v244) the admins' statistics: the analysed rounds in memory (statq.mjs), made at the first question ----------
 // (the players' nicks as the site's statistics merge them: the page's nickOf - its "@agg" part, as analyze.mjs takes it)
 let SQ = null;
@@ -1049,13 +1081,17 @@ const server = http.createServer(async (req, res) => {
     // (v224: the accounts with the Admin tab among their rights, while their admin powers last)
     const tab = (what === 'admin.js' || what === 'round') && req.method === 'GET' || what.startsWith('data/') && req.method === 'GET' || req.method === 'POST' && ['review-get', 'review-mark', 'review-note', 'trusted'].includes(what)
       || what === 'hints-mine' || what === 'hints-site' && req.method === 'POST'   // (v227: the hints' thresholds)
-      || (what === 'statq-meta' || what === 'statq-nicks') && req.method === 'GET' || what === 'statq' && req.method === 'POST';   // (v244)
+      || (what === 'statq-meta' || what === 'statq-nicks') && req.method === 'GET' || what === 'statq' && req.method === 'POST'   // (v244)
+      || what === 'choices' && req.method === 'GET' || what === 'choices-run' && req.method === 'POST';   // (v250)
     if (tab) {
       if (!R.admin) return send(res, 403, { error: 'this account has no Admin tab' });
       if (!admOk(s)) return send(res, 401, AGAIN);
       admTouch(s);
       if (what === 'admin.js') return sendFile(res, path.join(HERE, 'admin-round.js'), 'text/javascript; charset=utf-8');
-      if (what.startsWith('data/')) { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..') || rel === HT_MINE_FILE) return send(res, 404, { error: 'not found' }); return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
+      if (what.startsWith('data/')) { const rel = what.slice(5); if (!/^[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)?\.json$/.test(rel) || rel.includes('..') || rel === HT_MINE_FILE) return send(res, 404, { error: 'not found' });
+        if (rel === 'choices.json' && !own) return send(res, 403, { error: "every server's flag choices: the owner's (yours: Flag choices)" });   // (v250)
+        return sendFile(res, path.join(DATA, '.admin', rel), 'application/json; charset=utf-8'); }
+      if (what === 'choices') return send(res, 200, choicesFor(s, R));   // (v250)
       if (what === 'round') return send(res, 200, roundInfo(url.searchParams.get('name'), s));   // (v197)
       if (what.startsWith('statq')) {   // (v244) the statistics: a server's admin sees his servers' rounds only
         const okSrv = n => own || srvOk(s, n), S = await statq().get();
@@ -1070,6 +1106,7 @@ const server = http.createServer(async (req, res) => {
       const b = await bodyOf(req);   // (v198)
       if (what === 'hints-mine') return send(res, 200, htMineSave(b, s));
       if (what === 'hints-site') return R.owner || R.cards.hints ? send(res, 200, htSiteSave(b, s)) : send(res, 403, { ok: false, msg: "the site's thresholds: the owner's, or an account's with that right", error: 'not for this account' });
+      if (what === 'choices-run') return send(res, 200, choicesRun(s, R));   // (v250)
       return send(res, 200, what === 'review-get' ? revGet(b, s) : what === 'review-mark' ? revMark(b, s) : what === 'review-note' ? revNote(b, s) : revTrusted(b, s));
     }
     // this page: the owner's - or (v224) an account's cards

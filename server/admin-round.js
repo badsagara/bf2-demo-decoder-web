@@ -1,6 +1,6 @@
-// BF2 Round Replay v248 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
+// BF2 Round Replay v250 - the admins' part of the page (server/splitpage.mjs wrote it from src/index.html: do not edit here).
 // Handed over by admin.mjs only to a logged-in admin; the page runs it with its own names in sight (adminEval).
-const ADM_V = 'v248';
+const ADM_V = 'v250';
 // ---- part 1 (page line 7094) ----
 // ---------- for admins ----------
 // Moments an admin may want to look at - hints, not proof (the panel says so; shown to everyone, Sagara's choice, v106).
@@ -1602,7 +1602,7 @@ function adminHints() {
 //      on foot of 4 m or more in one record (teleports, the decoder's gaps); S spots; V each vehicle type's speeds;
 //   D  the decoder's counts (what it could not name, flags against the level's layout, records a second).
 // Arrays rather than objects (a small file): the columns are in ANALYZE_COLS, handed over with the numbers.
-const ANALYZE_V = 2;   // (v214: Q, U - the fire presses; K's hp)
+const ANALYZE_V = 3;   // (v249: C - the flag choices; v214: Q, U - the fire presses; K's hp)
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
@@ -1703,12 +1703,127 @@ const ANALYZE_COLS = {
   S: ['t', 'spotter', 'p', 'target', 'cmdr'],
   V: ['vehicle', 'n', 'max', 'p99', 'p90'],
   T: ['player', 'n', 'hits'],   // (v183: each TV missile gunner - from an aircraft - his missiles and hits)
-  notes: { err: 'deg off the victim, 21 values: 2.0 s before the kill .. the kill (null: not known)', losK: 'records of 0.1 s back to a clear sight line on the grid (0: clear at the kill); 100 + k: none found in the k checked',
+  // (v249) flag choices (flagChoices): one row a trip to a flag his side did not hold; cands - the flags he could have gone for
+  C: ['player', 't0', 'tArr', 'chosen', 'team', 'role', 'veh', 'trip', 'cands', 'lead', 'died'],
+  CL: ['player', 't'],   // (v249) trips that ended in his death on the way to a flag not known (too soon, or no clear way)
+  Cc: ['flag', 'd', 'own', 'lvl', 'mv', 'ally', 'known', 'unk', 'ord', 'heard', 'unkFar'],
+  notes: { C: "t0: when he set off (10 m from where the trip began: his spawn or revive, or the edge of the flag zone he left); tArr: when he got into the chosen flag's zone (he stayed 4 s or died there); chosen: its place in cands; role: 2 a squad leader, 1 in no squad, 0 a squad member; veh: 1 he drove some of the way (aircraft and trips on foot faster than 7.5 m/s are left out); Cf: the round's flag names (cands' flag is its place there); trip: m he went; lead: 1 a squad member whose leader was in the chosen zone, or got there, from 20 s before he set off to 20 s after he arrived (he followed: the leader's choice); died: 1 killed on the way, tArr when - chosen is the flag he had come nearest to (a third of the way, 30 m or more, clearly more than any other), else the one his way pointed at (15 m or more from where he set off, 20 deg or less off it, the next flag 40 or more)",
+    Cc: "for each flag he could have gone for (its owner not his side, no farther than 2 x the nearest such flag or it + 150 m - chosen without looking at his choice), at t0: d m to its zone's middle; own 1 the enemy's, 0 nobody's; lvl |the flag's height| 0-1; mv its change over the 5 s before, + toward his side; ally his team mates within the zone + 20 m (on his minimap); known the enemies there his side knew of (seen by any of them from 20 s before t0 to 5 s after; seen by him, spotted or in its UAV ring until tArr; killed one of them from 60 s before t0 to 5 s after; or firing within 150 m of one of them from 10 s before t0 to 5 s after); unk the enemies there nobody of his side knew of; ord 1 his squad's order was there; heard of known, those only heard; unkFar the unknown enemies 20-60 m out of the zone (on the way in)",
+ err: 'deg off the victim, 21 values: 2.0 s before the kill .. the kill (null: not known)', losK: 'records of 0.1 s back to a clear sight line on the grid (0: clear at the kill); 100 + k: none found in the k checked',
     losX: 'the same with the exact shapes (only when losK >= 3)', press: 's from the fire press that fired it to the kill', fog: 'distance / the map fog limit',
     near: 'bits: 1 a spawn, 2 a revive, 4 in a vehicle, within 5 s; 8 his last place held 0.8 s or more before (a gap in his records)', eng: 'first / even / second / ambush / blind',
     hp: "the victim's health 1.0, 0.5, 0.3, 0.2 and 0.1 s before the kill", ammo: 'rounds in the magazine at the press (null: not sent; the next press of the same weapon tells how many it fired)', foot: '1 on foot, 0 in a vehicle or dead' }
 };
 const arnd = (v, k = 2) => v == null || !Number.isFinite(v) ? null : +v.toFixed(k);
+// (v249, Sagara: "детектор, порівнювальник, який перебере всі демо і на однакових ситуаціях зможе вивести, кому скільки разів
+// вдається") the flag choices. Each time a soldier on foot (or driving) set off for a flag his side did not hold and got
+// there, the flags he could have gone for instead, each with what his side could know at the moment he set off - the
+// owner, how far, his team mates there, the enemies there a team mate had seen in the 10 s before, his side had spotted
+// or had in its UAV ring, or who fired near a team mate - and what nobody on his side knew: the other enemies there. A
+// wallhack or radar shows the second; an honest player's choices follow the first alone. server/choices.mjs puts every
+// player's choices over all rounds against what the known part foretells (the analysis's files, table C).
+// Generous on purpose: an enemy his side may have known of counts as known (a wrong "unknown" would make an honest
+// player look lucky; a wrong "known" only makes the test less sharp). Known: seen by anyone of his side from 20 s before
+// he set off to 5 s after (the minimap, voice); seen by him himself, spotted or in the UAV ring at any moment until he got
+// there or fell (an enemy he met on the way and turned away from was known); one who killed a man of his side from 60 s
+// before he set off to 5 s after (the kill message, the death screen - his own killer too); or one who fired within
+// 150 m of one of them from 10 s before to 5 s after (heard). Not in the demo: voice (a team mate's "A is empty")
+// The flags he could have gone for are chosen without looking at the one he did go for (else the choice would shape its own
+// odds): every flag his side did not hold out to 2 x the nearest one's distance or it + 150 m; a trip to a flag farther
+// than that, or set off from 25 m of a zone's edge or less, is left out.
+const CH_DIED_M = 30, CH_DIED_F = 0.33, CH_DIED_H = 15, CH_GO = 10, CH_FAR = 60, CH_LEAD = 20, CH_EDGE = 25, CH_T0 = 6, CH_T1 = 120, CH_STAY = 4, CH_NEAR = 20, CH_SEEN = 20, CH_AFTER = 5, CH_GRID = 0.25, CH_KILL = 60, CH_HEAR = 10, CH_HEAR_D = 150, CH_ORD = 50, CH_X = 2, CH_PLUS = 150, CH_MV = 5, CH_RUN = 7.5;
+function flagChoices(R) {
+  const { times: T, n, X, Y, L, DN, VT, DR, FO, FC, nf } = R, F = T.length; if (!nf || !FO || !FC || F < 100) return [];
+  const st = T[1] - T[0] || 0.1, stay = Math.round(CH_STAY / st), back = Math.round(CH_MV / st);
+  const Z = R.flags.map((f, k) => f.main ? null : zoneOf(R, k)); if (!Z.some(Boolean)) return [];
+  const live = e => !!L[e] && !(DN && DN[e]);
+  const zoneAt = e => { for (let k = 0; k < nf; k++) { const z = Z[k]; if (z && Math.hypot(X[e] - z.x, Y[e] - z.y) <= z.R) return k; } return -1; };
+  const sold = []; R.players.forEach((p, i) => { if (!p.vehicle) sold.push(i); });
+  // did soldier i (of side tm) know of enemy j, for a trip from t0 to t1: 2 seen / spotted / UAV / killed one of them, 1
+  // only heard (fired near one of them), 0 no. Sightings on a CH_GRID s grid, kept for the round (trips overlap)
+  const SG = new Map(), air = airNames(), kills = R.events.filter(e => e.type === 'kill');
+  const sees = (j, gi, tm, who) => { const key = ((j * 2 + tm) * 256 + (who < 0 ? 255 : who)) * 1e5 + gi; let v = SG.get(key); if (v === undefined) { const ts = gi * CH_GRID, [a] = frameAt(ts); v = !!L[a * n + j] && seenBy(j, ts).some(o => o.seen !== false && (who < 0 ? teamOf(o.i, ts) === tm : o.i === who)); SG.set(key, v); } return v; };
+  const known = (i, j, t0, t1, tm) => {
+    const ta = Math.max(0, t0 - CH_SEEN), tb = Math.min(t1, t0 + CH_AFTER), pj = R.players[j];
+    if ((povSpots(tm).get(j) || []).some(x => x <= t1 && x >= ta - SPOT_SHOW)) return 2;
+    for (let ts = ta; ts <= t1; ts += 1) if (uavShows(j, ts, tm)) return 2;
+    for (const e of kills) { if (e.t > tb) break; if (e.t >= t0 - CH_KILL && e.killer === pj.id && e.victim !== pj.id && R.pidx.get(e.victim) !== undefined && teamOf(R.pidx.get(e.victim), e.t) === tm) return 2; }
+    for (let gi = Math.ceil(ta / CH_GRID), g1 = Math.floor(tb / CH_GRID); gi <= g1; gi++) if (sees(j, gi, tm, -1)) return 2;
+    for (let gi = Math.ceil(tb / CH_GRID), g1 = Math.floor(t1 / CH_GRID); gi <= g1; gi++) if (sees(j, gi, tm, i)) return 2;
+    for (const f of pj.fire || []) {
+      if (f[0] > tb) break; if (f[0] < t0 - CH_HEAR) continue;
+      const [a] = frameAt(f[0]), ej = a * n + j; if (!L[ej]) continue;
+      if (sold.some(i => i !== j && L[a * n + i] && teamOf(i, f[0]) === tm && Math.hypot(X[a * n + i] - X[ej], Y[a * n + i] - Y[ej]) <= CH_HEAR_D)) return 1;
+    }
+    return 0;
+  };
+  const out = [], lost = R._chLost = [], ST = R._chSt = { trips: 0, riding: 0, air: 0, fast: 0, time: 0, near: 0, own: 0, far: 0, one: 0, cmdr: 0, died: 0, lost: 0, kept: 0 };   // (why trips were left out; lost: [player, t] - killed on the way, his flag not known)
+  // a trip: from frame a (where it began) into zone k at frame q
+  // k < 0: he was killed (or went down) on the way, at frame q - the flag he was making for is the one he had come
+  // nearest to by then (a third of the way and 30 m at least, clearly more than any other), else the one his way pointed
+  // at. Left out, the trips that end in a death would be missing - the unlucky ones - and a player who often dies on the
+  // way would look lucky (Karkand: about 2 trips in 5 end so)
+  const trip = (i, a, q, k, pass) => {
+    const died = k < 0 ? 1 : 0;
+    ST.trips++; if (pass) { ST.riding++; return; }
+    const ea = a * n + i; let g = a; while (g < q && Math.hypot(X[g * n + i] - X[ea], Y[g * n + i] - Y[ea]) < CH_GO) g++;
+    if (g >= q || T[q] - T[g] < CH_T0 || T[q] - T[g] > CH_T1) { ST.time++; if (died) lost.push([i, arnd(T[q], 1)]); return; }
+    // (driving at any moment of it: a vehicle's trip; in an aircraft: not a trip to a flag; on foot faster than a run: not one either)
+    let walked = 0, drove = false; for (let r = a; r <= q; r++) { const e = r * n + i; if (VT[e]) { if (air.has(R.VTN[VT[e]])) { ST.air++; return; } drove = true; } if (r > a) walked += Math.hypot(X[e] - X[e - n], Y[e] - Y[e - n]); }
+    if (!drove && walked / Math.max(0.1, T[q] - T[a]) > CH_RUN) { ST.fast++; return; }
+    const eg = g * n + i, t0 = T[g], tm = teamOf(i, t0); if (tm !== 0 && tm !== 1) { ST.own++; return; }
+    const dOf = m => Math.hypot(X[eg] - Z[m].x, Y[eg] - Z[m].y);
+    if (k >= 0 && FO[g * nf + k] === tm) { ST.own++; return; }
+    let dmin = Infinity, edge = Infinity; for (let m = 0; m < nf; m++) { if (!Z[m] || FO[g * nf + m] === tm) continue; const d = dOf(m); dmin = Math.min(dmin, d); edge = Math.min(edge, d - Z[m].R); }
+    if (edge < CH_EDGE) { ST.near++; return; }
+    const lim = Math.max(dmin * CH_X, dmin + CH_PLUS), C = [];
+    for (let m = 0; m < nf; m++) { if (Z[m] && FO[g * nf + m] !== tm && dOf(m) <= lim) C.push(m); }
+    if (k < 0) {   // (where was he going)
+      const eq = q * n + i, fr = C.map(m => { const d0 = dOf(m), d1 = Math.hypot(X[eq] - Z[m].x, Y[eq] - Z[m].y); return [m, d0 - d1, (d0 - d1) / d0]; }).sort((u, v) => v[2] - u[2]);
+      if (fr.length && fr[0][1] >= CH_DIED_M && fr[0][2] >= CH_DIED_F && !(fr[1] && fr[1][2] > fr[0][2] * 0.7)) k = fr[0][0];
+      else {   // (killed early: the way he was going - from where he set off to where he fell - points at one flag, 20 deg or less, the next 40 or more off)
+        const mx = X[eq] - X[eg], my = Y[eq] - Y[eg], md = Math.hypot(mx, my);
+        if (md >= CH_DIED_H) { const an = C.map(m => { const fx = Z[m].x - X[eg], fy = Z[m].y - Y[eg]; return [m, Math.acos(Math.max(-1, Math.min(1, (mx * fx + my * fy) / (md * Math.hypot(fx, fy) || 1)))) * 180 / Math.PI]; }).sort((u, v) => u[1] - v[1]); if (an.length && an[0][1] <= 20 && (!an[1] || an[1][1] >= 40)) k = an[0][0]; }
+      }
+      if (k < 0) { ST.lost++; lost.push([i, arnd(T[q], 1)]); return; } ST.died++;
+    }
+    if (!C.includes(k)) { ST.far++; return; } if (C.length < 2) { ST.one++; return; }
+    const s = seriesAt(R.players[i].squad, t0), cm = seriesAt(R.players[i].cmdr, t0); if (cm && cm[1]) { ST.cmdr++; return; }   // (the commander)
+    const sq = s && s[1] ? s[1] : 0, role = !sq ? 1 : s[2] ? 2 : 0, sg = tm === 0 ? 1 : -1;
+    const ord = sq ? ordersNow(t0).filter(o => o.team === tm && o.squad === sq) : [];
+    const t1 = T[q], cands = C.map(m => {
+      const z = Z[m], rr = z.R + CH_NEAR, o = FO[g * nf + m]; let ally = 0, kn = 0, unk = 0, hr = 0, far = 0;
+      for (const j of sold) {
+        const e = g * n + j; if (j === i || !live(e)) continue; const dj = Math.hypot(X[e] - z.x, Y[e] - z.y); if (dj > z.R + CH_FAR) continue;
+        const tj = teamOf(j, t0); if (tj === tm) { if (dj <= rr) ally++; continue; } if (tj !== 1 - tm) continue;
+        const v = known(i, j, t0, t1, tm); if (dj > rr) { if (!v) far++; continue; } if (v) { kn++; if (v === 1) hr++; } else unk++;
+      }
+      return [m, Math.round(dOf(m)), o === 1 - tm ? 1 : 0, arnd(Math.abs(FC[g * nf + m]), 2), arnd((FC[g * nf + m] - FC[Math.max(0, g - back) * nf + m]) * sg, 2), ally, kn, unk,
+        ord.some(x => Math.hypot(x.x - z.x, x.y - z.y) <= CH_ORD) ? 1 : 0, hr, far];
+    });
+    // (a squad member: did his leader go there too - then it was the leader's choice)
+    let lead = 0; if (role === 0) { const li = squadLeaderAt(tm, sq, t0); if (li != null && li !== i) { const z = Z[k], r0 = Math.max(0, g - Math.round(CH_LEAD / st)), r1 = Math.min(F - 1, q + Math.round(CH_LEAD / st)); for (let r = r0; r <= r1 && !lead; r += 5) { const e = r * n + li; if (L[e] && Math.hypot(X[e] - z.x, Y[e] - z.y) <= z.R + CH_NEAR) lead = 1; } } }
+    ST.kept++; out.push([i, arnd(t0, 1), arnd(T[q], 1), C.indexOf(k), tm, role, drove ? 1 : 0, Math.round(walked), cands, lead, died]);
+  };
+  for (const i of sold) {
+    let a = -1, cur = -1, inAt = -1, pass = false;
+    for (let q = 0; q < F; q++) {
+      const e = q * n + i;
+      if (!live(e)) { if (a >= 0 && cur < 0 && q > a) trip(i, a, q - 1, -1, pass); a = -1; cur = -1; continue; }   // (dead or down: the trip is over - on the way, a trip too)
+      if (a < 0) { a = q; cur = zoneAt(e); inAt = q; pass = false; continue; }   // (spawned, revived)
+      if (VT[e] && !(DR && DR[e])) pass = true;   // (riding: someone else drove)
+      const k = zoneAt(e); if (k === cur) continue;
+      if (cur >= 0 && (q - inAt >= stay || k >= 0)) { a = q; pass = !!(VT[e] && !(DR && DR[e])); }   // (out of a flag he stayed at: a trip from its edge; one he only went through - the trip goes on)
+      if (k >= 0) {
+        let r = q; while (r < F && r - q < stay && live(r * n + i) && zoneAt(r * n + i) === k) r++;
+        if (r - q >= stay || (r < F && !live(r * n + i))) trip(i, a, q, k, pass);   // (he stayed, or died there)
+        inAt = q;
+      }
+      cur = k;
+    }
+  }
+  return out;
+}
 function analysisDump(R) {
   const t0 = performance.now(), pid = id => R.pidx.get(id), DEG = Math.PI / 180, D = losData(), G = D ? geoData(false) : null, errs = [];
   const sgn = (a, b) => { let x = (a - b) % (2 * Math.PI); if (x > Math.PI) x -= 2 * Math.PI; if (x < -Math.PI) x += 2 * Math.PI; return x; };
@@ -1828,8 +1943,9 @@ function analysisDump(R) {
   // (v214) fire presses with what he held, and the unseen ones
   const Q = part('presses', () => { const out = []; R.players.forEach((p, i) => { if (p.vehicle) return; for (const f of p.fire || []) { const q = playerAt(i, f[0]), h = q.alive && !q.veh ? inHands(i, f[0] + 0.02) : null; out.push([i, arnd(f[0]), arnd(f[1] - f[0]), f[2], f[3] ?? null, h ? h.name : null, q.alive && !q.veh ? 1 : 0]); } }); return out; }) || [];
   const U = part('unseen', () => { const out = []; R.players.forEach((p, i) => { for (const [ts, c] of p.hid || []) out.push([i, arnd(ts), c]); }); return out; }) || [];
+  const tc = performance.now(), C = part('choices', () => flagChoices(R)) || [], CL = R._chLost || [], Cf = (R.flags || []).map(f => f.name);   // (v249)
   return { v: ANALYZE_V, page: APP_VERSION, hv: HT_HV, cols: ANALYZE_COLS, name: $('#srcLabel').textContent, map: mapKey(), meta: R.meta, stats: R.raw?.stats || null, dur: arnd(R.duration, 1),
-    K, H, P, S, F: Fl, J, V, T: R._tvStat || [], Q, U, D: Dc, errs, ms: Math.round(performance.now() - t0) };
+    K, H, P, S, F: Fl, J, V, T: R._tvStat || [], Q, U, C, CL, Cf, cSt: R._chSt || null, cMs: Math.round(performance.now() - tc), D: Dc, errs, ms: Math.round(performance.now() - t0) };
 }
 if (/[?&]analyze\b/.test(location.search)) window.__bf2analyze = {
   v: ANALYZE_V, page: APP_VERSION, get hv() { return HT_HV; },
@@ -1981,7 +2097,7 @@ function renderAdmin() {
   box.querySelectorAll('.hlside').forEach(b => b.onclick = () => openSide(A[+b.dataset.i].kill));
   box.querySelectorAll('.hlgv').forEach(b => b.onclick = () => { const h = A[+b.dataset.i]; gameVideoFor(h.kill.killer, h.kill.t, h.kill); });
 }
-// ---- part 7 (page line 12210) ----
+// ---- part 7 (page line 12326) ----
 // ---------- (v196) the admins' part: the Admin tab ----------
 // (cut out of the public page by splitpage.mjs into server/admin-round.js; the admin server hands it over after a
 // login, and the page runs it with its own names in sight - adminEval)
@@ -2011,7 +2127,7 @@ table.kv { border-collapse: collapse; width: 100%; font-size: 12.5px; } table.kv
 .admnote { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 12px; } .admnote textarea, .admrep textarea { flex: 1; min-width: 0; font: 12.5px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 7px; resize: vertical; }
 .admrep textarea { width: 100%; box-sizing: border-box; font: 12px/1.45 var(--font-data); } .admpn h4 { margin: 10px 0 2px; font-size: 12.5px; }
 .admmlist { list-style: none; margin: 0 0 6px; padding: 0; font-size: 12.5px; } .admmlist li { display: flex; gap: 8px; align-items: flex-start; padding: 5px 0; border-top: 1px solid var(--line); } .admmlist .ts { flex: none; font: 12px var(--font-data); color: var(--muted); padding-top: 4px; }
-.admpane p.w { font-size: 12.5px; } .admmw { flex: 1; min-width: 0; overflow-wrap: anywhere; padding-top: 3px; } .admmn { display: block; color: var(--muted); font-style: italic; margin-top: 2px; } .admmb { display: inline-flex; flex: none; } .admmlist li.admm-sus { box-shadow: inset 2px 0 0 var(--hp-low); padding-left: 6px; }\n.htdlg { width: min(1000px, calc(100vw - 24px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--fg); }\n.htdlg::backdrop { background: rgba(0, 0, 0, .5); }\n.htin { display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 34px); padding: 12px 16px; box-sizing: border-box; }\n.htin > p { margin: 0; font-size: 12.5px; }\n.htbar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; }\n.htbar input[type=search] { flex: 1 1 220px; min-width: 0; }\n.htscroll { flex: 1 1 auto; min-height: 140px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }\n.htt { width: 100%; border-collapse: collapse; font-size: 13px; }\n.htt th, .htt td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }\n.htt thead th { position: sticky; top: 0; z-index: 1; background: var(--panel); font-size: 12px; color: var(--muted); }\n.htk th { background: color-mix(in srgb, var(--fg) 7%, var(--panel)); }\n.htl code { font: 11px var(--font-data); color: var(--muted); }\n.htr { white-space: nowrap; color: var(--muted); font-family: var(--font-data); }\n.htv { width: 7.5em; font-family: var(--font-data); }\n.htv.htch { border-color: var(--accent); color: var(--accent); font-weight: 600; }\n.htonl { white-space: nowrap; font-size: 12px; }\n.htacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }\n@media (max-width: 640px) { .htt .htl { min-width: 12em; } .htv { width: 6em; } }`;
+.admpane p.w { font-size: 12.5px; } .admmw { flex: 1; min-width: 0; overflow-wrap: anywhere; padding-top: 3px; } .admmn { display: block; color: var(--muted); font-style: italic; margin-top: 2px; } .admmb { display: inline-flex; flex: none; } .admmlist li.admm-sus { box-shadow: inset 2px 0 0 var(--hp-low); padding-left: 6px; }\n.htdlg { width: min(1000px, calc(100vw - 24px)); max-height: calc(100vh - 32px); padding: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--fg); }\n.htdlg::backdrop { background: rgba(0, 0, 0, .5); }\n.htin { display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 34px); padding: 12px 16px; box-sizing: border-box; }\n.htin > p { margin: 0; font-size: 12.5px; }\n.htbar { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 13px; }\n.htbar input[type=search] { flex: 1 1 220px; min-width: 0; }\n.htscroll { flex: 1 1 auto; min-height: 140px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; }\n.htt { width: 100%; border-collapse: collapse; font-size: 13px; }\n.htt th, .htt td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }\n.htt thead th { position: sticky; top: 0; z-index: 1; background: var(--panel); font-size: 12px; color: var(--muted); }\n.htk th { background: color-mix(in srgb, var(--fg) 7%, var(--panel)); }\n.htl code { font: 11px var(--font-data); color: var(--muted); }\n.htr { white-space: nowrap; color: var(--muted); font-family: var(--font-data); }\n.htv { width: 7.5em; font-family: var(--font-data); }\n.htv.htch { border-color: var(--accent); color: var(--accent); font-weight: 600; }\n.htonl { white-space: nowrap; font-size: 12px; }\n.htacts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }\n@media (max-width: 640px) { .htt .htl { min-width: 12em; } .htv { width: 6em; } }\n.fctabs { margin: 0 0 10px; }\n.fcplot { position: relative; } .fcplot svg { width: 100%; height: auto; display: block; }\n.fcg { stroke: var(--line); stroke-width: 1; } .fcg.z { stroke: var(--muted); stroke-opacity: .55; }\n.fcax { fill: var(--muted); font: 10px var(--font-data); } .fcax.t { font-size: 10.5px; }\n.fcthr { stroke: var(--hp-low); stroke-opacity: .6; stroke-width: 1; } .fcthrl { fill: var(--hp-low); font: 10px var(--font-data); }\n.fcd { fill: var(--muted); stroke: var(--panel); stroke-width: 2; cursor: pointer; } .fcd.f { fill: var(--hp-low); } .fcd.tr { fill: var(--panel); stroke: var(--medic); } .fcd.s { stroke: var(--accent); stroke-width: 2.5; }\n.fclab { fill: var(--fg); font: 11px var(--font-body); paint-order: stroke; stroke: var(--panel); stroke-width: 3px; pointer-events: none; }\n.fctip { position: absolute; z-index: 3; pointer-events: none; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; font-size: 12px; line-height: 1.35; max-width: 220px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }\n.fcleg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; margin: 6px 0 0; } .fcleg span { display: inline-flex; align-items: center; gap: 5px; }\n.fcdot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); display: inline-block; } .fcdot.f { background: var(--hp-low); } .fcdot.tr { background: transparent; box-shadow: inset 0 0 0 2px var(--medic); }\n.fcsay { margin: 8px 0; } .fchow { margin: 10px 0 0; } .fchow p { font-size: 12.5px; margin: 6px 0; }\n.fcmom { list-style: none; padding: 0; margin: 6px 0 0; } .fcmom li { padding: 8px 0; border-top: 1px solid var(--line); }\n.fcfl { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; font-size: 12px; } .fcf { padding: 2px 6px; border: 1px solid var(--line); border-radius: 4px; } .fcf.ch { border-color: var(--accent); } .fch { color: var(--hp-low); }\n.fctab tr.fcfl1 td:nth-child(2) { box-shadow: inset 3px 0 0 var(--hp-low); }\n.fcchk li { font-size: 12.5px; }\n.fctabs .btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }\n.admfil input[type=checkbox] { width: auto; }\n.fcexp { font-size: 12px; margin: 2px 0 6px; }`;
 // can this admin see this round's hints: the site's owner all; a server's admin his servers' rounds (a folder of demos
 // opened here: all)
 const admIsOwner = () => !admMe || admMe.role === 'owner';
@@ -2124,9 +2240,10 @@ function htDraw() {
 function admRenderPane(box) {
   box.classList.add('admpane');
   const who = admMe && admMe.user ? `<b>${esc(admMe.user === 'owner' ? 'the site\'s owner' : admMe.user)}</b>${admMe.role === 'owner' ? '' : ` <span class="w">· ${esc((admMe.servers || []).join(', ') || 'no servers')}</span>`}` : '';
-  const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button>${session?.server ? ' <button class="btn sm" id="admAsk" title="Any parameter of a player\'s kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone (the followed soldier, if any)">Ask the statistics</button>' : ''} <button class="btn sm" id="admOut">Log out</button></span></div>`;
+  const head = `<div class="admhead"><h2>Admin <span class="w">${round ? esc($('#srcLabel').textContent) : ''}</span></h2><span class="w">${who ? 'logged in as ' + who : ''} <button class="btn sm" id="admHt" title="The hints' thresholds: the site's and your own">Thresholds${HT_MINE && HT_MINE.use ? ' (mine)' : ''}</button>${session?.server ? ' <button class="btn sm" id="admAsk" title="Any parameter of a player\'s kills, deaths, rounds or trigger presses - with a weapon, over days - against everyone (the followed soldier, if any)">Ask the statistics</button> <button class="btn sm" id="admFc" title="Who is lucky at flags over all his rounds: goes for the flag nobody on his side knew was empty">Flag choices</button>' : ''} <button class="btn sm" id="admOut">Log out</button></span></div>`;
   const bind = () => { const o = $('#admOut'); if (o) o.onclick = async () => { try { await admApi('logout', {}); } catch (e) {} location.reload(); }; const h = $('#admHt'); if (h) h.onclick = htOpen;
-    const a = $('#admAsk'); if (a) a.onclick = () => { const p = round && sel != null && sel >= 0 ? round.players[sel] : null; openStatsPage('astats', p && !p.vehicle ? { n: nickOf(p.name) } : {}); }; };   // (v244)
+    const a = $('#admAsk'); if (a) a.onclick = () => { const p = round && sel != null && sel >= 0 ? round.players[sel] : null; openStatsPage('astats', p && !p.vehicle ? { n: nickOf(p.name) } : {}); };   // (v244)
+    const fb = $('#admFc'); if (fb) fb.onclick = () => { const p = round && sel != null && sel >= 0 ? round.players[sel] : null; openStatsPage('achoices', p && !p.vehicle ? { p: nickOf(p.name) } : {}); }; };   // (v250)
   if (typeof ADM_V !== 'undefined' && ADM_V !== APP_VERSION) { box.innerHTML = head + `<p class="empty">The page is of ${esc(APP_VERSION)}, the admins' part of ${esc(ADM_V)}: reload the page.</p>`; bind(); return; }
   if (!round || round.meta?.source === 'sim') { box.innerHTML = head + '<p class="empty">Open a round.</p>'; bind(); return; }
   if (!admCan()) { box.innerHTML = head + `<p class="empty">${esc(admOutOfScope())}</p>`; bind(); return; }
@@ -2828,7 +2945,127 @@ function aqTrend(Wk, q, md, W) {
   const xl = Array.from({ length: nl }, (_, k) => Math.round(k * (n - 1) / (nl - 1))).filter((v, i, a) => a.indexOf(v) === i).map((i, k, a) => `<text x="${x(i).toFixed(1)}" y="${Ht - 8}" text-anchor="${a.length > 1 && k === 0 ? 'start' : a.length > 1 && k === a.length - 1 ? 'end' : 'middle'}">${esc(Wk[i].from)}</text>`).join('');
   return `<svg class="aqsvg" viewBox="0 0 ${W} ${Ht}" role="img" aria-label="Week by week: his value and everyone else's">${g}<path class="lot" d="${path('oth')}"/><path class="lme" d="${path('his')}"/>${dots}${xl}</svg>`;
 }
-Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick), statsRender: aqRender });
+// ---- (v250, Sagara: "зробимо це спеціальною сторінкою, яка доступна тільки адміністраторам") Flag choices: #achoices ----
+// server/choices.mjs over every analysed round (data/.admin/choices.json; admin.mjs "choices" hands each account its own
+// part: the owner every server together and each on its own, a server's admin his servers'): who goes for the flag
+// nobody on his side knew was empty, beyond what his own way of choosing and his reading of the game explain. The ranked
+// players (15+ telling choices) by "beyond", a plot of beyond against his reading of the game (the known enemies), each
+// player's most telling choices with a link to the moment, the daily check (placebo, split halves, the trusted players)
+const fc = { data: null, wait: null, err: null, got: 0, errAt: 0, q: '', only: false, all: false, many: false, msg: '' };
+function fcGet(redraw, again) {
+  if (fc.data && !again && Date.now() - fc.got < 60e3) return fc.data;
+  if (!fc.wait && (again || Date.now() - fc.errAt > 30e3)) {
+    fc.wait = admApi('choices').then(j => { fc.wait = null; if (!j || j.ok === false || j._status >= 400) { fc.err = (j && (j.msg || j.error)) || 'no answer'; fc.errAt = Date.now(); } else { fc.data = j; fc.err = null; fc.got = Date.now(); } redraw(); })
+      .catch(e => { fc.wait = null; fc.err = e.message; fc.errAt = Date.now(); redraw(); });
+  }
+  return fc.data;
+}
+const fcZ = v => v == null ? '–' : (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2);
+const fcQ = q => q == null ? '–' : q < 0.001 ? '<0.001' : q.toFixed(3);
+const fcLink = (m, name) => '#round=' + encodeURIComponent(m.round) + '&t=' + Math.max(0, Math.round(m.t - 3)) + '&p=' + encodeURIComponent(name);
+function fcSet(o) { const a = { ...(ppage.arg || {}), ...o }; for (const k of Object.keys(a)) if (a[k] == null || a[k] === '') delete a[k]; ppage.arg = a; hashSet({ achoices: '1', ...fcHash(a) }); renderStatsPage(); }
+// the plot: his reading of the game (z kn, across) against beyond (up); the line where q < 0.05 starts
+function fcPlot(S, P, selNick, width) {
+  const R = P.filter(p => p.ranked && p.zKnown != null && p.zBeyond != null); if (R.length < 3) return '';
+  // (drawn at the width it gets, so its text stays the page's size on a phone and on a wide screen)
+  const W = Math.round(Math.max(300, Math.min(1200, width || 640))), H = W < 520 ? 250 : 300, L = 34, B = 32, T = 14, Rt = 10, xs = R.map(p => p.zKnown), ys = R.map(p => p.zBeyond);
+  const x0 = Math.min(-3, Math.floor(Math.min(...xs) - 0.3)), x1 = Math.max(3, Math.ceil(Math.max(...xs) + 0.3)), y0 = Math.min(-3, Math.floor(Math.min(...ys) - 0.3)), y1 = Math.max(4, Math.ceil(Math.max(...ys) + 0.5));
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - Rt), Y = v => T + (y1 - v) / (y1 - y0) * (H - T - B);
+  const flagged = R.filter(p => p.q != null && p.q < 0.05), zc = flagged.length ? Math.min(...flagged.map(p => p.zBeyond)) : null;
+  let g = '';
+  for (let v = Math.ceil(y0); v <= y1; v++) g += `<line class="fcg${v === 0 ? ' z' : ''}" x1="${L}" x2="${W - Rt}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/><text class="fcax" x="${L - 6}" y="${(Y(v) + 3.5).toFixed(1)}" text-anchor="end">${v}</text>`;
+  for (let v = Math.ceil(x0); v <= x1; v++) g += `<line class="fcg${v === 0 ? ' z' : ''}" y1="${T}" y2="${H - B}" x1="${X(v).toFixed(1)}" x2="${X(v).toFixed(1)}"/><text class="fcax" y="${H - B + 14}" x="${X(v).toFixed(1)}" text-anchor="middle">${v}</text>`;
+  if (zc != null) g += `<line class="fcthr" x1="${L}" x2="${W - Rt}" y1="${Y(zc).toFixed(1)}" y2="${Y(zc).toFixed(1)}"/><text class="fcthrl" x="${W - Rt - 4}" y="${(Y(zc) - 5).toFixed(1)}" text-anchor="end">q &lt; 0.05 from here up</text>`;
+  const dots = R.map((p, i) => { const f = p.q != null && p.q < 0.05, s = p.nick === selNick; return `<circle class="fcd${f ? ' f' : ''}${p.trusted ? ' tr' : ''}${s ? ' s' : ''}" cx="${X(p.zKnown).toFixed(1)}" cy="${Y(p.zBeyond).toFixed(1)}" r="${s ? 6 : 4.5}" data-i="${i}"/>`; }).join('');
+  const labs = R.filter(p => (p.q != null && p.q < 0.05) || p.nick === selNick).slice(0, 10).map(p => `<text class="fclab" x="${(X(p.zKnown) + 8).toFixed(1)}" y="${(Y(p.zBeyond) + 4).toFixed(1)}">${esc(p.name)}</text>`).join('');
+  fc.plot = { R, X, Y, W };
+  return `<section class="card"><h2>Beyond his reading of the game <span class="w">each ranked player: across - how much more than his odds he avoided the enemies his side KNEW of; up - the hidden ones, beyond that (the ranking)</span></h2>
+    <div class="fcplot"><svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Ranked players: their reading of the game against beyond">${g}${dots}${labs}
+      <text class="fcax t" x="${W - Rt}" y="${H - 2}" text-anchor="end">reads the game (z kn) →</text><text class="fcax t" x="${L + 4}" y="${T + 10}">↑ beyond</text></svg><div class="fctip" hidden></div></div>
+    <p class="fcleg"><span><i class="fcdot"></i>a player</span><span><i class="fcdot f"></i>worth a look (q &lt; 0.05)</span><span><i class="fcdot tr"></i>trusted (★)</span><span class="w">tap a dot: his choices · the table below has every one</span></p></section>`;
+}
+function fcWirePlot(box, S) {
+  const svg = box.querySelector('.fcplot svg'), tip = box.querySelector('.fctip'); if (!svg || !fc.plot) return;
+  const { R, X, Y, W } = fc.plot;
+  const near = e => { const r = svg.getBoundingClientRect(), k = W / r.width, mx = (e.clientX - r.left) * k, my = (e.clientY - r.top) * k; let b = null, bd = 24 * k; R.forEach(p => { const d = Math.hypot(X(p.zKnown) - mx, Y(p.zBeyond) - my); if (d < bd) { bd = d; b = p; } }); return b; };
+  svg.onmousemove = e => { const p = near(e); if (!p) { tip.hidden = true; return; } const r = svg.getBoundingClientRect(), k = r.width / 640;
+    tip.innerHTML = `<b>${esc(p.name)}</b>${p.trusted ? ' ★' : ''}<br>beyond ${fcZ(p.zBeyond)} · reads the game ${fcZ(p.zKnown)}<br>${p.telling} telling choices · q ${fcQ(p.q)}`;
+    const k2 = r.width / W; tip.style.left = Math.max(0, Math.min(r.width - 200, X(p.zKnown) * k2 + 10)) + 'px'; tip.style.top = Math.max(0, Y(p.zBeyond) * k2 - 12) + 'px'; tip.hidden = false; };
+  svg.onmouseleave = () => { tip.hidden = true; };
+  svg.onclick = e => { const p = near(e); if (p) fcSet({ p: p.nick }); };
+}
+// one player: his numbers, what they say, his most telling choices
+function fcPlayer(S, p, J) {
+  const min = J.min || 15, flag = p.q != null && p.q < 0.05;
+  const say = !p.ranked ? `Fewer than ${min} telling choices (${p.telling}): not ranked yet - a few more rounds.` : flag ? 'He stands out: of the ranked players at his level or above, about 1 in 20 is there by luck. Watch his choices below - the side view, his team\'s minimap, his squad - and his other hints.' : p.q != null && p.q < 0.2 ? 'Somewhat above the others - not enough to say anything.' : 'Nothing out of the ordinary.';
+  const mom = (p.moments || []).map(m => {
+    const fl = m.cands.map((c, k) => `<span class="fcf${k === m.chosen ? ' ch' : ''}" title="${k === m.chosen ? 'the flag he went for' : 'a flag he could have gone for'}">${k === m.chosen ? '▶ ' : ''}${esc(c[0])} <span class="w">${c[1]} m</span> · <b class="${c[2] + c[3] ? 'fch' : ''}">${c[2]}+${c[3]}</b> hidden · ${c[4]} known · <span class="w">his odds ${c[5]}%</span></span>`).join('');
+    const day = /^\d{4}-\d\d-\d\d/.test(m.date || '') ? dayName(String(m.date).slice(0, 10)) + ' ' + String(m.date).slice(11, 16) : '';
+    return `<li><a class="plink" href="${fcLink(m, p.name)}" title="Open the round there (3 s before he set off), following him">${esc([day, mapName(m.map), fmt(m.t)].filter(Boolean).join(' · '))} ↗</a>${m.died ? ' <span class="admstr">killed on the way</span>' : ''}${!S.key && m.server ? ` <span class="w">${esc(m.server)}</span>` : ''}<div class="fcfl">${fl}</div></li>`;
+  }).join('');
+  return `<section class="card" id="fcDet"><div class="pphead"><div><h2 class="ppname"><button class="plink" data-nick="${esc(p.nick)}" title="His page">${esc(p.name)}</button>${p.trusted ? ' <span title="Trusted (the review)">★</span>' : ''}</h2>
+      <span class="aka">${p.rounds} rounds · ${p.choices} choices, ${p.telling} telling${p.lost ? ` · ${p.lost} trips killed on the way with the flag not known (${Math.round(p.lostShare * 100)}%)` : ''}</span></div>
+      <div class="chips">${ADM.statsRender ? '<button class="btn sm" id="fcAsk">Ask about him…</button>' : ''}<button class="btn sm" id="fcClose">Close</button></div></div>
+    <div class="kpis"><div class="kpi${flag ? ' kodd' : ''}"><span class="kl">Beyond</span><span class="kv">${fcZ(p.zBeyond)}</span><span class="ks">q ${fcQ(p.q)}${p.ranked ? '' : ' · not ranked'}</span></div>
+      <div class="kpi"><span class="kl">Hidden enemies</span><span class="kv">${p.avoided >= 0 ? p.avoided.toFixed(1) : '−' + Math.abs(p.avoided).toFixed(1)}</span><span class="ks">avoided beyond his odds · z ${fcZ(p.z)}</span></div>
+      <div class="kpi"><span class="kl">Emptiest flag</span><span class="kv">${p.emptiest} / ${p.foretold.toFixed(1)}</span><span class="ks">times he took it / his odds foretold</span></div>
+      <div class="kpi"><span class="kl">Reads the game</span><span class="kv">${fcZ(p.zKnown)}</span><span class="ks">the known enemies he avoided</span></div></div>
+    <p class="fcsay">${say}</p>
+    ${mom ? `<h3>His most telling choices</h3><p class="w fcexp">▶ the flag he went for. <b>hidden</b>: enemies on the flag + on the way in that nobody on his side knew of · <b>known</b>: those his side saw, spotted, had in the UAV ring, heard, or who had killed one of them · <b>his odds</b>: by his own way of choosing and what he could know. The link opens the round 3 s before he set off, following him.</p><ul class="fcmom">${mom}</ul>` : `<p class="w">No moments kept (fewer than 5 telling choices).</p>`}</section>`;
+}
+function fcRender(box, arg) {
+  const redraw = () => { if (ppage.page === 'achoices') renderStatsPage(); }, J = fcGet(redraw);
+  if (!J) { box.innerHTML = statsHead('Flag choices', "for the site's admins") + `<p class="empty">${fc.err ? 'The admin server: ' + esc(fc.err) : 'Reading the flag choices…'}</p></section>`; statsWire(box); return; }
+  const runBtn = J.canRun ? `<button class="btn sm" id="fcRun"${J.running ? ' disabled' : ''} title="Work it out again from every analysed round now (the background analysis does it once an hour by itself)">${J.running ? 'Being worked out…' : 'Work it out again'}</button>` : '';
+  const when = J.at ? `worked out ${esc(new Date(J.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))}` : 'not worked out yet';
+  if (!J.scopes.length) {
+    box.innerHTML = statsHead('Flag choices', when) + `<p class="empty">${!J.at ? 'Not worked out yet: the background analysis does it once the rounds are analysed with v249 or later (it goes over the older rounds by itself), at most once an hour.' : J.mine ? `None of your servers (${esc(J.mine.join(', ') || 'none')}) has enough flag choices yet (100 at least).` : 'No flag choices in the analysed rounds yet.'}</p><div class="chips">${runBtn}</div><p class="w" id="fcMsg">${esc(fc.msg)}</p></section>`;
+    statsWire(box); fcWireRun(box, redraw); return;
+  }
+  const S = J.scopes.find(x => x.key === (arg.s || '')) || J.scopes[0], P = S.players || [], min = J.min || 15, N = S.null || {};
+  const ranked = P.filter(p => p.ranked), flagged = ranked.filter(p => p.q != null && p.q < 0.05), sel = arg.p ? P.find(p => p.nick === arg.p) || null : null;
+  const C = J.check, pl = C?.placebo;
+  const sub = `${S.rounds.toLocaleString('en')} rounds · ${S.choices.toLocaleString('en')} choices, ${S.telling.toLocaleString('en')} telling · ${when}`;
+  const tile = (l, v, s, odd) => `<div class="kpi${odd ? ' kodd' : ''}"><span class="kl">${l}</span><span class="kv">${v}</span>${s ? `<span class="ks">${s}</span>` : ''}</div>`;
+  const tabs = J.scopes.length > 1 ? `<div class="chips fctabs">${J.scopes.map(x => `<button class="btn sm" data-fcs="${esc(x.key)}" aria-pressed="${x === S}">${esc(x.label)}</button>`).join('')}</div>` : (S.key ? `<p class="w">${esc(S.label)}</p>` : '');
+  const plain = !!N.plain;
+  let html = statsHead('Flag choices', sub) + tabs + `<div class="kpis">${tile('Players ranked', ranked.length, `${min}+ telling choices`)}${tile('Worth a look', plain ? '–' : flagged.length, plain ? 'under 30 ranked: no q yet' : 'q < 0.05', flagged.length > 0)}
+    ${pl ? tile('Placebo', `${pl.flaggedAtQ05}`, pl.flaggedAtQ05 ? `flagged in ${pl.runsWithAny} of ${pl.runs} shuffles: careful` : `flagged in ${pl.runs} shuffles: as it should be`, pl.flaggedAtQ05 > 0) : ''}
+    ${C?.trusted ? tile('Trusted players', `${C.trusted.flaggedAtQ05} / ${C.trusted.ranked}`, 'of the ranked at q < 0.05 (should be 0)', C.trusted.flaggedAtQ05 > 0) : ''}</div>
+    <details class="fchow"><summary>How to read it</summary><p>Every trip a soldier made to a flag his side did not hold is set against the flags he could have gone for. For each flag, what his side could know then (distance, owner, team mates there, the enemies seen, spotted, in the UAV ring, heard, or who had killed one of them) and what nobody on his side knew (the other enemies there). A model learnt from everyone's choices, fitted again to each player's own way of choosing, gives each flag his odds; a wallhack or radar shows him the rest, so he keeps meeting fewer hidden enemies than his odds foretell. <b>Telling</b>: a choice where the flags differed in hidden enemies (about one a round for a man who plays the whole round). <b>Beyond</b>: how unlikely so few hidden enemies are, in standard units, against the spread of everyone's (wider for regulars), less what his reading of the game (the known enemies he avoided) explains - the ranking. <b>q</b>: of the players ranked at his level or above, about that share is there by luck (q &lt; 0.05: 1 in 20). <b>Lost</b>: his trips that ended in his death with the flag not known.</p><p class="w">A reason to watch his choices, never proof: voice is not in the demo - a squad that talks ("A is empty") makes its leader look lucky too, and so does a team mate spectating for him. The method and how sure it is: the admins' docs, admin-hints.md → Flag choices.</p></details></section>`;
+  if (sel) html += fcPlayer(S, sel, J);
+  html += fcPlot(S, P, sel && sel.nick, (box.clientWidth || 700) - 40);
+  const q = fc.q.trim().toLowerCase(), rows = P.filter(p => (fc.all || p.ranked) && (!fc.only || (p.q != null && p.q < 0.05)) && (!q || p.name.toLowerCase().includes(q) || p.nick.toLowerCase().includes(q)));
+  const shown = fc.many ? rows : rows.slice(0, 100);
+  html += `<section class="card"><div class="admfil"><label>Player <input id="fcQ" value="${esc(fc.q)}" placeholder="a nick" style="width:10em"></label><label><input type="checkbox" id="fcOnly"${fc.only ? ' checked' : ''}> only q &lt; 0.05</label><label><input type="checkbox" id="fcAll"${fc.all ? ' checked' : ''}> also those not ranked yet (under ${min} telling)</label></div>
+    <div class="stscroll"><table class="sttab sess fctab"><thead><tr><th class="n">#</th><th>Player</th><th class="n" title="Rounds with flag choices">Rounds</th><th class="n" title="Choices where the flags differed in hidden enemies">Telling</th><th class="n" title="How often he took the flag with the fewest hidden enemies / how often his odds foretold">Emptiest</th><th class="n" title="Hidden enemies his odds foretold, less those he met">Avoided</th><th class="n" title="How unlikely so few hidden enemies are, against everyone's spread">z hid</th><th class="n" title="The same for the known enemies: his reading of the game">z kn</th><th class="n" title="z hid less what z kn explains: the ranking">Beyond</th><th class="n" title="His trips killed on the way with the flag not known">Lost</th><th class="n" title="False discovery: of the players at his level or above, this share is there by luck">q</th></tr></thead><tbody>
+    ${shown.map((p, i) => `<tr class="open${p.nick === sel?.nick ? ' sel' : ''}${p.q != null && p.q < 0.05 ? ' fcfl1' : ''}" data-fcp="${esc(p.nick)}"><td class="n w">${p.ranked ? i + 1 : ''}</td><td>${esc(p.name)}${p.trusted ? ' <span title="Trusted (the review)">★</span>' : ''}</td><td class="n">${p.rounds}</td><td class="n">${p.telling}</td><td class="n">${p.emptiest} / ${p.foretold.toFixed(1)}</td><td class="n">${p.avoided.toFixed(1)}</td><td class="n">${fcZ(p.z)}</td><td class="n">${fcZ(p.zKnown)}</td><td class="n"><b>${fcZ(p.zBeyond)}</b></td><td class="n">${Math.round(p.lostShare * 100)}%</td><td class="n">${p.ranked ? fcQ(p.q) : '<span class="w">–</span>'}</td></tr>`).join('') || `<tr><td colspan="11" class="w">No player like that.</td></tr>`}</tbody></table></div>
+    ${rows.length > 100 ? `<button class="btn sm rmore" id="fcMany">${fc.many ? 'Show 100' : `Show all ${rows.length}`}</button>` : ''}</section>`;
+  if (C) html += `<section class="card"><details><summary>The check <span class="w">once a day, over ${S.key ? 'every server together' : 'these rounds'}${C.at ? ' · ' + esc(new Date(C.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })) : ''}</span></summary><ul class="plist fcchk">
+      ${pl ? `<li>Placebo - the hidden enemies shuffled among choices of the same flags and side, ${pl.runs} times: <b>${pl.flaggedAtQ05}</b> flagged (should be 0); beyond then ${pl.zMean} ± ${pl.zSd} (should be about 0 ± 1)</li>` : ''}
+      ${C.split ? `<li>Split halves - each player's odd and even rounds: r = <b>${C.split.r ?? '–'}</b> over ${C.split.players} players (a real trait keeps its place; near 0 - mostly luck)</li>` : ''}
+      ${C.trusted ? `<li>The trusted players: ${C.trusted.ranked} ranked of ${C.trusted.listed}, <b>${C.trusted.flaggedAtQ05}</b> at q &lt; 0.05, ${C.trusted.over2} with beyond over 2, beyond ${C.trusted.zMedian ?? '–'} in the middle</li>` : ''}
+      ${(C.inject || []).length ? `<li>Peeking put into real players' choices: ${C.inject.map(r => `${Math.round(r.share * 100)}% of telling choices - found in ${Math.round(r.detectedP01 * 100)}%`).join(' · ')} (p &lt; 0.01)</li>` : ''}
+      ${C.lost ? `<li>Killed on the way with the flag not known: ${C.lost.share == null ? '–' : Math.round(C.lost.share * 100) + '%'} of a player's trips in the middle; its link to beyond r = ${C.lost.r ?? '–'} (should be about 0)</li>` : ''}</ul></details></section>`;
+  html += `<p class="stnote">${runBtn} <span id="fcMsg">${esc(fc.msg)}</span> ${J.running ? 'Being worked out now…' : 'The background analysis works it out again once an hour when new rounds were analysed.'}</p>`;
+  box.innerHTML = html; statsWire(box); fcWirePlot(box, S); fcWireRun(box, redraw);
+  box.querySelectorAll('[data-fcs]').forEach(b => b.onclick = () => fcSet({ s: b.dataset.fcs || null, p: null }));
+  box.querySelectorAll('[data-fcp]').forEach(tr => tr.onclick = () => fcSet({ p: tr.dataset.fcp === arg.p ? null : tr.dataset.fcp }));
+  const qi = box.querySelector('#fcQ'); if (qi) qi.oninput = () => { fc.q = qi.value; const pos = qi.selectionStart; redraw(); const n = $('#fcQ'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } };
+  const on = box.querySelector('#fcOnly'); if (on) on.onchange = () => { fc.only = on.checked; redraw(); };
+  const al = box.querySelector('#fcAll'); if (al) al.onchange = () => { fc.all = al.checked; redraw(); };
+  const mn = box.querySelector('#fcMany'); if (mn) mn.onclick = () => { fc.many = !fc.many; redraw(); };
+  const cl = box.querySelector('#fcClose'); if (cl) cl.onclick = () => fcSet({ p: null });
+  const ak = box.querySelector('#fcAsk'); if (ak && sel) ak.onclick = () => openStatsPage('astats', { n: sel.nick });
+  if (sel && fc.scrollTo !== sel.nick) { fc.scrollTo = sel.nick; const d = box.querySelector('#fcDet'); if (d) d.scrollIntoView({ block: 'start' }); }
+  if (!sel) fc.scrollTo = null;
+}
+function fcWireRun(box, redraw) {
+  const rb = box.querySelector('#fcRun'); if (!rb) return;
+  rb.onclick = async () => { rb.disabled = true; const j = await admApi('choices-run', {}).catch(e => ({ ok: false, msg: e.message })); fc.msg = j.msg || (j.ok ? 'started' : 'did not start'); fcGet(redraw, true);
+    if (j.ok) { const t0 = Date.now(), tick = () => { if (ppage.page !== 'achoices' || Date.now() - t0 > 15 * 60e3) return; fcGet(() => { if (!fc.data?.running) fc.msg = 'Worked out again.'; redraw(); if (fc.data?.running) setTimeout(tick, 5000); }, true); }; setTimeout(tick, 4000); } };
+}
+Object.assign(ADM, { loaded: true, init: admInit, renderAdmin, admDescribe, aggHeads, renderPane: admRenderPane, htOpen, revPanel: admRevPanel, playerTiles: admPlayerTiles, hintsCard: (nick, redraw) => hintsCard(statsHints(nick, redraw), nick), statsRender: aqRender, choicesRender: fcRender });
 // @agg-admin-begin
 // (v183, todo 221) his headshots against what his weapons give everyone: the share of small-arms kills to the head is
 // each weapon's own (HS_W, 145 thousand kills of the analysis of 1619 rounds of 8 servers, todo 146: sniper rifles ~0.47,
@@ -2850,7 +3087,7 @@ function aggTail10(k, n, p) {
   return Math.min(0, (m + Math.log(sm)) / Math.LN10);
 }
 // @agg-admin-end
-// ---- part 8 (page line 16821) ----
+// ---- part 8 (page line 17058) ----
 // (v185, todo 226) his hints over his rounds (the server's background analysis: data/stats/hints/<nick>.json, everyone's
 // shares in data/stats/hints.json): { me, all } - null while they load, undefined when there are none
 const hintsCache = new Map();
@@ -2868,7 +3105,7 @@ function statsHints(nick, redraw) {
   const M = hintsGet('hints/' + nickSlug(nick) + '.json', A.data.at); if (M.wait) { statsThen(M, redraw); return null; }
   return M.data && M.data.hv === HT_HV ? { me: M.data, all: A.data } : undefined;
 }
-// ---- part 9 (page line 16857) ----
+// ---- part 9 (page line 17094) ----
 // the card: each hint he had, in how many of his rounds, against everyone's share - the least likely first
 function hintsCard(H, nick) {
   if (!H) return '';

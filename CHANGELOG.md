@@ -5,6 +5,56 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v250
+
+**Flag choices: a page for admins** (Sagara: "let's make it a special page only admins can open", 2026-10-28):
+
+- **Flag choices** (`#achoices=1`) — a page of the site for the admins (the Admin tab, as Review): the players ranked by
+  *beyond* with tiles (ranked, worth a look at q < 0.05, the daily placebo and the trusted players — red when they are
+  not 0); a plot of each ranked player's reading of the game (the known enemies he avoided) against beyond, with the
+  line where q < 0.05 starts, trusted players as rings, a tap opening his choices; the table (rounds, telling choices,
+  emptiest, avoided, z hid, z kn, beyond, lost, q, ★ trusted; filter by nick, only q < 0.05, also those not ranked yet);
+  a player's card: what his numbers say and his most telling choices — each flag he could have gone for with its
+  distance, hidden enemies on it and on the way in, known ones, his odds — with a link that opens the round 3 s
+  before he set off, following him; the daily check. Opened from the admins' pane (**Flag choices**), a player's page
+  (**Flag choices**), the Statistics page's tile and the admin page's Background analysis card.
+- **Each server on its own**: choices.mjs works out every server with 100+ choices with its own model and its own
+  spread of everyone's too. The owner sees *All servers* and each server; **a server's admin sees only his servers**,
+  each on its own (`/admin/api/choices`; the raw `choices.json` is the owner's only).
+- **The check once a day** in the background (placebo, split halves, peeking put in, killed on the way) — and now **the
+  trusted players** (Review's ★) as a reference: hardly any of them should stand out. `choices.mjs --check` shows it too.
+- **Work it out again** on the page (the owner, or an account with the card Background analysis): `analyze.mjs
+  --choices` in the background.
+
+## v249
+
+**Flag choices: who is lucky at flags, over all his rounds** (2026-10-28, admins):
+
+- **The background analysis keeps every flag choice** (its table C, version 3): each trip a soldier made to a flag his
+  side did not hold — from his spawn, revive or the flag he left, on foot or driving (not in an aircraft), to a zone he
+  stayed in 4 s or died in, or killed on the way (toward the flag he had come nearest to or was heading for: without
+  them the unlucky trips would be missing) — with the flags he could have gone for (every flag his side did not hold out
+  to 2 × the nearest, picked without looking at his choice) and, for each, what his side could know (distance, owner,
+  the flag's height and its move, team mates there, his squad's order, and the enemies known to them: seen by his side
+  around the moment he set off, seen by him or spotted or in the UAV ring on the way, who killed one of them in the
+  minute before, or heard firing) and what nobody on his side knew (the other enemies there, and 20–60 m out). A squad
+  member who followed his leader there is marked (the leader chose); trips killed on the way whose flag can't be told
+  are kept per player. About 110 choices in a Karkand round, 1–3 s of work.
+- **`server/choices.mjs`** compares the players: a model learnt from everyone's choices gives each choice its own odds
+  by what he could know, fitted again to each player's own way of choosing (a back-capper meets fewer enemies of every
+  kind: his way, not luck); for each player, how unlikely so few hidden enemies are (exactly), against a spread of
+  everyone's that widens with how much he has played (*z hid*), the same for the known ones (*z kn*: his reading of the
+  game), the first less what the second foretells (*beyond*, the ranking), and the false-discovery q over all ranked
+  players; `--nick` lists his most telling choices with links to the moment; `--check` (placebo, split halves, peeking
+  put into real players' choices, killed-on-the-way against the ranking) and `--selftest` (a made-up archive) say how
+  far to trust it. On 12 made-up archives: 2 of 1,553 honest players at q < 0.05 (of 42 flagged); a player following a
+  radar found in 18 of 23 with 60–149 telling choices (about one a round)
+  ([admin-hints.md](docs/admin-hints.md#flag-choices--over-all-of-a-players-rounds-v249)).
+- The background run makes `data/.admin/choices.json` (at most once an hour; `analyze.mjs --choices` at once) and goes
+  over the rounds analysed before by itself — after the new ones, without changing the hint rules: the players'
+  hint cards stay meanwhile; the admin page's Background analysis counts them as not done yet. Copies of other rounds
+  are left out, as in the hints. Nothing decoded or summed up again.
+
 ## v248
 
 **The background analysis: each round ~5x faster, several at once, no breaks** (Sagara: "Background analysis — can it be

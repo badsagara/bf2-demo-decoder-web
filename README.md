@@ -14,7 +14,8 @@ server/       for the VPS: install.sh (installs everything in one run), fetch.mj
               ingest.mjs (decodes demos), update.sh (updates from GitHub), units.sh (systemd timers and Caddy),
               notify.mjs / digest.mjs / alerts.mjs (posts, summaries, admin alerts), admin.mjs + admin.html (the admin
               page), analyze.sh / analyze.mjs (analysis of many rounds; in the background — the hints over all of a
-              player's rounds), glitch.mjs (the grid of where soldiers stood, for Glitch spot), demos.mjs (which old demos
+              player's rounds), choices.mjs (flag choices over all rounds: who is lucky at flags; v249),
+              glitch.mjs (the grid of where soldiers stood, for Glitch spot), demos.mjs (which old demos
               to remove), roundsidx.mjs (the format of rounds.json), systemd/, Caddyfile.in, INSTALL.md
 src/          the page's source: `node server/splitpage.mjs` builds site/index.html and server/admin-round.js
 gameserver/   optional: a script for a game server that sends its demos itself (if you have access to the server)
@@ -129,7 +130,7 @@ the exact collision shapes of the maps `site/assets/geo`, the maps' trees `site/
 minimaps `site/assets/maps_hd`). Unpack it over your clone and push:
 
 ```bash
-V=v247                                   # the version in the archive's name
+V=v250                                   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

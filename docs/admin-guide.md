@@ -10,7 +10,7 @@ holds what were the Admin tab and the For admins tab next to the map), and the h
 > page at all. Keep this guide and `admin-hints.md` among admins.
 
 Contents: [Part 1 — the admin page](#part-1--the-admin-page-admin) · [Users and access](#users-and-access) · [Part 2 — admins on the site](#part-2--admins-on-the-site) ·
-[Asking the statistics](#asking-the-statistics-v244) · [Part 3 — working with hints](#part-3--working-with-hints) · [Security](#security)
+[Asking the statistics](#asking-the-statistics-v244) · [Flag choices](#the-flag-choices-page-v250) · [Part 3 — working with hints](#part-3--working-with-hints) · [Security](#security)
 
 ---
 
@@ -487,6 +487,40 @@ analysed rounds count; bots are left out. A server's admin sees only his servers
 
 ---
 
+### The flag choices page (v250)
+
+Who "is lucky" at flags over all his rounds — goes for the flag nobody on his side knew was empty (what a wallhack or
+radar gives) — as a page of the site for admins. How it is worked out:
+[admin-hints.md → Flag choices](admin-hints.md#flag-choices--over-all-of-a-players-rounds-v249). Open it from:
+
+- **Flag choices** in the head of the admins' pane (the soldier you follow, if any, is shown at once);
+- **Flag choices** on a player's page (his choices);
+- the **Flag choices** tile on the Statistics page; the admin page's *Background analysis* card (**Flag choices ↗**);
+- a link `#achoices=1` — with `&fcs=<server>` (one server) and `&fcp=<nick>` (one player); **Copy link** copies it.
+
+Logged in with the Admin tab, as for Review. **The site's owner** sees every server together (*All servers*) and each
+server on its own (its own model and its own spread of everyone's: a server's own crowd and ways); **a server's admin**
+sees only his servers, each on its own — never the whole site's (the file behind it, `data/.admin/choices.json`, is the
+owner's only).
+
+What is on it:
+
+| Part | What it shows |
+|---|---|
+| Tiles | players ranked (15+ telling choices); **worth a look** (q < 0.05 — none while fewer than 30 are ranked); the daily **placebo** (should be 0) and the **trusted players** at q < 0.05 (should be 0) — red when not |
+| How to read it | the terms in a few lines |
+| A player (when one is picked) | beyond and q, hidden enemies avoided, the emptiest flag x / foretold, his reading of the game; what it says (stands out / somewhat above / nothing out of the ordinary / not ranked yet); **his most telling choices**: the flags he could have gone for — ▶ the one he went for — each with its distance, hidden enemies on it + on the way in, known ones, his odds; the link opens the round 3 s before he set off, following him; *killed on the way* when he died before getting there |
+| The plot | each ranked player: across — his reading of the game (the known enemies he avoided); up — **beyond** (the ranking); red — q < 0.05 (with the line where it starts), ○ — trusted; tap a dot for his choices |
+| The table | every ranked player by beyond (100 at first, **Show all**): rounds, telling choices, emptiest, avoided, z hid, z kn, beyond, lost (his trips killed on the way with the flag not known), q; ★ trusted; a filter by nick, *only q < 0.05*, *also those not ranked yet*; tap a row for his choices |
+| The check | once a day: placebo, split halves, the trusted players, peeking put into real players' choices, killed-on-the-way against the ranking |
+| Work it out again | the owner, or an account with the card *Background analysis*: worked out from every analysed round now (the background analysis does it by itself once an hour when new rounds were analysed) |
+
+A player at q < 0.05: watch his moments (the side view, his team's minimap, his squad), his hints, his other rounds;
+mark him trusted in Review when he is clean (★ here too, and he counts in the check). Never a verdict on its own:
+voice is not in the demo.
+
+---
+
 ## Part 3 — working with hints
 
 ### What a hint is
@@ -561,6 +595,30 @@ The score adds up how improbable a player's hint rate is across his rounds. It i
 first"), not a verdict: it needs enough analysed rounds (players with fewer than 10 are not compared), it counts only
 rounds analysed with the current rules, and a few players will always be at the top by chance. The admin page lists the
 highest ones under *Background analysis*.
+
+### Flag choices (v249)
+
+Who "is lucky" at flags over all his rounds: goes for the flag where no enemy is, when nothing his side knew said it was
+empty — what a wallhack or radar gives. Each trip to a flag his side did not hold is set against the flags he could
+have gone for, and a model learnt from everyone's choices (and fitted again to his own way of choosing) says how likely
+each was by what he could know. Players are
+ranked by how many enemies he could not know of he avoided beyond that (and beyond his reading of the game: the known
+enemies he avoided). How it works and how sure it is: [admin-hints.md](admin-hints.md#flag-choices--over-all-of-a-players-rounds-v249).
+
+On the site: [the flag choices page](#the-flag-choices-page-v250) (v250). On the server (the background analysis does
+the file by itself, at most once an hour):
+
+```bash
+cd /srv/bf2replay/repo/server
+sudo -u bf2replay node choices.mjs                    # the table: players ranked, 15+ telling choices
+sudo -u bf2replay node choices.mjs --nick NAME        # his choices, the most telling first, each with a link to the moment
+sudo -u bf2replay node choices.mjs --check            # is it measuring anything on our rounds (placebo, split halves, peeking put in)
+sudo -u bf2replay node choices.mjs --maps strike_at_karkand --since 2026-10-01
+```
+
+Read *beyond* and *q* (q < 0.05: of the players at or above him, about 1 in 20 is there by luck). It needs a player's
+60+ telling choices — about as many full rounds — to find one who follows a radar. q < 0.05 is a reason to watch his links (the round opens 3 s before he set off, following him) —
+the side view, his team's minimap, his squad. Never a verdict on its own: voice is not in the demo.
 
 ### Glitch spot
 
