@@ -1082,9 +1082,13 @@ them again (hint rules version 19). Nothing to do.
 lock, Aim snaps and Target switch against the round's others, the object a man lies on in every sight check, Beyond
 fog not at a spotted man). Five new thresholds (189 in all) - a site's own set keeps what it changed. Nothing to do.
 
+(v259) No decoder change. Hint rules version 21: the background analysis looks at every round again by itself (Inside
+an object - new, in shadow; Beyond fog not at a spotted man only, the UAV ring counts again; the object under a man
+looked for round him too, a man lying down not blocked by his own slope). One new threshold (190 in all). Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (189 of 59 hints since v258: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (190 of 60 hints since v259: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 

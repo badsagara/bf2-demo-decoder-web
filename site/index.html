@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v258';
+const APP_VERSION = 'v259';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -3273,9 +3273,10 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot, own) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy); if (L < 2 * LOS_END) return null;
   const e0 = LOS_END / L, e1 = 1 - e0; let best = null;
   const n = Math.ceil(L / D.hmStep * 2);
-  for (let k = 1; k < n; k++) { const u = k / n; if (u < e0 || u > e1) continue; if (ah + dh * u < groundAt(D, ax + dx * u, ay + dy * u) - 0.15) { best = { u, what: 'ground' }; break; } }
+  const L3 = Math.hypot(dx, dy, dh), gNear = own && own.prone ? OWN_NEAR / L3 : 0;
+  for (let k = 1; k < n; k++) { const u = k / n; if (u < e0 || u > e1) continue; if (ah + dh * u < groundAt(D, ax + dx * u, ay + dy * u) - (u <= gNear ? OWN_GROUND : 0.15)) { best = { u, what: 'ground' }; break; } }
   if (best && any) return best;
-  const off = geoOff(D, G, tt), L3 = Math.hypot(dx, dy, dh), cut = own && own.size ? Math.min(OWN_NEAR / L3, best ? best.u : e1) : 0;
+  const off = geoOff(D, G, tt), cut = own && own.size ? Math.min(OWN_NEAR / L3, best ? best.u : e1) : 0;
   let h = null;
   if (cut > e0) { const sk = new Set(off || []); for (const pi of own) sk.add(pi); h = geoHit(G, ax, ay, ah, bx, by, bh, e0, cut, any, sk, shoot); }
   if (!h) h = geoHit(G, ax, ay, ah, bx, by, bh, Math.max(e0, cut), best ? best.u : e1, any, off, shoot);
@@ -3285,10 +3286,44 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot, own) {
 }
 // (v257) the object a soldier at q stands or lies on: the first one 1.6 m down from his position (1.0 m over his feet) - a
 // Set of its index, or null
-function ownGround(G, q) {
+// (v259, archive v258: men standing between two cargo wagons or at a wall's edge - nothing straight under him) and
+// 0.6 m round him: every object found so; prone: his lines' first OWN_NEAR m also cross the ground he lies on only when
+// it is well over them (OWN_GROUND - the snipers lying on a hill's crest, Dragon Valley 220 m down: the ground 1-4 m
+// ahead of them blocked their low line) - a Set (empty when prone and on the bare ground) or null
+const OWN_GROUND = 0.5;
+function ownGround(G, q, prone) {
   if (!G || !q || q.veh || !Number.isFinite(q.x) || q.h == null) return null;
-  const h = geoHit(G, q.x, q.y, q.h, q.x, q.y, q.h - 1.6, 0, 1, false, null, false);
-  return h && h.pi != null ? new Set([h.pi]) : null;
+  const S = new Set();
+  for (const [ox, oy] of [[0, 0], [0.6, 0], [-0.6, 0], [0, 0.6], [0, -0.6]]) { const h = geoHit(G, q.x + ox, q.y + oy, q.h, q.x + ox, q.y + oy, q.h - 1.6, 0, 1, false, null, false); if (h && h.pi != null) S.add(h.pi); }
+  if (prone) S.prone = true;
+  return S.size || prone ? S : null;
+}
+// (v259, archive v258: ZdarovaByli lay inside Karkand's old city wall - 50 x 7.1 x 4.1 m, solid - 8 kills in a round at
+// 4-35 m, the wall 2-4 m from him in each line: a bullet leaves a collision shape from inside, one can't be hit in it)
+// the solid object a point (east, north, up) is inside: rays three ways out of it each cross its faces an odd number of
+// times - { pi, o } or null
+function insideObj(G, x, y, h) {
+  const L = G && G.cells.get((Math.floor(x / G.CELL) + 2048) * 4096 + Math.floor(y / G.CELL) + 2048); if (!L) return null;
+  for (const pi of L) {
+    const Q = G.P[pi]; if (x < Q.lo[0] || x > Q.hi[0] || y < Q.lo[1] || y > Q.hi[1] || h < Q.lo[2] || h > Q.hi[2]) continue;
+    const M = G.meshes[Q.m], V = M.V, I = M.I, R = Q.R, wx = x - Q.p[0], wy = h - Q.p[1], wz = y - Q.p[2];
+    const ox = R[0] * wx + R[3] * wy + R[6] * wz, oy = R[1] * wx + R[4] * wy + R[7] * wz, oz = R[2] * wx + R[5] * wy + R[8] * wz;
+    let odd = 0;
+    for (const W of [[0.013, 1, 0.007], [1, 0.011, 0.017], [0.009, 0.014, 1]]) {   // (world east, up, north; off the axes a little: no edge twice)
+      const vx = R[0] * W[0] + R[3] * W[1] + R[6] * W[2], vy = R[1] * W[0] + R[4] * W[1] + R[7] * W[2], vz = R[2] * W[0] + R[5] * W[1] + R[8] * W[2]; let c = 0;
+      for (let f = 0, nf = I.length / 3; f < nf; f++) {
+        const i0 = I[f * 3] * 3, i1 = I[f * 3 + 1] * 3, i2 = I[f * 3 + 2] * 3;
+        const e1x = V[i1] - V[i0], e1y = V[i1 + 1] - V[i0 + 1], e1z = V[i1 + 2] - V[i0 + 2], e2x = V[i2] - V[i0], e2y = V[i2 + 1] - V[i0 + 1], e2z = V[i2 + 2] - V[i0 + 2];
+        const hx = vy * e2z - vz * e2y, hy = vz * e2x - vx * e2z, hz = vx * e2y - vy * e2x, det = e1x * hx + e1y * hy + e1z * hz; if (det > -1e-12 && det < 1e-12) continue;
+        const sx = ox - V[i0], sy = oy - V[i0 + 1], sz = oz - V[i0 + 2], uu = (sx * hx + sy * hy + sz * hz) / det; if (uu < 0 || uu > 1) continue;
+        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, vv = (vx * qx + vy * qy + vz * qz) / det; if (vv < 0 || uu + vv > 1) continue;
+        if ((e2x * qx + e2y * qy + e2z * qz) / det > 1e-6) c++;
+      }
+      if (c % 2 === 0) break; odd++;
+    }
+    if (odd === 3) return { pi, o: G.names[Q.nm] };
+  }
+  return null;
 }
 // eye height by stance, over the soldier's position (which is 1.0 m over his feet, standing, crouching or prone alike:
 // =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest).
@@ -3399,7 +3434,7 @@ function canSee(i, j, tt, V) {
   const G = geoData(true);
   // (v258) the object he stands or lies on left out of his first OWN_NEAR m (ownGround: worked out only when the grid has
   // a line blocked) - a man lying on a roof or a rock looks over its edge (His view, who saw whom first, Pre-aim)
-  let own; const ownOf = () => own === undefined ? (own = G && !q.veh ? ownGround(G, q) : null) : own;
+  let own; const ownOf = () => own === undefined ? (own = G && !q.veh ? ownGround(G, q, poseNow(round.players[i], tt) === 2) : null) : own;
   const clear = (bx, by, bh) => !(losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt, false, ownOf())))
     && !vehBlocks(q.x, q.y, eye, bx, by, bh, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, bx, by, bh);
   for (const [bx, by, bh] of pts) if (clear(bx, by, bh)) return true;

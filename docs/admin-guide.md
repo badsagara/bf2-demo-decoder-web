@@ -589,7 +589,7 @@ shadow" — no alert goes out for it, and it is left out of the players' hint ca
 admins don't see it at all. The **shadow** tick by each hint's name in the editor puts any hint in shadow or takes it out
 (the owner's, or that right's; the file `data/.admin/hint-shadow.json`). Nothing is analysed again: the alerts follow at
 once, the cards and the score at the background analysis's next pass. v254's two new hints, *Ready for contact* and
-*Recoil script*, are in shadow; take one out once the archive and your marks bear it out.
+*Recoil script*, and v259's *Inside an object* are in shadow; take one out once the archive and your marks bear it out.
 
 **What your marks say (v254).** Next to each hint's name the editor shows how the admins marked its hints so far:
 "marked 12: ⚑2 ✗7 ✓3" — suspicious, false alarm, checked — over the rounds of the servers you may see. Many ✗ against few

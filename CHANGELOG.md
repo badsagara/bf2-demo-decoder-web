@@ -5,6 +5,30 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v259
+
+**What the v258 archive showed** (Sagara: "роби 259-ту версію"). No decoder change; hint rules version 21 (the server
+looks at every round again by itself).
+
+- **Inside an object - a new hint, in shadow** (`inside`): kills by a man whose eye was inside a solid collision shape
+  (a wall, a rock) at the kill and a second before it, **2** or more in a round. A bullet leaves a shape from inside,
+  so he shoots out while nobody can hit him. Each kill: three rays from his eye, a little off the axes, each crossing
+  the shape's faces an odd number of times. In the v258 archive two men near-blocked No line of sight that way; their
+  demos: ZdarovaByli (Karkand, SiC, 06.10 10:16) lay inside the old city wall `stnwalls_50m_up` (50 x 7.1 x 4.1 m,
+  solid) for **34** kills; and on the 16 test demos one more - 8964 MisterLok (Road to Jalalabad, 01.10 18:33) lay
+  inside `rockpile_1`, his eye 0.2-0.6 m under the rock's top, 13 kills (10 with an L96A1 at 26-137 m; v257's "a
+  sniper lying on a rock pile" - he was in it). Nobody else: in 6,730 kills one more man had one kill so (MrRubert, the
+  same wall) and two men a single moment. Slizka_DK (Karkand's cargo wagons) was not inside: he stood 0.2 m beside a
+  wagon, his eye 8 cm under its floor - shooting under it (No line of sight as before). One new threshold (190 in all).
+- **Beyond fog: not at a spotted man - only spotted** (v258 left out the UAV ring too: 125 of the archive's hints went
+  that had no spot at all). The UAV shows men on the minimap, not through the fog on the screen. 16 test demos: 4 hints
+  back (MicrosoftExcel, Karkand 13.10).
+- **The object he lies or stands on**: looked for in five spots - under him and 0.6 m round him (between two cargo
+  wagons, at a wall's edge), not only straight under him. And **a man lying down, the ground in his first 6 m** blocks
+  a line only 0.5 m or more over it (not 0.15 m): a sniper lying on a hill's crest sees down over it (the archive:
+  Dragon Valley, 72McBrew and 1offFour - no demo of it among the test ones). 16 test demos: no hint more or less; who
+  saw whom first changed in 71 of 6,849 kills, the reaction time in 80.
+
 ## v258
 
 **What the v254 archive still showed** (Sagara: "Давай з першого по третій пункт"). No decoder change; hint rules
