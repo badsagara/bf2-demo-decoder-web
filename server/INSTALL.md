@@ -1065,6 +1065,10 @@ the background analysis a quarter to a half longer. 12 new thresholds (184 in al
 the **hints in shadow** (`data/.admin/hint-shadow.json`, below) and the admins' marks per hint in the thresholds editor.
 Nothing to do.
 
+(v255) **No decoder change** (still `a6a4d55e6a`: nothing decoded again). Round summaries version 20 and hint rules
+version 18, both done again by themselves from the decoded rounds. The background analysis is about twice as fast as
+v254 on big rounds (the same hints), so that pass takes about half of what v254's did. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (184 of 59 hints since v254: times, angles, distances, counts, odds) can be set from the site's page:

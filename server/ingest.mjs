@@ -140,7 +140,7 @@ function bfrBuild(obj) {
 // 10, v205: the anti-tank rockets in hand and on a stand apart, the tank cannons apart from the vehicles, todo 251; 11,
 // v207: the round's highlights of the same groups for the posts, todo 253; 12, v210: the explosives apart - hand grenades,
 // grenade launchers, C4 - for the posts and the records, todo 256)
-// SUM_V = 19 (server/roundsidx.mjs since v231; 19, v254: the squad's leader the one made so last; kills from a vehicle's seat from the vehicle): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
+// SUM_V = 20 (server/roundsidx.mjs since v231; 20, v255: a kill by a man with no soldier then - no distance; 19, v254: the squad's leader the one made so last; kills from a vehicle's seat from the vehicle): (13, v215: pts' time and vehicles, P[].y - duels, damage, assists, spawns, squad, flag zones, revives, vehicles; fl - the flags; 14, v216: the field of view 90° - pts' unseen, the duels; 15, v219: 95° and the sights' zoom; 16, v221: killFix - a kill's weapon and distance put right where the game named them wrong, repairs as the game counts them)
 // (17, v231: the players' score again - v221 had lost it; every round is summed up again from its .bfr, nothing decoded)
 // (18, v234: through the sights the zoom factor is the view's height itself, not a share of the 1.1 rad - Player::setFov in
 // OpenBF2; the kills' unseen flag - again from the .bfr, nothing decoded)

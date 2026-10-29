@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v254';
+const APP_VERSION = 'v255';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1589,19 +1589,14 @@ function killFix(events, pidx, C, players, again, fog) {
     let th = null, best = Infinity; for (const w of thrown) if (w.by === e.killer && Math.abs(w.t1 - e.t) < 0.6 && TF[w.kind].test(e.weapon || '')) { const o = endOff(w); if (o < best) { best = o; th = w; } }
     if (th && !/shell/i.test(th.kind)) { const k0 = frameAt(th.path[0][0]), a0 = k0 * n + ki; if (k0 < 0 || !(Math.hypot(th.path[0][1] - X[a0], th.path[0][2] - Y[a0]) <= 30)) th = null; }
     // (v254, archive v251: 15 of 19 Shot from elsewhere hints) a hand weapon's kill by a man the demo has no soldier for
-    // then - he fired from a vehicle's seat it kept no ride of (spawned into it on his squad leader): his place the map's
-    // middle, a shotgun's victim "1 km" away. From the vehicle on the bullet's own line (the game's direction of the hit,
-    // within 5 m of it, back from the victim); none there - no distance
-    // (a killer who died a moment before the kill's record - the two shot each other, his grenade went off after him - is
-    // measured from where he last stood, as before: only a man the demo had no soldier for in the 5 s before)
+    // then (his place the map's middle, a shotgun's victim "1 km" away): no distance. (v255: v254 took a manned vehicle on
+    // the bullet's line for his seat - wrong both times it was used: those men's soldiers are in the demo after all, records
+    // it never showed a spawn for, found by their own throws and kills - both stood on the line 2-3 m from the victim, not
+    // in the UH-60 / Vodnik 25 m back.)
+    // A killer who died a moment before the kill's record - the two shot each other, his grenade went off after him - is
+    // measured from where he last stood, as before: only a man the demo had no soldier for in the 5 s before
     let seat = null, ka = a; if (LV && !LV[a] && !kVeh) for (let k2 = k - 1; k2 >= 0 && T[k2] >= e.t - 5; k2--) if (LV[k2 * n + ki]) { ka = k2 * n + ki; break; }
-    if (!th && LV && !LV[ka] && !kVeh && e.wid && hand(e.wid)) {
-      const dr = e.dir, hl = dr ? Math.hypot(dr[0], dr[2]) : 0;
-      if (hl > 0.2) { const ux = dr[0] / hl, uy = dr[2] / hl;
-        for (let j = 0; j < players.length; j++) { if (!players[j]?.vehicle) continue; const f = k * n + j; if (!LV[f]) continue; const wx = X[f] - X[b], wy = Y[f] - Y[b], along = -(wx * ux + wy * uy), lat = Math.abs(wx * uy - wy * ux); if (along > 2 && lat <= 5 && (!seat || lat < seat.lat)) seat = { f, lat, name: players[j].name }; } }
-      if (!seat) { e.noDist = 'gone'; continue; }
-      e.from = [X[seat.f], Y[seat.f], hh(seat.f)].map(v => Math.round(v * 10) / 10); e.seat = seat.name; e.noRec = 'seat';   // (where he was is a guess: no record)
-    }
+    if (!th && LV && !LV[ka] && !kVeh && e.wid && hand(e.wid)) { e.noDist = 'gone'; continue; }
     const dist = Math.round(th ? Math.hypot(th.path[0][1] - X[b], th.path[0][2] - Y[b]) : seat ? Math.hypot(X[seat.f] - X[b], Y[seat.f] - Y[b], hh(seat.f) - hh(b)) : ka !== a ? Math.hypot(X[ka] - X[b], Y[ka] - Y[b], hh(ka) - hh(b)) : dNow);
     if (REACH[e.wid] && dist > REACH[e.wid] * 1.05) { e.noDist = 'reach'; continue; }
     e.dist = dist;
@@ -2272,14 +2267,19 @@ const SLOT_NAME = [null, 'Knife', 'Pistol', 'Rifle', 'Grenade / launcher', 'Kit 
 function inHands(i, tt) {
   const p = round.players[i]; if (p.vehicle || !p.items) return null;
   const q = playerAt(i, tt); if (!q.alive || q.veh) return null;
-  let slot = null, since = null; for (const [ts, v] of p.items) { if (ts > tt) break; if (v !== slot) since = ts; slot = v; } if (slot == null) return null;
+  // (v255: the cost - by halving, not from the round's start; his own kills only, not every event of the round)
+  const IT = p.items, lastAt = (A, x) => { let lo = 0, hi = A.length - 1, k = -1; while (lo <= hi) { const m = (lo + hi) >> 1; if (A[m][0] <= x) { k = m; lo = m + 1; } else hi = m - 1; } return k; };
+  const ki = lastAt(IT, tt); if (ki < 0) return null; const slot = IT[ki][1]; if (slot == null) return null;
+  let j0 = ki; while (j0 > 0 && IT[j0 - 1][1] === slot) j0--; const since = IT[j0][0];
   const kit = kitNow(p, tt); let wid = (kit && KIT_ITEMS[factionKey(teamOf(i, tt))]?.[kit]?.[slot - 1]) || 0;
   // (this life: from his last spawn to the next)
-  let a = -Infinity, b = Infinity; for (const [ts] of p.kits || []) { if (ts <= tt + 0.05) a = ts; else { b = ts; break; } }
+  const KS = p.kits || [], kk = lastAt(KS, tt + 0.05), a = kk >= 0 ? KS[kk][0] : -Infinity, b = kk + 1 < KS.length ? KS[kk + 1][0] : Infinity;
+  if (!round._killsBy || round._killsBy.ev !== round.events || round._killsBy.n !== round.events.length) { const M = new Map(); for (const e of round.events) if (e.type === 'kill') { let L = M.get(e.killer); if (!L) M.set(e.killer, L = []); L.push(e); } round._killsBy = { ev: round.events, n: round.events.length, M }; }
+  const KB = round._killsBy.M;
   let best = null;
-  for (const e of round.events) {
+  for (const e of KB.get(p.id) || []) {
     if (e.t < a) continue; if (e.t >= b) break;
-    if (e.type !== 'kill' || e.killer !== p.id || e.kv || !e.wid || WPN_SLOT[e.wid] !== slot) continue;
+    if (e.kv || !e.wid || WPN_SLOT[e.wid] !== slot) continue;   // (wid / kv read now: killFix may set them after)
     if (!best || (e.t <= tt && (best.t > tt || e.t > best.t))) best = e;
   }
   if (best) wid = best.wid;
@@ -2344,8 +2344,8 @@ function empSight(i, tt) {
   const q = playerAt(i, tt); if (!q.alive || q.veh || !Number.isFinite(q.x)) return false;
   const tm = teamOf(i, tt);
   return E.some(e => {
+    const d = Math.hypot(e.x - q.x, e.y - q.y); if (d >= 2.5) return false;   // (v255: the cheap test first)
     const c = e.crew.find(c => c[0] <= tt && tt < c[1]); if (!c || c[2] !== tm) return false;
-    const d = Math.hypot(e.x - q.x, e.y - q.y); if (d >= 2.5) return false;
     // nobody else of his side nearer to it
     return !round.players.some((o, j) => { if (j === i || o.vehicle) return false; const w = playerAt(j, tt); return w.alive && !w.veh && Number.isFinite(w.x) && teamOf(j, tt) === tm && Math.hypot(e.x - w.x, e.y - w.y) < d; });
   });
@@ -2355,8 +2355,11 @@ function viewZoom(i, tt) {
   const p = round.players[i]; if (!p || p.vehicle) return 1;
   if (empSight(i, tt)) return EMP_SIGHT_FOV;
   if (!zoomNow(p, tt)) return 1;
-  const C = round._vz || (round._vz = new Map()), key = i * 1e6 + Math.round(tt * 10); let z = C.get(key);
-  if (z === undefined) { const h = inHands(i, tt); z = (h && ZOOM_F[h.wid]) || (h && h.slot === 2 ? 0.8 : 0.7); if (C.size > 50000) C.clear(); C.set(key, z); }
+  // (v255: kept per soldier and 0.1 s in an array - a map of 50,000 cleared when full was most of the work; the weapon
+  // at the 0.1 s mark, not at the first moment asked - the same answer in whatever order the round is gone through)
+  const A = round._vzA || (round._vzA = []), arr = A[i] || (A[i] = new Float32Array(Math.ceil((round.duration || 0) * 10) + 2)), kq = Math.round(tt * 10);
+  let z = kq >= 0 && kq < arr.length ? arr[kq] : 0;
+  if (!z) { const inA = kq >= 0 && kq < arr.length, h = inHands(i, inA ? kq / 10 : tt); z = (h && ZOOM_F[h.wid]) || (h && h.slot === 2 ? 0.8 : 0.7); if (inA) arr[kq] = z; }   // (what he holds at the 0.1 s mark: the same whoever asks first)
   return z;
 }
 // (v219, Sagara: "the exact frame") the view as the game draws it: a frame on the screen - VIEW_VHALF over and under,
@@ -3179,6 +3182,28 @@ async function decodeGeo(meta, b64) {
   const pen = new Uint8Array(meta.mats.length); for (const i of meta.pen || []) pen[i] = 1;
   return { meshes, P, cells, CELL, mat, names: meta.names, mats: meta.mats, pen, penKnown: !!meta.pen, stamp: new Uint32Array(nP), pass: 0 };
 }
+// (v255) a mesh's faces in a tree of boxes (its own axes), built at its first use: the faces' boxes split at the middle face
+// along the box's longest side until 4 or fewer; B: each node's box (lo x y z, hi x y z), N: [left, right, -] or
+// [-1, first, count] into ids (the faces)
+const GEO_STK = new Int32Array(1024);
+function meshBvh(M) {
+  if (M.bvh) return M.bvh;
+  const V = M.V, I = M.I, nf = I.length / 3, C = new Float32Array(nf * 3), FB = new Float32Array(nf * 6);
+  for (let f = 0; f < nf; f++) { const a = I[f * 3] * 3, b = I[f * 3 + 1] * 3, c = I[f * 3 + 2] * 3;
+    for (let x = 0; x < 3; x++) { const p = V[a + x], q = V[b + x], r = V[c + x], lo = Math.min(p, q, r), hi = Math.max(p, q, r); FB[f * 6 + x] = lo; FB[f * 6 + 3 + x] = hi; C[f * 3 + x] = (lo + hi) / 2; } }
+  const ids = new Array(nf); for (let f = 0; f < nf; f++) ids[f] = f;
+  const B = [], N = [];
+  const build = (a, b) => {
+    const k = N.length / 3; N.push(-1, a, b - a); B.push(Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity);
+    for (let i = a; i < b; i++) { const f = ids[i]; for (let x = 0; x < 3; x++) { if (FB[f * 6 + x] < B[k * 6 + x]) B[k * 6 + x] = FB[f * 6 + x]; if (FB[f * 6 + 3 + x] > B[k * 6 + 3 + x]) B[k * 6 + 3 + x] = FB[f * 6 + 3 + x]; } }
+    if (b - a <= 4) return k;
+    let ax = 0, ext = -1; for (let x = 0; x < 3; x++) { const e = B[k * 6 + 3 + x] - B[k * 6 + x]; if (e > ext) { ext = e; ax = x; } }
+    const part = ids.slice(a, b).sort((p, q) => C[p * 3 + ax] - C[q * 3 + ax]); for (let i = a; i < b; i++) ids[i] = part[i - a];
+    const m = (a + b) >> 1, l = build(a, m), r = build(m, b); N[k * 3] = l; N[k * 3 + 1] = r; N[k * 3 + 2] = 0; return k;
+  };
+  build(0, nf);
+  return (M.bvh = { B: new Float64Array(B), N: new Int32Array(N), ids: new Uint32Array(ids) });
+}
 // the first object the straight line from a to b (east, north, up) runs into between the shares e0 and e1 of the way:
 // { u (share), o (object), mat (material), pen (bullets go through it) } or null; any: the first one found, not the
 // nearest; shoot (v180): as a bullet - through the materials it goes through (wood boards, thin metal, plastic, cloth...)
@@ -3198,18 +3223,30 @@ function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any, skip, shoot) {
       const R = Q.R, wx = ax - Q.p[0], wy = ah - Q.p[1], wz = ay - Q.p[2];
       const ox = R[0] * wx + R[3] * wy + R[6] * wz, oy = R[1] * wx + R[4] * wy + R[7] * wz, oz = R[2] * wx + R[5] * wy + R[8] * wz;
       const vx = R[0] * dx + R[3] * dh + R[6] * dy, vy = R[1] * dx + R[4] * dh + R[7] * dy, vz = R[2] * dx + R[5] * dh + R[8] * dy;
-      const M = G.meshes[Q.m], V = M.V, I = M.I, nfc = I.length / 3;
-      for (let f = 0; f < nfc; f++) {
-        const i0 = I[f * 3] * 3, i1 = I[f * 3 + 1] * 3, i2 = I[f * 3 + 2] * 3;
-        const e1x = V[i1] - V[i0], e1y = V[i1 + 1] - V[i0 + 1], e1z = V[i1 + 2] - V[i0 + 2], e2x = V[i2] - V[i0], e2y = V[i2 + 1] - V[i0 + 1], e2z = V[i2 + 2] - V[i0 + 2];
-        const hx = vy * e2z - vz * e2y, hy = vz * e2x - vx * e2z, hz = vx * e2y - vy * e2x, det = e1x * hx + e1y * hy + e1z * hz;
-        if (det > -1e-12 && det < 1e-12) continue;
-        const sx = ox - V[i0], sy = oy - V[i0 + 1], sz = oz - V[i0 + 2], uu = (sx * hx + sy * hy + sz * hz) / det; if (uu < 0 || uu > 1) continue;
-        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, vv = (vx * qx + vy * qy + vz * qz) / det; if (vv < 0 || uu + vv > 1) continue;
-        const t = (e2x * qx + e2y * qy + e2z * qz) / det; if (t < t0 || t > t1) continue;
-        const mi = G.mat[M.f0 + f]; if (shoot && G.pen[mi]) continue;
-        best = { u: t, o: G.names[Q.nm], mat: G.mats[mi], pen: !!G.pen[mi] }; t1 = t;
-        if (any) return best;
+      // (v255) the mesh's faces through its tree of boxes (meshBvh): only those whose boxes the line crosses - the same hits,
+      // a fraction of the work (a house of 2,000 faces: ~40 looked at instead of all)
+      const M = G.meshes[Q.m], V = M.V, I = M.I, H = M.bvh || meshBvh(M), HB = H.B, HN = H.N, HI = H.ids, stk = GEO_STK; let sp = 0; stk[sp++] = 0;
+      while (sp) {
+        const k = stk[--sp]; let s0 = t0, s1 = t1, miss = false;
+        for (let a = 0; a < 3; a++) {
+          const o = a === 0 ? ox : a === 1 ? oy : oz, v = a === 0 ? vx : a === 1 ? vy : vz, lo = HB[k * 6 + a] - 1e-4, hi = HB[k * 6 + 3 + a] + 1e-4;
+          if (v > -1e-12 && v < 1e-12) { if (o < lo || o > hi) { miss = true; break; } continue; }
+          let u0 = (lo - o) / v, u1 = (hi - o) / v; if (u0 > u1) { const w = u0; u0 = u1; u1 = w; } if (u0 > s0) s0 = u0; if (u1 < s1) s1 = u1; if (s0 > s1) { miss = true; break; }
+        }
+        if (miss) continue;
+        const kl = HN[k * 3]; if (kl >= 0) { stk[sp++] = HN[k * 3 + 1]; stk[sp++] = kl; continue; }
+        for (let q = HN[k * 3 + 1], qe = q + HN[k * 3 + 2]; q < qe; q++) {
+          const f = HI[q], i0 = I[f * 3] * 3, i1 = I[f * 3 + 1] * 3, i2 = I[f * 3 + 2] * 3;
+          const e1x = V[i1] - V[i0], e1y = V[i1 + 1] - V[i0 + 1], e1z = V[i1 + 2] - V[i0 + 2], e2x = V[i2] - V[i0], e2y = V[i2 + 1] - V[i0 + 1], e2z = V[i2 + 2] - V[i0 + 2];
+          const hx = vy * e2z - vz * e2y, hy = vz * e2x - vx * e2z, hz = vx * e2y - vy * e2x, det = e1x * hx + e1y * hy + e1z * hz;
+          if (det > -1e-12 && det < 1e-12) continue;
+          const sx = ox - V[i0], sy = oy - V[i0 + 1], sz = oz - V[i0 + 2], uu = (sx * hx + sy * hy + sz * hz) / det; if (uu < 0 || uu > 1) continue;
+          const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, vv = (vx * qx + vy * qy + vz * qz) / det; if (vv < 0 || uu + vv > 1) continue;
+          const t = (e2x * qx + e2y * qy + e2z * qz) / det; if (t < t0 || t > t1) continue;
+          const mi = G.mat[M.f0 + f]; if (shoot && G.pen[mi]) continue;
+          best = { u: t, o: G.names[Q.nm], mat: G.mats[mi], pen: !!G.pen[mi] }; t1 = t;
+          if (any) return best;
+        }
       }
     }
   }
@@ -5787,18 +5824,23 @@ function draw() {
     if (view.span < 400) { const lb = 'Supply crate' + (hp < 100 ? ' · ' + Math.max(0, Math.round(hp)) + '%' : ''); cx.font = '700 10px ' + css('--font-data'); cx.lineWidth = 3; cx.strokeStyle = css('--bg'); cx.strokeText(lb, px + 10, py + 4); cx.fillStyle = css('--accent'); cx.fillText(lb, px + 10, py + 4); }
   }
   // (v254) Special Forces' grappling ropes (raw.ropes, from the game's GrapplingHook* events): from where it was thrown to
-  // where the last man got off it, else ROPE_SHOW_L m along its way; from its throw to 30 s after its last use
+  // where the last man got off it, else ROPE_SHOW_L m along its way; from its throw to 30 s after its last use - (v255)
+  // the rope's own shape where the decoder has it (pts), the label at its top
   if (opts.ropes) for (const r of round.raw?.ropes || []) {
     const last = r.climbs.reduce((a, c) => Math.max(a, c[1] ?? c[0]), r.t); if (t < r.t || t > last + 30) continue;
     if (POV && !povSeesPoint(r.x, r.y, null, t, 15)) continue;
     const off = [...r.climbs].reverse().find(c => c[0] <= t && c[2] != null) || r.climbs.find(c => c[2] != null), hl = Math.hypot(r.dx, r.dy) || 1;
     const ex = off ? off[2] : r.x + r.dx / hl * ROPE_SHOW_L, ey = off ? off[3] : r.y + r.dy / hl * ROPE_SHOW_L;
     const ki = r.by ? round.pidx.get(r.by) : undefined, col = ki !== undefined ? teamColor(teamOf(ki, r.t)) : css('--muted'), on = r.climbs.some(c => c[0] <= t && (c[1] == null ? t - c[0] < 20 : t <= c[1]));
-    const [ax, ay] = toC(r.x, r.y), [bx, by] = toC(ex, ey);
-    cx.globalAlpha = on ? 1 : 0.6; cx.strokeStyle = css('--bg'); cx.lineWidth = on ? 4.5 : 3.5; cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(bx, by); cx.stroke();
-    cx.strokeStyle = col; cx.lineWidth = on ? 2.5 : 1.5; cx.setLineDash(off ? [] : [3, 3]); cx.beginPath(); cx.moveTo(ax, ay); cx.lineTo(bx, by); cx.stroke(); cx.setLineDash([]);
+    // (v255) the rope itself where the decoder has its particles (as the first man took it): from the hook to its end
+    const R0 = r.pts && r.pts.length >= 2 ? r.pts.map(q => toC(q[0], q[1])) : [toC(r.x, r.y), toC(ex, ey)], sure = !!(r.pts && r.pts.length >= 2) || !!off;
+    const top = r.pts && r.pts.length >= 2 ? r.pts.reduce((a, q) => q[2] > a[2] ? q : a) : null, [bx, by] = top ? toC(top[0], top[1]) : R0[R0.length - 1];
+    const path = () => { cx.beginPath(); cx.moveTo(R0[0][0], R0[0][1]); for (let j = 1; j < R0.length; j++) cx.lineTo(R0[j][0], R0[j][1]); };
+    cx.globalAlpha = on ? 1 : 0.6; cx.strokeStyle = css('--bg'); cx.lineWidth = on ? 4.5 : 3.5; path(); cx.stroke();
+    cx.strokeStyle = col; cx.lineWidth = on ? 2.5 : 1.5; cx.setLineDash(sure ? [] : [3, 3]); path(); cx.stroke(); cx.setLineDash([]);
     cx.beginPath(); cx.arc(bx, by, 3, 0, Math.PI * 2); cx.fillStyle = col; cx.fill(); cx.globalAlpha = 1;
-    if (view.span < 300) { const lb = 'Rope' + (off && off[4] != null ? ' · ' + Math.round(off[4] - r.h) + ' m up' : ''); cx.font = '700 10px ' + css('--font-data'); cx.lineWidth = 3; cx.strokeStyle = css('--bg'); cx.strokeText(lb, bx + 6, by - 6); cx.fillStyle = col; cx.fillText(lb, bx + 6, by - 6); }
+    const up = top ? top[2] - r.pts.reduce((a, q) => Math.min(a, q[2]), Infinity) : off && off[4] != null ? off[4] - r.h : null;
+    if (view.span < 300) { const lb = 'Rope' + (up != null ? ' · ' + Math.round(up) + ' m up' : ''); cx.font = '700 10px ' + css('--font-data'); cx.lineWidth = 3; cx.strokeStyle = css('--bg'); cx.strokeText(lb, bx + 6, by - 6); cx.fillStyle = col; cx.fillText(lb, bx + 6, by - 6); }
   }
   // (v170) where each commander's overhead (satellite) camera looks - its middle, while it moved in the last 20 s
   if (opts.cmdCam) for (const c of round.raw?.cams || []) {

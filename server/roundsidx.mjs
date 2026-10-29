@@ -8,7 +8,7 @@
 // The page (expandIndex, the same rule) and the server's scripts turn it back into the usual objects.
 // (v231) SUM_V: how a round is summed up (ingest.mjs summarize - its history is there); a round summed up by an older
 // one is summed up again from its .bfr. Here, so digest.mjs knows it too: a summary waits while its rounds are redone
-export const SUM_V = 19;   // (v254: a squad's leader the one made so last; kills from a vehicle's seat measured from the vehicle - ingest.mjs; v234: the sights' zoom as the view's height)
+export const SUM_V = 20;   // (v255: a kill by a man the demo had no soldier for - no distance, not a vehicle's on the bullet's line; v254: a squad's leader the one made so last; kills from a vehicle's seat measured from the vehicle - ingest.mjs; v234: the sights' zoom as the view's height)
 export const IDX_COLS = ['name', 'date', 'map', 'server', 'duration', 'players', 'kills', 'teams', 'tickets', 'winner', 'top', 'x'];
 const SUM_KEYS = new Set(['date', 'map', 'server', 'duration', 'empty', 'players', 'kills', 'teams', 'tickets', 'winner', 'top']);
 const ENTRY_KEYS = new Set(['name', 'demo', 'bfr', 'decoder', 'sum']), SERVER_ONLY = new Set(['bytes', 'bfrBytes', 'added', 'resumAt']);   // (v206: resumAt - when "Recalculate all records" did it)

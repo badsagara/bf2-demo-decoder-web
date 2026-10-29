@@ -5,6 +5,35 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v255
+
+**What could be done without Sagara** (Sagara: "Давай все що можеш без мене"). No decoder change (no round is decoded
+again); round summaries version 20 and hint rules version 18, both done again by the server from the decoded rounds.
+
+- **The background analysis twice as fast**, the same hints (49 test demos, as the server runs it: 398 s -> 172 s;
+  every hint as v254; 43 of them every number the analysis keeps as v254 too, the other 6 only in the flag choices and,
+  in 2, the "who saw whom first" of a few kills - the zoom of his sights now read at the 0.1 s step itself). On the
+  biggest round (64 players, 45 min) 41 s -> 21 s; 7 big and small rounds 206 s -> 105 s:
+  - the exact shapes (who sees whom, No line of sight, His view, Flag choices): each object's faces in a tree of boxes,
+    so a line looks only at the faces it can cross - the same hits, 3-9 times quicker;
+  - the weapon in a soldier's hands: by halving, from his own kills, not every event of the round from its start (10-30
+    times quicker), and the zoom of his sights kept per 0.1 s in an array (a map of 50,000 emptied when full was most
+    of the time of the flag choices);
+  - ammo bags: each soldier's life gone through once, his place worked out alone (10 times quicker).
+  (v254's "Ready for contact makes the analysis a quarter to a half longer" was measured with a test harness that worked
+  the whole hint list out every quarter second while it waited; as the server runs it, it is 2 s of a big round's 41.)
+- **No more "from his seat in the vehicle"**: v254 measured a kill by a man with no soldier from a manned vehicle on the
+  bullet's line - wrong both times it was used. Those men have soldiers in the demo after all, records it never showed a
+  spawn for (alive in its opening snapshot, or a spawn message not read); found by the men's own acts (their throws made
+  where they stood, their kills along whose bullet they stood) they stood 2-3 m from the victim, not in the UH-60 or the
+  Vodnik 25 m back. Such a kill is not measured (49 demos: 5 kills of 2 men).
+- **Looked at, nothing to change**: medals (the demo's levels are 0, most need a whole career's numbers); the game's fall
+  damage (on one map dozens of honest men land at 12-20 m/s unhurt - no "No fall damage" hint); bullets' reach and their
+  loss of damage with distance (in v221's reach already; only pistols and shotguns lose damage - No spread has them);
+  the spread of a gun (it grows with the keys pressed and the mouse moved, which the demo doesn't have); Spawn (v247's
+  test - a squad's leader made a man 200+ m away: found as in v247; on a round where the men came in by a spawn point
+  too, rightly not).
+
 ## v254
 
 **The list after v253** (Sagara: "Давай всі пункти"). The decoder changes (grappling ropes): the server
