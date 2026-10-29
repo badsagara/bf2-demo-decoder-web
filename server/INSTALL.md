@@ -1086,9 +1086,14 @@ fog not at a spotted man). Five new thresholds (189 in all) - a site's own set k
 an object - new, in shadow; Beyond fog not at a spotted man only, the UAV ring counts again; the object under a man
 looked for round him too, a man lying down not blocked by his own slope). One new threshold (190 in all). Nothing to do.
 
+(v260) **The decoder changes** (`777ef24786`: the view's pitch read right in every record): the server decodes every
+round again by itself, then sums them up and looks at them again (hint rules version 22: Anti-Aim, Wide view 70-90°
+and Enemy behind - new, in shadow; Guided missiles also by the last second). Eleven new thresholds (201 in all) - a
+site's own set keeps what it changed. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (190 of 60 hints since v259: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (201 of 63 hints since v260: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 

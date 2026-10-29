@@ -5,6 +5,32 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v260
+
+**What the cheats Sagara sent can do, against the demo** (todo 326: SummitSense's features, a hook that widens the
+view; Sagara: «Так даю згоду. Давай 1,2,4»). **The decoder changes** (`777ef24786`): the server decodes every round
+again by itself; hint rules version 22.
+
+- **The view's pitch read right** (the decoder): in ~2 % of the records it was read from a bit offset of the old layout
+  and jumped to 65-70° up for 0.2-6 s (19,435 such jumps in 4.3 million records on foot in 16 demos; 5 % of small-arms
+  kills looked 20°+ off the victim up or down). Now each record's own angle: Karkand 09.10 1,130 jumps -> 44, such
+  kills 68 -> 1. Who saw whom first changed in 51 of 6,849 kills, the K column's pitch error in 470; no hint more or
+  less but the one below.
+- **Anti-Aim - new, in shadow**: 3 or more kills (as Silent aim counts them) with the view 30°+ off the victim up or
+  down at the kill and 0.1 s before (honest: 0 of 1,339), or 20 or more jitters in a round - the pitch 30°+ (the
+  heading 60°+) one way and straight back the next 0.1 s (honest: at most 8 and 3). Silent aim looked across only.
+  Made up: 39 of 39 kills; 30 jitters - hints.
+- **Guided missiles: the last second too** - 3 or more hits on a moving target with the missile within 0.5° of it at
+  the middle of each hit's last second (a cheat's "Smoothness" with "the final approach stays precise"). Honest gunners
+  are no finer at the end: 1.8-2° at the middle, the lowest gunner 0.94°. Made up: 0.11° - a hint.
+- **Wide view 70-90° and Enemy behind - new, in shadow**: Wide view's turn to an enemy who came into the band, for
+  70-90° off where he looks (a view hooked wider) and behind him (90°+: a cheat's "enemy nearby" warning), each against
+  the round's others' own share (honest: 16.6 % and 7.6-11 % taken). 16 demos: one hint, Volund 8 of 14 at 70-90°
+  (Karkand 18.10); made up: 8 of 9 and 6 of 6 - hints.
+- Measured, nothing to add (claude/measure-326.md): aircraft - bombs are not decoded as projectiles and honest pilots
+  hold the nose within ~1.3° of the target at gun kills anyway; a TV missile's air burst - its height is not kept.
+  Eleven new thresholds (201 in all).
+
 ## v259
 
 **What the v258 archive showed** (Sagara: "роби 259-ту версію"). No decoder change; hint rules version 21 (the server

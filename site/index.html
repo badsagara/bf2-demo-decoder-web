@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v259';
+const APP_VERSION = 'v260';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -11294,7 +11294,11 @@ function solObs(B, s, t, st, P = s - 23, sx = null) {
   const p = xyzAt(B, s); if (!p) return; const n = B.n, [x, y, z] = p;
   const f7 = B.bit(P + 7), f1 = B.bit(P + 1), q = s + 98 + (f7 ? 36 : 0), pq = q + 12 * (f1 + B.bit(P + 2) + B.bit(P + 3));
   const vc = o => (B.bit(s + o) ? -1 : 1) * B.u(s + o + 1, 11) / 100, vel = f7 && s + 134 <= n ? [vc(98), vc(110), vc(122)] : null;
-  const pt = B.bit(P + 4) && pq + 12 <= n ? (2048 - B.u(pq, 12)) / 2048 * Math.PI / 2 : null;
+  // (v260, todo 326: Sagara «так») the pitch of a record read exactly is its own 0x10 angle (solExact's updn): the bit
+  // offset counted here from the old layout (the velocity always 36 bits, nothing else before x) was wrong in ~2 % of the
+  // records - the view jumped to +65..70° for 0.2-6 s (19,435 such jumps in 4.3 million records on foot in 16 demos; 68 of
+  // 1,339 small-arms kills 20°+ off the victim up or down); with it: 1130 -> 44 jumps (Karkand 09.10), kills 68 -> 1
+  const pt = sx && sx.updn !== undefined ? -sx.updn * Math.PI / 180 : B.bit(P + 4) && pq + 12 <= n ? (2048 - B.u(pq, 12)) / 2048 * Math.PI / 2 : null;
   const yw = sx ? sx.eye ?? null : f1 && q + 11 <= n ? B.u(q - 5, 16) / 65536 * 2 * Math.PI : null;
   st.obs.push([t, 'S', 2 * B.u(P - 30, 16), x, y, z, yw, pt, vel]);
 }
