@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v255';
+const APP_VERSION = 'v257';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -3244,7 +3244,7 @@ function geoHit(G, ax, ay, ah, bx, by, bh, e0, e1, any, skip, shoot) {
           const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x, vv = (vx * qx + vy * qy + vz * qz) / det; if (vv < 0 || uu + vv > 1) continue;
           const t = (e2x * qx + e2y * qy + e2z * qz) / det; if (t < t0 || t > t1) continue;
           const mi = G.mat[M.f0 + f]; if (shoot && G.pen[mi]) continue;
-          best = { u: t, o: G.names[Q.nm], mat: G.mats[mi], pen: !!G.pen[mi] }; t1 = t;
+          best = { u: t, o: G.names[Q.nm], mat: G.mats[mi], pen: !!G.pen[mi], pi }; t1 = t;
           if (any) return best;
         }
       }
@@ -3264,15 +3264,31 @@ function geoOff(D, G, tt) {
 // what the straight line from a to b runs into first, the first and last 0.9 m left out as in losBlocked: { u, what:
 // 'ground' | 'object' | 'tree', o, mat } or null (clear) - with the exact shapes (G), the terrain and tree trunks; at tt
 // without the breakable objects broken by then
-function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot) {
+// (v257) own: the objects he stands or lies on (ownGround) - left out of the first OWN_NEAR m of his line (archive v254: 149
+// of its 204 No line of sight hints were lines that met the object within 6 m of the killer, 95 of them men lying on it -
+// Road to Jalalabad's rock piles 63, Karkand's factory roofs, cargo wagons, walls: his low line over its edge, the kill's
+// own bullet over it)
+const OWN_NEAR = 6;
+function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot, own) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy); if (L < 2 * LOS_END) return null;
   const e0 = LOS_END / L, e1 = 1 - e0; let best = null;
   const n = Math.ceil(L / D.hmStep * 2);
   for (let k = 1; k < n; k++) { const u = k / n; if (u < e0 || u > e1) continue; if (ah + dh * u < groundAt(D, ax + dx * u, ay + dy * u) - 0.15) { best = { u, what: 'ground' }; break; } }
   if (best && any) return best;
-  const h = geoHit(G, ax, ay, ah, bx, by, bh, e0, best ? best.u : e1, any, geoOff(D, G, tt), shoot); if (h) { best = { ...h, what: 'object' }; if (any) return best; }
+  const off = geoOff(D, G, tt), L3 = Math.hypot(dx, dy, dh), cut = own && own.size ? Math.min(OWN_NEAR / L3, best ? best.u : e1) : 0;
+  let h = null;
+  if (cut > e0) { const sk = new Set(off || []); for (const pi of own) sk.add(pi); h = geoHit(G, ax, ay, ah, bx, by, bh, e0, cut, any, sk, shoot); }
+  if (!h) h = geoHit(G, ax, ay, ah, bx, by, bh, Math.max(e0, cut), best ? best.u : e1, any, off, shoot);
+  if (h) { const { pi, ...hh } = h; best = { ...hh, what: 'object' }; if (any) return best; }
   const v = vegHit(ax, ay, ah, bx, by, bh, true); if (v !== null && v >= e0 && v <= e1 && (!best || v < best.u)) best = { u: v, what: 'tree' };
   return best;
+}
+// (v257) the object a soldier at q stands or lies on: the first one 1.6 m down from his position (1.0 m over his feet) - a
+// Set of its index, or null
+function ownGround(G, q) {
+  if (!G || !q || q.veh || !Number.isFinite(q.x) || q.h == null) return null;
+  const h = geoHit(G, q.x, q.y, q.h, q.x, q.y, q.h - 1.6, 0, 1, false, null, false);
+  return h && h.pi != null ? new Set([h.pi]) : null;
 }
 // eye height by stance, over the soldier's position (which is 1.0 m over his feet, standing, crouching or prone alike:
 // =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest).
@@ -4288,20 +4304,20 @@ function spotterOf(e) {
 // SHOT_NEAR m of his position across the ground, between his feet and 2.2 m over them (else no word: null). On foot
 // only; shoot: the materials bullets go through left out
 const SHOT_NEAR = 1.0;
-function shotWay(D, G, e, q, eye, o, tt, shoot) {
+function shotWay(D, G, e, q, eye, o, tt, shoot, own) {
   if (!e || !e.dir || !G || o.veh || !Number.isFinite(q.x) || !Number.isFinite(o.x) || o.h == null) return null;
   const [dx, dh, dz] = e.dir, hl = Math.hypot(dx, dz); if (hl < 0.2) return null;
   const ux = dx / hl, uy = dz / hl, sl = dh / hl, s = (o.x - q.x) * ux + (o.y - q.y) * uy; if (s < 2) return null;
   const ex = q.x + ux * s, ey = q.y + uy * s, eh = eye + sl * s, feet = o.h - 1;
   if (Math.hypot(ex - o.x, ey - o.y) > SHOT_NEAR || eh < feet - 0.2 || eh > feet + 2.2) return null;
-  return !exactHit(D, G, q.x, q.y, eye, ex, ey, eh, true, tt, shoot);
+  return !exactHit(D, G, q.x, q.y, eye, ex, ey, eh, true, tt, shoot, own);
 }
 // (v241) the three points of his body (head, chest, hips: aimAt - a man lying down along the way he faces)
 // - a set for each stance that counts now (poseSets: going down or getting up, both)
 const bodyPts = (j, o, tt) => o.veh ? [[1.4, 0.9, 0.4].map(h => [o.x, o.y, o.h + h])] : poseSets(round.players[j], tt).map(st => [0, 1, 2].map(k => aimAt(o, st, k)));
-function bodyClearExact(D, G, q, eye, j, o, tt, shoot) {
+function bodyClearExact(D, G, q, eye, j, o, tt, shoot, own) {
   const dx = o.x - q.x, dy = o.y - q.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.35, py = dx / L * 0.35;
-  for (const set of bodyPts(j, o, tt)) for (const [x, y, h] of set) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, x + px * s, y + py * s, h, true, tt, shoot)) return true;
+  for (const set of bodyPts(j, o, tt)) for (const [x, y, h] of set) for (const s of [0, -1, 1]) if (!exactHit(D, G, q.x, q.y, eye, x + px * s, y + py * s, h, true, tt, shoot, own)) return true;
   return false;
 }
 // the 9 points of a body (head, chest, hips; in the middle and 0.35 m to each side, across the line of fire) that soldier
@@ -7599,14 +7615,18 @@ function macroHints(R) {
     // 152 such bursts of 105 players, 0.56 deg a record in the middle, 0.05 at the least (one in a thousand). A burst
     // under AR_FLAT a record: his view held still while the gun kicked - a recoil script (or a no-recoil hack). The hint:
     // AR_N or more such bursts in a round. In shadow while new
+    // (v257, archive v254: its 7 hints - an ammo bag's "61 shots", 4 with the view not moving at all, not even sideways:
+    // the demo had no new view for him then) only the gun of his kit's rifle slot, no more shots than its magazine ever
+    // held in the round, and his view moving the other way (yaw) in some steps: records that come
     if (!aiLike(p)) {
-      const B = []; let flat = 0, first = null;
+      const B = [], magMax = new Map(); let flat = 0, first = null;
+      for (const a of pr) if (a.wid && a.ammo != null && a.ammo > (magMax.get(a.wid) || 0)) magMax.set(a.wid, a.ammo);
       for (let j = 0; j + 1 < pr.length; j++) {
         const a = pr[j], b = pr[j + 1], hold = a.up - a.t; if (hold < AR_HOLD || a.w !== b.w || a.ammo == null || b.ammo == null || !a.wid) continue;
-        const shots = a.ammo - b.ammo; if (shots < AR_SHOTS || SNIPER_W.test(a.w) || wClass(a.wid) === 'shotgun' || empMan(i, a.t + 0.05)) continue;
-        let pp = 0, nr = 0, prev = null;
-        for (let tt = a.t + 0.05; tt <= a.up - 0.05; tt += 0.1) { const q = playerAt(i, tt); if (!q.alive || q.veh || q.pitch == null) { prev = null; continue; } if (prev !== null) { pp += Math.abs(q.pitch - prev) / DEG; nr++; } prev = q.pitch; }
-        if (nr < 8) continue;
+        const shots = a.ammo - b.ammo; if (shots < AR_SHOTS || shots > (magMax.get(a.wid) || 0) || WPN_SLOT[a.wid] !== 3 || SNIPER_W.test(a.w) || wClass(a.wid) === 'shotgun' || empMan(i, a.t + 0.05)) continue;
+        let pp = 0, nr = 0, prev = null, py = null, ny = 0;
+        for (let tt = a.t + 0.05; tt <= a.up - 0.05; tt += 0.1) { const q = playerAt(i, tt); if (!q.alive || q.veh || q.pitch == null) { prev = null; py = null; continue; } if (prev !== null) { pp += Math.abs(q.pitch - prev) / DEG; nr++; } if (py !== null && q.yaw != null && angOff(q.yaw, py) / DEG > 0.01) ny++; prev = q.pitch; py = q.yaw; }
+        if (nr < 8 || ny < 2) continue;
         const per = pp / nr; B.push(per); if (per <= AR_FLAT) { flat++; if (!first) first = { t: a.t, w: a.w, per, hold, shots }; }
       }
       if (flat >= AR_N) out.push({ t: first.t, kind: 'autorec', adm: true, actor: id, q: flat, n: B.length, w: first.w, per: first.per, hold: first.hold, shots: first.shots, ...at(i, first.t) });
@@ -7903,6 +7923,9 @@ function wallTracks(R, done) {
         const c2 = ctAt(i, j, tf + TRACK_STEP); if (!c2 || !ctVis(i, j, c2.q, c2.o, tf + TRACK_STEP)) continue;   // (out two steps on end)
         const hit = (() => { const a = playerAt(i, tf - 2).hp, b = c.q.hp; return a != null && b != null && b < a - 1; })();
         if (hit || firedNear(j, tf) || spottedNear(j, tf, tm) || uavShows(j, tf, tm)) continue;
+        // (v257, archive v254: 90 of its 113 hints were snipers, all 9 of the strongest - a scoped sniper holds his sights on
+        // a doorway or a ridge as a matter of course, as Pre-aim found in v214) not while a sniper rifle is in his hands
+        { const hd = inHands(i, tf); if (hd && SNIPER_W.test(hd.name || '')) continue; }
         if (!ctBy.has(i)) ctBy.set(i, { n: 0, q: 0, offs: [], first: null }); const B = ctBy.get(i); B.n++; B.offs.push(Math.round(c.off * 10) / 10);
         if (c.off <= CT_DEG) { B.q++; if (!B.first) B.first = { t: tf, j, off: c.off, d: c.d, x: c.q.x, y: c.q.y }; }
       }
@@ -8959,7 +8982,10 @@ let SNAP_N = 3, HS_P = 1e-4, HS_SNIPER = 0.47;   // (v182: see above)
 // (v185) Beyond fog the same: 42 hints, one in 16 of the 20 soldier-rounds with any (1.07-1.6 times the fog - a target
 // seen through the fog's edge, a spotted one); the other 4 had 3-9 (tolulublessss 8, Shukrija 3)
 const HINT_N = { wall: 2, smoke: 2, fog: 2 };
-const FOG_SKIP = /Claymore|AT mine|^Mine|^C4$|artillery|Stinger|Igla|QW-2|Sidewinder|Archer|Eurofighter missiles|Sea Sparrow|\bTV\b|Hellfire|HJ-8 missile|Ataka|Kedge|Maverick|laser/i;   // (v213: Beyond fog - see cheatHints)
+// (v257) and the carriers' Phalanx (an AA gun, like the missiles: archive v254 - 74 of its 336 Beyond fog hints, men on
+// foot 640-960 m off, 70 of one man on Gulf of Oman / Wake: the hits' own direction not from him - its shells burst where
+// they come down, he fired at the enemy's flag across the sea)
+const FOG_SKIP = /Claymore|AT mine|^Mine|^C4$|artillery|Stinger|Igla|QW-2|Sidewinder|Archer|Eurofighter missiles|Sea Sparrow|\bTV\b|Hellfire|HJ-8 missile|Ataka|Kedge|Maverick|laser|Phalanx/i;   // (v213: Beyond fog - see cheatHints)
 let LAG_PING = 250, PING_KINDS = new Set(['tele', 'snap', 'react', 'speed', 'vspeed', 'wall', 'thru', 'track', 'sidesprint', 'airspeed', 'stancespeed', 'shotfrom']);
 // (v185, todo 185) glitch spots: server/glitch.mjs keeps a grid of the places soldiers stood, alive on foot, over every
 // round of each map (2 m cells, 2.5 m high); data/stats/glitch/<map>.json lists the rounds where someone stayed 20 s or
@@ -9044,16 +9070,17 @@ function adminHints0() {
           let k2 = 0, clear2 = false;
           for (; k2 <= 50; k2++) {
             const tq = tt - k2 * 0.1, bq = tq - lagComp(ki, tq), a = playerAt(ki, tq), b = playerAt(vi, bq); if (!a.alive || !b.alive || a.h == null || b.h == null) break;
-            if (bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, tq), vi, b, bq)) { clear2 = true; break; }
+            if (bodyClearExact(D, G, eyeXY(a), eyeOf(ki, a, tq), vi, b, bq, false, ownGround(G, a))) { clear2 = true; break; }
           }
           // (v240) the kill's own shot clear from his eye to the victim: no hint (shotWay)
-          if (k2 >= Math.round(WALL_T * 10) && !shotWay(D, G, e, eyeXY(q), eyeOf(ki, q, tt), o, tt, false)) {
-            const ey = eyeOf(ki, q, tt), qe = eyeXY(q), sv = o.veh ? 0 : poseNow(R.players[vi], tt), by = exactHit(D, G, qe.x, qe.y, ey, ...(o.veh ? [o.x, o.y, o.h + 0.9] : aimAt(o, sv, 1)), false, tt);
+          const own = ownGround(G, q);
+          if (k2 >= Math.round(WALL_T * 10) && !shotWay(D, G, e, eyeXY(q), eyeOf(ki, q, tt), o, tt, false, own)) {
+            const ey = eyeOf(ki, q, tt), qe = eyeXY(q), sv = o.veh ? 0 : poseNow(R.players[vi], tt), by = exactHit(D, G, qe.x, qe.y, ey, ...(o.veh ? [o.x, o.y, o.h + 0.9] : aimAt(o, sv, 1)), false, tt, false, own);
             // (v180) only what bullets go through in the way (wood boards, thin metal, plastic, cloth - the game's material
             // table): a bullet could get there - not "No line of sight" but "Through thin walls", listed apart (info); (v240)
             // so too when the shot's own line is clear but for those
-            let thru = !!(G.penKnown && shotWay(D, G, e, qe, ey, o, tt, true));
-            if (G.penKnown) for (let k3 = 0; k3 <= 6 && !thru; k3++) { const tq = tt - k3 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break; thru = bodyClearExact(D, G, a, eyeOf(ki, a, tq), vi, b, tq, true); }
+            let thru = !!(G.penKnown && shotWay(D, G, e, qe, ey, o, tt, true, own));
+            if (G.penKnown) for (let k3 = 0; k3 <= 6 && !thru; k3++) { const tq = tt - k3 * 0.1, a = playerAt(ki, tq), b = playerAt(vi, tq); if (!a.alive || !b.alive || a.h == null || b.h == null) break; thru = bodyClearExact(D, G, a, eyeOf(ki, a, tq), vi, b, tq, true, ownGround(G, a)); }
             out.push({ t: e.t, kind: thru ? 'thru' : 'wall', adm: true, ...(thru ? { info: true } : {}), actor: e.killer, kill: e, hidden: clear2 ? k2 * 0.1 : null, by, x: e.x, y: e.y });
           }
         }
@@ -9143,7 +9170,7 @@ const ANALYZE_V = 4;   // (v251: Cc's E - what his side could know of each enemy
 // (v185, todo 226) the version of the hints' rules: the server's background analysis (analyze.mjs --auto) does a round
 // again when it was done with an older one, and counts only rounds of this one over a player's rounds - raise it with
 // any change of a hint's rule (not with every page)
-const HINTS_V = 18;   // (v255: no kill measured from a vehicle on the bullet's line) (v254: Ready for contact and Recoil script - new, in shadow; No line of sight with the server's latency compensation; a kill from a vehicle's seat measured from the vehicle; one squad leader rule for the site; no Floating, Through walls or Teleport on a grappling rope)  (v253: the archive of v251 - Spawn the nearest living leader of his squad (two men of his side his squad's leader at once), No recoil only shots 0.5 s after his last press, Endless ammo each kit apart, a reload only to a full magazine, no press of a TOW / HJ-8 gunner, Shot from elsewhere only a killer alive there and not just out of a vehicle, Outside the map each life on its own and not when the game's damage took him down, Glitch spot one hint a man and place in a round; v247: Outside the map by the game's damage rule - alive on his feet past the moment it kills a man with full health, a man down left out; Spawn - away from his side's points only his own squad leader within 12 m explains it; v245: Shot from elsewhere, No recoil, Endless ammo - three new hints; Wall tracking, Fired at a wall, Pre-aim and Wide view leave out an enemy his side had spotted or had in its UAV ring; v241: a man lying down - his head 0.45 m over his feet and 0.4 m ahead, chest and hips along his body: every hint that asks if he could be seen; v240: No line of sight - not when the kill's own shot had its way; v237: Speed by stance, the stance now read right; v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
+const HINTS_V = 19;   // (v257: the soldiers whose spawn the demo never showed found by their acts and a man on a grappling rope where the rope's events have him - the decoder; No line of sight not the object he lies on near him; Beyond fog not the Phalanx; Ready for contact not with a sniper rifle in his hands; Recoil script only his rifle slot's gun, records that come) (v255: no kill measured from a vehicle on the bullet's line) (v254: Ready for contact and Recoil script - new, in shadow; No line of sight with the server's latency compensation; a kill from a vehicle's seat measured from the vehicle; one squad leader rule for the site; no Floating, Through walls or Teleport on a grappling rope)  (v253: the archive of v251 - Spawn the nearest living leader of his squad (two men of his side his squad's leader at once), No recoil only shots 0.5 s after his last press, Endless ammo each kit apart, a reload only to a full magazine, no press of a TOW / HJ-8 gunner, Shot from elsewhere only a killer alive there and not just out of a vehicle, Outside the map each life on its own and not when the game's damage took him down, Glitch spot one hint a man and place in a round; v247: Outside the map by the game's damage rule - alive on his feet past the moment it kills a man with full health, a man down left out; Spawn - away from his side's points only his own squad leader within 12 m explains it; v245: Shot from elsewhere, No recoil, Endless ammo - three new hints; Wall tracking, Fired at a wall, Pre-aim and Wide view leave out an enemy his side had spotted or had in its UAV ring; v241: a man lying down - his head 0.45 m over his feet and 0.4 m ahead, chest and hips along his body: every hint that asks if he could be seen; v240: No line of sight - not when the kill's own shot had its way; v237: Speed by stance, the stance now read right; v235: the fog as the game draws it in every sight line, flags counted as the game counts its men, Bunny hop 15, Stamina's one-sprint rule doubled with no vehicles, three physics hints - Sideways sprint, Speed in the air, Shot in a jump; the stance now read right where the health came with it (the decoder); v234: the eye straight over his position again, EYE_FWD 0 - the game drops the .tweak's 0.1 m ahead; through the sights the weapon's zoom factor is the view's height itself; v233: the sight lines from his eye 0.1 m in front of his position, as the game's camera - every hint that asks if he could see; v225: the view where his head looks, not where his body faces - every hint that asks where he looked; Smooth aim 0.5 deg, 4 kills; v213: the archive of 2779 rounds - Fired at a wall, Fast flag, Fire rate of the APC missiles, the maps' own spots; v214: Beyond fog's weapons, the macro hints, snipers' headshots and pre-aim, the carrier, farming from aircraft; v216: the field of view 90° - Wide view, Reaction, Pre-aim, who saw whom; v219: 95°, the frame, the sights' zoom, Wide view 50-70°; v221: killFix - Beyond fog and Long shot not for a weapon named wrong)
 // (v227, Sagara: "налаштування всіх threshold'ів для кожної реакції на застереження ... щоб кожен адміністратор міг
 // налаштовувати собі все, що треба, сам. Але були наші рекомендовані thresholds") the hints' thresholds. HT_SPEC - one line
 // of JSON (admin.mjs reads it from server/admin-round.js to check what is saved): each one's name (k, the variable), hint
@@ -14186,10 +14213,10 @@ function readEvents(B) {
         case 58: e = { g: u(8), oid: u(16) }; break;                            // RemoveSpawnGroup
         case 59: sk(48); sk(192); sk(16); break;                                // UpdateTrigger
         case 60: e = { pl: u(8), rope: u(16) }; sk(8); sk(32); break;           // GrapplingHookContainerCreate (v254: he takes the rope)
-        case 61: sk(16); sk(64); break;                                         // GrapplingHookContainerUpdate
+        case 61: e = { pl: u(8), seg: u(8), tv: f32() }; sk(32); break;           // GrapplingHookContainerUpdate (v257: where on the rope he is)
         case 62: e = { pl: u(8), pos: v3() }; break;                            // GrapplingHookContainerDetach (v254: he leaves it there)
         case 63: e = { rope: u(16), pl: u(8) }; sk(32); e.a = v3(); e.dir = v3(); break;   // GrapplingHookCreate (v254: from a, thrown along dir)
-        case 64: sk(24); cvec(); cvec(); sk(1); break;                          // GrapplingHookUpdate
+        case 64: { e = { rope: u(16), seg: u(8) }; const m = u(2); if (m === 0) e.p = v3(); else sk(3 * [0, 20, 16, 12][m]); cvec(); sk(1); break; }   // GrapplingHookUpdate (v257: a particle of the rope)
         case 65: sk(8); sk(96); break;                                          // PlayerTearGassed
         case 66: sk(9); break;                                                  // SetNightVision
         case 68: case 69: sk(32); break;                                        // VerifyPlayerTeam, FixPlayerTeam
@@ -14962,6 +14989,10 @@ async function decodeDemo(data, progress, opt) {
           else if (e.id === 63) xev.push({ t, k: 'hook', pl: e.pl, rope: e.rope, a: e.a, dir: e.dir });
           else if (e.id === 60) xev.push({ t, k: 'climb', pl: e.pl, rope: e.rope });
           else if (e.id === 62) xev.push({ t, k: 'unclimb', pl: e.pl, pos: e.pos });
+          // (v257) where on the rope a man is (its segment and how far along it, ~30 a second) and where its particles are
+          // (each one's place as it settles: the rope's own shape, from the hook over the edge, hanging down)
+          else if (e.id === 61) xev.push({ t, k: 'ropeup', pl: e.pl, seg: e.seg, tv: e.tv });
+          else if (e.id === 64 && e.p && okPos(e.p[0], e.p[1], e.p[2])) xev.push({ t, k: 'ropept', rope: e.rope, i: e.seg, p: e.p });
           // (v136) a squad leader's order (IssueSquadOrder: team, squad, type, the point - a matrix whose first column is
           // x, y, z, the other two -4000 - or an object; kind 0 squad leader, 1 commander, 2 a request)
           else if (e.id === 24) xev.push({ t, k: 'order', team: e.team, squad: e.squad, order: e.order, kind: e.kind, ...(e.target ? { on: oid2(e.target) } : { x: e.x, z: e.z }) });
@@ -15036,6 +15067,59 @@ async function buildTimeline(r) {
   const deathAt = new Map(); for (const e of evs) if (e.kind === 'death') { if (!deathAt.has(e.player)) deathAt.set(e.player, []); deathAt.get(e.player).push(e.t); }
   const P = new Map();
   const spawns = []; for (const e of evs.filter(e => e.kind === 'spawn').sort((a, b) => a.t - b.t)) if (!spawns.some(q => q.id === e.id && q.player === e.player && e.t - q.t < 2)) spawns.push(e);
+  // (v257) soldiers the demo never showed a spawn for - alive in its opening snapshot, or a spawn message not read: their
+  // records have no owner and the man no soldier (2F4Y 10-09 21:31: Simflera, alive from the start to 6:21, a TOW, a Kord,
+  // medic bags, three kills, and nowhere on the map; v254 put such men's kills in a manned vehicle on the bullet's line -
+  // wrong both times). Such a soldier is given to the man whose own acts were where it stood: his throws (MissileInit
+  // names him; within 2 m, 3 m up or down) and his hand-weapon kills along whose bullet it stood (1.2 m off the line,
+  // 0.5-300 m back) - 2 or more and 80 % of them; then each stretch of it (cut at gaps of 5 s, 30 records or more) that
+  // nobody else's act points at, with no spawn of his own in it and none of his own soldier's records beside it
+  { const P2 = (m, k, v) => { if (!m.has(k)) m.set(k, []); m.get(k).push(v); };
+    const own0 = new Map(); for (const e of spawns) { const nx = spawns.find(q => q.player === e.player && q.t > e.t + 0.5 && q.id !== e.id); P2(own0, e.id, [e.t, e.player, nx ? nx.t : Infinity]); }
+    const owned = (sid, tt) => { const L = own0.get(sid); if (!L) return null; let b = null; for (const q of L) if (q[0] <= tt + 0.5) b = tt < q[2] ? q[1] : null; return b; };
+    const sid0 = (pl, tt) => { let id = null; for (const q of spawns) { if (q.t > tt + 0.5) break; if (q.player === pl) id = q.id; } return id; };
+    const isHand = w => w >= 5357 && w <= 5493;
+    const K0 = []; for (const e of evs) if (e.kind === 'kill' && e.killer !== e.victim && isHand(e.wid) && e.dir && Math.hypot(e.dir[0], e.dir[2]) > 0.2) { const vs = sid0(e.victim, e.t); if (vs !== null) K0.push({ t: e.t, pl: e.killer, vs, dir: e.dir, v: null, vd: 2 }); }
+    const kBy = new Map(); K0.forEach((k, j) => P2(kBy, k.vs, j));
+    const orph = new Map();
+    for (const o of r.obs) {
+      if (o[1] !== 'S') continue;
+      const kj = kBy.get(o[2]); if (kj) for (const j of kj) { const k = K0[j], d = Math.abs(o[0] - k.t); if (d < k.vd && owned(o[2], o[0]) !== null) { k.vd = d; k.v = o; } }
+      if (Math.abs(o[5]) >= 0.005 && okPos(o[3], o[4], o[5]) && owned(o[2], o[0]) === null) P2(orph, o[2], o);
+    }
+    for (const [id, L] of orph) { if (L.length < 30) orph.delete(id); else L.sort((a, b) => a[0] - b[0]); }
+    if (orph.size) {
+      const near = (L, tt, w) => { let lo = 0, hi = L.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (L[m][0] < tt) lo = m + 1; else hi = m; } let b = null, bd = w; for (const k of [lo - 1, lo]) { const o = L[k]; if (o && Math.abs(o[0] - tt) <= bd) { bd = Math.abs(o[0] - tt); b = o; } } return b; };
+      const votes = new Map(), lastP = new Map();
+      for (const e of evs) {
+        if (e.kind !== 'proj' || e.by == null || !e.fromSoldier) continue;
+        const key = e.id + ':' + e.by, lp = lastP.get(key); lastP.set(key, e.t); if (lp !== undefined && e.t - lp < 1) continue;   // (its first record: where it left his hand)
+        for (const [id, L] of orph) { const o = near(L, e.t, 0.3); if (o && Math.hypot(o[3] - e.x, o[5] - e.z) <= 2 && Math.abs(o[4] - e.y) <= 3) P2(votes, id, [e.t, e.by]); }
+      }
+      for (const k of K0) {
+        if (!k.v || k.vd > 1) continue; const hl = Math.hypot(k.dir[0], k.dir[2]), ux = k.dir[0] / hl, uz = k.dir[2] / hl;
+        for (const [id, L] of orph) { const o = near(L, k.t, 0.5); if (!o) continue; const wx = o[3] - k.v[3], wz = o[5] - k.v[5], along = -(wx * ux + wz * uz), lat = Math.abs(wx * uz - wz * ux); if (along >= 0.5 && along <= 300 && lat <= 1.2) P2(votes, id, [k.t, k.pl]); }
+      }
+      const ownRec = new Map(), want = new Map();
+      for (const [id, V] of votes) { const c = new Map(); for (const [, pl] of V) c.set(pl, (c.get(pl) || 0) + 1); let best = null, bn = 0; for (const [pl, n] of c) if (n > bn) { best = pl; bn = n; } if (bn >= 2 && bn >= 0.8 * V.length) { want.set(id, best); ownRec.set(best, []); } }
+      if (want.size) {
+        for (const o of r.obs) if (o[1] === 'S') { const pl = owned(o[2], o[0]); if (pl !== null && ownRec.has(pl)) ownRec.get(pl).push(o[0]); }
+        for (const [id, best] of want) {
+          const L = orph.get(id), V = votes.get(id), segs = []; let a = 0;
+          for (let k = 1; k <= L.length; k++) if (k === L.length || L[k][0] - L[k - 1][0] >= 5) { segs.push([a, k - 1]); a = k; }
+          const mine = spawns.filter(q => q.player === best && !q.inferred);
+          for (const [i0, i1] of segs) {
+            if (i1 - i0 + 1 < 30) continue; const s0 = L[i0][0], s1 = L[i1][0];
+            if (V.some(([tv, pl]) => pl !== best && tv >= s0 - 1 && tv <= s1 + 1)) continue;
+            if (mine.some(q => q.t > s0 && q.t < s1)) continue;
+            if ((ownRec.get(best) || []).some(tt => tt >= s0 && tt <= s1)) continue;
+            const tpl = mine.length ? mine.reduce((x, q) => Math.abs(q.t - s0) < Math.abs(x.t - s0) ? q : x).tpl : undefined, o = L[i0];
+            spawns.push({ t: s0, kind: 'spawn', id, player: best, ...(tpl !== undefined ? { tpl } : {}), x: o[3], y: o[4], z: o[5], inferred: true });
+          }
+        }
+        spawns.sort((x, y) => x.t - y.t);
+      }
+    } }
   // both sides of a kill must have spawned at some point (servers fill empty slots with placeholder names)
   const spawned = new Set(spawns.map(e => e.player));
   const deathSoon = e => (deathAt.get(e.victim) || []).some(d => d >= e.t - 0.5 && d - e.t < 16);
@@ -15054,19 +15138,19 @@ async function buildTimeline(r) {
   const kills = []; for (const e of evs.filter(e => e.kind === 'kill' && spawned.has(e.killer) && spawned.has(e.victim) && plausibleKill(e)).sort((a, b) => a.t - b.t)) if (!kills.some(q => Math.abs(q.t - e.t) < 1 && q.killer === e.killer && q.victim === e.victim)) kills.push(e);
   // team: learn which soldier templates each team spawns with (from players whose team the preamble gives), then
   // take each person's most common spawn team; slots that never spawn or fight (placeholder names) are left out
-  const tplVotes = new Map(); for (const e of spawns) { const pt = ent[e.player].pteam; if (pt) { const k = e.tpl + ':' + pt; tplVotes.set(k, (tplVotes.get(k) || 0) + 1); } }
+  const tplVotes = new Map(); for (const e of spawns) { const pt = ent[e.player].pteam; if (pt && e.tpl !== undefined) { const k = e.tpl + ':' + pt; tplVotes.set(k, (tplVotes.get(k) || 0) + 1); } }
   const tplTeam = tpl => { const a = tplVotes.get(tpl + ':1') || 0, b = tplVotes.get(tpl + ':2') || 0; return a > b ? 1 : b > a ? 2 : (tpl <= 3282 ? 1 : 2); };
   // A spawn's side comes from its kit (MEC and US kits are known) or its soldier template (3281 / 3282 MEC, 3283 / 3284
   // US); the votes only for templates of other armies. (The preamble gives each player's team when the recording
   // started: in =FL= 2026-10-01 21:51 Golg_4iter switched from US to MEC after a minute and spawned 5 times as MEC, which
   // outvoted the rest and turned MEC into US, so his fights showed as 7 team kills.)
   const SOLDIER_TEAM = { 3275: 1, 3276: 1, 3279: 2, 3280: 2, 3281: 1, 3282: 1, 3283: 2, 3284: 2 }, KIT_TEAM = { CH: 1, MEC: 1, US: 2, EU: 2 };   // (v156: the EU - team 2 on the Euro Force maps)
-  const spawnTeam = e => KIT_TEAM[KITS[e.kit]?.[1]] || SOLDIER_TEAM[e.tpl] || tplTeam(e.tpl);
+  const spawnTeam = e => e.inferred && e.tpl === undefined ? ent[e.player].pteam || 0 : KIT_TEAM[KITS[e.kit]?.[1]] || SOLDIER_TEAM[e.tpl] || tplTeam(e.tpl);   // (v257: a soldier found by his acts, no template of his: the preamble's side)
   const teamVotes = new Map(); for (const e of spawns) { const k = e.player, tm = spawnTeam(e); if (!teamVotes.has(k)) teamVotes.set(k, [0, 0, 0]); teamVotes.get(k)[tm]++; }
   const active = new Set([...spawns.map(e => e.player), ...kills.flatMap(e => [e.killer, e.victim])]);
   for (const k of active) { const v = teamVotes.get(k); P.set(k, { index: k, name: ent[k].name, team: v ? (v[1] >= v[2] ? 1 : 2) : ent[k].pteam || 1, named: ent[k].named }); }
   // a player can change sides during a round (team balance, or by choice): his team follows each spawn's soldier template
-  const teamsOf = new Map(); for (const e of spawns) { const tm = spawnTeam(e), L = teamsOf.get(e.player) || []; if (!L.length || L[L.length - 1][1] !== tm) L.push([e.t, tm]); teamsOf.set(e.player, L); }
+  const teamsOf = new Map(); for (const e of spawns) { const tm = spawnTeam(e), L = teamsOf.get(e.player) || []; if (!tm) continue; if (!L.length || L[L.length - 1][1] !== tm) L.push([e.t, tm]); teamsOf.set(e.player, L); }
   // (v185, todo 225) the Special Forces rounds of Lost-Soldiers: their kits and soldier templates name no side (KIT_TEAM
   // knows CH / MEC / US / EU kits) and the preamble gives none - every soldier came out on one side, every kill a team
   // kill (Mass Destruction 2026-10-18 20:28: 10 soldiers, 88 of 88; Surge). The Player ghost says each player's side
@@ -15103,6 +15187,33 @@ async function buildTimeline(r) {
     if (k % 200000 === 199999) await step(0.1 * k / r.obs.length);
   }
   for (const e of spawns) push(track, e.player, [e.t, e.x, e.y, e.z]);
+  // (v257) a man on a grappling rope: the demo keeps his soldier where he took the rope, then ~6 m higher in one step -
+  // the rope's own events have where on it he is (61: segment and how far along it, ~30 a second) and where its
+  // particles are (64): his records between taking it and getting off are those points (the events' players are slots)
+  { const XE = r.xev || [];
+    if (XE.some(e => e.k === 'ropeup')) {
+      const parts = new Map(), ups = new Map(), climbs = [], open = new Map();
+      for (const e of XE) {
+        if (e.k === 'ropept') push(parts, e.rope, [e.t, e.i, e.p]);
+        else if (e.k === 'ropeup') push(ups, entOf(e.pl, e.t), [e.t, e.seg, e.tv]);
+        else if (e.k === 'climb') { const pl = entOf(e.pl, e.t), c = { pl, rope: e.rope, t0: e.t, t1: null }; open.set(pl, c); climbs.push(c); }
+        else if (e.k === 'unclimb') { const pl = entOf(e.pl, e.t), c = open.get(pl); if (c) { c.t1 = e.t; open.delete(pl); } }
+      }
+      for (const c of climbs) {
+        const t1 = c.t1 ?? c.t0 + 20, PS = (parts.get(c.rope) || []).slice().sort((a, b) => a[0] - b[0]), tr = track.get(c.pl);
+        const U = (ups.get(c.pl) || []).filter(u => u[0] >= c.t0 - 0.05 && u[0] <= t1 + 0.05).sort((a, b) => a[0] - b[0]);
+        if (!PS.length || !U.length || !tr) continue;
+        const cur = [], pts = []; let pi = 0;
+        for (const [tu, sg, tv] of U) {
+          while (pi < PS.length && PS[pi][0] <= tu) { cur[PS[pi][1]] = PS[pi][2]; pi++; }
+          const a = cur[sg], b = cur[sg + 1]; if (!a) continue;
+          const f = Number.isFinite(tv) ? Math.max(0, Math.min(1, tv)) : 0, q = b ? a.map((v, j) => v + (b[j] - v) * f) : a;
+          if (okPos(q[0], q[1], q[2]) && (!pts.length || tu - pts[pts.length - 1][0] >= 0.05)) pts.push([tu, q[0], q[1], q[2], null, null, null]);
+        }
+        if (pts.length < 2) continue;
+        track.set(c.pl, tr.filter(o => !(o[0] > c.t0 + 0.05 && o[0] < t1 - 0.05)).concat(pts));
+      }
+    } }
   const rtrack = new Map(); for (const [t, id, yw, pt] of r.rot || []) { const pl = who(id, t); if (pl !== null) push(rtrack, pl, [t, yw, pt ?? null]); }
   for (const v of rtrack.values()) v.sort((a, b) => a[0] - b[0]);
   // remove single-sample spikes (misaligned reads): a point far from both neighbours
@@ -16301,7 +16412,10 @@ async function buildTimeline(r) {
     // (v254) the grappling ropes: { id, by, t, x, y, h (whence thrown), dx, dy, dh (which way), climbs: [[t0, t1, x, y, h
     // where he got off, who]] } - a rope's id is the game's and comes back for later ropes
     else if (e.k === 'hook' && okPos(e.a[0], e.a[1], e.a[2])) { const pl = entAt(e.pl, e.t); ropes.set(e.rope, { id: e.rope, by: pl === null ? null : 'p' + pl, t: t2, x: +e.a[0].toFixed(2), y: +e.a[2].toFixed(2), h: +e.a[1].toFixed(2), dx: +e.dir[0].toFixed(3), dy: +e.dir[2].toFixed(3), dh: +e.dir[1].toFixed(3), climbs: [] }); ropeList.push(ropes.get(e.rope)); }
-    else if (e.k === 'climb') { const pl = entAt(e.pl, e.t), r0 = ropes.get(e.rope); if (pl !== null && r0) { const c = [t2, null, null, null, null, 'p' + pl]; r0.climbs.push(c); onRope.set(pl, c); } }
+    else if (e.k === 'climb') { const pl = entAt(e.pl, e.t), r0 = ropes.get(e.rope); if (r0 && r0.shapeAt == null) r0.shapeAt = e.t; if (pl !== null && r0) { const c = [t2, null, null, null, null, 'p' + pl]; r0.climbs.push(c); onRope.set(pl, c); } }
+    // (v257) the rope's shape: its particles (64) as they were when the first man took it (a rope nobody took: as they
+    // settled last) - pts [[x, north, h], ...] from the hook's end along it
+    else if (e.k === 'ropept') { const r0 = ropes.get(e.rope); if (r0 && (r0.shapeAt == null || e.t <= r0.shapeAt + 0.05)) (r0._pt || (r0._pt = new Map())).set(e.i, [+e.p[0].toFixed(2), +e.p[2].toFixed(2), +e.p[1].toFixed(2)]); }
     else if (e.k === 'unclimb') { const pl = entAt(e.pl, e.t), c = pl === null ? null : onRope.get(pl); if (c && okPos(e.pos[0], e.pos[1], e.pos[2])) { c[1] = t2; c[2] = +e.pos[0].toFixed(2); c[3] = +e.pos[2].toFixed(2); c[4] = +e.pos[1].toFixed(2); onRope.delete(pl); } }
     else if (e.k === 'sqname') squadNames.push([t2, vt(e.team), e.squad, e.name]);
     else if (e.k === 'uav' && e.id != null) {   // (v134: from PostRemote - its flight from its own records)
@@ -16392,7 +16506,7 @@ async function buildTimeline(r) {
     for (const tm of [0, 1]) sides[tm] = [...c[tm]].sort((a, b) => b[1] - a[1])[0]?.[0] || null; }
   return { meta: { map: r.map, server: r.server, date: r.date, mapSize: (mi && mi.size) || size, duration: r.duration, source: 'demo', ...(r.settings ? { settings: r.settings } : {}), scoreEstimate: !ents.some(e => e.sb), ...(r.packets?.events ? { exactEvents: true } : {}), manDown: +manDown.toFixed(1), ...(kills.some(e => hitOf(e.w)) ? { hits: true } : {}), ...(stanceOf.size ? { stance: true } : {}) },
     teams: [{ id: 0, name: sides[0] || (mi ? mi.teams[0] : 'Team 1'), tickets: tkStart[0] ?? 0 }, { id: 1, name: sides[1] || (mi ? mi.teams[1] : 'Team 2'), tickets: tkStart[1] ?? 0 }],
-    players: ents, flags, frames: [], cols, events, emplacements, ...(bodies.length ? { bodies } : {}), ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(crates.length ? { crates } : {}), ...(ropeList.length ? { ropes: ropeList } : {}), ...(cams.length ? { cams: cams.map(({ id, ...c }) => c) } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
+    players: ents, flags, frames: [], cols, events, emplacements, ...(bodies.length ? { bodies } : {}), ...(squadNames.length ? { squadNames } : {}), ...(uavs.length ? { uavs } : {}), ...(crates.length ? { crates } : {}), ...(ropeList.length ? { ropes: ropeList.map(({ _pt, shapeAt, ...q }) => _pt && _pt.size >= 2 ? { ...q, pts: [..._pt.entries()].sort((a, b) => a[0] - b[0]).map(x => x[1]) } : q) } : {}), ...(cams.length ? { cams: cams.map(({ id, ...c }) => c) } : {}), ...(sgroups.length ? { spawnGroups: sgroups } : {}), ...(orders.length ? { orders } : {}), ...(bleedSpans[0].length || bleedSpans[1].length ? { bleed: bleedSpans } : {}),
     // the map's destroyable objects that were hit: where (x east, y north, h), template, [time, hit points (-1 back after a
     // respawn, -2 gone), flag]
     breaks: (r.objs || []).map(o => ({ x: +o.x.toFixed(2), y: +o.z.toFixed(2), h: +o.y.toFixed(2), tpl: o.tpl, hits: o.hits })),

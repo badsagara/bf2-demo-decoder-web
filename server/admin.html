@@ -546,7 +546,7 @@ document.querySelector('[data-card="analysis"]').addEventListener('click', e => 
   const b = e.target.closest('button[data-an]'); if (!b) return;
   const d = b.dataset.an;
   if (d === 'log') { $('#logUnit').value = 'hints'; loadLog(); $('#logUnit').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
-  if (d === 'archive-delete' && !confirm(`Remove ${b.dataset.file} from the VPS? (Download it first if you still need it.)`)) return;
+  // (v256, Sagara: no question - in his browser the page's questions did not show, so Remove did nothing) at once
   if (d === 'pack' && (S.analysis?.archives || []).some(a => !a.part) && !confirm('Make a new archive? It takes as much room again as the rounds; an older one can be removed after.')) return;
   act('analysis', { do: d, file: b.dataset.file }, b);
 });

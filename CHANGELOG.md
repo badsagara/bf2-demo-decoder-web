@@ -5,6 +5,56 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v257
+
+**The decoder (Sagara: "Даю так на зміну декодера") and the v254 archive's findings.** The decoder changes
+(`36b9346419`): the server decodes every round again by itself. Hint rules version 19.
+
+- **Soldiers the demo never showed a spawn for** (alive in its opening snapshot, or a spawn message not read): their
+  records had no owner and the man no soldier - 2F4Y 10-09 21:31: Simflera, alive from the start to 6:21, a TOW, a Kord,
+  medic bags, three kills, and nowhere on the map. The decoder now gives such a soldier to the man whose own acts were
+  where it stood - his throws (grenades, bags, charges: the game's MissileInit names him) within 2 m of it, his
+  hand-weapon kills along whose bullet it stood - 2 or more, 80 % of them, nobody else's; each stretch of it with no
+  spawn of his own in it and no soldier of his own beside it. 14 test demos: Simflera (0:00-6:22), STEELDOG842,
+  derB0ehseMann (their first minute or so), Shukrija (Gulf of Oman, 0:00-2:57: charges and grenades at the start), no
+  one else; their kills are measured now (Simflera's two Beyond fog hints went: he was in range).
+- **Grappling ropes as they were**: the rope's own events (each of its particles; where the man on it is, ~30 times a
+  second) - the map draws the rope's real shape (from the hook over the edge, hanging down) and a man climbing goes up
+  it, not 6 m in one step at the top (Mass Destruction: 10 of its 19 ropes with their shape).
+- **No line of sight: not the object he lies on** - the first 6 m of the killer's lines leave out the object right
+  under him. The v254 archive: 149 of its 204 hints were lines that met an object within 6 m of the killer, 95 of them
+  men lying on it; Road to Jalalabad's rock piles alone 63 - one sniper lying on top of one, 45 hints in 13 rounds
+  (his demo: 11 kills, the line clipping the rock 1-5 m in front of him, all gone).
+- **Beyond fog: not the carriers' Phalanx** (an AA gun): 74 of the archive's 336 fog hints, men on foot 640-960 m
+  away, 70 of them one player on Gulf of Oman and Wake - in his demo the hits came from every side, not from him: its
+  shells burst where they come down, he fired across the sea at the enemy's flag.
+- **Ready for contact** (in shadow): not while a sniper rifle is in his hands - 90 of the archive's 113 hints were
+  snipers, all 9 of the strongest (a scoped sniper holds a doorway as a matter of course). rambow2 and MicrosoftExcel,
+  the 49 demos' two, were snipers too. A made-up wallhacker (a rifleman): 21 of 32 - still a hint.
+- **Recoil script** (in shadow): the archive's 7 hints were the data, not scripts (an ammo bag's "61 shots"; 4 with
+  the view not moving at all, not even sideways). Now only the gun of his kit's rifle slot, no more shots than its
+  magazine ever held in the round, his view moving sideways in some steps. Made up: 3 of 3, 4 of 4 - a hint.
+- 14 test demos against v256: every other hint the same (11 No line of sight, 7 + 2 Beyond fog, 2 Ready for contact
+  gone; nothing new); 7 demos the same in every number.
+
+## v256
+
+**The admin page's Remove, the analysis' failed rounds** (Sagara: Remove of an archive did nothing - "без підтвердження,
+хай відразу видаляється"). No decoder change, nothing summed up or looked at again.
+
+- **Remove an analysis archive at once**: no question first (in his browser the page's question never showed, so the
+  click did nothing). Download it before, if it is still needed.
+- **Rounds that "failed" while the server decoded again**: the v254 archive had 673 rounds marked failed - 670 with
+  `....18e8999d15.bfr: 404`: the background run went on with the list it had while every round got decoded again (the
+  decoded file gets a new name), and a failed round waited for the site's next update. Now such a round is opened again
+  in a new page (with the list as it is now), and if it still fails, tried again an hour later.
+- From the v254 archive (3,519 rounds; not changed yet, for a next version): *Ready for contact* - 90 of its 113 hints
+  are snipers (a scoped sniper holds a doorway, as Pre-aim found in v214); *Recoil script* - its 7 hints look like
+  data, not scripts (an ammo bag, records with no new view); both stay in shadow. The v253 fixes hold (Spawn 1,984 -> 39,
+  No recoil 1,021 -> 103, Endless ammo 124 -> 2, Shot from elsewhere 19 -> 2). Two things need a demo: Road to
+  Jalalabad's `rockpile_1` (63 of the map's 85 No line of sight hints), and the carrier's Phalanx in Beyond fog
+  (74 hints, men on foot 640-830 m away).
+
 ## v255
 
 **What could be done without Sagara** (Sagara: "Давай все що можеш без мене"). No decoder change (no round is decoded

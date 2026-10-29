@@ -1069,6 +1069,15 @@ Nothing to do.
 version 18, both done again by themselves from the decoded rounds. The background analysis is about twice as fast as
 v254 on big rounds (the same hints), so that pass takes about half of what v254's did. Nothing to do.
 
+(v256) The admin page and the background analysis only (no decoder change, nothing summed up or looked at again):
+**Remove** of an analysis archive works at once, with no question; a round that "failed" because its decoded file had
+a new name (decoded again meanwhile: `....bfr: 404` in analysis/failed.json) is tried again an hour later, not only
+after the next update. Nothing to do (if v255 is not on the server yet, v256 brings its changes too).
+
+(v257) **The decoder changes** (`36b9346419`: soldiers the demo never showed a spawn for, found by their men's acts;
+the grappling ropes' own events): the server decodes every round again by itself, then sums them up and looks at
+them again (hint rules version 19). Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (184 of 59 hints since v254: times, angles, distances, counts, odds) can be set from the site's page:

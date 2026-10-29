@@ -323,6 +323,9 @@ function listed() {
 }
 fs.mkdirSync(RDIR, { recursive: true });
 const pageVer = (/const APP_VERSION = '(v\d+)'/.exec(fs.readFileSync(path.join(SITE, 'index.html'), 'utf8')) || [])[1] || '?';
+// (v256) a round whose .bfr was not there (decoded again meanwhile: a new name) is tried again an hour later, as one not
+// in the page's list yet - not only after the site's next update
+const BFR_GONE = /\.bfr: 404\b/;
 const failedPath = path.join(OUT, 'failed.json'); let failed = {}; try { failed = JSON.parse(fs.readFileSync(failedPath, 'utf8')); } catch (e) { /* none yet */ }
 // (v185) the background run's list: not done yet first, then done by older hint rules; the copies of other rounds never,
 // nor a round that failed with this page (it would be tried again and again: again after the next update of the site),
@@ -331,7 +334,7 @@ function autoList(busy) {
   let copies = {}; try { copies = JSON.parse(fs.readFileSync(path.join(DATA, '.copies.json'), 'utf8')).copies || {}; } catch (e) {}
   const HV = pageHv(), AV = pageAv(), none = [], old = [], older = [];
   let skipF = 0;
-  for (const r of listed()) { if (copies[r.name] || busy.has(r.name)) continue; if (failed[r.name]?.page === pageVer && !(/^open: not in the list/.test(failed[r.name].error || '') && Date.now() - Date.parse(failed[r.name].at || 0) > 3600e3)) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); else if (AV && avOf(f) < AV) older.push(r); }
+  for (const r of listed()) { if (copies[r.name] || busy.has(r.name)) continue; if (failed[r.name]?.page === pageVer && !((/^open: not in the list/.test(failed[r.name].error || '') || BFR_GONE.test(failed[r.name].error || '')) && Date.now() - Date.parse(failed[r.name].at || 0) > 3600e3)) { skipF++; continue; } const f = path.basename(fileOf(r.name)); let have = false; try { have = fs.statSync(fileOf(r.name)).size > 0; } catch (e) {} if (!have) none.push(r); else if (String(hvOf(f)) !== String(HV) || (r.decoder && decOf(f) && !decSame(r.decoder, decOf(f), r.sum?.map))) old.push(r); else if (AV && avOf(f) < AV) older.push(r); }
   // (v225) while ingest.mjs decodes the rounds again for a new decoder (data/reprocess.json), the rounds it has done come
   // first: one not done yet would be looked at now and again once it is
   { let P = null; try { P = JSON.parse(fs.readFileSync(path.join(DATA, 'reprocess.json'), 'utf8')); } catch (e) {}
@@ -466,7 +469,9 @@ async function worker() {
       // (v252) a page keeps the site's list it was opened with, and a run goes on batch after batch (v248): a round decoded
       // since is not in that list - a new page has it (4 new rounds a day failed so, and were not tried again until the
       // next version of the site)
-      if (ok === 'not in the list' && page._n > 0) { await page.context().close().catch(() => {}); page = await newPage(r.name); page._errs = []; ok = await withTimeout(page.evaluate(n => window.__bf2analyze.open(n), r.name), TIMEOUT, 'opening'); }
+      // (v256, archive v254: 670 rounds failed with "<name>.18e8999d15.bfr: 404" - decoded again by the new decoder while
+      // the run went on, the page's list still had the old file's name) the same: a new page, with the list as it is now
+      if ((ok === 'not in the list' || BFR_GONE.test(String(ok))) && page._n > 0) { await page.context().close().catch(() => {}); page = await newPage(r.name); page._errs = []; ok = await withTimeout(page.evaluate(n => window.__bf2analyze.open(n), r.name), TIMEOUT, 'opening'); }
       if (ok !== true) throw new Error('open: ' + ok);
       const d = await withTimeout(page.evaluate(s => window.__bf2analyze.dump(s), Math.round(TIMEOUT / 1000) - 30), TIMEOUT, 'analysing');
       if (!d || d.error) throw new Error(d ? d.error : 'no numbers');
