@@ -1078,9 +1078,13 @@ after the next update. Nothing to do (if v255 is not on the server yet, v256 bri
 the grappling ropes' own events): the server decodes every round again by itself, then sums them up and looks at
 them again (hint rules version 19). Nothing to do.
 
+(v258) No decoder change. Hint rules version 20: the background analysis looks at every round again by itself (Aim
+lock, Aim snaps and Target switch against the round's others, the object a man lies on in every sight check, Beyond
+fog not at a spotted man). Five new thresholds (189 in all) - a site's own set keeps what it changed. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (184 of 59 hints since v254: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (189 of 59 hints since v258: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 

@@ -5,6 +5,31 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v258
+
+**What the v254 archive still showed** (Sagara: "Давай з першого по третій пункт"). No decoder change; hint rules
+version 20 (the server looks at every round again by itself).
+
+- **The object a man lies or stands on, in every check of whether he could see**: v257 left it out of the first 6 m of
+  a killer's lines in No line of sight; now the same in Wall tracking, Fired at a wall, Pre-aim, Ready for contact, who
+  saw whom first and His view - a man lying on a roof or a rock sees over its edge. Ready for contact is checked again
+  with the exact shapes too (hidden on the 25 cm grid, but in sight with the exact shapes: not a coming out). 14 test
+  demos: no hint more or less; who saw whom first changed in 153 of 5,733 kills, mostly from "even" to "first" or
+  "second".
+- **Aim lock, Aim snaps and Target switch against the round's others** - they came mostly from one server, SiC's
+  infantry-only Karkand (Aim lock 44 of 50, snaps 47 of 66, switches 38 of 73 in the v254 archive), where the same
+  things happen as often per kill as everywhere (snaps 0.7-0.9 % of kills; a quick double kill swings 40 deg or more
+  6-8 % of the time; honest kills within 0.2 deg of the chest's height 29-36 %) - there are just more kills and more
+  close fights. Now each also needs so many of his kills that the odds at the round's others' share are small: Aim lock
+  (within 0.2 deg) 1 in 10,000, snaps and switches 1 in 1,000; switches one hint a man, 2 or more. On the archive's
+  numbers: Aim lock SiC 3, 2F4Y 1, Lost-Soldiers 1; snaps SiC 5, 2F4Y 1; switches 2 (two men with 6 in a round). Made
+  up: Aim lock 35 of 35, snaps 5 of 43 - hints. Five new thresholds (189 in all).
+- **Beyond fog: not at a spotted man** - his side had him spotted in the 6 s before, or in its UAV ring: the game
+  draws the spot's mark through the fog, and men fire at the mark (20 of the archive's 262 hints).
+- Looked at, nothing to change: Beyond fog on 2F4Y is no server setting - small-arms kills past the view distance are
+  as rare there as on SiC (snipers 0.13 %), it just has more vehicle maps; vehicles' kills past it 0.13 % of 196,894
+  (Blue Pearl's 90 m: kills fall away sharply after 100 m - right).
+
 ## v257
 
 **The decoder (Sagara: "Даю так на зміну декодера") and the v254 archive's findings.** The decoder changes

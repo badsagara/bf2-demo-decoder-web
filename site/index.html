@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v257';
+const APP_VERSION = 'v258';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -3397,7 +3397,10 @@ function canSee(i, j, tt, V) {
   if (eye == null) return null;
   if (fogHides(D, q.x, q.y, eye, o.x, o.y, Math.max(...pts.map(p => p[2])), tt)) return false;   // (v235: lost in the fog)
   const G = geoData(true);
-  const clear = (bx, by, bh) => !(losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt)))
+  // (v258) the object he stands or lies on left out of his first OWN_NEAR m (ownGround: worked out only when the grid has
+  // a line blocked) - a man lying on a roof or a rock looks over its edge (His view, who saw whom first, Pre-aim)
+  let own; const ownOf = () => own === undefined ? (own = G && !q.veh ? ownGround(G, q) : null) : own;
+  const clear = (bx, by, bh) => !(losBlocked(D, q.x, q.y, eye, bx, by, bh, tt) && !(G && !exactHit(D, G, q.x, q.y, eye, bx, by, bh, true, tt, false, ownOf())))
     && !vehBlocks(q.x, q.y, eye, bx, by, bh, tt, q.veh, o.veh) && !vegBlocks(q.x, q.y, eye, bx, by, bh);
   for (const [bx, by, bh] of pts) if (clear(bx, by, bh)) return true;
   if (o.veh) return false;
