@@ -1091,6 +1091,8 @@ round again by itself, then sums them up and looks at them again (hint rules ver
 and Enemy behind - new, in shadow; Guided missiles also by the last second). Eleven new thresholds (201 in all) - a
 site's own set keeps what it changed. Nothing to do.
 
+(v261) No decoder change, the hint rules unchanged: the server decodes and analyses nothing again. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (201 of 63 hints since v260: times, angles, distances, counts, odds) can be set from the site's page:

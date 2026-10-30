@@ -55,6 +55,9 @@ A `.bf2demo` is the game server's Battle Recorder file: the network stream it se
   page), so a demo opened in your browser and a round on the site read the same.
 - A decoded round is a `.bfr` file (about 6× smaller than the demo) named after the decoder's hash. When the decoder
   changes, every round that still has its demo is decoded again by itself (the site works meanwhile).
+- (v261) A demo opened from your own computer is kept decoded in the browser the same way (IndexedDB, the same `.bfr`
+  layout, keyed by the file's name, size and date and the decoder's code): opened again it comes back in about a
+  second. The map is drawn before the admins' hints are listed (2-3 s sooner for a big round).
 - **Movement between the records.** The demo has a moving soldier or vehicle about 30 times a second. Each 0.1 s step
   of the round holds where it was at that very moment, as the game itself shows it: between the two records either
   side, when they are less than 0.5 s apart, else the last one (the game's own rule; before v225 always the last record —

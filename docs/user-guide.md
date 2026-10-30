@@ -303,7 +303,14 @@ vehicles, anti-air guns, anti-air rockets from the ground, air-to-air missiles. 
 - **Open .bf2demo** — any demo from your game's demos folder; it is decoded in your browser (nothing is uploaded) and
   replayed like the site's rounds.
 - **Open folder** — all the demos in a folder (an evening of rounds): a list of the rounds and the players' numbers over
-  all of them.
+  all of them. (v261) Several are decoded at once where the computer has room: half its cores, at most 4, about 2 GB
+  of memory each (Chrome and Edge tell the page the memory; elsewhere 2 at once).
+- (v261) **Decoded before — kept in this browser.** A demo you open is kept decoded in this browser (as the site's own
+  round files, about a sixth of the demo): open the same file again — the same name, size and date — and it is there
+  in a second or so instead of being decoded again (a 27-minute round of 62 players, 42 MB: ~14 s → ~1.3 s on a slow test machine), a folder too. The
+  *Demo file* card says so and has **Forget them** to empty the store. It keeps the 80 last opened, at most 600 MB;
+  a new decoder (a site update that changes it) starts it afresh. Nothing leaves your computer; a private window keeps
+  nothing.
 - **Open timeline .json** — a round in the page's own JSON format (see *Timeline JSON format* at the bottom of the page).
 - **Map picture** — a picture for a map the page doesn't have (PNG / JPG, the game's `ingameMap.dds`, or the level's
   `client.zip`).

@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v260';
+const APP_VERSION = 'v261';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -13780,9 +13780,13 @@ function setRound(data, src) {
   refresh(true);
   try { renderStats(); } catch (e) { console.error(e); $('#stats').innerHTML = ''; }
   try { renderHighlights(); } catch (e) { console.error(e); $('#hlBox').innerHTML = ''; }
-  try { admRender(); } catch (e) { console.error(e); $('#admBox').innerHTML = ''; }
-  if (pane === 'admin' || revOn) renderAdmPane();   // (v196; v243: the admins' page)
-  revLoop = null; revKick();   // (v243)
+  // (v261, todo 190) the admins' part once the map is drawn (2-3 s of a big round: the map shows that much sooner)
+  const R0 = round; let admDone = false;
+  const admLater = () => { if (admDone || round !== R0) return; admDone = true;
+    try { admRender(); } catch (e) { console.error(e); $('#admBox').innerHTML = ''; }
+    if (pane === 'admin' || revOn) renderAdmPane();   // (v196; v243: the admins' page)
+    revLoop = null; revKick(); };   // (v243)
+  requestAnimationFrame(() => setTimeout(admLater, 0)); setTimeout(admLater, 300);   // (a hidden tab draws no frames)
   engWarm(round);
 }
 // kill feed / highlights tabs
@@ -16778,6 +16782,21 @@ function decoderWorkerURL() {
 }
 // (runs inside the worker: GAME and decodeDemo are the worker's own)
 function workerMain() {
+  // (v261, todo 190) a decoded round as the server's .bfr (ingest.mjs bfrBuild, read back by bfrParse): gzip of 'BFR1', u32
+  // the header's length, the header (JSON: { name, info, tl } with typed arrays as { $ta: [type, offset, length] } into
+  // the bytes after it, 8-byte aligned, and Infinity / NaN as { $n: 'Infinity' }), then those bytes - for the browser's
+  // store of decoded demos
+  const bfrPack = async obj => {
+    const parts = []; let off = 0;
+    const json = JSON.stringify(obj, (k, v) => {
+      if (ArrayBuffer.isView(v) && !(v instanceof DataView)) { const at = off, b = new Uint8Array(v.buffer, v.byteOffset, v.byteLength); parts.push(b); off += b.length; const pad = (8 - off % 8) % 8; if (pad) { parts.push(new Uint8Array(pad)); off += pad; } return { $ta: [v.constructor.name, at, v.length] }; }
+      if (typeof v === 'number' && !Number.isFinite(v)) return { $n: String(v) };
+      return v;
+    });
+    const head = new TextEncoder().encode(json), pre = new Uint8Array(8); pre.set([66, 70, 82, 49]); new DataView(pre.buffer).setUint32(4, head.length, true);
+    const gap = new Uint8Array(((8 + head.length + 7) & ~7) - 8 - head.length);
+    return new Uint8Array(await new Response(new Blob([pre, head, gap, ...parts]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());
+  };
   self.onmessage = async ev => {
     GAME = ev.data.game;
     let last = 0;
@@ -16787,6 +16806,13 @@ function workerMain() {
         self.postMessage({ type: 'done', tl: pk }, [pk.data.buffer]); return;
       }
       const tl = await decodeDemo(ev.data.data, (f, stage) => { const now = Date.now(); if (now - last > 100) { last = now; self.postMessage({ type: 'progress', f, stage }); } });
+      // (v261) to be kept in the browser's store: the timeline copied over (not handed), then packed here while the page
+      // draws it
+      if (ev.data.cache && tl && tl.cols && typeof CompressionStream === 'function') {
+        self.postMessage({ type: 'done', tl });
+        let bytes = null; try { bytes = await bfrPack({ name: ev.data.cache.name, info: ev.data.cache.info, tl }); } catch (e) {}
+        self.postMessage({ type: 'bfr', bytes }, bytes ? [bytes.buffer] : []); return;
+      }
       // the timeline's columns are handed over, not copied
       const bufs = tl && tl.cols ? ['X', 'Y', 'A', 'L', 'HH', 'VT', 'HP', 'DN', 'PT', 'SP', 'VV', 'GA', 'GB', 'DR', 'FO', 'FC', 'TK'].map(k => tl.cols[k].buffer) : [];
       self.postMessage({ type: 'done', tl }, bufs);
@@ -16795,12 +16821,12 @@ function workerMain() {
   self.postMessage({ type: 'ready' });
 }
 // resolves with the timeline; rejects with 'no-worker' when no worker could be started (then decode on the page)
-function decodeInWorker(data, keep, job, onProgress, extra) {
+function decodeInWorker(data, keep, job, onProgress, extra, onBfr) {
   return new Promise((resolve, reject) => {
     const url = decoderWorkerURL(); if (!url) { reject(new Error('no-worker')); return; }
     let w; try { w = new Worker(url); } catch (e) { workerBroken = true; reject(new Error('no-worker')); return; }
-    let started = false;
-    const end = () => { clearTimeout(timer); w.terminate(); };
+    let started = false, bfrT = 0;
+    const end = () => { clearTimeout(timer); clearTimeout(bfrT); w.terminate(); };
     const timer = setTimeout(() => { if (!started) { end(); workerBroken = true; reject(new Error('no-worker')); } }, 5000);
     job.stop = () => { end(); reject(new Error('cancelled')); };
     w.onerror = e => { if (e.preventDefault) e.preventDefault(); end(); if (!started) workerBroken = true; reject(new Error(started ? 'Decoder failed: ' + (e.message || 'error in the worker') : 'no-worker')); };
@@ -16808,7 +16834,8 @@ function decodeInWorker(data, keep, job, onProgress, extra) {
       const m = ev.data;
       if (m.type === 'ready') { started = true; clearTimeout(timer); w.postMessage({ data, game: { maps: GAME.maps, statics: GAME.statics }, ...(extra || {}) }, keep ? [] : [data.buffer]); }
       else if (m.type === 'progress') onProgress(m.f, m.stage);
-      else if (m.type === 'done') { end(); resolve(m.tl); }
+      else if (m.type === 'done') { if (extra && extra.cache) { resolve(m.tl); job.stop = end; bfrT = setTimeout(end, 120000); } else { end(); resolve(m.tl); } }   // (v261: the worker still packs it for the store)
+      else if (m.type === 'bfr') { end(); if (m.bytes && onBfr) onBfr(m.bytes); }
       else if (m.type === 'error') { end(); reject(new Error(m.message)); }
     };
   });
@@ -16833,8 +16860,8 @@ async function readDemoFile(file) {
   return { data, keep: data === buf, hdr, info: { bytes: buf.length, format: inf ? inf.format : null, truncated: !!(inf && inf.truncated), dataLen: data.length, hdr, ...(clipAt !== null ? { clipAt, ...(sq === null ? { clipReal: true } : {}) } : {}) } };
 }
 // decode in the worker, or on the page when no worker can be started
-async function decodeData(data, keep, job, onProgress) {
-  try { return await decodeInWorker(data, keep, job, onProgress); }
+async function decodeData(data, keep, job, onProgress, cache, onBfr) {
+  try { return await decodeInWorker(data, keep, job, onProgress, cache ? { cache } : null, onBfr); }
   catch (err) {
     if (job.cancelled) throw err;
     if (err.message !== 'no-worker') { console.error(err); return null; }
@@ -16847,6 +16874,7 @@ function demoHead(name, info) {
   const hdr = info.hdr;
   let html = `<dl class="meta"><dt>File</dt><dd>${esc(name)} · ${kbOf(info.bytes)}</dd>`;
   html += `<dt>Stream</dt><dd>${info.format ? `${info.format} → ${kbOf(info.dataLen)}${info.truncated?' (ends early, file may be cut)':''}` : 'not compressed / unknown compression'}</dd>`;
+  if (info.kept) html += `<dt>Decoded</dt><dd id="rcNote">decoded before, kept in this browser</dd>`;   // (v261)
   if (info.clipAt != null) html += `<dt>Clip</dt><dd>made by this viewer for the game: ${info.clipReal ? `the round from its start at its pace, opened 3 s before the clip, which starts at ${fmt(info.clipAt + DEMO_LEAD / 30)} (from the file's name)` : `the round before ${fmt(info.clipAt)} goes by fast in it, then the clip at the real pace`}</dd>`;
   if (hdr) { const [server, date, map] = hdr.fields; html += `<dt>Game version</dt><dd>${hdr.lead}</dd><dt>Server</dt><dd>${esc(server)}</dd><dt>Recorded</dt><dd>${esc(date)}</dd><dt>Map</dt><dd>${esc(map)}</dd>`; }
   return html;
@@ -16870,6 +16898,42 @@ function showDemo(name, info, tl) {
   }
   if (session) renderSession();
 }
+// (v261, todo 190: Sagara «Давай 19 і 20») the browser's store of decoded demos (IndexedDB, this browser only): a demo
+// opened again - the same name, size and date, decoded by the same decoder (a hash of its code) - comes back from it
+// instead of being decoded again (a 27-minute round of 62 players, 42 MB: 13.9 s -> 1.3 s on a slow test machine). Each round kept as the
+// server's .bfr (~1/6 of the demo); the least recently opened go past RC_MAX_MB or RC_MAX_N. Where the browser has no
+// IndexedDB (a private window, a page from disk) nothing is kept
+const RC_DB = 'bf2rr-decoded', RC_MAX_MB = 600, RC_MAX_N = 80;
+let rcDbP = null, rcDecK = null;
+const rcDb = () => rcDbP || (rcDbP = new Promise(res => { try { const q = indexedDB.open(RC_DB, 1); q.onupgradeneeded = () => { q.result.createObjectStore('m', { keyPath: 'k' }); q.result.createObjectStore('b'); }; q.onsuccess = () => res(q.result); q.onerror = () => res(null); q.onblocked = () => res(null); } catch (e) { res(null); } }));
+const rcDecoder = () => rcDecK || (rcDecK = (() => { const a = PAGE_SCRIPT.indexOf(WMARK + 'begin'), b = PAGE_SCRIPT.indexOf(WMARK + 'end'); return a >= 0 && b > a ? hashStr(PAGE_SCRIPT.slice(a, b)).toString(16) : APP_VERSION; })());
+const rcKey = f => [f.name, f.size, f.lastModified || 0, rcDecoder()].join('|');
+const rcReq = q => new Promise(res => { q.onsuccess = () => res(q.result); q.onerror = () => res(null); });
+async function rcGet(f) {
+  const db = await rcDb(); if (!db) return null;
+  try { const k = rcKey(f), tx = db.transaction(['m', 'b'], 'readwrite'), m = await rcReq(tx.objectStore('m').get(k)); if (!m) return null;
+    const bytes = await rcReq(tx.objectStore('b').get(k)); if (!bytes) return null; m.used = Date.now(); tx.objectStore('m').put(m); return bytes; } catch (e) { return null; }
+}
+async function rcPut(f, bytes) {
+  const db = await rcDb(); if (!db || !bytes || bytes.length > RC_MAX_MB * 1048576 / 4) return;
+  try {
+    const k = rcKey(f), tx = db.transaction(['m', 'b'], 'readwrite');
+    tx.objectStore('b').put(bytes, k); tx.objectStore('m').put({ k, name: f.name, len: bytes.length, used: Date.now() });
+    await new Promise(res => { tx.oncomplete = tx.onerror = tx.onabort = res; });
+    // the least recently opened out, past the limits
+    const tx2 = db.transaction(['m', 'b'], 'readwrite'), all = (await rcReq(tx2.objectStore('m').getAll())) || [];
+    all.sort((a, b) => b.used - a.used); let mb = 0;
+    all.forEach((x, i) => { mb += x.len / 1048576; if (i >= RC_MAX_N || mb > RC_MAX_MB) { tx2.objectStore('m').delete(x.k); tx2.objectStore('b').delete(x.k); } });
+  } catch (e) {}
+}
+async function rcStat() { const db = await rcDb(); if (!db) return null; try { const all = (await rcReq(db.transaction('m').objectStore('m').getAll())) || []; return { n: all.length, mb: all.reduce((a, x) => a + x.len, 0) / 1048576 }; } catch (e) { return null; } }
+async function rcClear() { const db = await rcDb(); if (!db) return; try { const tx = db.transaction(['m', 'b'], 'readwrite'); tx.objectStore('m').clear(); tx.objectStore('b').clear(); await new Promise(res => { tx.oncomplete = tx.onerror = res; }); } catch (e) {} }
+// the line under a demo opened from the store: how much it keeps, and a button to empty it
+async function rcNote() {
+  const el = $('#rcNote'); if (!el) return; const S = await rcStat(); if (!S) return;
+  el.innerHTML = `decoded before, kept in this browser (${S.n} round${S.n === 1 ? '' : 's'}, ${S.mb.toFixed(0)} MB) · <button class="lnk" type="button" id="rcClr">Forget them</button>`;
+  $('#rcClr').onclick = async () => { await rcClear(); el.textContent = 'decoded before - the browser\'s store is empty now'; };
+}
 async function openDemo(file) {
   if (decodeJob) { decodeJob.cancelled = true; if (decodeJob.stop) decodeJob.stop(); }
   const job = decodeJob = { cancelled: false, stop: null }, t0 = performance.now();
@@ -16880,6 +16944,14 @@ async function openDemo(file) {
   if (hit) { decodeJob = null; showDecoding(file.name, null); showDemo(file.name, hit.info, hit.tl); atClip(hit.info); return; }
   info$.textContent = 'Reading ' + file.name + '…';
   showDecoding(file.name, 0, 'read', t0);
+  // (v261) decoded before in this browser: from its store
+  const kept = await rcGet(file);
+  if (job.cancelled) return;
+  if (kept) {
+    try { const B = await bfrParse(kept); if (job.cancelled) return; B.info.kept = true; decodeJob = null; showDecoding(file.name, null);
+      if (session && session.rounds.some(r => r.file === file)) cacheDecoded(file, B.info, B.tl);
+      showDemo(file.name, B.info, B.tl); atClip(B.info); rcNote(); return; } catch (e) { console.warn('The browser\'s store of decoded demos:', e); }
+  }
   const rd = await readDemoFile(file);
   if (job.cancelled) return;
   if (!rd.hdr) {
@@ -16889,7 +16961,7 @@ async function openDemo(file) {
   }
   info$.innerHTML = demoHead(file.name, rd.info) + `<dt>Decoding</dt><dd id="decProg">0%</dd></dl>`;
   let tl = null;
-  try { tl = await decodeData(rd.data, rd.keep, job, (f, stage) => { if (!job.cancelled) showDecoding(file.name, f, stage, t0); }); }
+  try { tl = await decodeData(rd.data, rd.keep, job, (f, stage) => { if (!job.cancelled) showDecoding(file.name, f, stage, t0); }, { name: file.name, info: rd.info }, bytes => rcPut(file, bytes)); }
   catch (e) { return; }
   if (job.cancelled) return;
   decodeJob = null; showDecoding(file.name, null);
@@ -16947,12 +17019,15 @@ async function openSession(fileList) {
       const r = session.rounds[next++]; if (job.cancelled) return;
       r.status = 'reading'; renderSession();
       try {
+        // (v261) decoded before in this browser: from its store
+        const kept = await rcGet(r.file); if (job.cancelled) return;
+        if (kept) { try { const B = await bfrParse(kept); if (job.cancelled) return; B.info.kept = true; r.sum = summarizeRound(B.tl, B.info, r.name); r.status = r.sum.empty ? 'empty' : 'done'; if (!r.sum.empty) cacheDecoded(r.file, B.info, B.tl); renderSession(); continue; } catch (e) {} }
         const rd = await readDemoFile(r.file); if (job.cancelled) return;
         if (!rd.hdr) { r.status = 'not a demo'; renderSession(); continue; }
         r.status = 'decoding'; renderSession();
         const sub = { cancelled: false, stop: null }; job.stops.add(() => { sub.cancelled = true; sub.stop && sub.stop(); });
         let last = 0;
-        const tl = await decodeData(rd.data, rd.keep, sub, f => { r.f = f; const now = performance.now(); if (now - last > 400) { last = now; renderSessionRow(r); } });
+        const tl = await decodeData(rd.data, rd.keep, sub, f => { r.f = f; const now = performance.now(); if (now - last > 400) { last = now; renderSessionRow(r); } }, { name: r.name, info: rd.info }, bytes => rcPut(r.file, bytes));
         if (job.cancelled) return;
         r.sum = summarizeRound(tl, rd.info, r.name);
         r.status = !tl ? 'failed' : r.sum.empty ? 'empty' : 'done';
@@ -16961,7 +17036,10 @@ async function openSession(fileList) {
       renderSession();
     }
   };
-  const lanes = workerBroken ? 1 : Math.min(2, Math.max(1, (navigator.hardwareConcurrency || 2) >> 1));
+  // (v261, todo 190) more at once where there is room: half the cores, at most 4, ~2 GB of memory each (navigator.deviceMemory,
+  // Chrome / Edge; elsewhere 2 at most, as before)
+  const cores = navigator.hardwareConcurrency || 2, mem = navigator.deviceMemory || 0;
+  const lanes = workerBroken ? 1 : Math.max(1, Math.min(4, cores >> 1, mem ? Math.floor(mem / 2) : 2));
   await Promise.all(Array.from({ length: lanes }, work));
   if (job.cancelled) return;
   session.done = true; renderSession();

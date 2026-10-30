@@ -5,6 +5,25 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v261
+
+**Faster to open your own demos; the zoom's wide view measured** (todo 190 and 213; Sagara: «Давай 19 і 20»). No decoder
+change (`777ef24786`), hint rules unchanged (22) - the server does nothing again.
+
+- **Decoded before - kept in this browser**: a demo opened from your computer is kept decoded in the browser (IndexedDB,
+  the server's `.bfr` layout - about a sixth of the demo; packed by the decoder's worker while the map is drawn) and
+  comes back from it when the same file (name, size, date) is opened again with the same decoder: a 27-minute round of
+  62 players (42 MB) 13.9 s -> 1.3 s, a folder of 4 rounds 23 s -> 1.7 s (this test machine; the same round, every column alike).
+  The Demo file card says so and has *Forget them*; the 80 last opened are kept, at most 600 MB.
+- **The map first**: the admins' hint list is worked out after the map is drawn - a big round's map 2-3 s sooner for an
+  admin (Gulf of Oman 03.10: 14.7 s -> 11.9 s).
+- **A folder of demos**: as many at once as the computer has room for - half its cores, at most 4, ~2 GB each (2 where
+  the browser doesn't say its memory).
+- **Wide view through the sights** (todo 213): looked at and not added. The view narrows with the zoom of the weapon in
+  his hands since v234 / v255 (the sector, His view, In view, who saw whom first); a turn to an enemy who came outside
+  the zoomed view (16-47° through a scope, 39-47° through iron sights): 16 demos, 112 such chances in all, honest players
+  took 20-21 % of them - as many as the plain Wide view's band, and too few chances a round for a hint.
+
 ## v260
 
 **What the cheats Sagara sent can do, against the demo** (todo 326: SummitSense's features, a hook that widens the
