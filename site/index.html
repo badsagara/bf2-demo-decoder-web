@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v261';
+const APP_VERSION = 'v262';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -3302,10 +3302,14 @@ function ownGround(G, q, prone) {
 // 4-35 m, the wall 2-4 m from him in each line: a bullet leaves a collision shape from inside, one can't be hit in it)
 // the solid object a point (east, north, up) is inside: rays three ways out of it each cross its faces an odd number of
 // times - { pi, o } or null
+// (v262, the v260 archive: 188 of its 195 Inside an object hints were men inside the US carrier - us_carrier_wasp_interior
+// / _back, walkable - and 2 a barrel and a crate that may have been blown away) not these
+const INSIDE_SKIP = /carrier|interior|destruct|barrel|crate/i;
 function insideObj(G, x, y, h) {
   const L = G && G.cells.get((Math.floor(x / G.CELL) + 2048) * 4096 + Math.floor(y / G.CELL) + 2048); if (!L) return null;
   for (const pi of L) {
     const Q = G.P[pi]; if (x < Q.lo[0] || x > Q.hi[0] || y < Q.lo[1] || y > Q.hi[1] || h < Q.lo[2] || h > Q.hi[2]) continue;
+    if (INSIDE_SKIP.test(G.names[Q.nm] || '')) continue;
     const M = G.meshes[Q.m], V = M.V, I = M.I, R = Q.R, wx = x - Q.p[0], wy = h - Q.p[1], wz = y - Q.p[2];
     const ox = R[0] * wx + R[3] * wy + R[6] * wz, oy = R[1] * wx + R[4] * wy + R[7] * wz, oz = R[2] * wx + R[5] * wy + R[8] * wz;
     let odd = 0;

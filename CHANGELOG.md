@@ -5,6 +5,25 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v262
+
+**What the v260 archive showed** (3,620 rounds; Sagara: «робити»). No decoder change; hint rules version 23 (the server
+looks at every round again by itself).
+
+- **Anti-Aim: not on rounds an older decoder made** - 1,510 of the archive's 1,570 were there: their demos are gone and
+  they keep the old pitch (it jumped to 65-70° up). Told by the round's own records: its middle man's pitch jumping 40°+
+  in one record more than once in 1,000 (old decoder 2.5-5.8, v260's 0-0.1). Left: 60, all jitters; GAlien
+  CrazyETXJew in 16 of his 209 rounds, Hadek22 in 8 of 90 - their demos are needed to tell what it is.
+- **Inside an object: not the US carrier's inside nor things that can be blown away** - 188 of the 195 were men inside
+  the carrier, 2 a barrel and a crate. Left 24: 8964 MisterLok inside the rock pile on Road to Jalalabad in 11 rounds
+  (three more men there), the old wall on Karkand, the gatehouse on Highway Tampa, a bridge's ramp on Midnight Sun.
+- **Guided missiles' last second: TV missiles only, 5 or more hits, 0.25°** - its 40 were skill: 33 wire-guided
+  missiles (they follow the crosshair) and 7 TV with 3-7 hits at 0.28-0.5°, no man twice. The made-up one still is.
+- Seen, nothing to change: Beyond fog back up by 124 (the UAV ring, as meant); Aim lock 7 -> 13 with the pitch right;
+  Wide view 70-90° 53 and Enemy behind 48 - nearly no man twice, left in shadow for the marks. Dragon Valley's prone
+  snipers are blocked by a tree trunk 1-5 m from them, not the ground - their round's demo is asked for.
+  Two new thresholds (203 in all).
+
 ## v261
 
 **Faster to open your own demos; the zoom's wide view measured** (todo 190 and 213; Sagara: «Давай 19 і 20»). No decoder
