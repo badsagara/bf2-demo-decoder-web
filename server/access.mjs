@@ -72,7 +72,7 @@ export function needOf(p) {
   if (/^\/p\/[^/]+$/.test(p)) return 'shareP';
   if (p === '/data' || p.startsWith('/data/')) {
     const q = p.slice(6);
-    if (q === 'rounds.json') return 'list';
+    if (q === 'rounds.json' || q.startsWith('list/')) return 'list';   // (v264: the older rounds, a file a month)
     if (q === 'reprocess.json' || q.startsWith('rounds/')) return 'view';
     if (q.startsWith('demos/')) return 'demos';
     if (q.startsWith('heat/')) return 'players';

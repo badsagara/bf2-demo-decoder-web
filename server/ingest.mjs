@@ -27,7 +27,7 @@ import zlib from 'node:zlib';
 import crypto from 'node:crypto';
 import os from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
-import { compactIndex, expandIndex, SUM_V } from './roundsidx.mjs';   // (v231: SUM_V there, for digest.mjs too)
+import { expandIndex, readPublicList, writeRoundLists, SUM_V } from './roundsidx.mjs';   // (v231: SUM_V there, for digest.mjs too)
 import { sameRules } from './decoders.mjs';   // (v229)
 import { demoPolicy, demoPlan, hintRounds, sourceList, refetchWanted, REFETCH_FILE, DEMOS_LAST_FILE } from './demos.mjs';
 
@@ -53,6 +53,9 @@ const DIRS = { demos: path.join(DATA, 'demos'), rounds: path.join(DATA, 'rounds'
 // rounds come from data/stats (v165)
 const INDEX = path.join(DATA, 'rounds.json'), FULL_INDEX = path.join(DATA, '.rounds-full.json'), HEAT_DIR = path.join(DATA, '.kills'), OLD_HEAT_DIR = path.join(DATA, 'heat'), SHARE_DIR = path.join(DATA, 'share');
 const DOMAIN = opt('BF2R_DOMAIN', '').trim();
+// (v264, todo 193) rounds.json: the rounds of the newest round's last BF2R_FRESH_DAYS days (at least BF2R_FRESH_MIN of
+// them); the older ones in data/list, a file a month (roundsidx.mjs writeRoundLists)
+const FRESH_DAYS = Math.max(0, Math.floor(+opt('BF2R_FRESH_DAYS', '14'))) || 0, FRESH_MIN = Math.max(0, Math.floor(+opt('BF2R_FRESH_MIN', '200'))) || 0;
 const args = new Set(process.argv.slice(2));
 // Decoders whose rounds come out the same as the current one's: server/decoders.mjs (v229: analyze.mjs uses them too)
 const log = (...a) => console.log(new Date().toISOString().slice(0, 19), ...a);
@@ -449,7 +452,9 @@ function readIndex() {
   // (v166) the kills from data/heat (before v166) to data/.kills, once
   if (!fs.existsSync(HEAT_DIR) && fs.existsSync(OLD_HEAT_DIR)) { try { fs.renameSync(OLD_HEAT_DIR, HEAT_DIR); log('the kills: data/heat -> data/.kills (no longer served)'); } catch (e) { log('data/heat not moved:', e.message); } }
   // (v176: rounds.json is compact - only read when the whole list is lost: back into the usual entries)
-  for (const f of fs.existsSync(FULL_INDEX) ? [FULL_INDEX, INDEX] : [INDEX]) { try { const x = JSON.parse(fs.readFileSync(f, 'utf8')); if (Array.isArray(x.rounds)) { d = expandIndex(x); delete d.compact; delete d.servers; delete d.teams; break; } } catch (e) {} }
+  // (v264: and the older months it names, data/list)
+  let full = null; try { const x = JSON.parse(fs.readFileSync(FULL_INDEX, 'utf8')); if (Array.isArray(x.rounds)) full = expandIndex(x); } catch (e) {}
+  const got = full || readPublicList(fs, path, DATA); if (got) { d = got; delete d.compact; delete d.servers; delete d.teams; }
   try { for (const f of fs.readdirSync(HEAT_DIR)) if (f.endsWith('.json')) { const h = JSON.parse(fs.readFileSync(path.join(HEAT_DIR, f), 'utf8')); HEAT.set(h.map, new Map(Object.entries(h.rounds || {}))); } } catch (e) {}
   for (const r of d.rounds) if (r.sum?.pts) { heatPut(r.name, r.sum); d.moved = true; }   // (rounds.json before v67 had them inside)
   return d;
@@ -604,7 +609,8 @@ function writeLists(d) {
   const put = (f, text) => { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); };
   put(FULL_INDEX, JSON.stringify(d));
   const { heat, rounds, ...head } = d;
-  put(INDEX, JSON.stringify(compactIndex(head, rounds.map(r => r.sum ? { ...r, sum: slimSum(r.sum) } : r))));
+  // (v264) the fresh rounds in rounds.json, the older ones a file a month (data/list/<YYYY-MM>.json)
+  writeRoundLists(fs, path, DATA, head, rounds.map(r => r.sum ? { ...r, sum: slimSum(r.sum) } : r), { days: FRESH_DAYS, min: FRESH_MIN });
 }
 function writeProgress(P) {
   const f = path.join(DATA, 'reprocess.json');

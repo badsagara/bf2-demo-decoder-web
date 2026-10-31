@@ -6,6 +6,8 @@
 // round's last element (x): demo (0: gone; or another place), bfr, d (another decoder), se (empty), s (other summary
 // figures), o (other fields). ~3 times smaller than v166's (6000 rounds: 3.1 MB -> ~1 MB, ~400 -> ~160 KB sent).
 // The page (expandIndex, the same rule) and the server's scripts turn it back into the usual objects.
+// (v264) rounds.json only the fresh rounds, the older ones a file a month: writeRoundLists below.
+import crypto from 'node:crypto';
 // (v231) SUM_V: how a round is summed up (ingest.mjs summarize - its history is there); a round summed up by an older
 // one is summed up again from its .bfr. Here, so digest.mjs knows it too: a summary waits while its rounds are redone
 export const SUM_V = 20;   // (v255: a kill by a man the demo had no soldier for - no distance, not a vehicle's on the bullet's line; v254: a squad's leader the one made so last; kills from a vehicle's seat measured from the vehicle - ingest.mjs; v234: the sights' zoom as the view's height)
@@ -57,8 +59,55 @@ export function expandIndex(d) {
   return d;
 }
 
-// the list a script on the server works from: data/.rounds-full.json, else rounds.json (expanded)
+// ---------- (v264, todo 193) the list in pages: the fresh rounds in rounds.json, the older ones a file a month ----------
+// rounds.json (what every visit loads first) has the rounds of the newest round's last FRESH_DAYS days (BF2R_FRESH_DAYS,
+// 14; at least BF2R_FRESH_MIN rounds, 200); each older month is data/list/<YYYY-MM>.json, compact the same way (its own
+// servers and teams), and rounds.json names them: months [{ m, n, v }], newest first - n its rounds, v its file's hash
+// (the page asks for list/<m>.json?v=<v>: a browser keeps a month until its rounds change); first - the oldest round's
+// day; total - every round listed. The page loads a month when something needs it (server/INSTALL.md §18, v264).
+export const LIST_DIR = 'list';
+export const monthOf = r => { const m = /^(\d{4}-\d\d)-\d\d/.exec(r?.sum?.date || ''); return m ? m[1] : null; };
+// rounds (newest first, as the list keeps them) -> { fresh, months: [[m, rounds]] newest first }
+export function splitFresh(rounds, days = 14, min = 200, now = Date.now()) {
+  let top = null; for (const r of rounds) if (monthOf(r)) { top = r.sum.date.slice(0, 10); break; }
+  if (!top) return { fresh: rounds, months: [] };
+  const soon = new Date(now + 864e5).toISOString().slice(0, 10); if (top > soon) top = soon;   // (a game server's clock years ahead: not the whole list "old")
+  const c = new Date(top + 'T00:00:00Z'); c.setUTCDate(c.getUTCDate() - Math.max(0, days)); const cut = c.toISOString().slice(0, 10);
+  const fresh = [], M = new Map();
+  rounds.forEach((r, i) => { const m = monthOf(r); if (!m || i < min || r.sum.date.slice(0, 10) >= cut) fresh.push(r); else { if (!M.has(m)) M.set(m, []); M.get(m).push(r); } });
+  return { fresh, months: [...M].sort((a, b) => b[0].localeCompare(a[0])) };
+}
+const LIST_V = new Map();   // a month's file -> its hash as last written (the light writes after each demo: only a changed month again)
+const putFile = (fs, f, text) => { fs.writeFileSync(f + '.tmp', text); fs.renameSync(f + '.tmp', f); };
+// head (the list's own fields) and its rounds (the site's lines: slim) -> data/list/<m>.json and data/rounds.json
+export function writeRoundLists(fs, path, DATA, head, rounds, { days = 14, min = 200 } = {}) {
+  const dir = path.join(DATA, LIST_DIR), { fresh, months } = splitFresh(rounds, days, min), ML = [];
+  if (months.length) fs.mkdirSync(dir, { recursive: true });
+  for (const [m, L] of months) {
+    const body = JSON.stringify(compactIndex({ month: m, decoder: head.decoder }, L)), v = crypto.createHash('sha1').update(body).digest('hex').slice(0, 10), f = path.join(dir, m + '.json');
+    if (LIST_V.get(f) !== v) { let old = null; try { old = fs.readFileSync(f, 'utf8'); } catch (e) {} if (old !== body) putFile(fs, f, body); LIST_V.set(f, v); }
+    ML.push({ m, n: L.filter(r => !r.empty).length, v });
+  }
+  let first = null; for (let i = rounds.length - 1; i >= 0 && !first; i--) if (monthOf(rounds[i])) first = rounds[i].sum.date.slice(0, 10);
+  // (the months first: rounds.json never names a file not written yet)
+  putFile(fs, path.join(DATA, 'rounds.json'), JSON.stringify(compactIndex({ ...head, ...(ML.length ? { months: ML, first, total: rounds.length } : {}) }, fresh)));
+  try { for (const f of fs.readdirSync(dir)) if (/^\d{4}-\d\d\.json$/.test(f) && !ML.some(x => x.m + '.json' === f)) { fs.unlinkSync(path.join(dir, f)); LIST_V.delete(path.join(dir, f)); } } catch (e) { /* no folder */ }
+  return { fresh: fresh.length, months: ML };
+}
+// rounds.json and the months it names, as one list (expanded) - what the site has; null when there is no rounds.json
+export function readPublicList(fs, path, DATA) {
+  let d = null; try { d = expandIndex(JSON.parse(fs.readFileSync(path.join(DATA, 'rounds.json'), 'utf8'))); } catch (e) { return null; }
+  if (!d || !Array.isArray(d.rounds)) return null;
+  const seen = new Set(d.rounds.map(r => r.name));
+  for (const x of Array.isArray(d.months) ? d.months : []) {
+    try { const L = expandIndex(JSON.parse(fs.readFileSync(path.join(DATA, LIST_DIR, String(x.m).replace(/[^0-9-]/g, '') + '.json'), 'utf8'))); for (const r of L.rounds || []) if (!seen.has(r.name)) { seen.add(r.name); d.rounds.push(r); } } catch (e) { /* a month lost: the rest */ }
+  }
+  delete d.months; delete d.first; delete d.total; delete d.compact; delete d.servers; delete d.teams;
+  return d;
+}
+
+// the list a script on the server works from: data/.rounds-full.json, else rounds.json and its months (expanded)
 export function readRoundList(fs, path, DATA) {
-  for (const f of ['.rounds-full.json', 'rounds.json']) { try { const d = JSON.parse(fs.readFileSync(path.join(DATA, f), 'utf8')); if (Array.isArray(d.rounds)) return expandIndex(d); } catch (e) { /* the next */ } }
-  return { rounds: [] };
+  try { const d = JSON.parse(fs.readFileSync(path.join(DATA, '.rounds-full.json'), 'utf8')); if (Array.isArray(d.rounds)) return expandIndex(d); } catch (e) { /* the site's */ }
+  return readPublicList(fs, path, DATA) || { rounds: [] };
 }

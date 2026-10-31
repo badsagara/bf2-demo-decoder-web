@@ -16,7 +16,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-export const GLITCH_V = 1;
+// (v267) 2: a body lying with his alive flag still on (health 0, not down) from 2 s into it no longer stands anywhere -
+// the grids and stays made again
+export const GLITCH_V = 2;
+const BODY_T = 2;
 const GL_CELL = 2, GL_BAND = 2.5, GL_T = 20, GL_R = 3, GL_DH = 2, GL_ROUNDS = 30, GL_K = 3, GL_MAXB = 16, GL_START = 10, GL_IDS = 4;
 const X0 = 2048, B0 = 64;
 const keyOf = (x, y, h) => {
@@ -44,18 +47,19 @@ export function bfrRead(file) {
 
 // one round: { cells: Map nick -> Set of keys, stays: [[id, name, nick, t0, t1, x, y, h, keys]] }
 export function scanRound(tl, nickOf) {
-  const C = tl.cols || {}, T = C.times, n = C.n, { X, Y, HH, L, VT, DN } = C, cells = new Map(), stays = [];
+  const C = tl.cols || {}, T = C.times, n = C.n, { X, Y, HH, L, VT, DN, HP } = C, cells = new Map(), stays = [];
   if (!T || !n || !X || !Y || !HH || !L) return { cells, stays };
   const F = T.length, t00 = (T[0] || 0) + GL_START;
   tl.players.forEach((p, i) => {
     if (p.vehicle) return;
     const name = String(p.name || '').trim(), nick = nickOf(name); if (!nick || /^Player \d+$/.test(nick)) return;
     let S = cells.get(nick); if (!S) cells.set(nick, S = new Set());
-    let st = null;
+    let st = null, b0 = null;   // (b0: since when he lies dead with his alive flag on - the page's normalize, v267)
     const close = () => { if (st && st.t1 - st.t0 >= GL_T) stays.push([p.id, name, nick, +st.t0.toFixed(1), +st.t1.toFixed(1), +st.x.toFixed(1), +st.y.toFixed(1), +st.h.toFixed(1), [...st.k]]); st = null; };
     for (let k = 0; k < F; k += 5) {
       const e = k * n + i, x = X[e], y = Y[e], h = HH[e];
-      if (!L[e] || (VT && VT[e]) || (DN && DN[e]) || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(h)) { close(); continue; }
+      if (HP && L[e] && HP[e] === 0 && !(DN && DN[e])) { if (b0 === null) b0 = T[k]; } else b0 = null;
+      if (!L[e] || (b0 !== null && T[k] - b0 >= BODY_T) || (VT && VT[e]) || (DN && DN[e]) || !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(h)) { close(); continue; }
       const key = keyOf(x, y, h); if (key < 0) { close(); continue; }
       S.add(key);
       if (T[k] < t00) continue;

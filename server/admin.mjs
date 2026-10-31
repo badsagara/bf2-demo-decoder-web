@@ -36,7 +36,7 @@ import os from 'node:os';
 import { execFile, spawn } from 'node:child_process';
 import { notifySettings, saveNotify, DISCORD_RE, TG_TOKEN_RE, TG_CHAT_RE, POST_ITEMS, postTexts, serverOf, normFormat, FORMAT_DEFAULT, POST_VARS, linesOf, TLABEL } from './notify.mjs';
 import { periodOf, digestTexts, KINDS as DIGEST_KINDS, DIGEST_AT, DIGEST_TZ, normDigestFmt, digestTargets, DG_PARTS, DG_VARS, DG_LEADERS, DG_BESTS, DG_TOP_N, DG_FMT_DEFAULT } from './digest.mjs';   // (v209: the summaries; v220: their settings)
-import { expandIndex } from './roundsidx.mjs';
+import { expandIndex, readPublicList } from './roundsidx.mjs';
 import { statqKeeper, statqMeta, statqNicks, statqAsk } from './statq.mjs';   // (v244: the admins' statistics)
 import { SITE_FILE as HT_SITE_FILE, MINE_FILE as HT_MINE_FILE, siteSet as htSiteSet, pageSpec as htPageSpec, checkSet as htCheckSet, siteHv as htSiteHv, SHADOW_FILE as HT_SHADOW_FILE, shadowSet as htShadowSet, shadowKinds as htShadowKinds } from './hintcfg.mjs';   // (v227; v254 the hints in shadow)
 import { demoPolicy, demoPlan, hintRounds, sourceList, linkId, oldRounds, DEMOS_FILE, DEMOS_LAST_FILE, REFETCH_FILE } from './demos.mjs';
@@ -266,7 +266,7 @@ let idxCache = { mt: 0, f: '', d: null };
 function index() {
   let f = path.join(DATA, '.rounds-full.json'), mt = 0;
   try { mt = fs.statSync(f).mtimeMs; } catch (e) { f = path.join(DATA, 'rounds.json'); try { mt = fs.statSync(f).mtimeMs; } catch (e2) { return { rounds: [] }; } }
-  if (mt !== idxCache.mt || f !== idxCache.f) idxCache = { mt, f, d: expandIndex(readJson(f, { rounds: [] })) };
+  if (mt !== idxCache.mt || f !== idxCache.f) idxCache = { mt, f, d: f.endsWith('rounds.json') ? readPublicList(fs, path, DATA) || { rounds: [] } : expandIndex(readJson(f, { rounds: [] })) };   // (v264: rounds.json and its months)
   return idxCache.d || { rounds: [] };
 }
 // the services: systemctl show (works without root)
@@ -1029,11 +1029,11 @@ const bodyOf = req => new Promise((ok, no) => { let s = ''; req.on('data', c => 
 const sameSite = req => { const o = req.headers.origin, h = req.headers['x-forwarded-host'] || req.headers.host; if (req.headers['x-bf2r'] !== '1') return false; if (!o) return true; try { return new URL(o).host === h; } catch (e) { return false; } };
 
 // (v224) a round by its name for a visitor who may watch rounds but not see the list (rounds.json closed to him): its
-// line of rounds.json, as the page would have it there
+// line of rounds.json, as the page would have it there (v264: or of the older month's file that has it)
 let refCache = { mt: -1, d: null };
 function roundRef(name) {
   const f = path.join(DATA, 'rounds.json'); let mt = 0; try { mt = fs.statSync(f).mtimeMs; } catch (e) { return null; }
-  if (mt !== refCache.mt) refCache = { mt, d: expandIndex(readJson(f, { rounds: [] })) };
+  if (mt !== refCache.mt) refCache = { mt, d: readPublicList(fs, path, DATA) || { rounds: [] } };
   const d = refCache.d || { rounds: [] }, id = linkId(String(name || '').trim()), meta = { share: !!d.share, stats: d.stats || null, decoder: d.decoder || null, updated: d.updated || null };
   if (!id) return { ok: false, msg: 'which round?', ...meta };   // (no name: what the page needs besides - the statistics' version, the previews)
   const L = (d.rounds || []).filter(r => r && r.sum && !r.sum.empty);

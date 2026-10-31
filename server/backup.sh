@@ -1,5 +1,5 @@
 #!/bin/bash
-# BF2 Round Replay: a weekly copy of what the demos can't give back - rounds.json and .rounds-full.json (the list: when
+# BF2 Round Replay: a weekly copy of what the demos can't give back - rounds.json, list/ (v264: the older months) and .rounds-full.json (the list: when
 # each round came, its server, its players' lines), the round logs (data/logs), what was downloaded (.fetched.json), the settings (/etc/bf2replay.conf; and the
 # admin page's: .fetch-sources.json, .notify.json, .ingest.json; v224: .access.json, .admin-users.json, .demos.json, the
 # admins' review .admin/review; v227: the hints' thresholds .admin/hint-thresholds.json, hint-mine.json (v254: and the hints in
@@ -21,7 +21,7 @@ install -d -m 750 "$OUT"
 files=()
 # (v224: and who may open what - the guests' parts and the accounts with their rights, scrypt hashes only -, the demos to
 # keep, the admins' review: marks, notes, trusted players)
-for f in rounds.json .rounds-full.json reprocess.json .fetched.json .fetch-sources.json .notify.json .ingest.json .access.json .admin-users.json .demos.json .admin/review .admin/hint-thresholds.json .admin/hint-mine.json .admin/hint-shadow.json .prefs logs; do [ -e "$DATA/$f" ] && files+=("data/$f"); done
+for f in rounds.json list .rounds-full.json reprocess.json .fetched.json .fetch-sources.json .notify.json .ingest.json .access.json .admin-users.json .demos.json .admin/review .admin/hint-thresholds.json .admin/hint-mine.json .admin/hint-shadow.json .prefs logs; do [ -e "$DATA/$f" ] && files+=("data/$f"); done
 [ "$ROUNDS" = 1 ] && [ -d "$DATA/rounds" ] && files+=(data/rounds)
 # (enough room for it: its size plus BF2R_MIN_FREE_GB must stay free)
 need=$(du -sk --apparent-size "${files[@]/#/$ROOT/}" 2>/dev/null | awk '{s+=$1} END {print s+0}')

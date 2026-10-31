@@ -187,6 +187,8 @@ there; a value set here wins over the page.
 | `BF2R_JOBS` | demos decoded side by side (**admin page**: *Demos at once*) | 0 = admin page / automatic (cores and memory, ≤ 4) |
 | `BF2R_RAW_KEEP_DAYS` | remove demos older than N days (**admin page**: *Demos: what to keep*) | 0 = as on the admin page |
 | `BF2R_RAW_AUTOCLEAN` | `1`: below `BF2R_MIN_FREE_GB` + 2 GB free, remove the least needed demos until there is room (rounds stay) | 1 |
+| `BF2R_FRESH_DAYS` | `rounds.json` has the rounds of the newest round's last N days, older ones a file a month in `data/list` (v264) | 14 |
+| `BF2R_FRESH_MIN` | ... and at least this many rounds | 200 |
 | `BF2R_HINTS` | `0` = no background analysis (§11) | 1 |
 | `BF2R_ANALYZE_JOBS` | rounds the analysis opens side by side (**admin page**: *Background analysis* → *Rounds at once*; since v248) | 0 = admin page / automatic (cores less two, memory, ≤ 12) |
 
@@ -301,7 +303,7 @@ it, publishes `site/` and updates the services. Don't want to wait: `sudo system
 A release can come as one archive `bf2-round-replay-vNN.zip` (the whole repository). Unpack it over your clone and push:
 
 ```bash
-V=v263   # the version in the archive's name
+V=v265   # the version in the archive's name
 rm -rf /tmp/bf2-round-replay-$V && unzip -q -o bf2-round-replay-$V.zip -d /tmp/bf2-round-replay-$V
 rsync -a --delete --exclude .git /tmp/bf2-round-replay-$V/ path/to/your/clone/
 cd path/to/your/clone && git add -A && git commit -m "$V" && git push

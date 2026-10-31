@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v263';
+const APP_VERSION = 'v267';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -1609,6 +1609,13 @@ function normalize(d) {
   // a decoded demo comes as columns already (see buildTimeline); a timeline file's frames rows are turned into them
   const C = d.cols || framesToCols(d, pidx);
   const { times, n, nf, X, Y, A, L, HH, VT, VTN, HP, DN, FO, FC, TK } = C, F = times.length;
+  // (v267, todo 330) a soldier lying dead with his alive flag still on - health 0, not down (killed outright, or his man-
+  // down time over, and the game not yet using that soldier again): not alive from BODY_T s into it. The analysis of
+  // 31.10: ~300 such stretches, up to 46 min, none of them moving; Idle, Glitch spot, Under the map, Outside the map and
+  // the map itself took him for a living man (Wake 12.10 10:17: Clumsy77 and Kingtaipan1, 41 and 46 min, Idle). (The
+  // first BODY_T s left as they were: the moment of a kill keeps its victim alive, as before.)
+  if (HP && L) for (let i = 0; i < n; i++) { if (d.players[i]?.vehicle) continue; let s = -1;
+    for (let k = 0; k < F; k++) { const e = k * n + i; if (L[e] && HP[e] === 0 && !(DN && DN[e])) { if (s < 0) s = k; if (times[k] - times[s] >= BODY_T) L[e] = 0; } else s = -1; } }
   if (d.meta?.source === 'demo' && FC && FO && nf && d.flags) d.neutralFixed = neutralSide(d.players, d.flags, times, n, nf, X, Y, L, DN, FO, FC);
   const events = (d.events||[]).slice().sort((a,b)=>a.t-b.t);
   // the round logger names weapons by template (usrif_m16a2): use the viewer's name and the game's icon for it
@@ -3310,9 +3317,11 @@ function ownGround(G, q, prone) {
 // (v262, the v260 archive: 188 of its 195 Inside an object hints were men inside the US carrier - us_carrier_wasp_interior
 // / _back, walkable - and 2 a barrel and a crate that may have been blown away) not these
 const INSIDE_SKIP = /carrier|interior|destruct|barrel|crate/i;
-function insideObj(G, x, y, h) {
+// (v267) only: that placement alone (its index)
+function insideObj(G, x, y, h, only) {
   const L = G && G.cells.get((Math.floor(x / G.CELL) + 2048) * 4096 + Math.floor(y / G.CELL) + 2048); if (!L) return null;
   for (const pi of L) {
+    if (only != null && pi !== only) continue;
     const Q = G.P[pi]; if (x < Q.lo[0] || x > Q.hi[0] || y < Q.lo[1] || y > Q.hi[1] || h < Q.lo[2] || h > Q.hi[2]) continue;
     if (INSIDE_SKIP.test(G.names[Q.nm] || '')) continue;
     const M = G.meshes[Q.m], V = M.V, I = M.I, R = Q.R, wx = x - Q.p[0], wy = h - Q.p[1], wz = y - Q.p[2];
@@ -3333,6 +3342,60 @@ function insideObj(G, x, y, h) {
     if (odd === 3) return { pi, o: G.names[Q.nm] };
   }
   return null;
+}
+// (v266, todo 329 - the analysis of 31.10, claude/hidden-mines-and-glitches-2026-10-31.md: 71,446 AT mines of 700 demos,
+// 328 hidden, 66 kills) an AT mine lying where it can't be seen: e a 'charge' event with its height (h - the decoders since
+// v266). Its top, 9 points 5 cm over its middle (the middle and 8 round it 0.13 m off), each inside a solid shape
+// (insideObj), 0.1 m or more under the terrain, or under a face of a shape within 0.5 m over it. Hidden: one at most shows -
+// but not a mine on a floor inside a hollow shape with room over it (the carrier's hangar, the dam's corridors). Karkand's
+// rails: a mine dropped on the ballast (train_rail_96) or a level crossing (train_rail_crossing) mostly falls through it
+// to the ground 0.2-0.4 m under its top - 207 of 772 there (=FL= 199 of 343, 2F4Y 8 of 427), 167 of them laid lying
+// down; a vehicle crossing sets it off (0.26 kills a mine, the ones on top 0.07). -> { o: the shape (null: the ground) } or null
+// (v267, todo 330) Kubra Dam's dam (dam_bottom, dam_bridge_base1/2, dam_powerbase, dam_left / right): men walk its inner
+// corridors - 79 players inside dam_bottom over a month; not counted as inside a shape by the soldiers' hints (the mines'
+// one keeps them). BODY_T: a body's seconds before it stops counting as alive (normalize)
+const INSIDE_WALK = /^dam_/i, BODY_T = 2;
+// (v267) the distance from a point (east, north, up) to the nearest face of placement pi's mesh (m): how deep inside it
+function meshDist(G, pi, x, y, h) {
+  const Q = G.P[pi], M = G.meshes[Q.m], V = M.V, I = M.I, R = Q.R, wx = x - Q.p[0], wy = h - Q.p[1], wz = y - Q.p[2];
+  const px = R[0] * wx + R[3] * wy + R[6] * wz, py = R[1] * wx + R[4] * wy + R[7] * wz, pz = R[2] * wx + R[5] * wy + R[8] * wz;
+  let best = Infinity;
+  for (let f = 0, nf = I.length / 3; f < nf; f++) {
+    const a = I[f * 3] * 3, b = I[f * 3 + 1] * 3, c = I[f * 3 + 2] * 3, ax = V[a], ay = V[a + 1], az = V[a + 2];
+    const abx = V[b] - ax, aby = V[b + 1] - ay, abz = V[b + 2] - az, acx = V[c] - ax, acy = V[c + 1] - ay, acz = V[c + 2] - az;
+    const apx = px - ax, apy = py - ay, apz = pz - az, d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+    let qx, qy, qz;
+    if (d1 <= 0 && d2 <= 0) { qx = ax; qy = ay; qz = az; }
+    else { const bpx = px - V[b], bpy = py - V[b + 1], bpz = pz - V[b + 2], d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+      if (d3 >= 0 && d4 <= d3) { qx = V[b]; qy = V[b + 1]; qz = V[b + 2]; }
+      else { const vc = d1 * d4 - d3 * d2;
+        if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); qx = ax + abx * v; qy = ay + aby * v; qz = az + abz * v; }
+        else { const cpx = px - V[c], cpy = py - V[c + 1], cpz = pz - V[c + 2], d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+          if (d6 >= 0 && d5 <= d6) { qx = V[c]; qy = V[c + 1]; qz = V[c + 2]; }
+          else { const vb = d5 * d2 - d1 * d6;
+            if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); qx = ax + acx * w; qy = ay + acy * w; qz = az + acz * w; }
+            else { const va = d3 * d6 - d5 * d4;
+              if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); qx = V[b] + (V[c] - V[b]) * w; qy = V[b + 1] + (V[c + 1] - V[b + 1]) * w; qz = V[b + 2] + (V[c + 2] - V[b + 2]) * w; }
+              else { const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; qx = ax + abx * v + acx * w; qy = ay + aby * v + acy * w; qz = az + abz * v + acz * w; } } } } } }
+    const dd = (qx - px) ** 2 + (qy - py) ** 2 + (qz - pz) ** 2; if (dd < best) best = dd;
+  }
+  return Math.sqrt(best);
+}
+const MINE_TOP = 0.05, MINE_R = 0.13, MINE_COVER = 0.5;
+function mineHidden(D, G, e) {
+  if (!D || !G || !e || e.kind !== 'AT mine' || e.veh || !Number.isFinite(e.h)) return null;
+  const x = e.x, y = e.y, h = e.h, ph = h + MINE_TOP; let vis = 0, o = null;
+  for (let k = 0; k < 9; k++) {
+    const px = k ? x + MINE_R * Math.cos(k * Math.PI / 4) : x, py = k ? y + MINE_R * Math.sin(k * Math.PI / 4) : y;
+    const io = insideObj(G, px, py, ph); if (io) { o = o || io.o; continue; }
+    if (ph < groundAt(D, px, py) - 0.1) continue;
+    const c = geoHit(G, px, py, ph, px, py, ph + MINE_COVER, 0, 1, false, null, false);
+    if (c && !INSIDE_SKIP.test(c.o || '')) { o = o || c.o; continue; }
+    if (++vis > 1) return null;
+  }
+  // (a floor inside a hollow shape: a face just under it and nothing over it for 1 m)
+  if (o && geoHit(G, x, y, h + 0.03, x, y, h - 0.12, 0, 1, true, null, false) && !geoHit(G, x, y, h + 0.03, x, y, h + 1.03, 0, 1, true, null, false)) return null;
+  return { o };
 }
 // eye height by stance, over the soldier's position (which is 1.0 m over his feet, standing, crouching or prone alike:
 // =FL= 20:37, 8700 positions against the terrain); the points of a target that count (head, chest).
@@ -9291,6 +9354,16 @@ const GV_SCOPE = (() => { const cx = GV_W / 2, cy = GV_H / 2, r = GV_H / 2, half
     cross: [gvRect(cx - r, cy - 0.8, cx + r, cy + 0.8), gvRect(cx - 0.8, 0, cx + 0.8, GV_H), gvRect(cx - r, cy - 2.5, cx - r * 0.35, cy + 2.5), gvRect(cx + r * 0.35, cy - 2.5, cx + r, cy + 2.5), gvRect(cx - 2.5, cy + r * 0.35, cx + 2.5, GV_H)].join(' ') }; })();
 // the crosshair in the middle: four short bars round a gap
 const GV_CROSS = (() => { const cx = GV_W / 2, cy = GV_H / 2; return [gvRect(cx - 15, cy - 1, cx - 5, cy + 1), gvRect(cx + 5, cy - 1, cx + 15, cy + 1), gvRect(cx - 1, cy - 15, cx + 1, cy - 5), gvRect(cx - 1, cy + 5, cx + 1, cy + 15)].join(' '); })();
+// (v264) a line on the picture cut to it (and a margin of m px): Liang-Barsky; [a, b, cut] or null when it is all outside
+function gvClipSeg(a, b, m = 40) {
+  if (!a || !b || !a.every(Number.isFinite) || !b.every(Number.isFinite)) return null;
+  const dx = b[0] - a[0], dy = b[1] - a[1]; let t0 = 0, t1 = 1;
+  for (const [p, q] of [[-dx, a[0] + m], [dx, GV_W + m - a[0]], [-dy, a[1] + m], [dy, GV_H + m - a[1]]]) {
+    if (p === 0) { if (q < 0) return null; continue; }
+    const r = q / p; if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
+  }
+  return [[a[0] + dx * t0, a[1] + dy * t0], [a[0] + dx * t1, a[1] + dy * t1], t1 < 1];
+}
 function gvOverlay(view, i, P, R, zp) {
   const n = P.TB - P.TA + 1, by = new Map(R.map(r => [r.tick, r])), pose = []; let cur = R[0];
   for (let m = 0; m < n; m++) { const r = by.get(P.TA + m + P.shift); if (r) cur = r; pose.push(cur); }
@@ -9348,6 +9421,7 @@ function gvOverlay(view, i, P, R, zp) {
     if (al && (al.kind === 'soldier' || al.kind === 'vehicle') && al.j != null) {
       const o = playerAt(al.j, tt), mid = al.kind === 'vehicle' ? o.h + 1.2 : o.h, v = Number.isFinite(o.x) && o.h != null ? cam(o.x, o.y, mid) : null, p = pix(v);
       if (p) { const r = Math.max(10, Math.min(70, GV_W / 2 / tw * (al.kind === 'vehicle' ? 2.2 : 0.8) / v[2]));
+        if (p[0] + r >= 0 && p[0] - r <= GV_W && p[1] + r >= 0 && p[1] - r <= GV_H)   // (v264: not when it is off the picture)
         putO('ring', m, 3, 'D', draw(gvCircle(p[0], p[1], r), `\\1a&HFF&\\bord2.2\\3c${col(C.aim)}`)); if (Math.abs(p[0] - GV_W / 2) < r + 60) ringLow = p[1] + r; }
     }
     if (eyes) {
@@ -9360,14 +9434,16 @@ function gvOverlay(view, i, P, R, zp) {
       }
     } else if (al && al.from && Number.isFinite(al.from.x)) {
       // his aim line: from his eye to where it meets something (the part in front of the camera)
-      const fe = al.from.eye ?? eyeOf(i, al.from, tt); let A = cam(al.from.x, al.from.y, fe), B = cam(al.x, al.y, al.h);
+      const fe = al.from.eye ?? eyeOf(i, al.from, tt); let A = cam(al.from.x, al.from.y, fe), B = cam(al.x, al.y, al.h), cut = false;
       if (A[2] < 0.5 && B[2] < 0.5) A = null;
-      else if (A[2] < 0.5 || B[2] < 0.5) { const u = (0.5 - A[2]) / (B[2] - A[2]), X = A.map((a, k) => a + (B[k] - a) * u); if (A[2] < 0.5) A = X; else B = X; }
-      const pa = A && pix(A), pb = A && pix(B);
+      else if (A[2] < 0.5 || B[2] < 0.5) { const u = (0.5 - A[2]) / (B[2] - A[2]), X = A.map((a, k) => a + (B[k] - a) * u); if (A[2] < 0.5) A = X; else { B = X; cut = true; } }
+      // (v264) and the part in the picture: a line into the sky beside a camera behind or beside him went 170,000 px off
+      // the screen, and ffmpeg's subtitles drew its whole box - ~6 GB, killed
+      const cs = A ? gvClipSeg(pix(A), pix(B)) : null, pa = cs && cs[0], pb = cs && cs[1]; if (cs && cs[2]) cut = true;
       if (pa && pb) { const dx = pb[0] - pa[0], dy = pb[1] - pa[1], ln = Math.hypot(dx, dy);
         if (ln > 4) { const nx = -dy / ln * 1.5, ny = dx / ln * 1.5, q = [[pa[0] + nx, pa[1] + ny], [pb[0] + nx, pb[1] + ny], [pb[0] - nx, pb[1] - ny], [pa[0] - nx, pa[1] - ny]];
           putO('aim', m, 3, 'D', draw(`m ${q.map(([x, y]) => gvN(x) + ' ' + gvN(y)).join(' l ')}`, `\\1c${col(C.aim)}\\bord1.2\\3c${col(C.ink)}${al.kind === 'sky' ? '\\1a&H70&\\3a&H90&' : ''}`));
-          if (al.kind !== 'sky' && al.kind !== 'soldier' && al.kind !== 'vehicle') putO('hit', m, 3, 'D', draw(gvCircle(pb[0], pb[1], 6), `\\1a&HFF&\\bord2\\3c${col(C.aim)}`)); } }
+          if (!cut && al.kind !== 'sky' && al.kind !== 'soldier' && al.kind !== 'vehicle') putO('hit', m, 3, 'D', draw(gvCircle(pb[0], pb[1], 6), `\\1a&HFF&\\bord2\\3c${col(C.aim)}`)); } }
     }
     if (hud) {
       // the round's clock (the time left by the server's limit, as the game's top bar; else the time played) and the tickets
@@ -12395,7 +12471,7 @@ async function buildTimeline(r) {
     const w0 = k.wid, w1 = CHARGE_WEAPON[c.tpl]; c.k0 = k;
     for (const q of kills) if (q.killer === k.killer && q.wid === w0 && Math.abs(q.t - k.t) < 0.6) { usedKills.add(q); q.charge = c; if (w1 !== w0) { q.wNamed = w0; q.wid = w1; } }
   }
-  for (const c of placed) charges.push({ t: c.b[0], kind: c.name, r: c.rad, by: c.by ?? c.k0?.killer ?? null, x: c.b[1], z: c.b[3], path: c.path, went: c.k0 ? c.k0.t : null, gone: c.k0 ? c.k0.t : c.goneT ?? c.reuseT ?? r.duration, ...(c.goneT !== null ? { exact: true } : {}), ...(c.onV != null ? { onV: c.onV, stuckT: c.stuckT } : {}) });
+  for (const c of placed) charges.push({ t: c.b[0], kind: c.name, r: c.rad, by: c.by ?? c.k0?.killer ?? null, x: c.b[1], z: c.b[3], h: c.b[2], path: c.path, went: c.k0 ? c.k0.t : null, gone: c.k0 ? c.k0.t : c.goneT ?? c.reuseT ?? r.duration, ...(c.goneT !== null ? { exact: true } : {}), ...(c.onV != null ? { onV: c.onV, stuckT: c.stuckT } : {}) });
   // a kill by C4 / claymore / mine whose charge wasn't seen being placed, or by a 40 mm grenade (not sent as an object):
   // the blast is shown where the victim was
   const unplaced = [];
@@ -12956,7 +13032,10 @@ async function buildTimeline(r) {
   }
   for (const c of charges) {
     events.push({ t: +c.path[0][0].toFixed(2), type: 'throw', kind: c.kind, by: pid(c.by), t1: +c.t.toFixed(2), path: c.path });
-    events.push({ t: +c.t.toFixed(2), type: 'charge', kind: c.kind, r: c.r, by: pid(c.by), x: +c.x.toFixed(1), y: +c.z.toFixed(1), until: +c.gone.toFixed(2), ...(c.onV != null ? { veh: 'v' + c.onV } : {}) });
+    // (v266, todo 329) its height where it came to rest (h) and whether it went off (went: 2 a kill of it, 1 a vehicle
+    // or its owner set it off with no kill) - for Hidden mine: an AT mine dropped on the rails' ballast or a level crossing
+    // falls through the shape and lies on the ground under it, out of sight
+    events.push({ t: +c.t.toFixed(2), type: 'charge', kind: c.kind, r: c.r, by: pid(c.by), x: +c.x.toFixed(1), y: +c.z.toFixed(1), ...(Number.isFinite(c.h) ? { h: +c.h.toFixed(2) } : {}), until: +c.gone.toFixed(2), ...(c.went != null ? { went: c.noKill ? 1 : 2 } : {}), ...(c.onV != null ? { veh: 'v' + c.onV } : {}) });
     // (on a vehicle: the blast where the vehicle was then)
     const vp = c.onV != null && c.went ? lastPosB(vtrack.get(c.onV), c.went) : null;
     if (c.went) events.push({ t: +c.went.toFixed(2), type: 'blast', kind: c.kind, r: c.r, by: pid(c.by), x: +(vp ? vp[1] : c.x).toFixed(1), y: +(vp ? vp[3] : c.z).toFixed(1) });
@@ -13255,6 +13334,10 @@ async function buildTimeline(r) {
     stats: { emplacements: emplacements.length, throws: throws.length, smokes: smokes.length, charges: charges.length, chargesWent: charges.filter(c => c.went).length, chargeKillBlasts: unplaced.length,  players: plist.length, named: [...P.values()].filter(p => p.named).length, joins: (r.joins || []).length, spots: spotEv.length, vehicles: vids.length, kills: kills.length, spawns: spawns.length, deaths: deaths.length, positions: r.obs.length, yawSamples: r.obs.filter(o => o[1] === 'S' && o[6] != null).length + (r.rot || []).length, vehicleYaw: r.obs.filter(o => o[1] === 'V' && o[6] != null).length, turretAim: (r.tur || []).length, seatGunAim: (r.cup || []).length, emplacementAim: (r.emp || []).length, packets: r.packets, namedKills: events.filter(e => e.type === 'kill' && e.weapon).length, tickets: hasTk, tkStart, tkEnd, flags: flags.length, captures: flagEvents.filter(e => e.type === 'flag').length, neutralised: flagEvents.filter(e => e.type === 'neutral').length, kits: spawns.filter(q => KITS[q.kit]).length, presses: ents.reduce((a, e) => a + (e.fire ? e.fire.length : 0), 0), outside: ents.reduce((a, e) => a + (e.out ? e.out.length : 0), 0), spawnGroups: sgroups.length, revives: revives.length, heals: heals.length, bags: bags.length, repairs: repairs.filter(rp => vset0.has(rp.id)).length, wrecks: wrecks.filter(w => vset0.has(w.id)).length, stanceChanges: (r.stance || []).length, vehicleSpawns: spawns.filter(e => e.seat).length, healthRecords: (r.hp || []).length, vehicleHealthRecords: (r.vhp || []).length } };
 }
 
+// @worker-end
+// @pack-begin
+// (v265) the game video kit's packer: run in the decoder's worker (its text goes in after the decoder's), but out of the
+// decoder's part - a fix here does not change the decoder's hash, so the server decodes nothing again for it
 // ---------- (v229) the game video kit: a .bf2demo the game plays from a moment of the round on (packDemo) ----------
 // The game plays a demo only from its start, one record a tick, so the part before the clip (the lead-in) is packed:
 // - every game event (kills, spawns, rockets, chat) is kept, in order, but packed into as few event blocks as fit (255
@@ -13286,8 +13369,13 @@ async function packDemo(u8, a, b, progress) {
   for (const pl of (dec && dec.players) || []) ep.set(pl.index, [[-1, pl.name]]);
   for (const j of ((dec && dec.joins) || []).slice().sort((x, y) => x.t - y.t)) { if (!ep.has(j.index)) ep.set(j.index, []); ep.get(j.index).push([j.t, j.name]); }
   // objects made by a game event before the clip (they take a 6-bit mask)
+  // (v265) a packet of events only - its ghost part's "present" bit 0 right after them, as the round's setup packets, or
+  // one full of events after the opening snapshot (Karkand 09.10 21:31, Dragon Valley 08.10 19:54: 79 events at 0.03 s):
+  // a block of no records where the events end (v229-v264 stopped there - "a packet without its ghost part")
+  const evOnly = (B, typ) => { if (!(typ & 2) || !readEvents(B)) return null; let lo = 16, hi = B.n; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (readEvents(msgBits(B, m))) hi = m; else lo = m; } return hi < B.n && !B.bit(hi) && B.n - hi <= 8 ? { b: hi - 2, recs: [], none: true } : null; };
   const parse = (i, p) => {
     const typ = p[0] & 7, B = mkBits(p); let blk = null; try { blk = ghostBlock(B, typ, tk[i]); } catch (e) {}
+    if (!blk) try { blk = evOnly(B, typ); } catch (e) {}
     const ev = (typ & 2) && blk ? { n: B.u(2, 8), seq: B.u(10, 5), end: blk.b + 2 } : null;
     return { typ, B, blk, ev };
   };
@@ -13298,7 +13386,7 @@ async function packDemo(u8, a, b, progress) {
   const L = []; let evIn = 0, blocksIn = 0, firstSeq = null; const seen = {};
   for (let i = 0; i <= iS; i++) {   // (the decoder's kinds come packet by packet: those before the lead-in counted first)
     if (!normal(i) || !ln[i]) continue; const p = Uint8Array.from(u8.subarray(at[i] + 8, at[i] + 8 + ln[i])), typ = p[0] & 7;
-    if (typ !== 2 && typ !== 4 && typ !== 6) continue; if (parse(i, p).blk) seen[tk[i]] = (seen[tk[i]] || 0) + 1;
+    if (typ !== 2 && typ !== 4 && typ !== 6) continue; const pb = parse(i, p).blk; if (pb && !pb.none) seen[tk[i]] = (seen[tk[i]] || 0) + 1;   // (the decoder logs kinds only for a real block)
   }
   for (let i = iS + 1; i < NR; i++) {
     if (!normal(i)) continue; if (tk[i] >= TF) break; const n = ln[i]; if (!n) continue;
@@ -13306,7 +13394,7 @@ async function packDemo(u8, a, b, progress) {
     if (!blk) throw new Error('a packet without its ghost part at ' + ((tk[i] - T0) / 30).toFixed(1) + ' s');
     if ((p[0] & 7) & 2 && !readEvents(msgBits(B, blk.b + 2))) throw new Error('events not read exactly at ' + ((tk[i] - T0) / 30).toFixed(1) + ' s');
     if (ev) { evIn += ev.n; blocksIn++; if (firstSeq === null) firstSeq = ev.seq; }
-    const K = kinds[tk[i]], ki = seen[tk[i]] = (seen[tk[i]] || 0) + 1, codes = K && K[ki - 1] && K[ki - 1].length === blk.recs.length ? K[ki - 1] : null;
+    const K = kinds[tk[i]], ki = blk.none ? 0 : seen[tk[i]] = (seen[tk[i]] || 0) + 1, codes = !blk.none && K && K[ki - 1] && K[ki - 1].length === blk.recs.length ? K[ki - 1] : null;
     const recs = blk.recs.map((r, q) => {
       const act = r.gone ? 3 : B.u(r.s, 2), end = act === 1 ? r.s + 32 + r.L : r.s + 18, k = codes ? codes[q] : 0;
       const w = k === 255 ? 0 : k === 0 && made.has(r.id) ? 6 : KIND_MASK[k], m = act === 1 && w ? (r.L >= w ? B.u(r.s + 32, w) : -1) : -1;
@@ -13365,7 +13453,7 @@ async function packDemo(u8, a, b, progress) {
   for (let i = iS + 1; i < NR; i++) {
     if (!normal(i)) continue; if (tk[i] < TF) continue; if (tk[i] > TB) break;
     const n = ln[i], pl = u8.slice(at[i] + 8, at[i] + 8 + n); cur++; if (shift === null) shift = cur - tk[i];
-    if (n) { const { blk, ev } = parse(i, pl); if (blk) put(pl, blk.b + 3, cur, 32); if (ev) put(pl, 10, (ev.seq - delta) & 31, 5); }
+    if (n) { const { blk, ev } = parse(i, pl); if (blk && !blk.none) put(pl, blk.b + 3, cur, 32); if (ev) put(pl, 10, (ev.seq - delta) & 31, 5); }   // (v265: an events-only packet has no tick to set)
     rec(cur, pl); last = cur;
   }
   const endR = new Uint8Array(8); new DataView(endR.buffer).setUint32(0, last + 1, true); parts.push(endR);
@@ -13373,7 +13461,7 @@ async function packDemo(u8, a, b, progress) {
   if (progress) progress(1, 'pack');
   return { data, T0, TS, TF, TA, TB, shift: shift ?? 0, lastTick: last, leadIn: (TF + (shift ?? 0) - TS) / 30, kept, events: evIn, blocks: nEv, slots: [...ep] };
 }
-// @worker-end
+// @pack-end
 
 $('#fDemo').addEventListener('change', async e => { const fs = [...e.target.files]; e.target.value=''; if (fs.length > 1) await openSession(fs); else if (fs[0]) await openDemo(fs[0]); });
 $('#fDir').addEventListener('change', async e => { const fs = [...e.target.files]; e.target.value=''; if (fs.length) await openSession(fs); });
@@ -13382,13 +13470,14 @@ $('#fDir').addEventListener('change', async e => { const fs = [...e.target.files
 // stays usable and shows progress. Where no worker can be started (a browser or page policy that blocks them) it runs
 // on the page's thread in slices, as before. ?noworker in the address forces that.
 const PAGE_SCRIPT = document.currentScript ? document.currentScript.textContent : '';
-const WMARK = '// @worker-';
+const WMARK = '// @worker-', PMARK = '// @pack-';
 let workerURL = null, workerBroken = /[?&]noworker\b/.test(location.search);
 function decoderWorkerURL() {
   if (workerURL || workerBroken) return workerURL;
   const a = PAGE_SCRIPT.indexOf(WMARK + 'begin'), b = PAGE_SCRIPT.indexOf(WMARK + 'end');
-  if (a < 0 || b < a) { workerBroken = true; return null; }
-  const src = "'use strict';\nlet GAME = null;\n" + PAGE_SCRIPT.slice(a, b) + '\n(' + workerMain.toString() + ')();\n';
+  const pa = PAGE_SCRIPT.indexOf(PMARK + 'begin'), pb = PAGE_SCRIPT.indexOf(PMARK + 'end');   // (v265: the packer, out of the decoder's part)
+  if (a < 0 || b < a || pa < 0 || pb < pa) { workerBroken = true; return null; }
+  const src = "'use strict';\nlet GAME = null;\n" + PAGE_SCRIPT.slice(a, b) + '\n' + PAGE_SCRIPT.slice(pa, pb) + '\n(' + workerMain.toString() + ')();\n';
   try { workerURL = URL.createObjectURL(new Blob([src], { type: 'text/javascript' })); } catch (e) { workerBroken = true; }
   return workerURL;
 }
@@ -13837,12 +13926,13 @@ function renderRoundBar(box, R, cur, tkCell) {
   box.classList.add('roundbar');
   const L = R.filter(r => r.status === 'done'), nSrv = new Set(L.map(r => r.sum?.server).filter(Boolean)).size;
   const ci = L.findIndex(r => r.name === cur), s = ci >= 0 ? L[ci].sum : null, lst = can('list') && !serverData?.linkOnly;   // (v224: the list - or only this round)
+  const nAll = L.length + olderN();   // (v264: and the older months not loaded yet)
   const what = s ? `<b>${esc(mapName(s.map))}</b><span>${esc(dayName(dayKey(s.date)))} · ${esc(clockHM(s.date))}</span>${s.duration ? `<span>${fmt(s.duration)}</span>` : ''}<span>${s.players} players</span>${nSrv > 1 && s.server ? `<span>${esc(s.server)}</span>` : ''}${s.winner != null ? `<span><span class="t${s.winner}">${esc(s.teams[s.winner])}</span> won · ${tkCell(s)}</span>` : s.tickets ? `<span>${tkCell(s)}</span>` : ''}`
     : `<b>${esc(cur.replace(/\.bf2demo.*$/i, '') || 'No round open')}</b>${cur ? '<span>your own file</span>' : ''}`;
   box.innerHTML = `<div class="rbar">${lst ? `<a class="rcur" id="rCur" href="${esc(rpHref())}" title="All the site's rounds: by server, map, day, player">${what}<span class="caret">All rounds ›</span></a>` : `<span class="rcur">${what}</span>`}
-    <span class="rnav">${lst ? `<span class="w">${ci >= 0 ? `${ci + 1} of ${L.length}` : `${L.length} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && ci < L.length - 1 ? '' : ' disabled'}>Older ›</button>` : ''}${s || ci >= 0 ? rShareHtml(s, lst, ci >= 0 ? L[ci] : null) : ''}</span></div>`;
+    <span class="rnav">${lst ? `<span class="w">${ci >= 0 ? `${ci + 1} of ${nAll}` : `${nAll} rounds`}</span><button class="btn sm" id="rNewer" title="The next round (newer)"${ci > 0 ? '' : ' disabled'}>‹ Newer</button><button class="btn sm" id="rOlder" title="The round before (older)"${ci >= 0 && (ci < L.length - 1 || older.left.length) ? '' : ' disabled'}>Older ›</button>` : ''}${s || ci >= 0 ? rShareHtml(s, lst, ci >= 0 ? L[ci] : null) : ''}</span></div>`;
   if ($('#rCur') && lst) $('#rCur').addEventListener('click', e => { e.currentTarget.href = rpHref(); });   // (the page's filters as they are now)
-  const go = d => { const x = L[ci + d]; if (x) { closePlayerPage(); openServerRound(x); } };
+  const go = async d => { let x = L[ci + d]; if (!x && d > 0 && older.left.length) { const nm = cur; await olderNext(); if ($('#srcLabel').textContent !== nm) return; x = session.rounds.filter(r => r.status === 'done')[ci + d]; } if (x) { closePlayerPage(); openServerRound(x); } };   // (v264: past the last one loaded - the month before)
   if (lst) { $('#rNewer').onclick = () => go(-1); $('#rOlder').onclick = () => go(1); }
   const mpg = $('#rMapPg'); if (mpg) mpg.onclick = () => { shOpen(false); openMapPage(s.map); };
   rShareBind();
@@ -13890,22 +13980,32 @@ function closeRoundsPage(keepHash) {
   if (round) refresh(true);
 }
 const rpRounds = () => session.rounds.filter(r => r.status === 'done' && r.sum);
+// (v264) a filter or a sort looks over every round: the older months are loaded for it (the plain list, newest first,
+// goes a month at a time: Show more)
+const rpFiltered = () => !!(session.srvF || session.mapF || rpage.q.trim() || rpage.from || rpage.to || rpage.minP || rpage.minLen || rpage.sort !== 'date' || rpage.dir !== -1);
+const rpPart = () => older.left.length > 0 && !older.broken;
+function rpRedraw() {
+  if (!rpage.on) return; const a = document.activeElement, f = a && a.id === 'rpFind' ? [a.selectionStart, a.selectionEnd] : null;
+  renderRoundsPage();
+  if (f) { const i = $('#rpFind'); if (i) { i.focus({ preventScroll: true }); try { i.setSelectionRange(f[0], f[1]); } catch (e) {} } }
+}
 function renderRoundsPage() {
   const box = $('#rPage'); if (!rpage.on || !box || !session) return;
-  const L = rpRounds(), srvC = new Map(), mapC = new Map();
+  if (rpPart() && rpFiltered()) roundsAll();   // (v264: each month redraws the page as it comes)
+  const L = rpRounds(), srvC = new Map(), mapC = new Map(), part = rpPart(), total = L.length + olderN();
   for (const r of L) { const sv = r.sum.server; if (sv) srvC.set(sv, (srvC.get(sv) || 0) + 1); }
   if (session.srvF && !srvC.has(session.srvF)) session.srvF = '';
   for (const r of L) if (!session.srvF || r.sum.server === session.srvF) { const m = r.sum.map; if (m) mapC.set(m, (mapC.get(m) || 0) + 1); }
   if (session.mapF && !mapC.has(session.mapF)) session.mapF = '';
-  const days = L.map(r => dayKey(r.sum.date)).filter(Boolean).sort(), d0 = days[0] || '', d1 = days[days.length - 1] || '';
+  const days = L.map(r => dayKey(r.sum.date)).filter(Boolean).sort(), d0 = (part && older.first) || days[0] || '', d1 = days[days.length - 1] || '';
   const srvs = [...srvC].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), maps = [...mapC].sort((a, b) => mapName(a[0]).localeCompare(mapName(b[0])));
   const sel = (id, opts, v, lab) => `<select id="${id}" aria-label="${esc(lab)}">${opts.map(([k, n]) => `<option value="${esc(k)}"${String(v) === String(k) ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select>`;
   box.innerHTML = `<section class="card rpcard">
-    <div class="pphead"><div><h2 class="ppname">All rounds</h2><span class="aka">${L.length} round${L.length === 1 ? '' : 's'}${srvC.size > 1 ? ` · ${srvC.size} servers` : ''}${d0 ? ` · ${esc(dayName(d0))}${d1 !== d0 ? ' – ' + esc(dayName(d1)) : ''}` : ''}</span></div>
+    <div class="pphead"><div><h2 class="ppname">All rounds</h2><span class="aka">${total} round${total === 1 ? '' : 's'}${srvC.size > 1 && !part ? ` · ${srvC.size} servers` : ''}${d0 ? ` · ${esc(dayName(d0))}${d1 !== d0 ? ' – ' + esc(dayName(d1)) : ''}` : ''}</span></div>
       <div class="chips"><span id="rpBackW"></span><a class="btn sm" href="rss.xml" title="New rounds in a feed reader (RSS)">RSS</a><button class="btn sm" id="rpCsv" title="These rounds (with the filters as set) as a CSV table">CSV</button></div></div>
-    ${srvC.size > 1 ? `<div class="rpsrv" role="group" aria-label="Server"><span class="w">Server</span><button class="btn sm${!session.srvF ? ' on' : ''}" data-srv="" aria-pressed="${!session.srvF}">All servers <span class="w">${L.length}</span></button>${srvs.map(([sv, c]) => `<button class="btn sm${session.srvF === sv ? ' on' : ''}" data-srv="${esc(sv)}" aria-pressed="${session.srvF === sv}" title="${esc(sv)}"><span class="rpsn">${esc(sv)}</span> <span class="w">${c}</span></button>`).join('')}</div>` : ''}
+    ${srvC.size > 1 ? `<div class="rpsrv" role="group" aria-label="Server"><span class="w">Server</span><button class="btn sm${!session.srvF ? ' on' : ''}" data-srv="" aria-pressed="${!session.srvF}">All servers <span class="w">${total}</span></button>${srvs.map(([sv, c]) => `<button class="btn sm${session.srvF === sv ? ' on' : ''}" data-srv="${esc(sv)}" aria-pressed="${session.srvF === sv}" title="${esc(sv)}"><span class="rpsn">${esc(sv)}</span>${part ? '' : ` <span class="w">${c}</span>`}</button>`).join('')}</div>` : ''}
     <div class="rpfil">
-      ${maps.length > 1 ? `<label>Map ${sel('rpMap', [['', `All maps (${maps.reduce((a, x) => a + x[1], 0)})`], ...maps.map(([m, c]) => [m, `${mapName(m)} (${c})`])], session.mapF, 'Map')}</label>` : ''}
+      ${maps.length > 1 ? `<label>Map ${sel('rpMap', [['', part ? 'All maps' : `All maps (${maps.reduce((a, x) => a + x[1], 0)})`], ...maps.map(([m, c]) => [m, part ? mapName(m) : `${mapName(m)} (${c})`])], session.mapF, 'Map')}</label>` : ''}
       <label>From <input type="date" id="rpFrom" value="${esc(rpage.from)}" min="${d0}" max="${d1}" aria-label="From the day"></label><label>to <input type="date" id="rpTo" value="${esc(rpage.to)}" min="${d0}" max="${d1}" aria-label="To the day"></label>
       <label>Players ${sel('rpMin', [[0, 'any'], [8, '8+'], [16, '16+'], [24, '24+'], [32, '32+'], [48, '48+'], [64, '64']], rpage.minP, 'Players at least')}</label>
       <label>Length ${sel('rpLen', [[0, 'any'], [5, '5 min+'], [15, '15 min+'], [30, '30 min+'], [45, '45 min+']], rpage.minLen, 'Length at least')}</label>
@@ -13915,7 +14015,7 @@ function renderRoundsPage() {
     <div class="rhits" id="rpHits"></div>
     <p class="rpcount" id="rpCount" aria-live="polite"></p>
     <div class="stscroll"><table class="sttab sess rpt"><thead><tr id="rpHead"></tr></thead><tbody id="rpBody"></tbody></table></div>
-    <div class="rpmore" id="rpMore"></div>
+    <div class="rpmore" id="rpMore"></div><p class="rpcount" id="rpOlder" aria-live="polite"></p>
   </section>`;
   const set = f => { f(); rpage.n = RP_STEP; rpHashSet(); rpBody(); };
   box.querySelectorAll('[data-srv]').forEach(b => b.onclick = () => { session.srvF = b.dataset.srv; rpage.n = RP_STEP; rpHashSet(); renderRoundsPage(); renderSession(); });
@@ -13927,8 +14027,8 @@ function renderRoundsPage() {
   $('#rpFind').oninput = e => set(() => { rpage.q = e.target.value; });
   $('#rpReset').onclick = () => { session.srvF = ''; session.mapF = ''; Object.assign(rpage, { q: '', from: '', to: '', minP: 0, minLen: 0, sort: 'date', dir: -1, n: RP_STEP }); rpHashSet(); renderRoundsPage(); renderSession(); };
   rpBackSet();
-  $('#rpCsv').onclick = () => csvSessionRounds(rpage.F || L);
-  rpBody();
+  $('#rpCsv').onclick = async () => { if (rpPart()) { await olderAll(); rpBody(); } csvSessionRounds(rpage.F || rpRounds()); };   // (v264: every month)
+  rpBody(); olderNote();
 }
 const redrawList = () => { if (rpage.on) rpBody(); };
 // "Back to" the round on the map (it may come in after the page: a link to the page loads the newest round under it)
@@ -13943,7 +14043,8 @@ function rpBackSet() {
 // the table, the count and Show more (on their own while typing in "Find a player", so the box keeps the focus)
 function rpBody() {
   if (!rpage.on || !$('#rpBody')) return;
-  const L = rpRounds(), q = rpage.q.trim().toLowerCase(), cur = $('#srcLabel').textContent;
+  if (rpPart() && rpFiltered()) roundsAll();   // (v264)
+  const L = rpRounds(), q = rpage.q.trim().toLowerCase(), cur = $('#srcLabel').textContent, part = rpPart(), total = L.length + olderN(), look = part && rpFiltered();
   // (v166) on the site the rounds carry no players' lines (rounds.json is a short line a round): the players whose name
   // or nick has it come from names.json, and the rounds of up to 5 of them from their files; more than 5: the list as
   // it is, and a choice of them
@@ -13986,16 +14087,17 @@ function rpBody() {
       <td class="n" data-l="Tickets">${rpTk(sx)}</td><td data-l="Won">${sx.winner != null ? `<span class="t${sx.winner}">${esc(sx.teams?.[sx.winner] || '')}</span>` : ''}</td><td class="n" data-l="Kills">${sx.kills ?? ''}</td><td data-l="${him ? 'Him' : 'Best'}">${me.length === 1 ? `<span class="t${me[0].team}">${esc(me[0].name)}</span> <span class="w">${me[0].k}–${me[0].d}</span>` : sx.top ? `<span class="t${sx.top.team}">${esc(sx.top.name)}</span> <span class="w">${sx.top.score}</span>` : ''}</td></tr>`;
   }
   $('#rpBody').innerHTML = rows || `<tr><td colspan="${cols.length}" class="empty">${SQ?.wait ? 'Looking for him…' : `No round${q ? ' with a player like that' : ''} with these filters.`}</td></tr>`;
-  $('#rpCount').textContent = SQ?.wait ? 'Looking…' : SQ?.many ? `${SQ.hits.length} players with "${rpage.q.trim()}": pick one below, or type more · ${F.length} of ${L.length} rounds` : `${F.length} of ${L.length} round${L.length === 1 ? '' : 's'}${q ? ' with him' : ''}${F.length > shown.length ? ` · ${shown.length} shown` : ''}`;
+  $('#rpCount').textContent = (SQ?.wait ? 'Looking…' : SQ?.many ? `${SQ.hits.length} players with "${rpage.q.trim()}": pick one below, or type more · ${F.length} of ${total} rounds` : part && !look ? `${total} round${total === 1 ? '' : 's'} · the newest ${shown.length} shown` : `${F.length} of ${total} round${total === 1 ? '' : 's'}${q ? ' with him' : ''}${F.length > shown.length ? ` · ${shown.length} shown` : ''}`) + (look ? ' · looking in the older ones too…' : '');
   // the players whose name has it, with their number of rounds: their pages
   let H = SQ?.hits || [];
   if (!SQ && q) { const hits = new Map(); for (const r of L) for (const pl of r.sum.P || []) if (pl.name.toLowerCase().includes(q)) { const k = nickOf(pl.name), h = hits.get(k) || { name: pl.name, n: 0 }; h.n++; hits.set(k, h); } H = [...hits].sort((a, b) => b[1].n - a[1].n); }
   $('#rpHits').innerHTML = H.length ? `<span class="w">Player page:</span>${H.slice(0, 8).map(([k, h]) => `<a class="btn sm" href="#${esc(new URLSearchParams({ player: k }).toString())}">${esc(h.name)} <span class="w">${h.n}</span></a>`).join('')}${H.length > 8 ? `<span class="w">${H.length - 8} more</span>` : ''}` : '';
-  const rest = F.length - shown.length;
-  $('#rpMore').innerHTML = rest > 0 ? `<button class="btn" id="rpMoreB">Show ${Math.min(RP_STEP, rest)} more</button>${rest > RP_STEP ? `<button class="btn" id="rpAllB">Show all ${F.length}</button>` : ''}<span class="w">${shown.length} of ${F.length} shown</span>` : '';
+  const rest = F.length - shown.length, nx = part && !look ? older.left[0] : null;   // (v264: past the loaded ones - the month before)
+  $('#rpMore').innerHTML = rest > 0 || nx ? `${rest > 0 ? `<button class="btn" id="rpMoreB">Show ${Math.min(RP_STEP, rest)} more</button>` : `<button class="btn" id="rpOldB" title="The rounds of ${esc(monthName(nx.m))} (loaded now)">Show ${esc(monthName(nx.m))}${nx.n ? ` · ${nx.n} rounds` : ''}</button>`}${rest > RP_STEP || nx ? `<button class="btn" id="rpAllB">Show all ${nx ? total : F.length}</button>` : ''}<span class="w">${shown.length} of ${nx ? total : F.length} shown</span>` : '';
   const more = k => { const n0 = shown.length; rpage.n = k; rpBody(); const a = $('#rpBody').querySelectorAll('a.rplink')[n0]; if (a) a.focus({ preventScroll: true }); };
   if ($('#rpMoreB')) $('#rpMoreB').onclick = () => more(rpage.n + RP_STEP);
-  if ($('#rpAllB')) $('#rpAllB').onclick = () => more(F.length);
+  if ($('#rpOldB')) $('#rpOldB').onclick = async e => { e.currentTarget.disabled = true; const n0 = shown.length; await olderNext(); if (!rpage.on) return; rpage.n = n0 + RP_STEP; rpRedraw(); const a = $('#rpBody')?.querySelectorAll('a.rplink')[n0]; if (a) a.focus({ preventScroll: true }); };
+  if ($('#rpAllB')) $('#rpAllB').onclick = async e => { if (rpPart()) { e.currentTarget.disabled = true; await olderAll(); if (!rpage.on) return; rpage.n = Infinity; rpRedraw(); return; } more(F.length); };
   $('#rpHead').querySelectorAll('[data-sort]').forEach(b => b.onclick = () => { const k = b.dataset.sort; if (rpage.sort === k) rpage.dir = -rpage.dir; else { rpage.sort = k; rpage.dir = RP_SORTS[k]; } rpage.n = RP_STEP; rpHashSet(); rpBody(); });
   // a row: its round (a click on the time is a plain link - Ctrl / the middle button: a new tab)
   $('#rpBody').querySelectorAll('tr.open').forEach(tr => tr.onclick = e => { if (e.target.closest('a, button')) return; location.hash = tr.dataset.h.slice(1); });
@@ -14282,7 +14384,8 @@ function statsGet(p) {
   return o;
 }
 const statsThen = (o, f) => { if (o.wait && !o.fns.includes(f)) o.fns.push(f); };
-const srvRound = name => (session._byName ??= new Map(session.rounds.map(r => [r.name, r]))).get(name);
+const srvRoundMap = () => (session._byName ??= new Map(session.rounds.map(r => [r.name, r])));
+const srvRound = name => srvRoundMap().get(name);
 // his rounds ({ r, p }) and numbers (aggPlayer) from his file; null while it loads; undefined: no file (counted here)
 function statsPlayer(nick, redraw) {
   const o = statsGet('players/' + nickSlug(nick) + '.json'); if (o.wait) { statsThen(o, redraw); return null; }
@@ -14361,6 +14464,7 @@ function renderPlayerPage() {
   if (ppage.map) return renderMapPage();
   if (ppage.vs) return renderComparePage();
   const nick = ppage.nick, box = $('#pPage'); if (!nick || !session) return;
+  if (!roundsAll(() => { if (ppage.nick === nick && !ppage.vs && !ppage.map && !ppage.page) renderPlayerPage(); })) { box.innerHTML = statsLoading('the older rounds'); return; }   // (v264: his rounds in every month)
   // (v165) on the site: his file and everyone's names from the server; else (or no file) worked out here
   let S = null, names = null;
   if (statsOn()) {
@@ -14448,6 +14552,7 @@ function renderPlayerPage() {
 // they played together.
 function renderComparePage() {
   const a = ppage.nick, b = ppage.vs, box = $('#pPage'); if (!a || !b || !session) return;
+  if (!roundsAll(() => { if (ppage.nick === a && ppage.vs === b) renderComparePage(); })) { box.innerHTML = statsLoading('the older rounds'); return; }   // (v264)
   // (v165) on the site: the two files from the server
   let SA = null, SB = null;
   if (statsOn()) {
@@ -14539,7 +14644,7 @@ const mapRounds = key => sessRoundsByDate().filter(r => String(r.sum.map || '').
 function openMapPage(key, fromLink) {
   if (!can('players')) { if (!fromLink) toast("This account may not open maps' pages"); return false; }   // (v224)
   key = String(key || '').toLowerCase();
-  if (!session || !key || !mapRounds(key).length) return false;
+  if (!session || !key || (!mapRounds(key).length && !(session.server && older.left.length))) return false;   // (v264: maybe in an older month)
   if (rpage.on) closeRoundsPage(!!fromLink);   // (v200)
   ppage.nick = null; ppage.vs = null; ppage.map = key; ppage.all = false; ppage.page = null;
   document.body.classList.add('pview'); $('#pPage').hidden = false;
@@ -14549,6 +14654,7 @@ function openMapPage(key, fromLink) {
 }
 function renderMapPage() {
   const key = ppage.map, box = $('#pPage'); if (!key || !session) return;
+  if (!roundsAll(() => { if (ppage.map === key && !ppage.page) renderMapPage(); })) { box.innerHTML = statsLoading('the older rounds'); return; }   // (v264)
   const R = mapRounds(key); if (!R.length) { closePlayerPage(); return; }
   const mi = GAME.maps[key], W = mi?.size || 2048, n = R.length;
   const kills = R.reduce((x, r) => x + (r.sum.kills || 0), 0), dur = R.reduce((x, r) => x + (r.sum.duration || 0), 0), players = R.reduce((x, r) => x + (r.sum.players || 0), 0);
@@ -14696,6 +14802,7 @@ function statsWire(box) {
 function renderStatsPage() {
   const box = $('#pPage'); if (!session || !ppage.page) return;
   const redraw = () => { if (ppage.page) renderStatsPage(); };
+  if (!roundsAll(redraw)) { box.innerHTML = statsLoading('the older rounds'); return; }   // (v264)
   const RS = sessRoundsByDate();
   if (ppage.page === 'hub') {
     const sv = statsData('servers.json', () => ({ servers: [...new Set(RS.map(r => r.sum.server).filter(Boolean))].map(s => [s, s, RS.filter(r => r.sum.server === s).length]) }), redraw);
@@ -14876,6 +14983,57 @@ async function fetchBytes(url, onP) {
   return out.subarray(0, o);
 }
 let serverData = null, pendingLink = null;
+// ---------- (v264, todo 193) the site's older rounds, a month at a time ----------
+// rounds.json has the fresh rounds (the newest round's last 14 days, at least 200) and names the older months: months
+// [{ m, n, v }] newest first (n rounds; v - the file's hash), first - the oldest round's day. A month's list,
+// data/list/<m>.json?v=<v> (compact as rounds.json), is loaded when something needs it: Show more at the end of the
+// rounds page or Older at the last round (the next month), a link to an older round (down to its month); and every month
+// for what counts over all rounds - a filter or a sort on the rounds page, a player's, a map's or the statistics' pages.
+// A month keeps its name until its rounds change: the browser keeps it.
+const older = { left: [], first: '', chain: Promise.resolve(true), got: new Map(), allP: null, busy: null, broken: false };
+function olderInit(d) { older.left = Array.isArray(d.months) ? d.months.filter(x => x && /^\d{4}-\d\d$/.test(x.m)) : []; older.first = /^\d{4}-\d\d-\d\d$/.test(d.first || '') ? d.first : ''; }
+const olderN = () => older.left.reduce((a, x) => a + (x.n || 0), 0);
+const monthName = m => { const x = /^(\d{4})-(\d\d)$/.exec(m || ''); return x ? new Date(+x[1], +x[2] - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : String(m || ''); };
+const olderGet = x => { if (!older.got.has(x.m)) older.got.set(x.m, fetch('data/list/' + encodeURIComponent(x.m) + '.json?v=' + encodeURIComponent(x.v || '')).then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(expandIndex).catch(e => { older.got.delete(x.m); throw e; })); return older.got.get(x.m); };
+// the next month into the list (in turn: the list stays newest first); false when none is left or it could not be had
+function olderNext() {
+  return older.chain = older.chain.then(async () => {
+    const x = older.left[0]; if (!x || !session || !session.server) return false;
+    older.busy = x.m; olderNote();
+    try { const d = await olderGet(x); if (older.left[0] === x) { older.left.shift(); olderTake(d); } return true; }
+    catch (e) { older.broken = true; toast(`The rounds of ${monthName(x.m)} could not be loaded (${e.message || e})`); return false; }
+    finally { older.busy = null; older.got.delete(x.m); olderNote(); }
+  });
+}
+function olderTake(d) {
+  const have = srvRoundMap(), add = (d?.rounds || []).filter(x => x && x.name && !have.has(x.name));
+  serverData.rounds.push(...add);
+  session.rounds.push(...add.map(x => ({ name: x.name, status: x.empty ? 'empty' : 'done', sum: x.sum, srv: x, file: null })));
+  session._byName = null;
+  renderSession(); if (rpage.on) rpRedraw();
+}
+// every month left (fetched side by side, taken in turn); one promise while it lasts
+function olderAll() {
+  if (!older.left.length) return Promise.resolve(true);
+  if (!older.allP) { for (const x of older.left) olderGet(x).catch(() => {}); older.allP = (async () => { while (older.left.length) if (!await olderNext()) return false; return true; })().finally(() => { older.allP = null; }); }
+  return older.allP;
+}
+// what needs every round: true when they are all in; else they are loaded and redraw called after (a month that could
+// not be had: the rounds there are, with a note)
+function roundsAll(redraw) {
+  if (!session || !session.server || !older.left.length || older.broken) return true;
+  olderAll().then(() => { if (redraw) redraw(); }); return false;
+}
+// a link to a round not in the list yet: the months down to the one its name says (auto_YYYY_MM_DD_...), then every one
+async function olderFind(want) {
+  if (!want || !session || !session.server || !older.left.length) return findSrv(want);
+  const m = /(\d{4})_(\d\d)_\d\d_\d\d_\d\d_\d\d/.exec(linkId(want)), key = m ? m[1] + '-' + m[2] : null;
+  if (key) while (older.left.length && older.left[0].m >= key && !findSrv(want)) if (!await olderNext()) break;
+  if (!findSrv(want) && older.left.length && !older.broken) await olderAll();
+  return findSrv(want);
+}
+// "Loading September 2026…" while a month comes (the rounds page's count line)
+function olderNote() { const el = $('#rpOlder'); if (el) el.textContent = older.busy ? `Loading the rounds of ${monthName(older.busy)}…` : ''; }
 // a link names a round by its demo's name without .bf2demo (#round=auto_2026_09_29_19_52_11&t=300&p=name)
 const linkId = n => String(n || '').replace(/\.bf2demo$/i, '');
 // (v182) a round taken off the list as a copy of another (the same demo from two demo pages: the copy's name has the game
@@ -15021,7 +15179,7 @@ async function serverBoot() {
   // admin server (round-ref); the rest of the page as usual
   if (!d && (st === 401 || st === 403) && acc && acc.rights?.view) d = { rounds: [], linkOnly: true };
   if (!d || !Array.isArray(d.rounds)) return;
-  serverData = d;
+  serverData = d; olderInit(d);   // (v264: the older months - loaded when something needs them)
   // links with previews only when the web server serves them (its config may not have /r/ and /p/ yet)
   const r0 = d.share && d.rounds.find(x => !x.empty);
   if (r0) fetch(siteBase() + 'r/' + encodeURIComponent(linkId(r0.name)), { method: 'HEAD', cache: 'no-cache' }).then(res => { serverData.shareOk = res.ok && /html/.test(res.headers.get('content-type') || ''); }).catch(() => {});
@@ -15034,7 +15192,7 @@ async function serverBoot() {
   if (h.get('tab')) paneSet(h.get('tab'));
   accApply();
   if (d.linkOnly) { await refMeta(); if (want) await refRound(want); else if (!h.get('player') && !h.get('map')) linkOnlyNote(); }
-  const hit = findSrv(want), pick = hit || session.rounds.find(r => r.status === 'done');
+  const hit = findSrv(want) || (want && older.left.length ? await olderFind(want) : null), pick = hit || session.rounds.find(r => r.status === 'done');   // (v264: an older round's link - its month first)
   if (hit) pendingLink = { r: hit, t: h.has('t') ? +h.get('t') : null, p: h.get('p') };
   if (pick) openServerRound(pick);
   if (h.has('rounds')) openRoundsPage(h);   // (v200)
@@ -15063,7 +15221,9 @@ window.addEventListener('hashchange', async () => { if (!session || !session.ser
       || (pg === 'achoices' && ((h.get('fcs') || null) !== (ppage.arg?.s || null) || (h.get('fcp') || null) !== (ppage.arg?.p || null)))) statsFromHash(h); return; }
   if (ppage.nick || ppage.map || ppage.page) closePlayerPage(true);
   if (h.has('review') || h.get('tab') === 'admin') { revWant = true; revKick(); } else if (revOn) revSet(false);   // (v243)
-  if (!revOn && !revWant && (h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle'); if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
+  if (!revOn && !revWant && (h.get('tab') || 'battle') !== pane) paneSet(h.get('tab') || 'battle');
+  if (!r && h.get('round') && older.left.length) { const hh = location.hash; r = await olderFind(h.get('round')); if (location.hash !== hh) return; }   // (v264: an older round - its month first)
+  if (!r) return; if (r.name === $('#srcLabel').textContent && !h.has('t')) return; pendingLink = { r, t: h.has('t') ? +h.get('t') : null, p: h.get('p') }; openServerRound(r); });
 
 new ResizeObserver(resize).observe(cv);
 new ResizeObserver(resize).observe(tl);

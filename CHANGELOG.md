@@ -5,6 +5,84 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v267
+
+**Players inside the map's shapes** (todo 330; the analysis of 31.10: `claude/hidden-mines-and-glitches-2026-10-31.md`;
+Sagara: «Робимо всі три»). No decoder change (`d38e19bde4`); hint rules version 26 (the server looks at every round
+again); the glitch spots' grids made again (`GLITCH_V` 2).
+
+- **Inside an object, long** (`instay`, admins, in shadow, strong): alive on foot with his eyes and middle inside the
+  same solid shape for 60 s or more on end (`INSTAY_T`), his eye 0.3 m or more from its faces at least once (`INSTAY_D`);
+  no kill needed - inside a closed house, a wall or under a rock, where nobody outside can hit him. Over all rounds: 13
+  men and places (a closed house on Wake 53 and 16 min, a barrack on Dragon Valley 23 min, Karkand's old wall 26 min,
+  Road to Jalalabad's rock pile, Highway Tampa's gatehouse, Midnight Sun's bridge ramp, Dalian's dock); roofs whose shape
+  lies a little over men stay out. Test rounds: all of them found (masterapprentice 1,361 s, ZdarovaByli 1,543 s,
+  >>TAYSEER<< 1,114 s, the Wake pair 1,053 and 611 s, MAXIMUS1111 551 s, FPunisher 71 s, Simflera 131 s, 8964 MisterLok).
+- **Inside an object** out of shadow (22 of the 25 player-rounds over all rounds were men shooting out of a shape): not
+  a commander's artillery kills (>>TAYSEER<<'s 15 - now the long stay), not Kubra's dam (`dam_*`: men walk its corridors).
+- **A body is not a living man**: a soldier lying dead with his alive flag still on (health 0, not down; ~300 stretches
+  over all rounds, up to 46 min) counts as dead from 2 s into it - in every hint, on the map and in the glitch spots'
+  grids. 13 test rounds: 5 Idle hints gone, all bodies (Wake 12.10 10:17 two, of 41 and 46 min; Wake 28.10 03:01 102 min;
+  Kubra 18.10; Dalian 18.10); nothing else gone; who saw whom and the players' sums change only in those rounds.
+
+## v266
+
+**Hidden mine** (todo 329; the analysis of all the site's rounds, 31.10: `claude/hidden-mines-and-glitches-2026-10-31.md`;
+Sagara: «Давай»). **The decoder changes** (`d38e19bde4`): the server decodes every round with its demo again by itself;
+hint rules version 25 (it looks at every round again).
+
+- **The decoder keeps each placed charge's height** where it came to rest (`h`) and whether it went off (`went`: 2 a kill
+  of it, 1 a vehicle or its owner set it off with no kill). Nothing else in a round changes (3 demos: the decoded round
+  byte for byte v265's once the two fields are taken off).
+- **Hidden mine** (`hidmine`, admins, in shadow): AT mines of his lying where nobody can see them. Dropped on Karkand's
+  rails (the ballast, `train_rail_96`, or a level crossing, `train_rail_crossing`), a mine mostly falls through the shape
+  to the ground under it - 0.2-0.4 m of ballast or boards over it - and a vehicle crossing sets it off; the same in rubble
+  and at a floor's edge. A mine is hidden when one at most of 9 points of its top shows (each inside a solid shape, under
+  the terrain, or under a face within 0.5 m over it), but not on a floor inside a hollow shape with room over it (the
+  carrier's hangar, the dam's corridors). The hint: 3 or more of his in a round (`HM_N`), or 1 or more that went off under
+  a vehicle (`HM_W`); both - strong. Over all rounds (700 demos, 71,446 AT mines): 328 hidden, 66 kills by them;
+  Karkand's rails 207 of 772 (=FL= 199 of 343, 2F4Y 8 of 427), 167 of them laid lying down; a hidden one kills 0.26 times,
+  one on top 0.07; 44 player-rounds would give the hint. Test rounds: =FL= Karkand 30.10 21:55 (HANIBAL0160 9 of 10,
+  strong), 30.10 10:38 (sunnyghost 17 of 37, 14 kills; aBraHSivE 3 of 18), Dalian 07.10 19:20 and Kubra 18.10 17:03
+  (one hidden mine that killed); none on Karkand 2F4Y 27.10 22:20 (637 charges) nor on Wake 12.10 10:17 (mines in the
+  carrier). Two new thresholds (206 in all).
+
+## v265
+
+**The game video kit on every demo** (todo 328; Sagara: «Давай все і зараз»). A new decoder hash (`9a24b03b61`), but the
+rounds come out byte for byte as `777ef24786`'s (21 test rounds checked): the server marks them as the new decoder's and
+decodes nothing again, the background analysis looks at nothing again.
+
+- **The kit is made on the demos it failed on** (*a packet without its ghost part*: Karkand 09.10 21:31, Dragon Valley
+  08.10 19:54 - about half of the test demos): a packet of events only (its ghost part's "present" bit 0), right after
+  the round's opening, is now packed as events with no records. Both demos pack; in the packed clip the soldiers stand
+  where the round has them (median 0.02 m, as on the demos that worked), and on those the packed demo is the same byte
+  for byte.
+- **The packer out of the decoder's part of the page**: it still runs in the decoder's worker, but a fix to it no longer
+  changes the decoder's hash - the server won't decode every round again for one.
+
+## v264
+
+**The round list a month at a time; the game video checked again** (todo 193 and 295.1; Sagara: «Давай зробимо 193 ...
+2. 295.1 ...»). No decoder change (`777ef24786`), hint rules unchanged (24) - the server decodes and analyses nothing again.
+
+- **The fresh rounds first, the older ones by month.** `rounds.json`, what every visit loads first, now has only the
+  rounds of the newest round's last 14 days (at least 200); each older month is its own file, `data/list/<month>.json`.
+  The page loads a month only when something needs it: **Show more** at the end of All rounds names the month that
+  comes next (*Show September 2026 · 1,234 rounds*), **Older ›** at the last round loaded goes into the month before, a
+  link to an older round opens it (its month first). A filter or a sort on All rounds, **Show all**, the CSV and the
+  player's, map's and statistics pages look over every round: all the months load then - a moment the first time, then
+  from the browser's cache (a month's file keeps its name until its rounds change). Made up from ours, 3,000 rounds over
+  four months: `rounds.json` 740 -> 96 KB. Settings `BF2R_FRESH_DAYS` (14) and `BF2R_FRESH_MIN` (200); the folder goes
+  into the weekly copy; the background analysis opens rounds of every month as before.
+- **Game video: rows of kills, the clock, all views in one, the kill slowed down** were made in v245 - checked again:
+  kits from four demos, `make-videos.bat`'s ffmpeg steps on stand-in films (every view, the zoom of the sights, the
+  grid, 19.1 s with the slowing). Fixed: in the views behind him and from the side his aim line could run 170,000 px
+  off the picture, and ffmpeg's subtitles drew all of it - ~6 GB of memory for one view, the process killed; it is now
+  cut to the picture, and the ring round the one he aims at is left out when it is off it.
+- Found: on some demos the kit can't be made (*a packet without its ghost part*, Karkand 09.10 21:31, Dragon Valley
+  08.10 19:54 - a packet of events only right after the round's opening) - fixed in v265.
+
 ## v263
 
 **The demos the v260 archive asked for** (todo 327; Sagara: «Продовжимо пункт 327. Демо поклав у downloads»). No decoder

@@ -18,7 +18,7 @@
 set -euo pipefail
 : "${BF2R_ROOT:=/srv/bf2replay}"
 DATA="$BF2R_ROOT/data" FETCH="$BF2R_ROOT/repo/server/fetch.mjs"
-MOVE=(demos rounds rounds.json .rounds-full.json heat .kills stats .stats.json share www empty bad reprocess.json .fetched.json .fetch-last.json)
+MOVE=(demos rounds rounds.json list .rounds-full.json heat .kills stats .stats.json share www empty bad reprocess.json .fetched.json .fetch-last.json)
 UNITS_T=(bf2replay-update.timer bf2replay-fetch.timer bf2replay-ingest.path bf2replay-ingest.timer)
 UNITS_S=(bf2replay-fetch.service bf2replay-ingest.service bf2replay-reprocess.service)
 [ "$(id -u)" = 0 ] || { echo "run it as root: sudo bash $0 $*"; exit 1; }
@@ -37,8 +37,11 @@ echo "asking the demo pages what they list (one request per demo: a few minutes 
 # shellcheck disable=SC2024  # (root writes the scratch file: fine)
 sudo -u bf2replay env BF2R_ROOT="$T" node "$FETCH" --list > "$T/page.txt" 2>&1 || { tail -5 "$T/page.txt"; echo "could not read the pages"; exit 1; }
 grep -o 'would download [^ ]*\.bf2demo[^ ]*' "$T/page.txt" | cut -d' ' -f3 | sort -u > "$T/page_names.txt" || true
-# (v176: the whole list; rounds.json - compact, a round an array, its name first - only when it is not there)
-node -e 'for (const f of process.argv.slice(1)) { try { for (const r of require(f).rounds) console.log(Array.isArray(r) ? r[0] : r.name); break } catch (e) {} }' "$DATA/.rounds-full.json" "$DATA/rounds.json" | sort -u > "$T/site_names.txt"
+# (v176: the whole list; rounds.json - compact, a round an array, its name first - only when it is not there; v264: with
+# the older months it names, list/<month>.json)
+node -e 'const fs = require("fs"), [full, idx, dir] = process.argv.slice(1), out = L => { for (const r of L) console.log(Array.isArray(r) ? r[0] : r.name); };
+try { out(require(full).rounds); process.exit(0); } catch (e) {}
+try { const d = require(idx); out(d.rounds); for (const m of d.months || []) { try { out(require(dir + "/" + m.m + ".json").rounds); } catch (e) {} } } catch (e) {}' "$DATA/.rounds-full.json" "$DATA/rounds.json" "$DATA/list" | sort -u > "$T/site_names.txt"
 comm -23 "$T/site_names.txt" "$T/page_names.txt" > "$DATA/redownload-lost.txt"
 nPage=$(wc -l < "$T/page_names.txt"); nSite=$(wc -l < "$T/site_names.txt"); nLost=$(wc -l < "$DATA/redownload-lost.txt")
 echo "rounds on the site now:        $nSite ($(du -sh "$DATA/demos" 2>/dev/null | cut -f1) of demos)"

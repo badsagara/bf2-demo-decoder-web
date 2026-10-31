@@ -240,6 +240,10 @@ has it, the Clip bar asks for **Open my copy…** — your own `.bf2demo` of tha
 days **from–to**, **players from**, **length from**, **Find a player** (his rounds, and his page). Sort by any column;
 200 rows at a time (**Show 200 more**, **Show all**); **Rounds CSV**. Each round is a link (open it in a new tab if you
 like). The filters are part of the address, so you can send the list as it is, and the browser's Back returns to it.
+(v264) The site sends the last two weeks' rounds first; past them **Show more** says which month comes next
+(**Show September 2026 · 1,234 rounds**) and loads it. A filter, a sort, **Show all** and the player's, map's and
+statistics pages look over every round: the older months load then (a moment the first time, then from the browser's
+cache). **Older ›** at the last round loaded goes on into the month before, and a link to an older round opens it.
 
 ## A player's page
 

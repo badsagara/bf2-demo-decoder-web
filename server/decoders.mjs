@@ -23,6 +23,14 @@ SAME_ROUNDS.e3ddfc2d41 = [{ from: ['ed60068be7'] }];
 // misread before - 0.1-0.4% of the time in the test rounds), keeps each kill's direction (todo 286 a) and packs at most
 // 255 records a packet for the game video kit - every round with its demo is decoded again
 
+// (v265) 9a24b03b61 is 777ef24786 with the game video kit's packer (packDemo) moved out of the decoder's part of the page
+// (into its own part, // @pack-begin ... // @pack-end, which the worker gets too): decodeDemo is untouched, every round
+// comes out byte for byte the same (21 test rounds checked), so nothing is decoded again - and from now on a fix of the
+// packer leaves the decoder's hash as it is
+SAME_ROUNDS['9a24b03b61'] = [{ from: ['777ef24786'] }];
+// (v266) d38e19bde4 has no rule: it keeps each placed charge's height where it came to rest (h) and whether it went off
+// (went) - for Hidden mine (todo 329); the rest of the round byte for byte as 9a24b03b61's (3 demos checked), but every
+// round with its demo is decoded again to get the heights (rounds whose demo is gone keep theirs, with no heights)
 // the rules for a decoder: [{ from: [hashes], except: Set of maps }]
 export function sameRules(hash) {
   const S0 = SAME_ROUNDS[hash];

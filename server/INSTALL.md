@@ -230,6 +230,8 @@ pages from `BF2R_FETCH_URLS` is not needed — there are no more extra downloads
 | `BF2R_BACKUP_KEEP` | how many weekly copies to keep in `/srv/bf2replay/backup` | 6 |
 | `BF2R_BACKUP_ROUNDS` | `1`: the decoded rounds go into the copy too (`data/rounds`, ~3 MB a round; the only copy of a round whose demo is gone) | 0 |
 | `BF2R_JOBS` | how many demos to decode at once — new ones and again (since v162); each takes up to ~1.2 GB of RAM. Set here, the admin page can't change it (§16) | 0 = as chosen on the admin page, else as many as the CPU cores and memory allow, at most 4 |
+| `BF2R_FRESH_DAYS` | the site's round list: `rounds.json` has the rounds of the newest round's last N days, the older ones a file a month in `data/list` (v264, §18) | 14 |
+| `BF2R_FRESH_MIN` | ... and at least this many rounds | 200 |
 | `BF2R_HINTS` | `0`: turn off the background analysis (`bf2replay-hints`: Glitch spot and the hints over all of a player's rounds, §20) | 1 |
 
 More settings: posts and summaries (`BF2R_TELEGRAM_TOKEN`, `BF2R_NOTIFY_MIN_PLAYERS`, `BF2R_DIGEST_AT`,
@@ -741,6 +743,18 @@ only in `data/.rounds-full.json`. For 6,000 rounds that is ~3.1 MB → ~0.9 MB, 
 `bf2replay-status`, the admin page, `redownload.sh` and `analyze.mjs` take the full list (`.rounds-full.json`). Your own
 scripts that read `data/rounds.json` — there too, or expand it with `expandIndex` from `server/roundsidx.mjs`.
 
+**v264: the fresh rounds first, the older ones a month at a time.** `rounds.json` (what every visit loads first) now has
+only the rounds of the newest round's last 14 days (`BF2R_FRESH_DAYS`; at least 200 rounds — `BF2R_FRESH_MIN`), and
+names the older months; each older month is its own file, `data/list/<YYYY-MM>.json` (compact the same way). The page
+loads a month only when something needs it: **Show more** at the end of All rounds or **Older ›** at the last round (the
+month before), a link to an older round (down to its month); and every month for what counts over all rounds — a filter
+or a sort on All rounds, a player's, a map's or the statistics' pages. A month's file keeps its name (`?v=` its hash)
+until its rounds change, so a browser keeps it (Caddy: `Cache-Control: immutable` for `/data/list/*`, put in place by
+`update.sh`). 3,000 rounds over four months (made up from ours): `rounds.json` 740 → 90 KB, a month ~185 KB. Access:
+the same right as `rounds.json` (the round list). `bf2replay-status`, the admin page, `analyze.mjs` and the rest still
+take `.rounds-full.json`; your own scripts that read `rounds.json` — take its months too (`readPublicList` in
+`server/roundsidx.mjs`). v264 writes `data/list` by itself with the next round that comes in.
+
 If `data/.rounds-full.json` is ever lost (and `rounds.json` stays), the round list has no players' lists. `ingest.mjs`
 then won't overwrite `data/stats` with empty ones, but writes in the log that every round must be decoded again:
 `sudo systemctl start bf2replay-rebuild`. The weekly copy (`backup.sh`) keeps both files.
@@ -1101,9 +1115,31 @@ Two new thresholds (203 in all). Nothing to do.
 jitters only with a gun in his hands in the 5 s before his kills, `AA_ZZN` 20 -> 10; a tree trunk right by the man who
 looks doesn't block). One new threshold, `AA_ZZK` (204 in all); a site's own set keeps what it changed. Nothing to do.
 
+(v264) No decoder change, the hint rules unchanged: the server decodes and analyses nothing again. With the next round
+that comes in, `ingest.mjs` writes `data/list/<month>.json` and a shorter `rounds.json` (§18; until then `rounds.json`
+stays whole, as before); `update.sh` puts the Caddy header for
+`/data/list/*` in place. With nginx (§10): add the `location ~ ^/data/list/` line from `nginx-example.conf`. Nothing else to do.
+
+(v265) A new decoder hash, `9a24b03b61` (the game video kit's packer moved out of the decoder's part of the page), but
+every round comes out the same as with `777ef24786` (`server/decoders.mjs`): the server only marks the rounds as the new
+decoder's - nothing is decoded or analysed again. Nothing to do.
+
+(v266) **The decoder changes** (`d38e19bde4`: each placed C4, claymore and AT mine keeps the height it came to rest at and
+whether it went off - nothing else in a round changes): the server decodes every round with its demo again by itself (an
+hour or so), then looks at them again (hint rules version 25: Hidden mine - new, in shadow). Rounds whose demo is gone
+keep the old decoder's file: no mine heights there, so no Hidden mine. Two new thresholds, `HM_N` and `HM_W` (206 in
+all); a site's own set keeps what it changed. Nothing to do.
+
+(v267) No decoder change (`d38e19bde4`). Hint rules version 26: the background analysis looks at every round again by
+itself (Inside an object, long - new, in shadow; Inside an object out of shadow, without a commander's artillery and
+Kubra's dam; a body lying with his alive flag on no longer counts as alive). The glitch spots' grids are made again
+(`GLITCH_V` 2, the same rule for bodies): 150 rounds at each background run, or all at once with `analyze.sh glitch`. Two
+new thresholds, `INSTAY_T` and `INSTAY_D` (208 in all). If the site's shadow list (`hint-shadow.json`) put *Inside an
+object* in shadow by hand, it stays there. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (204 of 63 hints since v263: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (208 of 65 hints since v267: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 

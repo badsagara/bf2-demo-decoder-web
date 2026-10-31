@@ -30,7 +30,7 @@ A `.bf2demo` is the game server's Battle Recorder file: the network stream it se
 - the fire buttons going **down and up** (not each shot), with the rounds in the magazine at each press, and presses
   shorter than a game tick;
 - vehicles: position, turning, hit points; projectiles in flight (rockets, missiles, grenades, shells) and who fired
-  them; placed C4, claymores and mines; blasts;
+  them; placed C4, claymores and mines (v266: with the height each came to rest at, and whether it went off); blasts;
 - each kill as the game's kill message: killer, victim, the **weapon the game names**, and the material the killing
   shot hit (head / body / limbs); kill assists;
 - revives (the "man down" flag), heals, repairs, resupply, kits picked up, flags (owner changes, capture zones), spawn
@@ -354,6 +354,9 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
   `robots.txt` (with a domain), and small link-preview pages `/r/<round>` and `/p/<player>` that lead straight on to the
   site. They are rewritten only when they change; pages of rounds no longer there are removed.
 - `rounds.json` is a light list (~0.5 KB → 0.15 KB a round); the full list and all kills stay on the server.
+- (v264) `rounds.json` has only the last two weeks (at least 200 rounds); each older month is `data/list/<month>.json`,
+  loaded when the page needs it (Show more, a filter, a player's or map's page, a link to an older round) and kept by
+  the browser until its rounds change.
 - (v242) The round page for players: the map and **one bar under it** — Play, the round time, the speed, **Camera ▾**
   (follow, his view, aim line, keep him in the middle, how much of the map, zoom, the game's scoreboard), **Show ▾** (what
   the map shows, with your pinned quick switches at its top) and full screen; on the map only the zoom **+ / −** and the
@@ -376,7 +379,7 @@ Set on the admin page, card **Users and access** ([admin-guide.md](admin-guide.m
   nothing — the open site never waits for `admin.mjs`. (nginx asks on every request; the answer is "yes" at once while
   the site is open.)
 - **What decides a request**: the page itself, its version and `data/reprocess.json`, the decoded rounds — Watch rounds;
-  `rounds.json`, `/rounds/` and its months, `rss.xml`, `sitemap.xml` — All rounds; `data/stats/players|maps|table`,
+  `rounds.json` and `data/list/` (v264), `/rounds/` and its months, `rss.xml`, `sitemap.xml` — All rounds; `data/stats/players|maps|table`,
   `names.json`, `data/heat/`, `/players/`, `/maps/` — Players and maps; `data/stats/clans|vehicles|servers|server/|find/` —
   Stats; `/records/` — Records; `data/demos/` — Download demos; `/r/<round>` — Link previews or Watch rounds; `/p/<player>`
   — Link previews or Players and maps; the pictures and icons in `/assets/` — any part at all; `robots.txt`, `/login`,
