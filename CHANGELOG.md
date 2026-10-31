@@ -5,6 +5,26 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v263
+
+**The demos the v260 archive asked for** (todo 327; Sagara: «Продовжимо пункт 327. Демо поклав у downloads»). No decoder
+change (`777ef24786`); hint rules version 24 (the server looks at every round again by itself).
+
+- **Anti-Aim's jitters: only with a gun in his hands, in the 5 s before a kill of his** - the two men the archive showed
+  again and again were not cheating with their view: GAlien CrazyETXJew's 41 jitters (Karkand 13.10) were all an ammo
+  bag thrown (the view dips 55-84° down for one record), on Road Rage 27.10 a knife spun round after a spawn (no kill);
+  Hadek22's (Karkand 25.10, 26.10) a medic bag, a knife or a gun as he sprints - none in the 5 s before any of his 89
+  kills. An Anti-Aim jitters while its aim kills: on the 21 demos an honest man has at most 1 such jitter in a round;
+  the hint now needs 10 (was 20 of any kind). A made-up one (jitter in the 2 s before 3 kills) still gives it, the
+  same jitter away from his kills does not. One new threshold, `AA_ZZK` (204 in all).
+- **No line of sight: a tree right by the shooter doesn't block** - Dragon Valley's prone snipers (72McBrew, [b0rg]
+  1offFour, 220-243 m shots) lay by trees whose trunks the line from the eye grazed 1.4-4.2 m from them: the game's
+  tree is not where the map's file puts it to a few cm, and a man lying behind one aims past it. A trunk within 2 m of
+  the man who looks (5 m when he lies) no longer blocks his line - in No line of sight and in every other check of
+  whether he could see (Wall tracking, Pre-aim, who saw whom first...); farther ones block as before. Their round: 5 No
+  line of sight hints gone; on the 21 test demos nothing else - who saw whom first changed in 7 of 9,724 kills. On the
+  archive this takes away about 8 of its 15 tree-blocked No line of sight hints.
+
 ## v262
 
 **What the v260 archive showed** (3,620 rounds; Sagara: «робити»). No decoder change; hint rules version 23 (the server

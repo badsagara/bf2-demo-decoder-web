@@ -1252,7 +1252,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v262';
+const APP_VERSION = 'v263';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -3269,6 +3269,11 @@ function geoOff(D, G, tt) {
 // Road to Jalalabad's rock piles 63, Karkand's factory roofs, cargo wagons, walls: his low line over its edge, the kill's
 // own bullet over it)
 const OWN_NEAR = 6;
+// (v263, archive v260: 8 of its 15 No line of sight hints blocked by a tree were a trunk 1.3-4.2 m from the killer - prone
+// snipers on Dragon Valley lying by a tree or a bush's stem, 220-243 m shots; a 0.3 m move of the eye cleared some) the
+// trunk he stands or lies by: in the first VEG_NEAR m of his line (lying: VEG_NEAR_PRONE) a trunk doesn't block - where
+// the checks know who looks (own: ownGround's answer, null or a set)
+const VEG_NEAR = 2, VEG_NEAR_PRONE = 5;
 function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot, own) {
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy); if (L < 2 * LOS_END) return null;
   const e0 = LOS_END / L, e1 = 1 - e0; let best = null;
@@ -3281,7 +3286,7 @@ function exactHit(D, G, ax, ay, ah, bx, by, bh, any, tt, shoot, own) {
   if (cut > e0) { const sk = new Set(off || []); for (const pi of own) sk.add(pi); h = geoHit(G, ax, ay, ah, bx, by, bh, e0, cut, any, sk, shoot); }
   if (!h) h = geoHit(G, ax, ay, ah, bx, by, bh, Math.max(e0, cut), best ? best.u : e1, any, off, shoot);
   if (h) { const { pi, ...hh } = h; best = { ...hh, what: 'object' }; if (any) return best; }
-  const v = vegHit(ax, ay, ah, bx, by, bh, true); if (v !== null && v >= e0 && v <= e1 && (!best || v < best.u)) best = { u: v, what: 'tree' };
+  const v = vegHit(ax, ay, ah, bx, by, bh, true, own === undefined ? 0 : own && own.prone ? VEG_NEAR_PRONE : VEG_NEAR); if (v !== null && v >= e0 && v <= e1 && (!best || v < best.u)) best = { u: v, what: 'tree' };
   return best;
 }
 // (v257) the object a soldier at q stands or lies on: the first one 1.6 m down from his position (1.0 m over his feet) - a
@@ -3556,10 +3561,10 @@ function colSpan(ax, ay, ah, dx, dy, dh, cx, cy, r, z0, z1) {
 }
 // where the line from a (an eye) to b first runs into a trunk or has run through enough of a crown (fire: trunks only), as
 // a share 0-1 of the way; null when clear (or no trees known for the map)
-function vegHit(ax, ay, ah, bx, by, bh, fire) {
+function vegHit(ax, ay, ah, bx, by, bh, fire, near = 0) {
   const V = vegData(); if (!V) return null;
   const dx = bx - ax, dy = by - ay, dh = bh - ah, L = Math.hypot(dx, dy), L3 = Math.hypot(dx, dy, dh); if (L < 1e-3) return null;
-  const e0 = Math.min(1, VEG_EYE / L), P = V.P, G = VEG_G, st = ++V.st; let best = null;
+  const e0 = Math.min(1, VEG_EYE / L), eT = Math.min(1, Math.max(VEG_EYE, near) / L), P = V.P, G = VEG_G, st = ++V.st; let best = null;
   const gx = (ax - V.gx0) / G, gy = (ay - V.gy0) / G, gdx = dx / G, gdy = dy / G;
   let cx_ = Math.floor(gx), cy_ = Math.floor(gy); const sx = gdx > 0 ? 1 : -1, sy = gdy > 0 ? 1 : -1;
   const tdx = gdx ? Math.abs(1 / gdx) : Infinity, tdy = gdy ? Math.abs(1 / gdy) : Infinity;
@@ -3570,7 +3575,7 @@ function vegHit(ax, ay, ah, bx, by, bh, fire) {
       const c = cy_ * V.gw + cx_;
       for (let m = V.cs[c]; m < V.cs[c + 1]; m++) {
         const k = V.ids[m]; if (V.stamp[k] === st) continue; V.stamp[k] = st; const o = k * 8;
-        if (!P[o + 2]) { const r = colSpan(ax, ay, ah, dx, dy, dh, P[o], P[o + 1], P[o + 3], P[o + 6], P[o + 7]); if (r && r[1] > e0) { const u = Math.max(r[0], e0); if (best === null || u < best) best = u; } continue; }
+        if (!P[o + 2]) { const r = colSpan(ax, ay, ah, dx, dy, dh, P[o], P[o + 1], P[o + 3], P[o + 6], P[o + 7]); if (r && r[0] > eT) { const u = Math.max(r[0], e0); if (best === null || u < best) best = u; } continue; }   // (v263: a trunk only past eT - near: the tree he stands or lies by)
         if (fire) continue;
         // (a crown: how much of the line lies in its bands, from where it first enters)
         let inside = 0, first = Infinity, rmax = 0;

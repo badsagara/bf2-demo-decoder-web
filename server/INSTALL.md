@@ -1097,9 +1097,13 @@ site's own set keeps what it changed. Nothing to do.
 not on rounds an older decoder made, Inside an object not in the carrier, Guided missiles' last second for TV missiles).
 Two new thresholds (203 in all). Nothing to do.
 
+(v263) No decoder change. Hint rules version 24: the background analysis looks at every round again by itself (Anti-Aim's
+jitters only with a gun in his hands in the 5 s before his kills, `AA_ZZN` 20 -> 10; a tree trunk right by the man who
+looks doesn't block). One new threshold, `AA_ZZK` (204 in all); a site's own set keeps what it changed. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
-Every threshold of the hints (203 of 63 hints since v262: times, angles, distances, counts, odds) can be set from the site's page:
+Every threshold of the hints (204 of 63 hints since v263: times, angles, distances, counts, odds) can be set from the site's page:
 the editor opens from the **Thresholds** button in a round's Admin tab, **Hint thresholds** in the Log in dialog, the
 admin page's card **Hint thresholds**, or `/#thresholds` (how to use it: [docs/admin-guide.md](../docs/admin-guide.md#thresholds-the-sites-and-your-own)).
 
