@@ -1137,6 +1137,11 @@ Kubra's dam; a body lying with his alive flag on no longer counts as alive). The
 new thresholds, `INSTAY_T` and `INSTAY_D` (208 in all). If the site's shadow list (`hint-shadow.json`) put *Inside an
 object* in shadow by hand, it stays there. Nothing to do.
 
+(v270) No decoder change (`d38e19bde4`). Hint rules version 27: the background analysis looks at every round again by
+itself (*Inside an object, long*: the eye 0.35 m in, not 0.3 - `INSTAY_D`'s recommended value; with the eye 1 m in, his
+middle need not be; *Inside an object*: not a mine's, Claymore's or C4's kills). A site whose own set changed `INSTAY_D` keeps
+its value. Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (208 of 65 hints since v267: times, angles, distances, counts, odds) can be set from the site's page:

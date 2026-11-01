@@ -5,6 +5,25 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v270
+
+**The archive of 01.11** (3,848 rounds by page v267; `claude/instay-archive-2026-11-01.md`; Sagara: «Роби»). No decoder
+change (`d38e19bde4`); hint rules version 27 (the server looks at every round again).
+
+- **Inside an object, long** (`instay`, in shadow): the eye **0.35 m** in at least once (`INSTAY_D`, was 0.3). 10 of the
+  archive's 18 hints were one spot of Road to Jalalabad's rock pile (8964 MisterLok 9, Frontkaempfer_69 1), the eye
+  0.30-0.34 m in - of 30 stays of a minute or more there, half at 0.30 m: a centimetre made the hint or not; the kills
+  from there stay with *Inside an object*. Left: 8 (the old wall on Karkand: ZdarovaByli, james007; the closed house on
+  Wake: yi=dan=liang, nicholas95ykt; >>TAYSEER<< at 0.38 m; Midnight Sun's bridge ramp: MAXIMUS1111, FPunisher; Dalian's
+  dock: Simflera).
+- **... with his eye 1 m or more in, his middle need not be** (`INSTAY_DEEP`): aBraHSivE in Dragon Valley's barrack
+  (07.10 12:15, 4 min, eye 3.2 m in) had his middle under the shape's floor for 11-15 s at a time; over all rounds the
+  only one.
+- **Inside an object** (`inside`): not a mine's, a Claymore's or C4's kills - where he was when it went off says nothing
+  (a Claymore's kill had counted for a man lying in a house on Mashtuur). The archive's 22 hints: 17 the rock pile, the
+  rest the old wall, the bridge ramp, the house on Wake and that man on Mashtuur (2 sniper kills, his head 0.33 m in the
+  house's wall).
+
 ## v269
 
 **What the site keeps about people, told right** (todo 331, point 9; Sagara, 2026-11-01: «Давай зробимо»). Documents

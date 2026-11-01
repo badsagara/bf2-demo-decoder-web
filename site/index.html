@@ -1286,7 +1286,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v269';
+const APP_VERSION = 'v270';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -3388,7 +3388,7 @@ function insideObj(G, x, y, h, only) {
 // (v267, todo 330) Kubra Dam's dam (dam_bottom, dam_bridge_base1/2, dam_powerbase, dam_left / right): men walk its inner
 // corridors - 79 players inside dam_bottom over a month; not counted as inside a shape by the soldiers' hints (the mines'
 // one keeps them). BODY_T: a body's seconds before it stops counting as alive (normalize)
-const INSIDE_WALK = /^dam_/i, BODY_T = 2;
+const INSIDE_WALK = /^dam_/i, BODY_T = 2, INSTAY_DEEP = 1;   // (v270) Inside an object, long: his eye this deep (m) - his middle need not be in too
 // (v267) the distance from a point (east, north, up) to the nearest face of placement pi's mesh (m): how deep inside it
 function meshDist(G, pi, x, y, h) {
   const Q = G.P[pi], M = G.meshes[Q.m], V = M.V, I = M.I, R = Q.R, wx = x - Q.p[0], wy = h - Q.p[1], wz = y - Q.p[2];
