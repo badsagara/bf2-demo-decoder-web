@@ -618,6 +618,7 @@ function writeProgress(P) {
 }
 
 // ---------- link previews ----------
+// (v268) with the site's icon and, under the link, EA's notice and Credits: every page of the site carries them (todo 331)
 // A link to a round (/r/<round>) or a player (/p/<player>) is a small page with the title, a line of numbers and a
 // picture of the map, which chat apps (Telegram, Discord, Slack, WhatsApp, Facebook) show under the link; a visitor is
 // sent on to the page itself (#round=... with the link's ?t=&p=&tab=, or #player=...). The web server maps /r/* and
@@ -641,10 +642,12 @@ ${url ? `<meta property="og:url" content="${escH(url)}">\n` : ''}<meta property=
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>body{font:16px system-ui,sans-serif;background:#111614;color:#dfe5dc;margin:40px 20px}a{color:#e2b33c}</style>
 </head><body>
 <p>${escH(title)}<br><small>${escH(desc)}</small></p>
 <p><a id="go" href="${escH(go(''))}">Open in BF2 Round Replay</a></p>
+<p><small>This website is not endorsed by or affiliated with EA or its licensors. <a href="/credits/">Credits &amp; licences</a></small></p>
 <script>(function(){var q=new URLSearchParams(location.search),x=[];['t','p','tab'].forEach(function(k){if(q.has(k))x.push(k+'='+encodeURIComponent(q.get(k)))});location.replace(${JSON.stringify(go('@@'))}.replace('@@',x.length?'&'+x.join('&'):''));})();</script>
 </body></html>
 `;
@@ -713,13 +716,14 @@ function wwwPage({ title, desc, canon, body, abs, script }) {
 <meta name="description" content="${escH(desc)}">
 ${abs ? `<link rel="canonical" href="${escH(abs + canon.replace(/^\//, ''))}">\n` : ''}<link rel="alternate" type="application/rss+xml" title="BF2 Round Replay: new rounds" href="/rss.xml">
 <meta property="og:site_name" content="BF2 Round Replay"><meta property="og:title" content="${escH(title)}"><meta property="og:description" content="${escH(desc)}">
+<link rel="icon" href="/favicon.ico" sizes="32x32"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>${WWW_CSS}</style>
 </head><body>
 <header><a class="brand" href="/">BF2 <b>Round</b> Replay</a><nav><a href="/rounds/">Rounds</a><a href="/players/">Players</a><a href="/maps/">Maps</a><a href="/records/">Records</a><a href="/rss.xml">RSS</a></nav></header>
 <main>
 ${body}
 </main>
-<footer>Battlefield 2 rounds from the Battle Recorder, decoded: every round can be watched on the map in <a href="/">BF2 Round Replay</a>.</footer>
+<footer>Battlefield 2 rounds from the Battle Recorder, decoded: every round can be watched on the map in <a href="/">BF2 Round Replay</a>.<br>This website is not endorsed by or affiliated with EA or its licensors. <a href="/credits/">Credits &amp; licences</a></footer>
 ${script ? `<script>${script}</script>\n` : ''}</body></html>
 `;
 }
@@ -728,7 +732,7 @@ const WWW_FIND = `(function(){var f=document.getElementById('find'),c=document.g
 function go(){var q=f.value.trim().toLowerCase(),n=0;R.forEach(function(r){var on=!q||r.getAttribute('data-f').indexOf(q)>=0;r.hidden=!on;if(on)n++;});c.textContent=q?n+' of '+R.length:'';no.hidden=!q||n>0;if(q&&!n)no.textContent='No player has \u201c'+f.value.trim()+'\u201d in his name.';try{history.replaceState(null,'',q?'#'+encodeURIComponent(f.value.trim()):location.pathname);}catch(e){}}
 f.oninput=go;f.onkeydown=function(e){if(e.key==='Enter'){var v=R.filter(function(r){return!r.hidden;});if(v.length===1)location.href=v[0].querySelector('a').href;}};
 if(location.hash.length>1){try{f.value=decodeURIComponent(location.hash.slice(1));}catch(e){}go();}})();`;
-const WWW_VER = 6;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights; 4, v193: Find a player; 5, v201: records by server; 6, v202: a round's demo to download)
+const WWW_VER = 7;   // (raise when the pages change: they are all written again; 2: records; 3, v192: the records of the highlights; 4, v193: Find a player; 5, v201: records by server; 6, v202: a round's demo to download; 7, v268: EA's notice, Credits, the icon)
 function writeWww(d, dec) {
   const abs = DOMAIN ? `https://${DOMAIN}/` : '';
   // nothing new (the same rounds, decoder, domain and pages as last time: bf2replay-reprocess runs this every minute): skip

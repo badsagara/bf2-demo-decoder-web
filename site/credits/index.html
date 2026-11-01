@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Credits &amp; licences · BF2 Round Replay</title>
+<meta name="description" content="Where the site's pictures, data and code come from, their licences, and EA's notice.">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<!-- (v268, todo 331; Sagara, 2026-11-01: "Так, роби всі правки") the site's credits, the licences of what it uses and
+     EA's notice. Open to everyone, even when the site is closed to guests (server/access.mjs: public). Plain and inline:
+     nothing else of the site is needed to read it. -->
+<style>
+:root { color-scheme: dark; --bg: #0e1310; --panel: #151c17; --line: #2b3830; --fg: #dde4d6; --muted: #8b9a89; --accent: #e2b547; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+header { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: baseline; padding: 14px 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.brand { font: 700 20px/1 "Arial Narrow", sans-serif; letter-spacing: .04em; color: var(--fg); } .brand b { color: var(--accent); }
+nav { display: flex; flex-wrap: wrap; gap: 16px; } nav a { color: var(--muted); } nav a:hover { color: var(--fg); }
+main { max-width: 820px; margin: 0 auto; padding: 22px 16px 40px; }
+h1 { font: 700 28px/1.15 "Arial Narrow", sans-serif; letter-spacing: .02em; margin: 6px 0 10px; }
+h2 { font-size: 17px; margin: 30px 0 8px; }
+p { margin: 8px 0; } ul { margin: 8px 0; padding-left: 22px; } li { margin: 4px 0; }
+.notice { border: 1px solid var(--line); border-left: 3px solid var(--accent); background: var(--panel); border-radius: 4px; padding: 10px 14px; }
+.muted { color: var(--muted); }
+pre { white-space: pre-wrap; font: 12.5px/1.45 ui-monospace, "SFMono-Regular", Menlo, monospace; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; overflow-x: auto; }
+code { font: 13px ui-monospace, "SFMono-Regular", Menlo, monospace; }
+footer { max-width: 820px; margin: 0 auto; padding: 0 16px 30px; color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<header><a class="brand" href="/">BF2 <b>Round</b> Replay</a><nav><a href="/">Replay</a><a href="/rounds/">Rounds</a><a href="/players/">Players</a><a href="/maps/">Maps</a><a href="/records/">Records</a></nav></header>
+<main>
+<h1>Credits &amp; licences</h1>
+<p class="notice">This website is not endorsed by or affiliated with EA or its licensors.</p>
+<p>BF2 Round Replay is a free, non-commercial fan site for players of Battlefield&nbsp;2. Battlefield and Battlefield&nbsp;2
+are trademarks of Electronic Arts Inc. The game's content shown here belongs to Electronic Arts and its licensors; the
+site shows it the way <a href="https://help.ea.com/en/articles/security-and-rules/ea-content-policy/" rel="noopener">EA's
+content policy</a> lets fans use game content in their fan sites.</p>
+
+<h2>From the game's own files</h2>
+<p>To look like the game and to show what each player could see, the site uses these, taken from Battlefield&nbsp;2's
+files:</p>
+<ul>
+<li>the map pictures (the game's minimaps) and the minimap symbols;</li>
+<li>the icons of weapons, vehicles, kits and ranks, the sides' flags, the textures of the Tab scoreboard and the top bar,
+and the game's bitmap fonts;</li>
+<li>the vehicles drawn from above, made from the game's models;</li>
+<li>the ground's heights, the shapes of buildings and objects, and the trees, for "who could see whom";</li>
+<li>names and figures: maps, flags, weapons, vehicles and kits, speeds, ranges and the fog of each map.</li>
+</ul>
+<p>The rounds themselves are the game servers' own Battle Recorder demos (<code>.bf2demo</code>), taken from the pages
+where the servers publish them and read by the site's own decoder.</p>
+
+<h2>High Definition Minimap — Deine-Augen</h2>
+<p>The sharp map pictures are scaled down from
+<a href="https://www.moddb.com/addons/high-definition-minimap" rel="noopener">High Definition Minimap</a> by Deine-Augen
+(ModDB, 2023: the game's minimaps at 8192&nbsp;px), to 2048&nbsp;px. Thank you.</p>
+
+<h2>bf2-replay-viewer — Kakarotto22</h2>
+<p>Part of the site's decoder and of its game-style HUD follows
+<a href="https://github.com/Kakarotto22/bf2-replay-viewer" rel="noopener">Kakarotto22/bf2-replay-viewer</a>: the layouts
+of the demo's records and events, the game's template tables, and the layout of the Tab scoreboard and the top bar.
+Thank you. Its licence:</p>
+<pre>MIT License
+
+Copyright (c) 2026 Kakarotto
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+This license covers the code and documentation of this repository only. It
+grants no rights to Battlefield 2 or to anything owned by Electronic Arts Inc.
+or its licensors (see NOTICE.md).</pre>
+
+<h2>Read to understand the game — no code taken</h2>
+<p>These helped to understand how the game works. The site took no code from them: only how things work and the
+figures, each checked against recorded rounds.</p>
+<ul>
+<li><a href="https://github.com/B2BF/OpenBF2" rel="noopener">OpenBF2</a> (GPL-3.0): the camera and field of view,
+soldiers' speeds, scoring, spawning, the combat area, latency compensation.</li>
+<li>OpenBattlefield2 (MIT): the fog, the soldier's physics, the rules of Conquest, the layout of some records.</li>
+<li>Refractor-2-BitStream-Emulator (GPL-3.0): the network messages.</li>
+<li>The game's own scripts and settings (such as <code>gpm_cq.py</code> and the levels' <code>.con</code> files): the
+rules of the game mode.</li>
+</ul>
+
+<h2>Fonts</h2>
+<p>The page's fonts are served by this site itself, under the
+<a href="https://openfontlicense.org" rel="noopener">SIL Open Font License 1.1</a>:</p>
+<ul>
+<li>Saira Condensed — The Saira Project Authors (<a href="/assets/fonts/OFL-saira-condensed.txt">licence</a>);</li>
+<li>Archivo — The Archivo Project Authors (<a href="/assets/fonts/OFL-archivo.txt">licence</a>);</li>
+<li>JetBrains Mono — The JetBrains Mono Project Authors (<a href="/assets/fonts/OFL-jetbrains-mono.txt">licence</a>).</li>
+</ul>
+</main>
+<footer>This website is not endorsed by or affiliated with EA or its licensors. · <a href="/">BF2 Round Replay</a></footer>
+</body>
+</html>

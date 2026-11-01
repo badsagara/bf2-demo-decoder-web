@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<link rel="icon" href="data:,">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>BF2 Round Replay · Admin</title>
 <style>
 :root { --bg: #0d110e; --panel: #151b16; --panel-2: #1c241d; --line: #2a352b; --fg: #e4e8de; --muted: #8f9a8c; --accent: #e2b84a; --ok: #6fc276; --bad: #e0675a; --warn: #e2a14a; color-scheme: dark; }
@@ -114,6 +115,7 @@ td.mono { overflow-wrap: anywhere; }
   .src { flex-wrap: wrap; }
 }
 table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } table.mini th, table.mini td { text-align: left; padding: 3px 10px 3px 0; border-bottom: 1px solid var(--line, #333); } table.mini td:nth-child(2), table.mini td:nth-child(3) { text-align: right; font-variant-numeric: tabular-nums; }
+.sitefoot { margin: 18px auto 24px; padding: 0 16px; font-size: 12px; color: var(--muted); text-align: center; } .sitefoot a { color: inherit; }
 </style>
 </head>
 <body>
@@ -285,6 +287,8 @@ table.mini { border-collapse: collapse; margin: 6px 0 2px; font-size: 13px; } ta
   </section>
 </main>
 </div>
+<!-- (v268, todo 331) EA's notice on every page of the site -->
+<footer class="sitefoot">This website is not endorsed by or affiliated with EA or its licensors. <a href="/credits/">Credits &amp; licences</a></footer>
 <div id="toast" role="status" hidden></div>
 
 <script>

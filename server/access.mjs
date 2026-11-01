@@ -65,6 +65,9 @@ export function needOf(p) {
   // (the web server matches paths without regard to case - /DATA/rounds.json is data/rounds.json to it: so here too)
   p = String(p || '/').replace(/\/{2,}/g, '/').toLowerCase();
   if (p === '/robots.txt' || p === '/favicon.ico') return 'public';
+  // (v268) the site's own icon, and the page of credits, licences and the EA notice: open to everyone, even when the
+  // site is closed to guests (the login page shows the icon, the notice must be readable)
+  if (p === '/favicon.svg' || p === '/apple-touch-icon.png' || p === '/credits' || p === '/credits/' || p === '/credits/index.html') return 'public';
   if (p === '/' || p === '/index.html' || p === '/version.json') return 'view';
   if (p.startsWith('/assets/og/')) return 'og';
   if (p.startsWith('/assets/')) return 'any';

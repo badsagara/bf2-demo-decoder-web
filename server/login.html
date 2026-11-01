@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Log in · BF2 Round Replay</title>
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <!-- (v224) the site's login: served by admin.mjs at /login; the web server sends here whoever may not open a page of the
      site (the guests' rights, and each account's: the admin page, card "Users and access"). Everything inline: nothing
      else of the site is needed to see it. -->
@@ -32,6 +34,7 @@ a { color: var(--accent); }
 .swap { margin-top: 12px; font-size: 13.5px; } .swap button { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 [hidden] { display: none !important; }
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.foot { max-width: 380px; margin: 12px 0 0; font-size: 12px; color: var(--muted); text-align: center; } .foot a { color: inherit; }
 </style>
 </head>
 <body>
@@ -61,6 +64,8 @@ a { color: var(--accent); }
   <p class="swap" id="toLog" hidden>Have an account? <button type="button" id="goLog">Log in</button></p>
   <div class="open" id="open" hidden></div>
 </main>
+<!-- (v268, todo 331) EA's notice on every page of the site -->
+<p class="foot">This website is not endorsed by or affiliated with EA or its licensors. <a href="/credits/">Credits &amp; licences</a></p>
 <script>
 (() => {
 'use strict';

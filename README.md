@@ -1,5 +1,9 @@
 # BF2 Round Replay
 
+> This website is not endorsed by or affiliated with EA or its licensors. Battlefield and Battlefield 2 are trademarks
+> of Electronic Arts Inc. (Since v268 the site says so at the foot of every page, with a page of credits and licences at
+> `/credits/`: `site/credits/index.html`.)
+
 A web site that replays Battlefield 2 rounds from their `.bf2demo` files on the map: who ran where, who killed whom,
 flags, vehicles, tickets, and who could see whom. A small VPS downloads new demos from the game servers' demo pages,
 decodes them and publishes rounds, player pages, maps, records and statistics; it can post each round to Discord and
@@ -9,7 +13,8 @@ This repository is the whole site together with the scripts for the server:
 
 ```
 site/         the site itself: index.html + assets/ (maps, icons, wall and terrain data for "who could see whom",
-              vehicle models, pictures for link previews: assets/og)
+              vehicle models, pictures for link previews: assets/og, the page's fonts: assets/fonts), credits/ (the
+              page of credits and licences), favicon.svg / .ico, apple-touch-icon.png (the site's icon)
 server/       for the VPS: install.sh (installs everything in one run), fetch.mjs (takes demos from the servers' pages),
               ingest.mjs (decodes demos), update.sh (updates from GitHub), units.sh (systemd timers and Caddy),
               notify.mjs / digest.mjs / alerts.mjs (posts, summaries, admin alerts), admin.mjs + admin.html (the admin
@@ -216,6 +221,23 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
+
+Read to understand the game, no code taken (each figure checked against recorded rounds; v268 checked the code for it -
+no identifier or function of OpenBF2's in the site's code, only its figures and rules, named where they are used):
+[OpenBF2](https://github.com/B2BF/OpenBF2) (GPL-3.0: the camera and field of view, soldiers' speeds, scoring, spawning,
+the combat area, latency compensation), OpenBattlefield2 (MIT: fog, soldier physics, Conquest's rules, some record
+layouts), Refractor-2-BitStream-Emulator (GPL-3.0: network messages) and the game's own scripts and settings
+(`gpm_cq.py`, the levels' `.con` files: the game mode's rules).
+
+The page's fonts (since v268 served by the site itself, `site/assets/fonts`, not from Google Fonts): Saira Condensed,
+Archivo and JetBrains Mono, SIL Open Font License 1.1 (`site/assets/fonts/OFL-*.txt`). The site's icon
+(`site/favicon.svg`, `.ico`, `apple-touch-icon.png`, v268) is the site's own drawing, nothing from the game.
+
+What comes from the game's own files (all listed on `/credits/`): the map pictures and minimap symbols, the icons of
+weapons, vehicles, kits and ranks, the sides' flags, the HUD's textures and bitmap fonts, the vehicles drawn from above
+(from the game's models), the ground's heights, the shapes of buildings and objects and the trees (`assets/los`,
+`assets/geo`), and names and figures. They belong to Electronic Arts and its licensors; the site shows them as EA's
+content policy lets fans use game content in fan sites (free, nothing sold, no paywall).
 
 The sharp minimaps (since v144, `site/assets/maps_hd/*.webp`, 2048 px) are scaled down from the pack
 [High Definition Minimap](https://www.moddb.com/addons/high-definition-minimap) by Deine-Augen (ModDB, 2023: Battlefield 2

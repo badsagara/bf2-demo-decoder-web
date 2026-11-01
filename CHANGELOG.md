@@ -5,6 +5,32 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v268
+
+**EA's notice, credits and licences, the site's own icon and fonts** (todo 331; Sagara, 2026-11-01: «Так, роби всі
+правки», «Робимо Favicon», «Шрифти роби в цьому випуску»). No decoder change (`d38e19bde4`), no new hint rules or
+summaries: nothing is decoded or analysed again. The plain pages (`/rounds/`, `/players/`, `/maps/`, `/records/`) are
+written again once (`WWW_VER` 7), the link previews (`/r/`, `/p/`) too.
+
+- **EA's notice on every page**: "This website is not endorsed by or affiliated with EA or its licensors." - at the foot
+  of the replay page (with the thanks, which were there), of the plain pages, the link previews, the login and the admin
+  page; at the top of the README and in the user guide.
+- **Credits & licences** (`/credits/`, `site/credits/index.html`; linked from every page's foot): what comes from the
+  game's files, Deine-Augen's High Definition Minimap, Kakarotto22's bf2-replay-viewer with its MIT licence in full (it
+  was only in the README, which visitors don't see), what was read to understand the game with no code taken (OpenBF2,
+  OpenBattlefield2, Refractor-2-BitStream-Emulator, the game's scripts), the fonts and their licence. Open to everyone,
+  even when the site is closed to guests (`server/access.mjs`), as are the icon's files.
+- **Checked: no code of OpenBF2 (GPL) or of the game's scripts in the site** - the 31 places that name them hold figures
+  and rules, each written anew; no identifier of OpenBF2's code in the site's own code (only browser APIs, map and vehicle
+  names and the server settings' names the demo itself carries).
+- **Checked: no logo** of Battlefield, EA or DICE anywhere - the header is text, the 31 link-preview pictures are the
+  site's text over a map, the 64 pictures in the page are the game's icons, flags, ranks and fonts.
+- **The site's own icon** (`site/favicon.svg`, `favicon.ico`, `apple-touch-icon.png`): a replay arrow round a play
+  sign, the site's colours - drawn for the site, nothing from the game. Before, the site had none.
+- **The fonts from the site itself** (`site/assets/fonts`: Saira Condensed, Archivo, JetBrains Mono, woff2, 27 files, 258
+  KB, a browser takes only the alphabets a page needs; SIL Open Font License, `OFL-*.txt`): the page no longer loads
+  Google Fonts, so opening it sends a visitor's address to no one else.
+
 ## v267
 
 **Players inside the map's shapes** (todo 330; the analysis of 31.10: `claude/hidden-mines-and-glitches-2026-10-31.md`;

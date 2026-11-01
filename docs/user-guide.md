@@ -4,6 +4,9 @@ For players and visitors: how to watch a round, follow a soldier, read the stati
 records, and make a clip to share. Everything here works in any modern browser, on a computer or a phone. How the
 numbers are worked out (and what a demo can't tell) is in [features.md](features.md).
 
+This website is not endorsed by or affiliated with EA or its licensors. Where its pictures, data and code come from, and
+their licences: the page **Credits & licences** (`/credits/`, linked at the foot of every page).
+
 Contents: [The site at a glance](#the-site-at-a-glance) · [Logging in](#logging-in) · [Watching a round](#watching-a-round) ·
 [Following a soldier](#following-a-soldier) · [What the map shows (Show ▾)](#what-the-map-shows-show-) ·
 [The panels and tabs](#the-panels-and-tabs) · [Clips](#clips-video-gif-or-a-game-video) ·
@@ -367,3 +370,8 @@ Rounds with fewer than 2 players on the field are not kept. Ask the site's owner
 
 **Is anything stored about me?** Only what the game server's demo records (names, positions, kills, scores) and the
 numbers worked out from it. Your theme, column and clip choices are remembered in your own browser only.
+
+**Where do the pictures come from? Is this an official site?** No, it is a free fan site, not endorsed by or affiliated
+with EA or its licensors. The map pictures, icons and the HUD's look come from Battlefield 2's own files, the sharp maps
+from Deine-Augen's High Definition Minimap; everything is listed on **Credits & licences** (`/credits/`). The page's fonts
+come from the site itself, so opening it asks no one else for anything.
