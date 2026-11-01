@@ -357,6 +357,9 @@ score a minute against his side's. Everyone starts at 1,500; "?" means fewer tha
 - (v264) `rounds.json` has only the last two weeks (at least 200 rounds); each older month is `data/list/<month>.json`,
   loaded when the page needs it (Show more, a filter, a player's or map's page, a link to an older round) and kept by
   the browser until its rounds change.
+- (v271) All rounds: **Played together** (the rounds every one of the players picked played) and **A kill** (Killer,
+  Victim, Weapon - any may be empty): the server keeps each player's kills and deaths round by round for it
+  (`data/stats/ev/`, `wrounds.json`).
 - (v242) The round page for players: the map and **one bar under it** — Play, the round time, the speed, **Camera ▾**
   (follow, his view, aim line, keep him in the middle, how much of the map, zoom, the game's scoreboard), **Show ▾** (what
   the map shows, with your pinned quick switches at its top) and full screen; on the map only the zoom **+ / −** and the

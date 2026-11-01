@@ -479,7 +479,7 @@ function loadAgg() {
     // "// @agg-admin-begin" and "// @agg-admin-end" - cut out of the public page by splitpage.mjs)
     let more = ''; try { const A = fs.readFileSync(path.join(HERE, 'admin-round.js'), 'utf8').split('\n'), x = A.indexOf('// @agg-admin-begin'), y = A.indexOf('// @agg-admin-end'); if (x >= 0 && y > x) more = A.slice(x + 1, y).join('\n'); } catch (e) {}
     const code = L.slice(a, b).join('\n') + (more ? '\n' + more : '');
-    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug, aggRecs: typeof aggRecs === "function" ? aggRecs : null, REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null, aggClans: typeof aggClans === "function" ? aggClans : null, aggRating: typeof aggRating === "function" ? aggRating : null, aggVehicles: typeof aggVehicles === "function" ? aggVehicles : null, aggServer: typeof aggServer === "function" ? aggServer : null, aggFind: typeof aggFind === "function" ? aggFind : null };')();   // (v192: and the records)
+    const fns = new Function(g + '\n' + code + '\nreturn { aggRounds, aggByNick, aggNames, aggTable, aggPlayer, aggMap, nickOf, nickSlug, aggRecs: typeof aggRecs === "function" ? aggRecs : null, REC_KEYS: typeof REC_KEYS !== "undefined" ? REC_KEYS : null, aggClans: typeof aggClans === "function" ? aggClans : null, aggRating: typeof aggRating === "function" ? aggRating : null, aggVehicles: typeof aggVehicles === "function" ? aggVehicles : null, aggServer: typeof aggServer === "function" ? aggServer : null, aggFind: typeof aggFind === "function" ? aggFind : null, aggEvents: typeof aggEvents === "function" ? aggEvents : null };')();   // (v192: and the records)
     return { fns, v: crypto.createHash('sha1').update(g).update(code).update(STATS_FORMAT).digest('hex').slice(0, 10) };
   } catch (e) { log('stats: the page\'s code did not load:', e.message); return null; }
 }
@@ -528,10 +528,17 @@ function writeStats(d) {
   if (F.aggVehicles) statsWrite(path.join(STATS, 'vehicles.json'), { v: AGG.v, kinds: F.aggVehicles(RS) });
   if (F.aggServer) { statsWrite(path.join(SV, '_all.json'), { v: AGG.v, server: null, agg: F.aggServer(RS) }); for (const sv of srvs) statsWrite(path.join(SV, F.nickSlug(sv) + '.json'), { v: AGG.v, server: sv, agg: F.aggServer(F.aggRounds(RS, sv)) }); statsWrite(path.join(STATS, 'servers.json'), { v: AGG.v, servers: srvs.map(sv => [sv, F.nickSlug(sv), RS.filter(r => r.sum.server === sv).length]) }); }
   if (F.aggFind) for (const m of maps) { const R = RS.filter(r => mapKey(r) === m), f = path.join(FD, F.nickSlug(m || '_') + '.json'); if (!R.length) { try { fs.unlinkSync(f); } catch (e) {} continue; } statsWrite(f, { v: AGG.v, map: m, ...F.aggFind(R, ptsOf) }); }
+  // (v271) each player's kills and deaths round by round, every weapon's rounds: the All rounds page's Kill filter (ev/ for
+  // the players whose files are written now; one pass over every round's kills)
+  const ED = path.join(STATS, 'ev');
+  if (F.aggEvents) { const EV = F.aggEvents(RS, ptsOf, full ? null : new Set(nicks));
+    for (const nick of nicks) { const o = byNick.has(nick) ? EV.players.get(nick) || { rounds: [], N: [], W: [], k: [], d: [] } : null, f = path.join(ED, F.nickSlug(nick) + '.json');   // (one with no kill nor death: an empty file - not "the server has none")
+      if (!o) { try { fs.unlinkSync(f); } catch (e) {} continue; } statsWrite(f, { v: AGG.v, nick, ...o }); }
+    statsWrite(path.join(STATS, 'wrounds.json'), { v: AGG.v, ...EV.weapons }); }
   if (full) {   // (files of players, maps and servers no longer there)
     const keepP = new Set([...byNick.keys()].map(n => F.nickSlug(n) + '.json')), keepM = new Set([...new Set(RS.map(mapKey))].map(m => F.nickSlug(m || '_') + '.json')), keepT = new Set(srvs.map(sv => F.nickSlug(sv) + '.json'));
     const keepS = new Set(['_all.json', ...srvs.map(sv => F.nickSlug(sv) + '.json')]);
-    for (const [dir, keep] of [[PD, keepP], [AD, keepP], [MD, keepM], [TD, keepT], [SV, keepS], [FD, keepM]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
+    for (const [dir, keep] of [[PD, keepP], [AD, keepP], [MD, keepM], [TD, keepT], [SV, keepS], [FD, keepM], [ED, keepP]]) { let L = []; try { L = fs.readdirSync(dir); } catch (e) {} for (const f of L) if (!keep.has(f)) { try { fs.unlinkSync(path.join(dir, f)); } catch (e) {} } }
   }
   const at = new Date().toISOString(); fs.writeFileSync(STATS_STATE, JSON.stringify({ v: AGG.v, at }));
   d.stats = { v: AGG.v, at };

@@ -770,6 +770,12 @@ left. Stopped (a site update, `systemctl stop`) — it goes on at the next run.
 journalctl -u bf2replay-ingest --since today | grep -i "summ\|stats:"
 ```
 
+**v271: each player's kills and deaths, round by round.** `data/stats/ev/<player>.json` (the rounds, the other players'
+nicks and the weapons once, then each kill `[round, second, victim, weapon(, 1: a team kill)]` and each death
+`[round, second, killer, weapon(, 1)]`) and `data/stats/wrounds.json` (each weapon: its rounds and how many kills in each)
+- what All rounds' *A kill* filter reads: the killer's file, else the victim's, else the weapons'. Written with the
+player's file (a new round: its players'); ~55 bytes a kill in all.
+
 ### More statistics (v215)
 
 After the update the server itself **sums up every round again** from the decoded files (SUM_V 13, without decoding the
@@ -1141,6 +1147,11 @@ object* in shadow by hand, it stays there. Nothing to do.
 itself (*Inside an object, long*: the eye 0.35 m in, not 0.3 - `INSTAY_D`'s recommended value; with the eye 1 m in, his
 middle need not be; *Inside an object*: not a mine's, Claymore's or C4's kills). A site whose own set changed `INSTAY_D` keeps
 its value. Nothing to do.
+
+(v271) No decoder change (`d38e19bde4`), the hint rules unchanged (27). The statistics' code changed: `ingest.mjs` writes
+all of `data/stats` again once by itself (seconds to a minute), now with `data/stats/ev/<player>.json` (each player's
+kills and deaths, round by round: All rounds' *A kill* filter) and `data/stats/wrounds.json` (every weapon's rounds) -
+about a quarter more than `data/stats/players`. The same right as a player's page. Nothing to do.
 
 ### The hints' thresholds: the site's and each admin's own (v227)
 

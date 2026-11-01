@@ -5,6 +5,25 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v271
+
+**All rounds: several players at once, and a kill** (Sagara: «у фільтрі раундів додамо можливість обирати декількох
+гравців ... фільтр Killer Victim Weapon»). No decoder change (`d38e19bde4`), hint rules unchanged (27); the statistics
+are written again once, with two new kinds of files (the server does it by itself).
+
+- **Played together**: pick players (type a name - the list under the box offers them -, or **+** by a name Find a
+  player found): only the rounds every one of them played; the last column shows each one's kills and deaths there.
+- **A kill**: Killer, Victim, Weapon - any of them may stay empty: only the rounds with such a kill (Hadek22 → anyone,
+  anyone → -garu- with an L85A1, any Knife kill...). The last column: how many such kills, the first one's time, who
+  killed whom with what; the round's link opens it 3 s before that kill, following the killer. A name can be any name
+  the player had (his nick); several players alike: pick one under the rows. The weapon is its name as the kill feed
+  shows it - exactly, when the site has a weapon of that name ("G3" is not the G36C), else a part of it ("knife").
+- Both go into the page's address (`with`, `kk`, `kv`, `kw`), so the list can be sent as it is, and they look over every
+  round (the older months load, as for the other filters).
+- The data: `data/stats/ev/<player>.json` - each player's kills and deaths round by round - and `data/stats/wrounds.json` -
+  every weapon's rounds (§18). Checked on a test site of 21 demos against the moments search's own files: every
+  question gave the same rounds.
+
 ## v270
 
 **The archive of 01.11** (3,848 rounds by page v267; `claude/instay-archive-2026-11-01.md`; Sagara: «Роби»). No decoder

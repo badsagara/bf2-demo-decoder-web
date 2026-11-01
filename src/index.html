@@ -950,6 +950,10 @@ body.pview .stage, body.pview #ptabs, body.pview .pane, body.pview .timeline, bo
 .rfind { font: 13px var(--font-body); color: var(--fg); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 190px; }
 .rhits { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 4px 0 2px; font-size: 13px; }
 .rhits:empty { display: none; }
+.rpx > .w { font-size: 13px; color: var(--muted); }   /* (v271) Played together, A kill */
+.rfind.rpsm { min-width: 0; width: 13em; max-width: 60vw; }
+.rpchips { display: inline-flex; flex-wrap: wrap; gap: 6px; } .rpchips:empty { display: none; }
+.rphit { display: inline-flex; gap: 2px; }
 /* map layers in one menu; keys under "?" */
 .lwrap { position: relative; display: inline-flex; }
 #layBtn b { font: 600 12px var(--font-data); color: var(--accent); }
@@ -1286,7 +1290,7 @@ body.mbar-on { padding-bottom: 72px; }
 (() => {
 'use strict';
 // the viewer's version: shown next to the name in the header; the build scripts name the zips after it
-const APP_VERSION = 'v270';
+const APP_VERSION = 'v271';
 // (v196) the admins' part of the page (server/admin-round.js: the hints for admins and all that goes with them) is not in
 // this page: the admin server hands it over once an admin has logged in (adminLoad, the Admin tab), and it puts here what
 // the page calls
@@ -17462,14 +17466,16 @@ function renderRoundBar(box, R, cur, tkCell) {
 // Its filters in the link (srv, rmap, q, from, to, min, len, sort, dir: shared, and Back comes back to them); a round is a
 // link (#round=…: opened here, or in a new tab). The server and the map are session.srvF / mapF - the server also the
 // "Players · all rounds" table's. 200 rows at a time (Show more / Show all).
-const rpage = { on: false, q: '', from: '', to: '', minP: 0, minLen: 0, sort: 'date', dir: -1, n: 200 };
-const RP_STEP = 200, RP_SORTS = { date: -1, map: 1, server: 1, len: -1, players: -1, kills: -1 }, RP_KEYS = ['rounds', 'srv', 'rmap', 'q', 'from', 'to', 'min', 'len', 'sort', 'dir'];
+const rpage = { on: false, q: '', from: '', to: '', minP: 0, minLen: 0, sort: 'date', dir: -1, n: 200, with: [], kk: '', kv: '', kw: '', pick: null };
+// (v271) with: players (nicks) who were all in the round; kk / kv / kw: a kill in it - its killer, its victim (nicks), its weapon
+const RP_STEP = 200, RP_SORTS = { date: -1, map: 1, server: 1, len: -1, players: -1, kills: -1 }, RP_KEYS = ['rounds', 'srv', 'rmap', 'q', 'from', 'to', 'min', 'len', 'sort', 'dir', 'with', 'kk', 'kv', 'kw'];
 const RP_DAY = /^\d{4}-\d\d-\d\d$/;
 function rpParams() {
   const o = { rounds: '1' };
   if (session?.srvF) o.srv = session.srvF; if (session?.mapF) o.rmap = session.mapF;
   if (rpage.q.trim()) o.q = rpage.q.trim(); if (rpage.from) o.from = rpage.from; if (rpage.to) o.to = rpage.to;
   if (rpage.minP) o.min = rpage.minP; if (rpage.minLen) o.len = rpage.minLen;
+  if (rpage.with.length) o.with = rpage.with.join('\n'); if (rpage.kk) o.kk = rpage.kk; if (rpage.kv) o.kv = rpage.kv; if (rpage.kw) o.kw = rpage.kw;   // (v271; nicks one a line: a name may have any sign but that)
   if (rpage.sort !== 'date' || rpage.dir !== -1) { o.sort = rpage.sort; o.dir = rpage.dir; }
   return o;
 }
@@ -17478,6 +17484,7 @@ function rpFromHash(h) {
   session.srvF = h.get('srv') || ''; session.mapF = h.get('rmap') || ''; rpage.q = (h.get('q') || '').slice(0, 64);
   rpage.from = RP_DAY.test(h.get('from') || '') ? h.get('from') : ''; rpage.to = RP_DAY.test(h.get('to') || '') ? h.get('to') : '';
   rpage.minP = Math.max(0, Math.min(64, +h.get('min') || 0)); rpage.minLen = Math.max(0, Math.min(120, +h.get('len') || 0));
+  rpage.with = [...new Set((h.get('with') || '').split('\n').map(x => x.trim()).filter(Boolean))].slice(0, 8); rpage.kk = (h.get('kk') || '').trim().slice(0, 64); rpage.kv = (h.get('kv') || '').trim().slice(0, 64); rpage.kw = (h.get('kw') || '').trim().slice(0, 64);   // (v271)
   const so = h.get('sort'); rpage.sort = Object.hasOwn(RP_SORTS, so || '') ? so : 'date';
   rpage.dir = h.get('dir') === '1' ? 1 : h.get('dir') === '-1' ? -1 : RP_SORTS[rpage.sort];
 }
@@ -17501,7 +17508,7 @@ function closeRoundsPage(keepHash) {
 const rpRounds = () => session.rounds.filter(r => r.status === 'done' && r.sum);
 // (v264) a filter or a sort looks over every round: the older months are loaded for it (the plain list, newest first,
 // goes a month at a time: Show more)
-const rpFiltered = () => !!(session.srvF || session.mapF || rpage.q.trim() || rpage.from || rpage.to || rpage.minP || rpage.minLen || rpage.sort !== 'date' || rpage.dir !== -1);
+const rpFiltered = () => !!(session.srvF || session.mapF || rpage.q.trim() || rpage.from || rpage.to || rpage.minP || rpage.minLen || rpage.sort !== 'date' || rpage.dir !== -1 || rpage.with.length || rpage.kk || rpage.kv || rpage.kw);
 const rpPart = () => older.left.length > 0 && !older.broken;
 function rpRedraw() {
   if (!rpage.on) return; const a = document.activeElement, f = a && a.id === 'rpFind' ? [a.selectionStart, a.selectionEnd] : null;
@@ -17531,6 +17538,9 @@ function renderRoundsPage() {
       <input type="search" class="rfind" id="rpFind" placeholder="Find a player" aria-label="Find a player: his rounds and his page" autocomplete="off" spellcheck="false" maxlength="64" value="${esc(rpage.q)}">
       <button class="btn sm" id="rpReset">Reset</button>
     </div>
+    ${statsOn() ? `<div class="rpfil rpx"><span class="w" title="Only the rounds every one of them played">Played together</span><span class="rpchips" id="rpWithChips">${rpage.with.map(n => `<button class="btn sm rpchip" data-unwith="${esc(n)}" title="Take ${esc(n)} off">${esc(n)} <span aria-hidden="true">×</span></button>`).join('')}</span><input type="search" class="rfind rpsm" id="rpWithIn" list="rpNames" placeholder="${rpage.with.length ? 'and…' : 'add a player'}" aria-label="Played together: add a player" autocomplete="off" spellcheck="false" maxlength="64"></div>
+    <div class="rpfil rpx"><span class="w" title="Only the rounds with such a kill: any of the three may stay empty">A kill</span><label>Killer <input type="search" class="rfind rpsm" id="rpKk" list="rpNames" value="${esc(rpage.kk)}" placeholder="anyone" autocomplete="off" spellcheck="false" maxlength="64"></label><label>Victim <input type="search" class="rfind rpsm" id="rpKv" list="rpNames" value="${esc(rpage.kv)}" placeholder="anyone" autocomplete="off" spellcheck="false" maxlength="64"></label><label>Weapon <input type="search" class="rfind rpsm" id="rpKw" list="rpWeapons" value="${esc(rpage.kw)}" placeholder="any" autocomplete="off" spellcheck="false" maxlength="64"></label></div>
+    <div class="rhits" id="rpPick"></div><datalist id="rpNames"></datalist><datalist id="rpWeapons"></datalist>` : ''}
     <div class="rhits" id="rpHits"></div>
     <p class="rpcount" id="rpCount" aria-live="polite"></p>
     <div class="stscroll"><table class="sttab sess rpt"><thead><tr id="rpHead"></tr></thead><tbody id="rpBody"></tbody></table></div>
@@ -17544,7 +17554,8 @@ function renderRoundsPage() {
   $('#rpMin').onchange = e => set(() => { rpage.minP = +e.target.value; });
   $('#rpLen').onchange = e => set(() => { rpage.minLen = +e.target.value; });
   $('#rpFind').oninput = e => set(() => { rpage.q = e.target.value; });
-  $('#rpReset').onclick = () => { session.srvF = ''; session.mapF = ''; Object.assign(rpage, { q: '', from: '', to: '', minP: 0, minLen: 0, sort: 'date', dir: -1, n: RP_STEP }); rpHashSet(); renderRoundsPage(); renderSession(); };
+  $('#rpReset').onclick = () => { session.srvF = ''; session.mapF = ''; Object.assign(rpage, { q: '', from: '', to: '', minP: 0, minLen: 0, sort: 'date', dir: -1, n: RP_STEP, with: [], kk: '', kv: '', kw: '', pick: null }); rpHashSet(); renderRoundsPage(); renderSession(); };
+  if ($('#rpWithIn')) rpXWire();   // (v271)
   rpBackSet();
   $('#rpCsv').onclick = async () => { if (rpPart()) { await olderAll(); rpBody(); } csvSessionRounds(rpage.F || rpRounds()); };   // (v264: every month)
   rpBody(); olderNote();
@@ -17558,6 +17569,83 @@ function rpBackSet() {
   if (r) $('#rpBack').onclick = () => { closeRoundsPage(); hashSet({ round: linkId(nm) }); };
   const k = '#' + new URLSearchParams({ round: linkId(nm) }).toString();
   for (const x of document.querySelectorAll('#rpBody tr.open')) x.classList.toggle('sel', x.dataset.h === k || x.dataset.h.startsWith(k + '&'));
+}
+// ---------- (v271, Sagara) Played together and A kill ----------
+// Played together: the rounds every one of the players picked played (their files, players/<nick>.json: each his rounds).
+// A kill: the rounds with a kill by the killer, of the victim, with the weapon - any of them left empty: from the killer's
+// file (ev/<nick>.json: his kills, round by round), else the victim's (his deaths), else every weapon's rounds
+// (wrounds.json) - the server's statistics (ingest.mjs, aggEvents). A name is a player's nick (names.json: his newest
+// name and every one he had); several alike: a choice under the rows. The weapon: as the kill feed names it - the same
+// name, else a part of it ("knife", "M16")
+function rpWho(text) {
+  const s = String(text || '').trim(); if (!s) return null;
+  const o = statsGet('names.json'); if (o.wait) return { wait: true, o };
+  const L = o.data?.names || [], lo = s.toLowerCase(), nk = nickOf(s).toLowerCase();
+  const ex = L.find(([k]) => k.toLowerCase() === lo) || L.find(([, nm]) => String(nm).toLowerCase() === lo) || L.find(([k]) => k.toLowerCase() === nk);
+  if (ex) return { nick: ex[0], name: ex[1] };
+  const M = L.filter(([k, nm]) => k.toLowerCase().includes(lo) || String(nm).toLowerCase().includes(lo)).sort((a, b) => (b[2] || 0) - (a[2] || 0));
+  return M.length === 1 ? { nick: M[0][0], name: M[0][1] } : { many: M };
+}
+function rpWithData() {
+  if (!rpage.with.length || !statsOn()) return null;
+  const fs = rpage.with.map(n => statsGet('players/' + nickSlug(n) + '.json'));
+  if (fs.some(f => f.wait)) { for (const f of fs) statsThen(f, redrawList); return { wait: true }; }
+  let S = null;
+  for (const f of fs) {
+    const M = new Map((f.data?.rounds || []).map(([nm, p]) => [nm, p]));
+    if (S === null) S = new Map([...M].map(([nm, p]) => [nm, [p]]));
+    else for (const nm of [...S.keys()]) { const p = M.get(nm); if (p) S.get(nm).push(p); else S.delete(nm); }
+  }
+  return { S: S || new Map() };
+}
+function rpEventData() {
+  if (!(rpage.kk || rpage.kv || rpage.kw) || !statsOn()) return null;
+  const M = new Map(), add = (nm, t, info) => { const x = M.get(nm); if (!x) M.set(nm, { n: 1, t, ...info }); else { x.n++; if (t >= 0 && (x.t < 0 || t < x.t)) { x.t = t; Object.assign(x, info); } } };
+  // (the weapon: exactly its name when it is one of the site's weapons - "G3" is not "G36C" - else a part of the names)
+  let WG = null; if (rpage.kw) { const o = statsGet('wrounds.json'); if (o.wait) { statsThen(o, redrawList); return { wait: true }; } WG = o.data?.w?.map(x => x[0]) || null; }
+  const wMatch = W => { const wq = rpage.kw.toLowerCase(); if (!wq) return () => true; const ex = (WG || W).some(w => String(w).toLowerCase() === wq); return w => ex ? String(w).toLowerCase() === wq : String(w).toLowerCase().includes(wq); };
+  if (rpage.kk || rpage.kv) {
+    const me = rpage.kk || rpage.kv, o = statsGet('ev/' + nickSlug(me) + '.json');
+    if (o.wait) { statsThen(o, redrawList); return { wait: true }; }
+    const D = o.data; if (!D) return { M, miss: true };
+    const rows = rpage.kk ? D.k : D.d, other = rpage.kk ? rpage.kv : '', wOk = wMatch(D.W);
+    for (const [ri, t, ni, wi, tk] of rows) { if (other && D.N[ni] !== other) continue; const w = D.W[wi]; if (!wOk(w)) continue; add(D.rounds[ri], t, { k: rpage.kk ? me : D.N[ni], v: rpage.kk ? D.N[ni] : me, w, tk: !!tk }); }
+    return { M };
+  }
+  const D = statsGet('wrounds.json').data; if (!D) return { M, miss: true };
+  const wOk = wMatch(D.w.map(x => x[0]));
+  for (const [w, L] of D.w) if (wOk(w)) for (let i = 0; i + 1 < L.length; i += 2) { const nm = D.rounds[L[i]], x = M.get(nm); if (x) x.n += L[i + 1]; else M.set(nm, { n: L[i + 1], t: -1, w }); }
+  return { M };
+}
+// the name lists under the inputs (when one gets the focus: names.json - the 3000 with most rounds; the weapons)
+function rpFillNames() { const dl = $('#rpNames'); if (!dl || dl.childElementCount) return; const o = statsGet('names.json'); if (o.wait) { statsThen(o, rpFillNames); return; } dl.innerHTML = (o.data?.names || []).slice().sort((a, b) => (b[2] || 0) - (a[2] || 0)).slice(0, 3000).map(([, nm]) => `<option value="${esc(nm)}">`).join(''); }
+function rpFillWeapons() { const dl = $('#rpWeapons'); if (!dl || dl.childElementCount) return; const o = statsGet('wrounds.json'); if (o.wait) { statsThen(o, rpFillWeapons); return; } dl.innerHTML = (o.data?.w || []).map(([w]) => `<option value="${esc(w)}">`).join(''); }
+function rpXWire() {
+  const setX = f => { f(); rpage.n = RP_STEP; rpage.pick = null; rpHashSet(); rpRedraw(); };
+  const put = (role, nick) => setX(() => { if (role === 'with') { if (!rpage.with.includes(nick)) rpage.with = [...rpage.with, nick].slice(0, 8); } else rpage[role] = nick; });
+  const take = (role, el) => {
+    const v = el.value.trim();
+    if (!v) { if (role !== 'with' && rpage[role]) setX(() => { rpage[role] = ''; }); return; }
+    if (role !== 'with' && v === rpage[role]) return;
+    const w = rpWho(v);
+    if (w.wait) { statsThen(w.o, () => { if (rpage.on) take(role, el); }); return; }
+    if (w.nick) { put(role, w.nick); return; }
+    rpage.pick = { role, text: v, many: w.many.slice(0, 10), more: Math.max(0, w.many.length - 10) }; rpPickShow(put);
+  };
+  for (const [id, role] of [['#rpWithIn', 'with'], ['#rpKk', 'kk'], ['#rpKv', 'kv']]) { const el = $(id); el.addEventListener('focus', rpFillNames); el.addEventListener('change', () => take(role, el)); el.addEventListener('search', () => { if (!el.value.trim()) take(role, el); }); }
+  const kw = $('#rpKw'); kw.addEventListener('focus', rpFillWeapons);
+  const setW = () => { const v = kw.value.trim().slice(0, 64); if (v !== rpage.kw) setX(() => { rpage.kw = v; }); };
+  kw.addEventListener('change', setW); kw.addEventListener('search', () => { if (!kw.value.trim()) setW(); });
+  document.querySelectorAll('[data-unwith]').forEach(b => b.onclick = () => setX(() => { rpage.with = rpage.with.filter(n => n !== b.dataset.unwith); }));
+  rpPickShow(put);
+}
+// a name like several players': a choice of them (the most rounds first)
+function rpPickShow(put) {
+  const box = $('#rpPick'), P = rpage.pick; if (!box) return;
+  if (!P) { box.innerHTML = ''; return; }
+  const what = { with: 'Played together', kk: 'Killer', kv: 'Victim' }[P.role];
+  box.innerHTML = P.many.length ? `<span class="w">${esc(what)}: ${P.many.length + P.more} players like “${esc(P.text)}” - which one?</span>${P.many.map(([k, nm, n]) => `<button class="btn sm" data-pick="${esc(k)}">${esc(nm)} <span class="w">${n || 0}</span></button>`).join('')}${P.more ? `<span class="w">${P.more} more - type more of the name</span>` : ''}` : `<span class="w">${esc(what)}: no player like “${esc(P.text)}”.</span>`;
+  box.querySelectorAll('[data-pick]').forEach(b => b.onclick = () => put(P.role, b.dataset.pick));
 }
 // the table, the count and Show more (on their own while typing in "Find a player", so the box keeps the focus)
 function rpBody() {
@@ -17582,7 +17670,8 @@ function rpBody() {
     }
   }
   const lines = r => SQ ? (SQ.PM ? SQ.PM.get(r.name) || [] : []) : (r.sum.P || []).filter(p => p.name.toLowerCase().includes(q));
-  const has = r => !q || (SQ ? (SQ.wait || SQ.many ? true : !!SQ.PM && SQ.PM.has(r.name)) : lines(r).length > 0);
+  const WI = rpWithData(), EV = rpEventData(), xWait = !!(WI?.wait || EV?.wait);   // (v271: played together; a kill)
+  const has = r => (!q || (SQ ? (SQ.wait || SQ.many ? true : !!SQ.PM && SQ.PM.has(r.name)) : lines(r).length > 0)) && (!WI || (!WI.wait && WI.S.has(r.name))) && (!EV || (!EV.wait && EV.M.has(r.name)));
   const lo = rpage.from, hi = rpage.to, minS = rpage.minLen * 60;
   const F = L.filter(r => { const x = r.sum, d = dayKey(x.date);
     if (session.srvF && x.server !== session.srvF) return false; if (session.mapF && x.map !== session.mapF) return false;
@@ -17593,24 +17682,30 @@ function rpBody() {
   F.sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * rpage.dir || String(b.sum.date || '').localeCompare(String(a.sum.date || '')); });
   rpage.F = F;
   const nSrv = new Set(L.map(r => r.sum.server).filter(Boolean)).size, sv = !session.srvF && nSrv > 1, byDay = rpage.sort === 'date', him = q && !SQ?.many;
-  const cols = [['date', 'Started'], ['map', 'Map'], ...(sv ? [['server', 'Server']] : []), ['len', 'Length', 1], ['players', 'Players', 1], ['', 'Tickets', 1], ['', 'Won'], ['kills', 'Kills', 1], ['', him ? 'Him · K–D' : 'Best score']];
+  const lastCol = EV ? 'The kill' : WI ? 'Them · K–D' : him ? 'Him · K–D' : 'Best score';
+  const cols = [['date', 'Started'], ['map', 'Map'], ...(sv ? [['server', 'Server']] : []), ['len', 'Length', 1], ['players', 'Players', 1], ['', 'Tickets', 1], ['', 'Won'], ['kills', 'Kills', 1], ['', lastCol]];
   $('#rpHead').innerHTML = cols.map(([k, n, num]) => `<th class="${num ? 'n' : ''}${k && rpage.sort === k ? ' on' : ''}"${k ? ` aria-sort="${rpage.sort === k ? (rpage.dir < 0 ? 'descending' : 'ascending') : 'none'}"` : ''}>${k ? `<button class="sortb" data-sort="${k}">${n}${rpage.sort === k ? (rpage.dir < 0 ? ' ▾' : ' ▴') : ''}</button>` : n}</th>`).join('');
   const shown = F.slice(0, rpage.n);
   let rows = '', last = null;
   for (const x of shown) {
     const sx = x.sum, d = dayKey(sx.date);
     if (byDay && d !== last) { rows += `<tr class="day"><th colspan="${cols.length}">${esc(dayName(d, true))}</th></tr>`; last = d; }
-    const me = q ? lines(x) : [], p1 = me.length === 1 ? String(me[0].name).trim() : '';
-    const href = '#' + new URLSearchParams({ round: linkId(x.name), ...(p1 ? { p: p1 } : {}) }).toString();
+    const me = q ? lines(x) : [], ev = EV && EV.M ? EV.M.get(x.name) : null, them = WI && WI.S ? WI.S.get(x.name) || [] : [];
+    const p1 = ev && ev.k ? ev.k : them.length ? String(them[0].name).trim() : me.length === 1 ? String(me[0].name).trim() : '';
+    const href = '#' + new URLSearchParams({ round: linkId(x.name), ...(ev && ev.t >= 0 ? { t: Math.max(0, ev.t - 3) } : {}), ...(p1 ? { p: p1 } : {}) }).toString();   // (v271: at the kill, following its killer)
+    const lastTd = ev ? (ev.k ? `${ev.n > 1 ? `<span class="w">${ev.n} kills · first</span> ` : ''}${ev.t >= 0 ? `<span class="w">${fmt(ev.t)}</span> ` : ''}${esc(ev.k)} → ${esc(ev.v)} <span class="w">${esc(ev.w || '')}${ev.tk ? ' · team kill' : ''}</span>` : `${esc(ev.w || '')} <span class="w">${ev.n} kill${ev.n === 1 ? '' : 's'}</span>`)
+      : them.length ? them.map(p => `<span class="t${p.team}">${esc(p.name)}</span> <span class="w">${p.k}–${p.d}</span>`).join(' · ')
+      : me.length === 1 ? `<span class="t${me[0].team}">${esc(me[0].name)}</span> <span class="w">${me[0].k}–${me[0].d}</span>` : sx.top ? `<span class="t${sx.top.team}">${esc(sx.top.name)}</span> <span class="w">${sx.top.score}</span>` : '';
     rows += `<tr class="open${x.name === cur ? ' sel' : ''}" data-h="${esc(href)}"><td><a class="rplink" href="${esc(href)}" title="${esc(x.name)}">${esc(byDay ? clockHM(sx.date) || x.name : `${dayName(d)} · ${clockHM(sx.date)}`)}</a></td><td>${esc(mapName(sx.map))}</td>${sv ? `<td><span class="rsrv" title="${esc(sx.server || '')}">${esc(sx.server || '')}</span></td>` : ''}<td class="n" data-l="Length">${sx.duration ? fmt(sx.duration) : ''}</td><td class="n" data-l="Players">${sx.players ?? ''}</td>
-      <td class="n" data-l="Tickets">${rpTk(sx)}</td><td data-l="Won">${sx.winner != null ? `<span class="t${sx.winner}">${esc(sx.teams?.[sx.winner] || '')}</span>` : ''}</td><td class="n" data-l="Kills">${sx.kills ?? ''}</td><td data-l="${him ? 'Him' : 'Best'}">${me.length === 1 ? `<span class="t${me[0].team}">${esc(me[0].name)}</span> <span class="w">${me[0].k}–${me[0].d}</span>` : sx.top ? `<span class="t${sx.top.team}">${esc(sx.top.name)}</span> <span class="w">${sx.top.score}</span>` : ''}</td></tr>`;
+      <td class="n" data-l="Tickets">${rpTk(sx)}</td><td data-l="Won">${sx.winner != null ? `<span class="t${sx.winner}">${esc(sx.teams?.[sx.winner] || '')}</span>` : ''}</td><td class="n" data-l="Kills">${sx.kills ?? ''}</td><td data-l="${EV ? 'Kill' : WI ? 'Them' : him ? 'Him' : 'Best'}">${lastTd}</td></tr>`;
   }
-  $('#rpBody').innerHTML = rows || `<tr><td colspan="${cols.length}" class="empty">${SQ?.wait ? 'Looking for him…' : `No round${q ? ' with a player like that' : ''} with these filters.`}</td></tr>`;
-  $('#rpCount').textContent = (SQ?.wait ? 'Looking…' : SQ?.many ? `${SQ.hits.length} players with "${rpage.q.trim()}": pick one below, or type more · ${F.length} of ${total} rounds` : part && !look ? `${total} round${total === 1 ? '' : 's'} · the newest ${shown.length} shown` : `${F.length} of ${total} round${total === 1 ? '' : 's'}${q ? ' with him' : ''}${F.length > shown.length ? ` · ${shown.length} shown` : ''}`) + (look ? ' · looking in the older ones too…' : '');
+  $('#rpBody').innerHTML = rows || `<tr><td colspan="${cols.length}" class="empty">${SQ?.wait || xWait ? 'Looking…' : EV?.miss ? 'No such kills are kept for this site yet (its server is older than v271, or the statistics are being written).' : `No round${q ? ' with a player like that' : ''} with these filters.`}</td></tr>`;
+  $('#rpCount').textContent = (SQ?.wait || xWait ? 'Looking…' : SQ?.many ? `${SQ.hits.length} players with "${rpage.q.trim()}": pick one below, or type more · ${F.length} of ${total} rounds` : part && !look ? `${total} round${total === 1 ? '' : 's'} · the newest ${shown.length} shown` : `${F.length} of ${total} round${total === 1 ? '' : 's'}${q ? ' with him' : ''}${WI ? ` with ${rpage.with.length > 1 ? 'all of them' : rpage.with[0]}` : ''}${EV ? ' with such a kill' : ''}${F.length > shown.length ? ` · ${shown.length} shown` : ''}`) + (look ? ' · looking in the older ones too…' : '');
   // the players whose name has it, with their number of rounds: their pages
   let H = SQ?.hits || [];
   if (!SQ && q) { const hits = new Map(); for (const r of L) for (const pl of r.sum.P || []) if (pl.name.toLowerCase().includes(q)) { const k = nickOf(pl.name), h = hits.get(k) || { name: pl.name, n: 0 }; h.n++; hits.set(k, h); } H = [...hits].sort((a, b) => b[1].n - a[1].n); }
-  $('#rpHits').innerHTML = H.length ? `<span class="w">Player page:</span>${H.slice(0, 8).map(([k, h]) => `<a class="btn sm" href="#${esc(new URLSearchParams({ player: k }).toString())}">${esc(h.name)} <span class="w">${h.n}</span></a>`).join('')}${H.length > 8 ? `<span class="w">${H.length - 8} more</span>` : ''}` : '';
+  $('#rpHits').innerHTML = H.length ? `<span class="w">Player page:</span>${H.slice(0, 8).map(([k, h]) => `<span class="rphit"><a class="btn sm" href="#${esc(new URLSearchParams({ player: k }).toString())}">${esc(h.name)} <span class="w">${h.n}</span></a>${statsOn() && !rpage.with.includes(k) ? `<button class="btn sm" data-addwith="${esc(k)}" title="Add ${esc(h.name)} to Played together" aria-label="Add ${esc(h.name)} to Played together">+</button>` : ''}</span>`).join('')}${H.length > 8 ? `<span class="w">${H.length - 8} more</span>` : ''}` : '';
+  $('#rpHits').querySelectorAll('[data-addwith]').forEach(b => b.onclick = () => { if (!rpage.with.includes(b.dataset.addwith)) rpage.with = [...rpage.with, b.dataset.addwith].slice(0, 8); rpage.q = ''; rpage.n = RP_STEP; rpHashSet(); rpRedraw(); });   // (v271)
   const rest = F.length - shown.length, nx = part && !look ? older.left[0] : null;   // (v264: past the loaded ones - the month before)
   $('#rpMore').innerHTML = rest > 0 || nx ? `${rest > 0 ? `<button class="btn" id="rpMoreB">Show ${Math.min(RP_STEP, rest)} more</button>` : `<button class="btn" id="rpOldB" title="The rounds of ${esc(monthName(nx.m))} (loaded now)">Show ${esc(monthName(nx.m))}${nx.n ? ` · ${nx.n} rounds` : ''}</button>`}${rest > RP_STEP || nx ? `<button class="btn" id="rpAllB">Show all ${nx ? total : F.length}</button>` : ''}<span class="w">${shown.length} of ${nx ? total : F.length} shown</span>` : '';
   const more = k => { const n0 = shown.length; rpage.n = k; rpBody(); const a = $('#rpBody').querySelectorAll('a.rplink')[n0]; if (a) a.focus({ preventScroll: true }); };
@@ -17903,6 +17998,29 @@ function aggFind(R, ptsOf) {
     for (const q of L) { if (q[8] === q[9]) continue; const d = q[2] != null && q[0] != null ? Math.round(Math.hypot(q[2] - q[0], q[3] - q[1])) : -1;
       k.push([ri, q[13] != null ? Math.round(q[13]) : -1, idx(names, nI, q[8] || ''), idx(names, nI, q[9] || ''), idx(weapons, wI, q[7] || ''), d, HITN[q[12]] || 0, KIND[q[6]] || 0, idx(vehs, vI, q[14] || ''), idx(vehs, vI, q[15] || ''), q[4] && q[4] === q[5] ? 1 : 0]); } }
   return { rounds, names, weapons, vehs, k };
+}
+// (v271, Sagara: "a Killer Victim Weapon filter in the rounds") each player's kills and deaths round by round, for the All
+// rounds page: data/stats/ev/<nick>.json { rounds: [round names], N: [nicks], W: [weapons], k: [[round, second, victim,
+// weapon(, 1: a team kill)]], d: [[round, second, killer, weapon(, 1)]] } - numbers into its lists; and every weapon's rounds,
+// data/stats/wrounds.json { rounds: [names], w: [[weapon, [round, kills, round, kills, ...]]] }. One pass over every kill;
+// only (a Set of nicks): the lists of these players alone (a new round: its players' files - not every player's in memory)
+function aggEvents(RS, ptsOf, only) {
+  const P = new Map(), W = new Map(), wR = [], wRI = new Map();
+  const idx = (L, I, v) => { let i = I.get(v); if (i === undefined) { i = L.length; I.set(v, i); L.push(v); } return i; };
+  const ent = nick => { let o = P.get(nick); if (!o) { o = { rounds: [], rI: new Map(), N: [], nI: new Map(), W: [], wI: new Map(), k: [], d: [] }; P.set(nick, o); } return o; };
+  for (const r of RS) {
+    const L = ptsOf(r); if (!L) continue; const wc = new Map();
+    for (const q of L) {
+      const kn = q[8], vn = q[9]; if (!kn || !vn || kn === vn) continue;
+      const k = nickOf(kn), v = nickOf(vn), w = q[7] || '', t = q[13] != null ? Math.round(q[13]) : -1, tk = q[4] != null && q[4] === q[5];
+      if (!only || only.has(k)) { const a = ent(k), ra = [idx(a.rounds, a.rI, r.name), t, idx(a.N, a.nI, v), idx(a.W, a.wI, w)]; if (tk) ra.push(1); a.k.push(ra); }
+      if (!only || only.has(v)) { const b = ent(v), rb = [idx(b.rounds, b.rI, r.name), t, idx(b.N, b.nI, k), idx(b.W, b.wI, w)]; if (tk) rb.push(1); b.d.push(rb); }
+      if (w) wc.set(w, (wc.get(w) || 0) + 1);
+    }
+    if (wc.size) { const ri = idx(wR, wRI, r.name); for (const [w, n] of wc) { let x = W.get(w); if (!x) { x = []; W.set(w, x); } x.push(ri, n); } }
+  }
+  for (const o of P.values()) { delete o.rI; delete o.nI; delete o.wI; }
+  return { players: P, weapons: { rounds: wR, w: [...W].sort((a, b) => a[0].localeCompare(b[0])) } };
 }
 // where on a map: a grid of 48 x 48 squares over the map, the kills (where the killer was) and the deaths
 const HEAT_N = 48;
@@ -18649,7 +18767,7 @@ async function openServerRound(r) {
   if (pendingLink && pendingLink.r === r) {
     const L = pendingLink; pendingLink = null;
     if (L.t != null && round) t = Math.max(0, Math.min(round.duration, L.t));
-    if (L.p) { const i = round.players.findIndex(q => q.name.trim() === L.p); if (i >= 0) { sel = i; const q = playerAt(i, t); if (Number.isFinite(q.x)) viewAt(q.x, q.y, Math.min(view.span, 300)); } }
+    if (L.p) { let i = round.players.findIndex(q => q.name.trim() === L.p); if (i < 0) i = round.players.findIndex(q => nickOf(q.name) === L.p); /* (v271: or by his nick - the rounds page's kills) */ if (i >= 0) { sel = i; const q = playerAt(i, t); if (Number.isFinite(q.x)) viewAt(q.x, q.y, Math.min(view.span, 300)); } }
     refresh(true);
   }
 }

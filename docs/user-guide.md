@@ -247,6 +247,10 @@ like). The filters are part of the address, so you can send the list as it is, a
 (**Show September 2026 · 1,234 rounds**) and loads it. A filter, a sort, **Show all** and the player's, map's and
 statistics pages look over every round: the older months load then (a moment the first time, then from the browser's
 cache). **Older ›** at the last round loaded goes on into the month before, and a link to an older round opens it.
+(v271) **Played together**: add players (type a name and pick it from the list, or **+** by a name *Find a player* found)
+- only the rounds every one of them played, with each one's kills and deaths. **A kill**: a Killer, a Victim and a Weapon
+(any may stay empty) - only the rounds with such a kill; the round's link opens it just before that kill, following the
+killer. A name like several players' gives a choice of them under the rows.
 
 ## A player's page
 
