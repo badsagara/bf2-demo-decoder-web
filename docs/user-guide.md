@@ -368,8 +368,17 @@ separately with the map's shapes (and only on the 22 maps whose files the site h
 **The round I played isn't there.** Rounds appear a few minutes after they end, once the server has published the demo.
 Rounds with fewer than 2 players on the field are not kept. Ask the site's owner whether your server is a source.
 
-**Is anything stored about me?** Only what the game server's demo records (names, positions, kills, scores) and the
-numbers worked out from it. Your theme, column and clip choices are remembered in your own browser only.
+**Is anything stored about me?**
+- From the game servers' demos: your name, where you went, your kills and scores, and the numbers worked out from them -
+  what the site shows.
+- With an account: its name, your password as a hash (never the password itself), your map settings - Show ▾'s
+  switches, pins and your presets - in your profile on the site's server (that is how they follow you to any computer),
+  and your logins while they last, with the address each came from. A deleted account takes its settings with it -
+  **Delete my account** (an account you made yourself), or ask the site's owner.
+- In your browser only: the theme, the table columns, the clip settings, and a copy of your map settings.
+- The server's logs: the address of each visit, and of each login and sign-up.
+- For the site's admins only: hints about suspicious play, and their marks and notes on rounds and players when they
+  check a round.
 
 **Where do the pictures come from? Is this an official site?** No, it is a free fan site, not endorsed by or affiliated
 with EA or its licensors. The map pictures, icons and the HUD's look come from Battlefield 2's own files, the sharp maps

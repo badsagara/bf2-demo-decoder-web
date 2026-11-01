@@ -409,7 +409,13 @@ Set on the admin page, card **Users and access** ([admin-guide.md](admin-guide.m
 
 ## Privacy and security
 
-- Visitors' choices (theme, columns, clip settings, layers) are kept only in their own browser.
+- Visitors' choices (theme, columns, clip settings) are kept only in their own browser. The map's settings (Show ▾: its
+  switches, pins and presets) too, and for a logged-in account also in its profile on the VPS (`data/.prefs/<name>.json`,
+  since v239 - [above](#who-may-open-what)); a deleted account - by himself or by the site's owner - takes them with it.
+- What the VPS keeps about people besides the rounds: accounts (name, scrypt hash of the password, rights), the logins
+  while they last with the address each came from (`data/.sessions.json`), the services' journal (each login and sign-up
+  with its address), the web server's log (`/var/log/caddy/bf2replay.log`: each request with its address), and the
+  admins' marks and notes on rounds and players (`data/.admin/review`, admins only).
 - The admins' code, the hint rules and all admin data are not in the public page or folders; they are served only to an
   account with the Admin tab. Its servers' rounds only.
 - The site can be closed to visitors who are not logged in, as a whole or in parts ([above](#who-may-open-what)).

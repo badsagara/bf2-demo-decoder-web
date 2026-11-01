@@ -5,6 +5,20 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v269
+
+**What the site keeps about people, told right** (todo 331, point 9; Sagara, 2026-11-01: «Давай зробимо»). Documents
+only: the code is v268's, the page shows the new number and nothing else changes (no decoder, hint or summary change:
+nothing is decoded, analysed or written again).
+
+- **User guide, "Is anything stored about me?"** said a visitor's choices stay in his own browser only - since v239 an
+  account's map settings (Show ▾'s switches, pins, presets) are kept in its profile on the server too. It now lists all of
+  it: what the demos record, an account (name, the password's hash, the map settings, the logins with their addresses -
+  and that a deleted account takes its settings with it), what stays in the browser, the server's logs (each visit's,
+  login's and sign-up's address), and the admins' hints, marks and notes (admins only).
+- **features.md, Privacy and security**: the same, with the files on the VPS (`data/.prefs`, `data/.sessions.json`, the
+  services' journal, `/var/log/caddy/bf2replay.log`, `data/.admin/review`).
+
 ## v268
 
 **EA's notice, credits and licences, the site's own icon and fonts** (todo 331; Sagara, 2026-11-01: «Так, роби всі
