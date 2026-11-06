@@ -5,6 +5,31 @@ update the server does by itself whatever a version needs: decoding again when t
 every round up again when the round summaries changed (`SUM_V`), and the background analysis going over every round again
 when the hint rules changed (`HINTS_V`).
 
+## v273
+
+**Ammo: a revive gives the kit back full** (Sagara: «Давай варіант 1» - two wrong hints on Karkand 05.11 19:32). No
+decoder change (`d38e19bde4`); hint rules version 29 (the server looks at every round again by itself).
+
+- =FL= IceyPheonix had "5 × Claymore" and "11 × Grenade in one life" as a sniper, 10:24–19:41 - but he was revived three
+  times in that life (12:13, 13:41, 17:33), and between the revives he threw 1 | 2 | 0 | 2 claymores (the kit holds 2)
+  and 3 | 4 | 4 | 0 grenades (it holds 4), with no bag, support, crate or picked-up kit near him. Now the count starts
+  again at his revive, as at a spawn: both hints are gone. The card says "N × X since his revive at mm:ss" when it counts
+  from one.
+- 23 test demos: 32 lives went over what the kit holds with nothing else near, only revives in them - and each piece
+  between the revives stayed within the kit (4 + 4 grenades, 2 + 2 claymores, 5 + 3 SRAW...): a revive gives the
+  grenades, claymores and rockets back. No other hint changes.
+
+## v272
+
+**Endless ammo: a revive counts as one more load of magazines** (Sagara: «Давай варіант 2» - a wrong hint on Karkand
+05.11 21:04). No decoder change (`d38e19bde4`); hint rules version 28 (the server looks at every round again by itself).
+
+- SoSiSkA, a medic, was revived 6 times in one life (25:41–31:34) and changed the AK-101's magazine 8 times - it has 5.
+  Three of the 8 came right after a revive, and nothing else was near her: no support of her side within 145 m, no ammo
+  bag of her side, no crate, the same kit (the kits she picked up and the bag she stood on came right after, at
+  31:39–32:18 - a new life for the rule). Now each revive in the life counts as one more load, as a bag or a crate does:
+  her hint is gone. 22 test demos: 1,385 lives with a reload, nobody else past his magazines - no other hint changes.
+
 ## v271
 
 **All rounds: several players at once, and a kill** (Sagara: «у фільтрі раундів додамо можливість обирати декількох

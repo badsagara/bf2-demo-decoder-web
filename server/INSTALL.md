@@ -1153,6 +1153,13 @@ all of `data/stats` again once by itself (seconds to a minute), now with `data/s
 kills and deaths, round by round: All rounds' *A kill* filter) and `data/stats/wrounds.json` (every weapon's rounds) -
 about a quarter more than `data/stats/players`. The same right as a player's page. Nothing to do.
 
+(v272) No decoder change (`d38e19bde4`). Hint rules version 28: the background analysis looks at every round again by
+itself (Endless ammo: a revive in the life is one more load of magazines). No new threshold. Nothing to do.
+
+(v273) No decoder change (`d38e19bde4`). Hint rules version 29: the background analysis looks at every round again by
+itself (Ammo: a revive gives the kit back full - grenades, claymores, rockets counted again from it). No new threshold.
+Nothing to do.
+
 ### The hints' thresholds: the site's and each admin's own (v227)
 
 Every threshold of the hints (208 of 65 hints since v267: times, angles, distances, counts, odds) can be set from the site's page:
